@@ -19,10 +19,21 @@ from app.core.config import settings
 
 router = APIRouter()
 
+# Resolved absolute upload root — used for path-traversal checks (C3)
+_UPLOAD_ROOT: Optional[Path] = None
 
-async def ensure_upload_dir():
-    """Ensure the upload directory exists."""
-    upload_path = Path(settings.UPLOAD_DIR)
+
+def get_upload_root() -> Path:
+    """Return the resolved (canonical) absolute upload root path."""
+    global _UPLOAD_ROOT
+    if _UPLOAD_ROOT is None:
+        _UPLOAD_ROOT = Path(settings.UPLOAD_DIR).resolve()
+    return _UPLOAD_ROOT
+
+
+async def ensure_upload_dir() -> Path:
+    """Ensure the upload directory exists and return its resolved path."""
+    upload_path = get_upload_root()
     upload_path.mkdir(parents=True, exist_ok=True)
     return upload_path
 
@@ -36,47 +47,69 @@ async def upload_file(
 ):
     """
     Upload a file artifact (trace, log, etc.).
-    
-    Files are stored with a unique filename and can be associated with
+
+    Files are stored with a UUID filename and can be associated with
     a test case and/or test run.
     """
+    # H4: Validate MIME type against allowlist
+    content_type = file.content_type or "application/octet-stream"
+    if content_type not in settings.ALLOWED_UPLOAD_MIME_TYPES:
+        raise HTTPException(
+            status_code=415,
+            detail=(
+                f"Unsupported media type '{content_type}'. "
+                f"Allowed types: {', '.join(settings.ALLOWED_UPLOAD_MIME_TYPES)}"
+            ),
+        )
+
     # Check file size
-    file_size = 0
     content = await file.read()
     file_size = len(content)
-    
+
     if file_size > settings.MAX_UPLOAD_SIZE:
         raise HTTPException(
             status_code=413,
             detail=f"File too large. Maximum size is {settings.MAX_UPLOAD_SIZE} bytes",
         )
-    
-    # Generate unique filename
-    ext = Path(file.filename).suffix if file.filename else ""
+
+    # Generate a UUID-only filename — never use the client-supplied filename
+    # as part of the storage path (C3: prevents path traversal / directory injection)
+    ext = ""
+    if file.filename:
+        suffix = Path(file.filename).suffix
+        # Only allow simple alphanumeric extensions to avoid tricks like ".php\0.txt"
+        if suffix and suffix[1:].isalnum() and len(suffix) <= 10:
+            ext = suffix.lower()
+
     unique_filename = f"{uuid.uuid4()}{ext}"
-    
+
     # Save file
     upload_dir = await ensure_upload_dir()
     storage_path = upload_dir / unique_filename
-    
-    async with aiofiles.open(storage_path, "wb") as f:
+
+    # C3: Verify the resolved storage path is still inside the upload root
+    resolved_storage = storage_path.resolve()
+    if not str(resolved_storage).startswith(str(upload_dir)):
+        raise HTTPException(status_code=400, detail="Invalid file path.")
+
+    async with aiofiles.open(resolved_storage, "wb") as f:
         await f.write(content)
-    
-    # Create database record
+
+    # Create database record — store only the relative filename, not the full path
     artifact = Artifact(
         filename=unique_filename,
         original_filename=file.filename or "unknown",
-        content_type=file.content_type or "application/octet-stream",
+        content_type=content_type,
         size_bytes=file_size,
-        storage_path=str(storage_path),
+        storage_path=unique_filename,  # relative to UPLOAD_DIR; never store full FS path
         test_case=test_case,
         test_run_id=run_id,
     )
-    
+
     db.add(artifact)
     await db.flush()
     await db.refresh(artifact)
-    
+
     return artifact
 
 
@@ -92,15 +125,23 @@ async def download_artifact(
         select(Artifact).where(Artifact.id == artifact_id)
     )
     artifact = result.scalar_one_or_none()
-    
+
     if not artifact:
         raise HTTPException(status_code=404, detail="Artifact not found")
-    
-    if not os.path.exists(artifact.storage_path):
+
+    # C3: Reconstruct the full path from the trusted upload root + relative filename
+    upload_root = get_upload_root()
+    storage_path = (upload_root / artifact.storage_path).resolve()
+
+    # Double-check the resolved path is inside the upload root (defense-in-depth)
+    if not str(storage_path).startswith(str(upload_root)):
+        raise HTTPException(status_code=400, detail="Invalid artifact path.")
+
+    if not storage_path.exists():
         raise HTTPException(status_code=404, detail="File not found on disk")
-    
+
     return FileResponse(
-        path=artifact.storage_path,
+        path=str(storage_path),
         filename=artifact.original_filename,
         media_type=artifact.content_type,
     )
@@ -118,10 +159,10 @@ async def get_artifact_info(
         select(Artifact).where(Artifact.id == artifact_id)
     )
     artifact = result.scalar_one_or_none()
-    
+
     if not artifact:
         raise HTTPException(status_code=404, detail="Artifact not found")
-    
+
     return artifact
 
 
@@ -137,13 +178,15 @@ async def delete_artifact(
         select(Artifact).where(Artifact.id == artifact_id)
     )
     artifact = result.scalar_one_or_none()
-    
+
     if not artifact:
         raise HTTPException(status_code=404, detail="Artifact not found")
-    
-    # Delete file from disk
-    if os.path.exists(artifact.storage_path):
-        os.remove(artifact.storage_path)
-    
-    # Delete database record
+
+    # C3: Resolve path safely before deletion
+    upload_root = get_upload_root()
+    storage_path = (upload_root / artifact.storage_path).resolve()
+
+    if str(storage_path).startswith(str(upload_root)) and storage_path.exists():
+        os.remove(storage_path)
+
     await db.delete(artifact)
