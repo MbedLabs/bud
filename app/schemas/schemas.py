@@ -2,7 +2,7 @@
 Pydantic schemas for API request/response validation.
 """
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 from enum import Enum
@@ -46,11 +46,15 @@ class ProductResponse(ProductBase):
 # ==================== Runner Schemas ====================
 
 class RunnerRegister(BaseModel):
-    """Schema for runner registration."""
-    username: str = Field(..., min_length=3, max_length=100)
-    password: str = Field(..., min_length=8)
+    """Schema for runner registration.
+
+    M2: Enforce strict length limits and character constraints on username/password.
+    """
+    # M2: tighter max_length and explicit pattern to avoid control chars / injection
+    username: str = Field(..., min_length=3, max_length=50, pattern=r"^[a-zA-Z0-9_\-]+$")
+    password: str = Field(..., min_length=12, max_length=128)
     socket_port: int = Field(default=53035, ge=1024, le=65535)
-    location: Optional[str] = None
+    location: Optional[str] = Field(default=None, max_length=255)
 
 
 class RunnerResponse(BaseModel):
@@ -76,7 +80,8 @@ class RunnerToken(BaseModel):
 
 class RunnerHeartbeat(BaseModel):
     """Schema for runner heartbeat."""
-    runner_account: str
+    # M2: limit account field length to match DB constraint
+    runner_account: str = Field(..., min_length=3, max_length=50)
 
 
 # ==================== Test Run Schemas ====================
