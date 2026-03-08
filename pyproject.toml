@@ -24,6 +24,7 @@ dependencies = [
     "python-multipart>=0.0.6",
     "aiofiles>=23.2.0",
     "httpx>=0.25.0",
+    "slowapi>=0.1.9",
 ]
 
 [project.optional-dependencies]
