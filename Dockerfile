@@ -8,14 +8,12 @@ RUN apt-get update && apt-get install -y \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements
-COPY pyproject.toml .
+# Copy package metadata and source before install
+COPY pyproject.toml README.md ./
+COPY app/ app/
 
 # Install Python dependencies
-RUN pip install --no-cache-dir -e .
-
-# Copy application code
-COPY app/ app/
+RUN pip install --no-cache-dir .
 
 # Create upload directory
 RUN mkdir -p /app/uploads
