@@ -55,7 +55,7 @@ docker run -p 8000:8000 bud-app-backend
 
 ## Related Repos
 
-- Frontend: [MufeIO/bud-app-frontend](https://github.com/MufeIO/bud-app-frontend)
+- Frontend: [MbedLabs/bud-app-frontend](https://github.com/MbedLabs/bud-app-frontend)
 
 ## License
 

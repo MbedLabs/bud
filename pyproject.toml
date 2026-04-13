@@ -3,10 +3,10 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "bud-webapp-backend"
+name = "bud-app-backend"
 version = "0.1.0"
 description = "Backend API for bud.embedlabs.de test automation platform"
-readme = "../README.md"
+readme = "README.md"
 license = {text = "MIT"}
 authors = [
     {name = "EmbedLabs", email = "dev@embedlabs.de"}
@@ -38,7 +38,7 @@ dev = [
 
 [project.urls]
 Homepage = "https://bud.embedlabs.de"
-Repository = "https://github.com/embedlabs/bud-webapp"
+Repository = "https://github.com/MbedLabs/bud-app-backend"
 
 [tool.setuptools.packages.find]
 where = ["."]
