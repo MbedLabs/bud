@@ -15,6 +15,8 @@ from app.models import Runner
 from app.schemas import RunnerRegister, RunnerResponse, RunnerToken, RunnerHeartbeat
 from app.core.security import get_password_hash, generate_runner_token
 from app.core.deps import limiter, require_runner_api_key
+from app.api.auth import get_current_user
+from app.models.user import User
 
 router = APIRouter()
 
@@ -100,6 +102,7 @@ async def runner_heartbeat(
 @router.get("/status")
 async def get_runner_status(
     db: AsyncSession = Depends(get_db),
+    _current_user: User = Depends(get_current_user),
 ):
     """
     Get status of all runners.
@@ -137,6 +140,7 @@ async def get_runner_status(
 async def get_runner(
     account: str,
     db: AsyncSession = Depends(get_db),
+    _current_user: User = Depends(get_current_user),
 ):
     """
     Get a runner by account name.

@@ -10,6 +10,8 @@ from typing import List
 from app.db import get_db
 from app.models import TestResult, TestRun
 from app.schemas import TestResultCreate, TestResultResponse, ResultsUpload
+from app.api.auth import get_current_user
+from app.models.user import User
 
 router = APIRouter()
 
@@ -18,6 +20,7 @@ router = APIRouter()
 async def upload_results(
     data: ResultsUpload,
     db: AsyncSession = Depends(get_db),
+    _current_user: User = Depends(get_current_user),
 ):
     """
     Upload test results.
@@ -35,7 +38,7 @@ async def upload_results(
             error_message=result_data.error_message,
             traceback=result_data.traceback,
             assertions=result_data.assertions,
-            metadata=result_data.metadata,
+            result_metadata=result_data.metadata,
             work_package_id=result_data.work_package_id,
             test_run_id=data.test_run_id,
         )
@@ -69,6 +72,7 @@ async def upload_results(
 async def get_results_for_run(
     run_id: int,
     db: AsyncSession = Depends(get_db),
+    _current_user: User = Depends(get_current_user),
 ):
     """
     Get all results for a test run.
@@ -95,6 +99,7 @@ async def get_results_for_run(
 async def get_result(
     result_id: int,
     db: AsyncSession = Depends(get_db),
+    _current_user: User = Depends(get_current_user),
 ):
     """
     Get a single test result by ID.
