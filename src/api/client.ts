@@ -9,6 +9,74 @@ export const api = axios.create({
   },
 })
 
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('bud_token')
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  return config
+})
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('bud_token')
+      window.location.href = '/login'
+    }
+    return Promise.reject(error)
+  }
+)
+
+export interface User {
+  id: number
+  email: string
+  full_name: string
+  role: 'admin' | 'user'
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface LoginResponse {
+  access_token: string
+  token_type: string
+  user: User
+}
+
+export const authApi = {
+  login: async (email: string, password: string): Promise<LoginResponse> => {
+    const response = await api.post<LoginResponse>('/auth/login', { email, password })
+    return response.data
+  },
+  getMe: async (): Promise<User> => {
+    const response = await api.get<User>('/auth/me')
+    return response.data
+  },
+  updateMe: async (data: { full_name?: string; email?: string }): Promise<User> => {
+    const response = await api.put<User>('/auth/me', data)
+    return response.data
+  },
+}
+
+export const usersApi = {
+  list: async (): Promise<User[]> => {
+    const response = await api.get<User[]>('/users')
+    return response.data
+  },
+  create: async (data: { email: string; full_name: string; password: string }): Promise<User> => {
+    const response = await api.post<User>('/users', data)
+    return response.data
+  },
+  update: async (id: number, data: { full_name?: string; email?: string; role?: string; is_active?: boolean }): Promise<User> => {
+    const response = await api.patch<User>(`/users/${id}`, data)
+    return response.data
+  },
+  delete: async (id: number): Promise<void> => {
+    await api.delete(`/users/${id}`)
+  },
+}
+
 // Types
 export interface TestRun {
   id: number

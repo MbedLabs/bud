@@ -1,9 +1,12 @@
 import { Routes, Route, Link } from 'react-router-dom'
 import Layout from './components/Layout'
+import ProtectedRoute from './components/ProtectedRoute'
+import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import TestRuns from './pages/TestRuns'
 import TestRunDetail from './pages/TestRunDetail'
 import TestStations from './pages/TestStations'
+import Users from './pages/Users'
 import Settings from './pages/Settings'
 
 function NotFound() {
@@ -24,12 +27,14 @@ function NotFound() {
 function App() {
   return (
     <Routes>
-      <Route path="/" element={<Layout />}>
+      <Route path="/login" element={<Login />} />
+      <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         <Route index element={<Dashboard />} />
         <Route path="runs" element={<TestRuns />} />
         <Route path="runs/:id" element={<TestRunDetail />} />
         <Route path="test-stations" element={<TestStations />} />
         <Route path="settings" element={<Settings />} />
+        <Route path="users" element={<Users />} />
         <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>
