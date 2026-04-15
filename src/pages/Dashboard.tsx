@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { testRunsApi, runnersApi } from '../api/client'
-import { CheckCircle, XCircle, PlayCircle, Server } from 'lucide-react'
+import { testRunsApi, testStationsApi } from '../api/client'
+import { CheckCircle, XCircle, PlayCircle, Server, TrendingUp, Activity } from 'lucide-react'
 
 export default function Dashboard() {
   const { data: testRunsData, isLoading: runsLoading } = useQuery({
@@ -10,78 +10,106 @@ export default function Dashboard() {
   })
 
   const { data: runnersData, isLoading: runnersLoading } = useQuery({
-    queryKey: ['runners'],
-    queryFn: runnersApi.status,
+    queryKey: ['testStations'],
+    queryFn: testStationsApi.status,
   })
 
   const runs = testRunsData?.runs || []
   const runners = runnersData?.runners || []
 
-  // Calculate stats
   const totalRuns = testRunsData?.total || 0
   const passedRuns = runs.filter(r => r.status === 'Completed' && r.failed_tests === 0).length
   const failedRuns = runs.filter(r => r.status === 'Failed' || r.failed_tests > 0).length
   const onlineRunners = runners.filter(r => r.is_online).length
 
+  const passRate = totalRuns > 0
+    ? Math.round((passedRuns / Math.max(totalRuns, 1)) * 100)
+    : 0
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Total Test Runs"
           value={totalRuns}
           icon={PlayCircle}
-          color="bg-blue-500"
+          gradient="from-primary to-teal-700"
         />
         <StatCard
           title="Passed"
           value={passedRuns}
           icon={CheckCircle}
-          color="bg-green-500"
+          gradient="from-emerald-500 to-emerald-700"
         />
         <StatCard
           title="Failed"
           value={failedRuns}
           icon={XCircle}
-          color="bg-red-500"
+          gradient="from-red-500 to-red-700"
         />
         <StatCard
-          title="Online Runners"
+          title="Test Stations Online"
           value={`${onlineRunners}/${runners.length}`}
           icon={Server}
-          color="bg-purple-500"
+          gradient="from-cyan-500 to-teal-700"
+          subtitle={onlineRunners === runners.length && runners.length > 0 ? 'All stations online' : undefined}
         />
       </div>
 
+      {/* Pass Rate Bar */}
+      <div className="bg-card rounded-lg border border-border shadow-elegant p-5">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <TrendingUp className="h-4 w-4 text-primary" />
+            <span className="text-sm font-medium text-foreground">Overall Pass Rate</span>
+          </div>
+          <span className={`text-2xl font-bold ${
+            passRate >= 80 ? 'text-emerald-600 dark:text-emerald-400' : passRate >= 50 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'
+          }`}>{passRate}%</span>
+        </div>
+        <div className="h-3 bg-muted rounded-full overflow-hidden">
+          <div
+            className={`h-full rounded-full transition-all duration-1000 ease-smooth ${
+              passRate >= 80 ? 'bg-gradient-to-r from-emerald-500 to-teal-400' : passRate >= 50 ? 'bg-gradient-to-r from-amber-500 to-amber-400' : 'bg-gradient-to-r from-red-500 to-red-400'
+            }`}
+            style={{ width: `${passRate}%` }}
+          />
+        </div>
+      </div>
+
       {/* Recent Test Runs */}
-      <div className="bg-white rounded-lg shadow">
-        <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-          <h3 className="text-lg font-semibold">Recent Test Runs</h3>
-          <Link to="/runs" className="text-sm text-primary-600 hover:text-primary-700">
-            View all →
+      <div className="bg-card rounded-lg border border-border shadow-elegant overflow-hidden">
+        <div className="px-5 py-4 border-b border-border flex justify-between items-center">
+          <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+            <Activity className="h-4 w-4 text-primary" />
+            Recent Test Runs
+          </h3>
+          <Link to="/runs" className="text-xs font-medium text-primary hover:text-primary/80 transition-colors">
+            View all &rarr;
           </Link>
         </div>
-        
+
         {runsLoading ? (
-          <div className="p-6 text-center text-gray-500">Loading...</div>
+          <div className="p-8 text-center text-muted-foreground">Loading...</div>
         ) : runs.length === 0 ? (
-          <div className="p-6 text-center text-gray-500">No test runs yet</div>
+          <div className="p-8 text-center text-muted-foreground">No test runs yet</div>
         ) : (
-          <div className="divide-y divide-gray-200">
+          <div className="divide-y divide-border">
             {runs.map((run) => (
               <Link
                 key={run.id}
                 to={`/runs/${run.id}`}
-                className="block px-6 py-4 hover:bg-gray-50 transition-colors"
+                className="block px-5 py-3.5 hover:bg-accent/50 transition-colors duration-150 group"
               >
                 <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium text-gray-900">{run.name}</p>
-                    <p className="text-sm text-gray-500">{run.test_case_list}</p>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-foreground group-hover:text-primary transition-colors truncate">{run.name}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{run.test_case_list}</p>
                   </div>
-                  <div className="flex items-center space-x-4">
+                  <div className="flex items-center gap-3 ml-4 flex-shrink-0">
                     <StatusBadge status={run.status} />
-                    <div className="text-sm text-gray-500">
+                    <div className="text-xs text-muted-foreground">
                       {run.passed_tests}/{run.total_tests} passed
                     </div>
                   </div>
@@ -92,33 +120,36 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* Runners Status */}
-      <div className="bg-white rounded-lg shadow">
-        <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-          <h3 className="text-lg font-semibold">Runner Status</h3>
-          <Link to="/runners" className="text-sm text-primary-600 hover:text-primary-700">
-            Manage →
+      {/* Test Station Status */}
+      <div className="bg-card rounded-lg border border-border shadow-elegant overflow-hidden">
+        <div className="px-5 py-4 border-b border-border flex justify-between items-center">
+          <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+            <Server className="h-4 w-4 text-primary" />
+            Test Station Status
+          </h3>
+          <Link to="/test-stations" className="text-xs font-medium text-primary hover:text-primary/80 transition-colors">
+            Manage &rarr;
           </Link>
         </div>
-        
+
         {runnersLoading ? (
-          <div className="p-6 text-center text-gray-500">Loading...</div>
+          <div className="p-8 text-center text-muted-foreground">Loading...</div>
         ) : runners.length === 0 ? (
-          <div className="p-6 text-center text-gray-500">No runners registered</div>
+          <div className="p-8 text-center text-muted-foreground">No test stations registered</div>
         ) : (
-          <div className="divide-y divide-gray-200">
+          <div className="divide-y divide-border">
             {runners.map((runner) => (
-              <div key={runner.account} className="px-6 py-4 flex items-center justify-between">
-                <div className="flex items-center">
-                  <div className={`w-3 h-3 rounded-full mr-3 ${
-                    runner.is_online ? 'bg-green-500' : 'bg-gray-400'
+              <div key={runner.account} className="px-5 py-3.5 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className={`w-2.5 h-2.5 rounded-full ${
+                    runner.is_online ? 'bg-emerald-500 animate-pulse' : 'bg-muted-foreground/30'
                   }`} />
                   <div>
-                    <p className="font-medium text-gray-900">{runner.account}</p>
-                    <p className="text-sm text-gray-500">{runner.location || 'Unknown location'}</p>
+                    <p className="font-medium text-foreground text-sm">{runner.account}</p>
+                    <p className="text-xs text-muted-foreground">{runner.location || 'Unknown location'}</p>
                   </div>
                 </div>
-                <span className={`text-sm ${runner.is_online ? 'text-green-600' : 'text-gray-500'}`}>
+                <span className={`text-xs font-medium ${runner.is_online ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>
                   {runner.is_online ? 'Online' : 'Offline'}
                 </span>
               </div>
@@ -130,21 +161,23 @@ export default function Dashboard() {
   )
 }
 
-function StatCard({ title, value, icon: Icon, color }: {
+function StatCard({ title, value, icon: Icon, gradient, subtitle }: {
   title: string
   value: number | string
   icon: React.ComponentType<{ className?: string }>
-  color: string
+  gradient: string
+  subtitle?: string
 }) {
   return (
-    <div className="bg-white rounded-lg shadow p-6">
-      <div className="flex items-center">
-        <div className={`p-3 rounded-lg ${color}`}>
-          <Icon className="h-6 w-6 text-white" />
+    <div className="bg-card rounded-lg border border-border shadow-elegant hover:shadow-glow transition-shadow duration-300 p-5">
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{title}</p>
+          <p className="text-3xl font-bold text-foreground mt-2">{value}</p>
+          {subtitle && <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1">{subtitle}</p>}
         </div>
-        <div className="ml-4">
-          <p className="text-sm text-gray-500">{title}</p>
-          <p className="text-2xl font-semibold text-gray-900">{value}</p>
+        <div className={`p-2.5 rounded-lg bg-gradient-to-br ${gradient}`}>
+          <Icon className="h-5 w-5 text-white" />
         </div>
       </div>
     </div>
@@ -152,16 +185,16 @@ function StatCard({ title, value, icon: Icon, color }: {
 }
 
 function StatusBadge({ status }: { status: string }) {
-  const colors: Record<string, string> = {
-    Pending: 'bg-gray-100 text-gray-800',
-    Running: 'bg-blue-100 text-blue-800',
-    Completed: 'bg-green-100 text-green-800',
-    Failed: 'bg-red-100 text-red-800',
-    Cancelled: 'bg-yellow-100 text-yellow-800',
+  const config: Record<string, string> = {
+    Pending: 'bg-muted text-muted-foreground',
+    Running: 'bg-primary/10 text-primary',
+    Completed: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',
+    Failed: 'bg-red-500/10 text-red-700 dark:text-red-400',
+    Cancelled: 'bg-amber-500/10 text-amber-700 dark:text-amber-400',
   }
 
   return (
-    <span className={`px-2 py-1 rounded-full text-xs font-medium ${colors[status] || colors.Pending}`}>
+    <span className={`px-2 py-0.5 rounded-md text-[11px] font-semibold ${config[status] || config.Pending}`}>
       {status}
     </span>
   )

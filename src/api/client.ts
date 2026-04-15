@@ -47,7 +47,7 @@ export interface TestResult {
   artifacts?: string[]
 }
 
-export interface Runner {
+export interface TestStation {
   account: string
   is_online: boolean
   is_active: boolean
@@ -81,9 +81,9 @@ export const resultsApi = {
   },
 }
 
-export const runnersApi = {
+export const testStationsApi = {
   status: async () => {
-    const response = await api.get<{ runners: Runner[] }>('/runners/status')
+    const response = await api.get<{ runners: TestStation[] }>('/runners/status')
     return response.data
   },
 }
