@@ -16,6 +16,8 @@ from app.schemas import (
     TestRunResponse,
     TestRunList,
 )
+from app.api.auth import get_current_user
+from app.models.user import User
 
 router = APIRouter()
 
@@ -24,6 +26,7 @@ router = APIRouter()
 async def create_test_run(
     data: TestRunCreate,
     db: AsyncSession = Depends(get_db),
+    _current_user: User = Depends(get_current_user),
 ):
     """
     Create a new test run.
@@ -64,6 +67,7 @@ async def list_test_runs(
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_db),
+    _current_user: User = Depends(get_current_user),
 ):
     """
     List test runs with optional filtering and pagination.
@@ -97,6 +101,7 @@ async def list_test_runs(
 async def get_test_run(
     run_id: int,
     db: AsyncSession = Depends(get_db),
+    _current_user: User = Depends(get_current_user),
 ):
     """
     Get a test run by ID.
@@ -117,6 +122,7 @@ async def update_test_run(
     run_id: int,
     data: TestRunUpdate,
     db: AsyncSession = Depends(get_db),
+    _current_user: User = Depends(get_current_user),
 ):
     """
     Update a test run with results or status.
@@ -156,6 +162,7 @@ async def update_test_run(
 async def delete_test_run(
     run_id: int,
     db: AsyncSession = Depends(get_db),
+    _current_user: User = Depends(get_current_user),
 ):
     """
     Delete a test run.

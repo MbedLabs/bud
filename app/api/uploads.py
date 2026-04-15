@@ -16,6 +16,8 @@ from app.db import get_db
 from app.models import Artifact
 from app.schemas import ArtifactResponse
 from app.core.config import settings
+from app.api.auth import get_current_user
+from app.models.user import User
 
 router = APIRouter()
 
@@ -44,6 +46,7 @@ async def upload_file(
     test_case: Optional[str] = Form(None),
     run_id: Optional[int] = Form(None),
     db: AsyncSession = Depends(get_db),
+    _current_user: User = Depends(get_current_user),
 ):
     """
     Upload a file artifact (trace, log, etc.).
@@ -117,6 +120,7 @@ async def upload_file(
 async def download_artifact(
     artifact_id: int,
     db: AsyncSession = Depends(get_db),
+    _current_user: User = Depends(get_current_user),
 ):
     """
     Download an artifact by ID.
@@ -151,6 +155,7 @@ async def download_artifact(
 async def get_artifact_info(
     artifact_id: int,
     db: AsyncSession = Depends(get_db),
+    _current_user: User = Depends(get_current_user),
 ):
     """
     Get artifact metadata without downloading.
@@ -170,6 +175,7 @@ async def get_artifact_info(
 async def delete_artifact(
     artifact_id: int,
     db: AsyncSession = Depends(get_db),
+    _current_user: User = Depends(get_current_user),
 ):
     """
     Delete an artifact.

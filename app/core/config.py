@@ -57,6 +57,11 @@ class Settings(BaseSettings):
     # C2: Shared API key for runner-registration mutations (must be set in production)
     RUNNER_API_KEY: str = ""
 
+    # Default admin user (seeded on first startup)
+    ADMIN_EMAIL: str = "admin@embedlabs.de"
+    ADMIN_PASSWORD: str = "changeme123"
+    ADMIN_FULL_NAME: str = "Admin"
+
     # Runner settings
     RUNNER_HEARTBEAT_TIMEOUT: int = 120  # seconds
 

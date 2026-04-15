@@ -10,21 +10,41 @@ from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
+from sqlalchemy import select
 
 from app.api import health, test_runs, results, uploads, runners
+from app.api import auth as auth_api
+from app.api import users as users_api
 from app.core.config import settings
 from app.core.deps import limiter
-from app.db.database import create_tables
+from app.core.security import get_password_hash
+from app.db.database import create_tables, async_session_maker
+from app.models.user import User, UserRole
+
+
+async def seed_admin_user():
+    async with async_session_maker() as session:
+        result = await session.execute(
+            select(User).where(User.email == settings.ADMIN_EMAIL)
+        )
+        if not result.scalar_one_or_none():
+            admin = User(
+                email=settings.ADMIN_EMAIL,
+                full_name=settings.ADMIN_FULL_NAME,
+                hashed_password=get_password_hash(settings.ADMIN_PASSWORD),
+                role=UserRole.admin,
+                is_active=True,
+            )
+            session.add(admin)
+            await session.commit()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan handler."""
-    # Startup
     await create_tables()
+    await seed_admin_user()
     yield
-    # Shutdown
-    pass
 
 
 # L1: Hide docs endpoints in production; set ENABLE_DOCS=true for local dev
@@ -53,6 +73,8 @@ app.add_middleware(
 
 # Include routers
 app.include_router(health.router, prefix="/api", tags=["Health"])
+app.include_router(auth_api.router, prefix="/api/auth", tags=["Auth"])
+app.include_router(users_api.router, prefix="/api/users", tags=["Users"])
 app.include_router(test_runs.router, prefix="/api/test-runs", tags=["Test Runs"])
 app.include_router(results.router, prefix="/api/results", tags=["Results"])
 app.include_router(uploads.router, prefix="/api/uploads", tags=["Uploads"])
