@@ -1,7 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, PlayCircle, Server, Settings, Sun, Moon, Activity, LogOut, ChevronDown, Users } from 'lucide-react'
+import { LayoutDashboard, PlayCircle, Server, Settings, Sun, Moon, Activity, LogOut, ChevronDown, Users, ExternalLink } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import { APP_VERSION } from '../api/client'
+
+const BLOOM_ALM_URL = import.meta.env.VITE_BLOOM_ALM_URL || 'http://localhost:3001'
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
@@ -119,6 +122,15 @@ export default function Layout() {
 
         <div className="px-3 pb-4 space-y-1">
           <div className="h-px bg-white/10 mx-2 mb-3" />
+          <a
+            href={BLOOM_ALM_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-teal-100/70 hover:bg-[var(--sidebar-hover)] hover:text-white transition-all duration-200 group"
+          >
+            <ExternalLink className="h-[18px] w-[18px] text-teal-400/50 group-hover:text-teal-300" />
+            Bloom ALM
+          </a>
           <Link
             to="/settings"
             className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group ${
@@ -134,15 +146,16 @@ export default function Layout() {
             }`} />
             Settings
           </Link>
-          <button
-            onClick={() => setDark(!dark)}
-            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-teal-100/70 hover:bg-[var(--sidebar-hover)] hover:text-white transition-all duration-200 w-full group"
-          >
-            {dark ? <Sun className="h-[18px] w-[18px] text-teal-400/50 group-hover:text-teal-300" /> : <Moon className="h-[18px] w-[18px] text-teal-400/50 group-hover:text-teal-300" />}
-            {dark ? 'Light Mode' : 'Dark Mode'}
-          </button>
           <div className="pt-2 pb-1 px-3 text-center">
-            <p className="text-[10px] text-teal-300/30">by Embedlabs</p>
+            <a
+              href="https://www.embedlabs.de/en"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[10px] text-teal-300/50 hover:text-teal-200 transition-colors"
+            >
+              by EmbedLabs
+            </a>
+            <p className="text-[10px] text-teal-300/30 mt-1">v{APP_VERSION}</p>
           </div>
         </div>
       </aside>
