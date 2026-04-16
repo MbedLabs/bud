@@ -2,22 +2,18 @@
 Test runs API endpoints.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
-from typing import Optional
 from datetime import datetime
+from typing import Optional
 
-from app.db import get_db
-from app.models import TestRun, Runner
-from app.schemas import (
-    TestRunCreate,
-    TestRunUpdate,
-    TestRunResponse,
-    TestRunList,
-)
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.api.auth import get_current_user
+from app.db import get_db
+from app.models import Runner, TestRun
 from app.models.user import User
+from app.schemas import TestRunCreate, TestRunList, TestRunResponse, TestRunUpdate
 
 router = APIRouter()
 
@@ -30,15 +26,13 @@ async def create_test_run(
 ):
     """
     Create a new test run.
-    
+
     This endpoint is called by bud_runner when starting a test suite.
     """
     # Find runner if specified
     runner_id = None
     if data.runner_account:
-        result = await db.execute(
-            select(Runner).where(Runner.account == data.runner_account)
-        )
+        result = await db.execute(select(Runner).where(Runner.account == data.runner_account))
         runner = result.scalar_one_or_none()
         if runner:
             runner_id = runner.id
@@ -73,10 +67,10 @@ async def list_test_runs(
     List test runs with optional filtering and pagination.
     """
     query = select(TestRun).order_by(TestRun.created_at.desc())
-    
+
     if status:
         query = query.where(TestRun.status == status)
-    
+
     # Get total count
     count_query = select(func.count(TestRun.id))
     if status:
@@ -106,14 +100,12 @@ async def get_test_run(
     """
     Get a test run by ID.
     """
-    result = await db.execute(
-        select(TestRun).where(TestRun.id == run_id)
-    )
+    result = await db.execute(select(TestRun).where(TestRun.id == run_id))
     test_run = result.scalar_one_or_none()
-    
+
     if not test_run:
         raise HTTPException(status_code=404, detail="Test run not found")
-    
+
     return test_run
 
 
@@ -127,20 +119,18 @@ async def update_test_run(
     """
     Update a test run with results or status.
     """
-    result = await db.execute(
-        select(TestRun).where(TestRun.id == run_id)
-    )
+    result = await db.execute(select(TestRun).where(TestRun.id == run_id))
     test_run = result.scalar_one_or_none()
-    
+
     if not test_run:
         raise HTTPException(status_code=404, detail="Test run not found")
-    
+
     # Update fields
     if data.status is not None:
         test_run.status = data.status.value
         if data.status.value in ("Completed", "Failed"):
             test_run.completed_at = datetime.utcnow()
-    
+
     if data.total_tests is not None:
         test_run.total_tests = data.total_tests
     if data.passed_tests is not None:
@@ -151,10 +141,10 @@ async def update_test_run(
         test_run.skipped_tests = data.skipped_tests
     if data.duration_seconds is not None:
         test_run.duration_seconds = data.duration_seconds
-    
+
     await db.flush()
     await db.refresh(test_run)
-    
+
     return test_run
 
 
@@ -167,12 +157,10 @@ async def delete_test_run(
     """
     Delete a test run.
     """
-    result = await db.execute(
-        select(TestRun).where(TestRun.id == run_id)
-    )
+    result = await db.execute(select(TestRun).where(TestRun.id == run_id))
     test_run = result.scalar_one_or_none()
-    
+
     if not test_run:
         raise HTTPException(status_code=404, detail="Test run not found")
-    
+
     await db.delete(test_run)

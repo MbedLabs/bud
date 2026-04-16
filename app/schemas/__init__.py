@@ -1,23 +1,23 @@
 """Schemas package initialization."""
 
 from app.schemas.schemas import (
+    ArtifactResponse,
+    HealthResponse,
     ProductBase,
     ProductCreate,
     ProductResponse,
+    ResultsUpload,
+    RunnerHeartbeat,
     RunnerRegister,
     RunnerResponse,
     RunnerToken,
-    RunnerHeartbeat,
-    TestRunCreate,
-    TestRunUpdate,
-    TestRunResponse,
-    TestRunList,
-    TestRunStatus,
     TestResultCreate,
     TestResultResponse,
-    ResultsUpload,
-    ArtifactResponse,
-    HealthResponse,
+    TestRunCreate,
+    TestRunList,
+    TestRunResponse,
+    TestRunStatus,
+    TestRunUpdate,
     VersionResponse,
 )
 

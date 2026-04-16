@@ -4,20 +4,21 @@ File uploads API endpoints.
 
 import os
 import uuid
-import aiofiles
 from pathlib import Path
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
-from fastapi.responses import FileResponse
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 from typing import Optional
 
+import aiofiles
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi.responses import FileResponse
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.api.auth import get_current_user
+from app.core.config import settings
 from app.db import get_db
 from app.models import Artifact
-from app.schemas import ArtifactResponse
-from app.core.config import settings
-from app.api.auth import get_current_user
 from app.models.user import User
+from app.schemas import ArtifactResponse
 
 router = APIRouter()
 
@@ -125,9 +126,7 @@ async def download_artifact(
     """
     Download an artifact by ID.
     """
-    result = await db.execute(
-        select(Artifact).where(Artifact.id == artifact_id)
-    )
+    result = await db.execute(select(Artifact).where(Artifact.id == artifact_id))
     artifact = result.scalar_one_or_none()
 
     if not artifact:
@@ -160,9 +159,7 @@ async def get_artifact_info(
     """
     Get artifact metadata without downloading.
     """
-    result = await db.execute(
-        select(Artifact).where(Artifact.id == artifact_id)
-    )
+    result = await db.execute(select(Artifact).where(Artifact.id == artifact_id))
     artifact = result.scalar_one_or_none()
 
     if not artifact:
@@ -180,9 +177,7 @@ async def delete_artifact(
     """
     Delete an artifact.
     """
-    result = await db.execute(
-        select(Artifact).where(Artifact.id == artifact_id)
-    )
+    result = await db.execute(select(Artifact).where(Artifact.id == artifact_id))
     artifact = result.scalar_one_or_none()
 
     if not artifact:

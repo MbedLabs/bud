@@ -1,11 +1,14 @@
+# =============================================================================
+# Bud App Backend - CI/CD Pipeline
+# =============================================================================
 name: CI/CD Pipeline
 
 on:
   push:
-    branches: [main, master, develop]
+    branches: [master, main, develop]
     tags: ['v*']
   pull_request:
-    branches: [main, master]
+    branches: [master, main]
 
 env:
   REGISTRY: ghcr.io
@@ -31,13 +34,15 @@ jobs:
       - name: Install linting tools
         run: |
           python -m pip install --upgrade pip
-          pip install black isort
+          pip install black==25.1.0 isort==5.13.2
 
       - name: Check code formatting with Black
-        run: black --check --diff app/
+        run: |
+          black --check --diff app/
 
       - name: Check import sorting with isort
-        run: isort --check-only --diff app/
+        run: |
+          isort --profile black --check-only --diff app/
 
   # ===========================================================================
   # Run Tests
@@ -80,11 +85,12 @@ jobs:
       - name: Run tests with coverage
         env:
           DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_bud
+          PYTHONPATH: ${{ github.workspace }}
           SECRET_KEY: test-secret-key-for-ci-at-least-32-characters-long
           RUNNER_API_KEY: test-runner-api-key
           ENABLE_DOCS: "false"
         run: |
-          pytest --cov=app --cov-report=xml --cov-report=term-missing tests/ -v || echo "No tests found or tests failed"
+          pytest --cov=app --cov-report=xml --cov-report=term-missing -v
 
       - name: Upload coverage reports
         uses: codecov/codecov-action@v4
@@ -114,6 +120,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -135,7 +144,7 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=sha,prefix=sha-
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' }}
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' }}
 
       - name: Build and push Docker image
         id: build
@@ -147,4 +156,4 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          platforms: linux/amd64
+          platforms: linux/amd64,linux/arm64

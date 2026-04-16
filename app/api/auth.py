@@ -5,11 +5,16 @@ Also provides shared auth dependencies used across the app.
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.security import (
+    create_access_token,
+    decode_access_token,
+    get_password_hash,
+    verify_password,
+)
 from app.db.database import get_db
-from app.core.security import verify_password, get_password_hash, create_access_token, decode_access_token
 from app.models.user import User, UserRole
 from app.schemas.auth import LoginRequest, TokenResponse, UserResponse, UserUpdate
 
@@ -37,15 +42,21 @@ async def get_current_user(
     if user is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
     if not user.is_active:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User account is deactivated")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="User account is deactivated"
+        )
     return user
 
 
 def require_role(*roles: UserRole):
     async def role_checker(current_user: User = Depends(get_current_user)) -> User:
         if current_user.role not in roles:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions.")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient permissions.",
+            )
         return current_user
+
     return role_checker
 
 
@@ -55,9 +66,14 @@ async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
     user = result.scalar_one_or_none()
 
     if not user or not verify_password(data.password, user.hashed_password):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect email or password")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+        )
     if not user.is_active:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User account is deactivated")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="User account is deactivated"
+        )
 
     access_token = create_access_token(data={"sub": str(user.id)})
 
@@ -81,7 +97,9 @@ async def update_me(
     if data.full_name is not None:
         current_user.full_name = data.full_name
     if data.email is not None:
-        existing = await db.execute(select(User).where(User.email == data.email, User.id != current_user.id))
+        existing = await db.execute(
+            select(User).where(User.email == data.email, User.id != current_user.id)
+        )
         if existing.scalar_one_or_none():
             raise HTTPException(status_code=400, detail="Email already in use")
         current_user.email = data.email
