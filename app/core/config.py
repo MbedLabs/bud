@@ -33,10 +33,6 @@ class Settings(BaseSettings):
         "https://bud.embedlabs.de",
     ]
 
-    # OpenProject integration
-    PM_URL: str = "https://pm.embedlabs.de"
-    PM_TOKEN: str = ""
-
     # File uploads
     UPLOAD_DIR: str = "./uploads"
     MAX_UPLOAD_SIZE: int = 100 * 1024 * 1024  # 100 MB
