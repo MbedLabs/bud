@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Sun, Moon, Monitor, Key, Info, ExternalLink } from 'lucide-react'
+import { APP_VERSION } from '../api/client'
 
 function useDarkMode() {
   const [dark, setDark] = useState(() => {
@@ -113,13 +114,13 @@ export default function Settings() {
             </div>
             <div>
               <p className="text-sm font-semibold text-foreground">Bud Test Platform</p>
-              <p className="text-xs text-muted-foreground">Version 0.1.0</p>
+              <p className="text-xs text-muted-foreground">v{APP_VERSION}</p>
             </div>
           </div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <span>by</span>
             <a
-              href="https://embedlabs.de"
+              href="https://www.embedlabs.de/en"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1 text-primary hover:text-primary/80 transition-colors font-medium"

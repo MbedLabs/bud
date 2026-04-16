@@ -84,9 +84,14 @@ export default function Login() {
           <p className="text-sm text-teal-200/60">
             Bud Test Platform
           </p>
-          <p className="text-xs text-teal-300/40 mt-1">
-            by Embedlabs
-          </p>
+          <a
+            href="https://www.embedlabs.de/en"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-teal-300/40 mt-1 inline-block hover:text-teal-200 transition-colors"
+          >
+            by EmbedLabs
+          </a>
         </div>
       </div>
     </div>
