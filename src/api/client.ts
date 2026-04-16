@@ -109,8 +109,8 @@ export interface TestResult {
   duration_seconds: number
   error_message: string | null
   traceback: string | null
-  assertions: any[] | null
-  metadata: Record<string, any> | null
+  assertions: Record<string, unknown>[] | null
+  metadata: Record<string, unknown> | null
   work_package_id: number | null
   created_at: string
   test_run_id: number

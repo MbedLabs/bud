@@ -1,20 +1,22 @@
-name: CI/CD Pipeline
+name: Build and Push Docker Image
 
 on:
   push:
-    branches: [main, master, develop]
-    tags: ['v*']
+    branches:
+      - main
+      - master
+    tags:
+      - 'v*'
   pull_request:
-    branches: [main, master]
+    branches:
+      - main
+      - master
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  # ===========================================================================
-  # Lint & Test
-  # ===========================================================================
+  # Quality checks - runs on all pushes and PRs
   lint-and-test:
     name: Lint & Test
     runs-on: [self-hosted, contabo]
@@ -28,20 +30,19 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: './package-lock.json'
 
       - name: Install dependencies
         run: npm ci
 
       - name: Run ESLint
-        run: npm run lint --if-present
+        run: npm run lint
 
       - name: TypeScript type check
         run: npx tsc --noEmit
 
-  # ===========================================================================
-  # Build and Push Docker Image
-  # ===========================================================================
+      - name: Run tests
+        run: npm run test
+
   build-and-push:
     name: Build & Push Docker Image
     runs-on: [self-hosted, contabo]
@@ -60,6 +61,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -74,14 +78,14 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          images: ${{ env.REGISTRY }}/${{ github.repository }}
           tags: |
             type=ref,event=branch
             type=ref,event=pr
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=sha,prefix=sha-
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' }}
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' }}
 
       - name: Build and push Docker image
         id: build
