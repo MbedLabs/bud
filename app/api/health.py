@@ -4,8 +4,8 @@ Health check endpoints.
 
 from fastapi import APIRouter
 
-from app.schemas import HealthResponse, VersionResponse
 from app import __version__
+from app.schemas import HealthResponse, VersionResponse
 
 router = APIRouter()
 
@@ -14,7 +14,7 @@ router = APIRouter()
 async def health_check():
     """
     Health check endpoint.
-    
+
     Returns the health status of the API and its dependencies.
     """
     return HealthResponse(

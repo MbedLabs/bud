@@ -16,6 +16,7 @@ limiter = Limiter(key_func=get_remote_address)
 
 # ── API-key auth (C2) ─────────────────────────────────────────────────────────
 
+
 async def require_runner_api_key(x_api_key: str = Header(..., alias="X-API-Key")) -> None:
     """
     C2: Require a shared API key for runner-registration mutations.

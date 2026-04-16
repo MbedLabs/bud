@@ -5,10 +5,11 @@ Loads settings from environment variables with sensible defaults.
 """
 
 import secrets
-from pydantic_settings import BaseSettings
-from pydantic import field_validator
-from typing import List
 from functools import lru_cache
+from typing import List
+
+from pydantic import field_validator
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
@@ -77,7 +78,7 @@ class Settings(BaseSettings):
         if v in insecure_placeholders:
             raise ValueError(
                 "SECRET_KEY must be set to a strong random value. "
-                "Generate one with: python -c \"import secrets; print(secrets.token_hex(32))\""
+                'Generate one with: python -c "import secrets; print(secrets.token_hex(32))"'
             )
         if len(v) < 32:
             raise ValueError("SECRET_KEY must be at least 32 characters long.")

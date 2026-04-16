@@ -6,7 +6,9 @@ import enum
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import String, Boolean, DateTime, Enum as SaEnum
+from sqlalchemy import Boolean, DateTime
+from sqlalchemy import Enum as SaEnum
+from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.database import Base
@@ -27,4 +29,6 @@ class User(Base):
     role: Mapped[UserRole] = mapped_column(SaEnum(UserRole), default=UserRole.user, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )

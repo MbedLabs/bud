@@ -5,24 +5,29 @@ H2: Rate-limited registration and heartbeat endpoints.
 C2: Runner registration requires a server-side API key.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Request
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 from datetime import datetime
 
+from fastapi import APIRouter, Depends, HTTPException, Request
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.api.auth import get_current_user
+from app.core.deps import limiter, require_runner_api_key
+from app.core.security import generate_runner_token, get_password_hash
 from app.db import get_db
 from app.models import Runner
-from app.schemas import RunnerRegister, RunnerResponse, RunnerToken, RunnerHeartbeat
-from app.core.security import get_password_hash, generate_runner_token
-from app.core.deps import limiter, require_runner_api_key
-from app.api.auth import get_current_user
 from app.models.user import User
+from app.schemas import RunnerHeartbeat, RunnerRegister, RunnerResponse, RunnerToken
 
 router = APIRouter()
 
 
-@router.post("/register", response_model=RunnerToken, status_code=201,
-             dependencies=[Depends(require_runner_api_key)])
+@router.post(
+    "/register",
+    response_model=RunnerToken,
+    status_code=201,
+    dependencies=[Depends(require_runner_api_key)],
+)
 @limiter.limit("10/minute")  # H2: prevent registration flood
 async def register_runner(
     request: Request,
@@ -37,9 +42,7 @@ async def register_runner(
     Creates a runner account and returns an authentication token.
     """
     # Check if runner already exists
-    result = await db.execute(
-        select(Runner).where(Runner.account == data.username)
-    )
+    result = await db.execute(select(Runner).where(Runner.account == data.username))
     existing = result.scalar_one_or_none()
 
     if existing:
@@ -83,9 +86,7 @@ async def runner_heartbeat(
     Updates the last_heartbeat timestamp for the runner.
     Rate-limited to 60 requests/minute per IP (H2).
     """
-    result = await db.execute(
-        select(Runner).where(Runner.account == data.runner_account)
-    )
+    result = await db.execute(select(Runner).where(Runner.account == data.runner_account))
     runner = result.scalar_one_or_none()
 
     if not runner:
@@ -107,13 +108,12 @@ async def get_runner_status(
     """
     Get status of all runners.
     """
-    result = await db.execute(
-        select(Runner).order_by(Runner.last_heartbeat.desc())
-    )
+    result = await db.execute(select(Runner).order_by(Runner.last_heartbeat.desc()))
     runners = result.scalars().all()
 
-    from app.core.config import settings
     from datetime import timedelta
+
+    from app.core.config import settings
 
     timeout = timedelta(seconds=settings.RUNNER_HEARTBEAT_TIMEOUT)
     now = datetime.utcnow()
@@ -124,14 +124,18 @@ async def get_runner_status(
         if runner.last_heartbeat:
             is_online = (now - runner.last_heartbeat) < timeout
 
-        runner_list.append({
-            "account": runner.account,
-            "is_online": is_online,
-            "is_active": runner.is_active,
-            "last_heartbeat": runner.last_heartbeat.isoformat() if runner.last_heartbeat else None,
-            "socket_port": runner.socket_port,
-            "location": runner.location,
-        })
+        runner_list.append(
+            {
+                "account": runner.account,
+                "is_online": is_online,
+                "is_active": runner.is_active,
+                "last_heartbeat": (
+                    runner.last_heartbeat.isoformat() if runner.last_heartbeat else None
+                ),
+                "socket_port": runner.socket_port,
+                "location": runner.location,
+            }
+        )
 
     return {"runners": runner_list}
 
@@ -145,9 +149,7 @@ async def get_runner(
     """
     Get a runner by account name.
     """
-    result = await db.execute(
-        select(Runner).where(Runner.account == account)
-    )
+    result = await db.execute(select(Runner).where(Runner.account == account))
     runner = result.scalar_one_or_none()
 
     if not runner:
@@ -156,8 +158,7 @@ async def get_runner(
     return runner
 
 
-@router.delete("/{account}", status_code=204,
-               dependencies=[Depends(require_runner_api_key)])
+@router.delete("/{account}", status_code=204, dependencies=[Depends(require_runner_api_key)])
 async def delete_runner(
     request: Request,
     account: str,
@@ -166,9 +167,7 @@ async def delete_runner(
     """
     Delete a runner. Requires X-API-Key (C2).
     """
-    result = await db.execute(
-        select(Runner).where(Runner.account == account)
-    )
+    result = await db.execute(select(Runner).where(Runner.account == account))
     runner = result.scalar_one_or_none()
 
     if not runner:

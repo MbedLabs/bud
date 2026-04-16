@@ -2,16 +2,17 @@
 Test results API endpoints.
 """
 
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 from typing import List
 
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.api.auth import get_current_user
 from app.db import get_db
 from app.models import TestResult, TestRun
-from app.schemas import TestResultCreate, TestResultResponse, ResultsUpload
-from app.api.auth import get_current_user
 from app.models.user import User
+from app.schemas import ResultsUpload, TestResultCreate, TestResultResponse
 
 router = APIRouter()
 
@@ -24,11 +25,11 @@ async def upload_results(
 ):
     """
     Upload test results.
-    
+
     Accepts multiple test results and optionally associates them with a test run.
     """
     created_results = []
-    
+
     for result_data in data.results:
         result = TestResult(
             test_class=result_data.test_class,
@@ -44,24 +45,22 @@ async def upload_results(
         )
         db.add(result)
         created_results.append(result)
-    
+
     await db.flush()
-    
+
     # Update test run statistics if associated
     if data.test_run_id:
-        result = await db.execute(
-            select(TestRun).where(TestRun.id == data.test_run_id)
-        )
+        result = await db.execute(select(TestRun).where(TestRun.id == data.test_run_id))
         test_run = result.scalar_one_or_none()
-        
+
         if test_run:
             passed = sum(1 for r in created_results if r.passed)
             failed = len(created_results) - passed
-            
+
             test_run.total_tests += len(created_results)
             test_run.passed_tests += passed
             test_run.failed_tests += failed
-    
+
     return {
         "message": f"Uploaded {len(created_results)} results",
         "count": len(created_results),
@@ -78,20 +77,16 @@ async def get_results_for_run(
     Get all results for a test run.
     """
     # Verify test run exists
-    run_result = await db.execute(
-        select(TestRun).where(TestRun.id == run_id)
-    )
+    run_result = await db.execute(select(TestRun).where(TestRun.id == run_id))
     if not run_result.scalar_one_or_none():
         raise HTTPException(status_code=404, detail="Test run not found")
-    
+
     # Get results
     result = await db.execute(
-        select(TestResult)
-        .where(TestResult.test_run_id == run_id)
-        .order_by(TestResult.created_at)
+        select(TestResult).where(TestResult.test_run_id == run_id).order_by(TestResult.created_at)
     )
     results = result.scalars().all()
-    
+
     return results
 
 
@@ -104,12 +99,10 @@ async def get_result(
     """
     Get a single test result by ID.
     """
-    result = await db.execute(
-        select(TestResult).where(TestResult.id == result_id)
-    )
+    result = await db.execute(select(TestResult).where(TestResult.id == result_id))
     test_result = result.scalar_one_or_none()
-    
+
     if not test_result:
         raise HTTPException(status_code=404, detail="Test result not found")
-    
+
     return test_result

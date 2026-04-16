@@ -4,29 +4,28 @@ FastAPI application for bud.embedlabs.de
 Main entry point for the backend API.
 """
 
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from contextlib import asynccontextmanager
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from sqlalchemy import select
 
-from app.api import health, test_runs, results, uploads, runners
 from app.api import auth as auth_api
+from app.api import health, results, runners, test_runs, uploads
 from app.api import users as users_api
 from app.core.config import settings
 from app.core.deps import limiter
 from app.core.security import get_password_hash
-from app.db.database import create_tables, async_session_maker
+from app.db.database import async_session_maker, create_tables
 from app.models.user import User, UserRole
 
 
 async def seed_admin_user():
     async with async_session_maker() as session:
-        result = await session.execute(
-            select(User).where(User.email == settings.ADMIN_EMAIL)
-        )
+        result = await session.execute(select(User).where(User.email == settings.ADMIN_EMAIL))
         if not result.scalar_one_or_none():
             admin = User(
                 email=settings.ADMIN_EMAIL,
