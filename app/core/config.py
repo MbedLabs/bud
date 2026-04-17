@@ -8,7 +8,7 @@ import secrets
 from functools import lru_cache
 from typing import List
 
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings
 
 
@@ -16,7 +16,12 @@ class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 
     # Database
-    DATABASE_URL: str = "postgresql://bud:bud@localhost:5432/buddb"
+    DATABASE_URL: str = ""
+    DB_USER: str = "bud"
+    DB_PASSWORD: str = "bud"
+    DB_NAME: str = "buddb"
+    DB_HOST: str = "localhost"
+    DB_PORT: int = 5432
 
     # Security
     # C1: SECRET_KEY must be set explicitly — no insecure fallback in production
@@ -64,6 +69,15 @@ class Settings(BaseSettings):
 
     # L1: Disable API docs in production (set ENABLE_DOCS=true to enable locally)
     ENABLE_DOCS: bool = False
+
+    @model_validator(mode="after")
+    def populate_database_url(self):
+        if not self.DATABASE_URL:
+            self.DATABASE_URL = (
+                f"postgresql://{self.DB_USER}:{self.DB_PASSWORD}"
+                f"@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
+            )
+        return self
 
     @field_validator("SECRET_KEY")
     @classmethod
