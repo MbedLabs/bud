@@ -4,7 +4,7 @@ Pydantic schemas for API request/response validation.
 
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional  # noqa: F401
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -143,9 +143,24 @@ class TestRunResponse(BaseModel):
     completed_at: Optional[datetime]
     product_id: Optional[int]
     runner_id: Optional[int]
+    runner_account: Optional[str] = None
 
     class Config:
         from_attributes = True
+
+    @classmethod
+    def from_orm_with_runner(cls, test_run: Any) -> "TestRunResponse":
+        """Build a response that also exposes the Bud runner's account name.
+
+        Frontend ("Test Station" filter and detail page) wants a human-readable
+        station identifier; ``runner_id`` alone forces a second lookup per
+        row. Accessing ``test_run.runner`` requires the relationship to be
+        loaded (selectinload) or the session to still be attached.
+        """
+        data = {c.name: getattr(test_run, c.name) for c in test_run.__table__.columns}
+        runner = getattr(test_run, "runner", None)
+        data["runner_account"] = runner.account if runner else None
+        return cls.model_validate(data)
 
 
 class TestRunList(BaseModel):
