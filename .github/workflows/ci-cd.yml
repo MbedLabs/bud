@@ -99,22 +99,3 @@ jobs:
           cache-to: type=gha,mode=max
           platforms: linux/amd64
 
-      - name: Derive deploy tag
-        id: deploy-tag
-        run: |
-          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
-            echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
-          else
-            VERSION=$(node -p "require('./package.json').version")
-            echo "tag=v${VERSION}" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Trigger infra image update
-        if: github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'master' || github.ref_type == 'tag')
-        env:
-          GH_TOKEN: ${{ secrets.INFRA_REPO_DISPATCH_TOKEN }}
-          TAG: ${{ steps.deploy-tag.outputs.tag }}
-        run: |
-          gh api repos/MbedLabs/embedlabs-contabo-infra/dispatches \
-            -f event_type=bud-frontend-image \
-            -f client_payload[tag]="$TAG"
