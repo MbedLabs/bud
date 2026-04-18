@@ -77,6 +77,9 @@ async def test_upload_results_persists_assertions_and_updates_counters(client, d
     body = response.json()
     assert body["count"] == 2
 
+    # HTTP handler commits on another session; refresh our ORM copy of the run.
+    await db_session.refresh(run)
+
     # Rows persisted with assertions JSON intact.
     rows_q = await db_session.execute(
         select(TestResult).where(TestResult.test_run_id == run_id).order_by(TestResult.id)
@@ -96,11 +99,9 @@ async def test_upload_results_persists_assertions_and_updates_counters(client, d
     assert passing.passed is True
 
     # Counters on TestRun must reflect the 2 uploads.
-    refreshed_q = await db_session.execute(select(TestRun).where(TestRun.id == run_id))
-    refreshed = refreshed_q.scalar_one()
-    assert refreshed.total_tests == 2
-    assert refreshed.passed_tests == 1
-    assert refreshed.failed_tests == 1
+    assert run.total_tests == 2
+    assert run.passed_tests == 1
+    assert run.failed_tests == 1
 
 
 @pytest.mark.asyncio

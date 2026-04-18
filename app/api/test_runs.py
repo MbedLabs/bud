@@ -54,9 +54,7 @@ async def create_test_run(
     # Eager-load the runner relationship so the response can expose
     # runner_account without a second round-trip.
     result = await db.execute(
-        select(TestRun)
-        .options(selectinload(TestRun.runner))
-        .where(TestRun.id == test_run.id)
+        select(TestRun).options(selectinload(TestRun.runner)).where(TestRun.id == test_run.id)
     )
     test_run = result.scalar_one()
 
@@ -69,8 +67,7 @@ async def list_test_runs(
     runner_account: Optional[str] = Query(
         None,
         description=(
-            "Filter to test runs executed by the given Bud runner account "
-            "(a.k.a. Test Station)."
+            "Filter to test runs executed by the given Bud runner account " "(a.k.a. Test Station)."
         ),
     ),
     limit: int = Query(50, ge=1, le=100),
@@ -96,9 +93,7 @@ async def list_test_runs(
 
     if runner_account:
         # Resolve the account → id once; avoids a join per row.
-        runner_result = await db.execute(
-            select(Runner.id).where(Runner.account == runner_account)
-        )
+        runner_result = await db.execute(select(Runner.id).where(Runner.account == runner_account))
         runner_id = runner_result.scalar_one_or_none()
         if runner_id is None:
             return TestRunList(runs=[], total=0, limit=limit, offset=offset)

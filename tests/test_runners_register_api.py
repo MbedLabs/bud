@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import pytest
 
-
 VALID_PAYLOAD = {
     "username": "runner-test-01",
     "password": "a-very-long-runner-password-123",

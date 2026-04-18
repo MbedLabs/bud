@@ -203,7 +203,7 @@ class TestResultResponse(BaseModel):
     metadata: Optional[Dict[str, Any]]
     work_package_id: Optional[int]
     created_at: datetime
-    test_run_id: int
+    test_run_id: Optional[int] = None
 
     class Config:
         from_attributes = True
