@@ -1,7 +1,9 @@
 import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { testRunsApi, testStationsApi } from '../api/client'
+import { testRunsApi, testStationsApi, type TestRun } from '../api/client'
+
+const EMPTY_TEST_RUNS: TestRun[] = []
 import { Search, Filter, ChevronLeft, ChevronRight, PlayCircle, Server } from 'lucide-react'
 
 export default function TestRuns() {
@@ -32,7 +34,7 @@ export default function TestRuns() {
   })
   const stations = stationsData?.runners || []
 
-  const runs = data?.runs || []
+  const runs = data?.runs ?? EMPTY_TEST_RUNS
   const total = data?.total || 0
   const totalPages = Math.ceil(total / limit)
 
