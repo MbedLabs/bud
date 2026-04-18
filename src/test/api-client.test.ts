@@ -8,6 +8,6 @@ describe('api client', () => {
   })
 
   it('exposes the app version', () => {
-    expect(APP_VERSION).toBe('0.1.0')
+    expect(APP_VERSION).toBe('0.1.1')
   })
 })
