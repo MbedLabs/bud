@@ -19,12 +19,14 @@ from app.api import users as users_api
 from app.core.config import settings
 from app.core.deps import limiter
 from app.core.security import get_password_hash
-from app.db.database import async_session_maker, create_tables
+from app.db import database as db
 from app.models.user import User, UserRole
 
 
 async def seed_admin_user():
-    async with async_session_maker() as session:
+    # Always use the module's current session factory so tests can swap the engine
+    # (``from db import async_session_maker`` would keep the import-time binding).
+    async with db.async_session_maker() as session:
         result = await session.execute(select(User).where(User.email == settings.ADMIN_EMAIL))
         if not result.scalar_one_or_none():
             admin = User(
@@ -41,7 +43,7 @@ async def seed_admin_user():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan handler."""
-    await create_tables()
+    await db.create_tables()
     await seed_admin_user()
     yield
 

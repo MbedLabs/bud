@@ -104,11 +104,11 @@ class TestResult(Base):
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
-    # Foreign key
-    test_run_id: Mapped[int] = mapped_column(ForeignKey("test_runs.id"))
+    # Foreign key (optional: detached uploads before a TestRun exists)
+    test_run_id: Mapped[Optional[int]] = mapped_column(ForeignKey("test_runs.id"), nullable=True)
 
     # Relationships
-    test_run: Mapped["TestRun"] = relationship(back_populates="results")
+    test_run: Mapped[Optional["TestRun"]] = relationship(back_populates="results")
 
 
 class Artifact(Base):

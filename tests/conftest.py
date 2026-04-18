@@ -21,7 +21,12 @@ os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
 import pytest  # noqa: E402
 import pytest_asyncio  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine  # noqa: E402
+from sqlalchemy.ext.asyncio import (  # noqa: E402
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
+from sqlalchemy.pool import StaticPool  # noqa: E402
 
 from app.api.auth import get_current_user  # noqa: E402
 from app.db import database as db_module  # noqa: E402
@@ -29,14 +34,20 @@ from app.db.database import Base, get_db  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models.user import User, UserRole  # noqa: E402
 
-
 TEST_DB_URL = "sqlite+aiosqlite:///:memory:"
 
 
 @pytest_asyncio.fixture(scope="function")
 async def _engine():
     """Fresh in-memory SQLite engine per test — isolated, deterministic."""
-    engine = create_async_engine(TEST_DB_URL, future=True)
+    # StaticPool: ``:memory:`` must share one DB across connections (lifespan +
+    # TestClient use separate connections from the fixture's create_all).
+    engine = create_async_engine(
+        TEST_DB_URL,
+        future=True,
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
     # Rebind module-level engine so any app code that grabs
     # ``async_session_maker`` indirectly stays consistent with this engine.
     db_module.engine = engine
