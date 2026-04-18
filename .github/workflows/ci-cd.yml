@@ -133,6 +133,10 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Read app version
+        id: app-version
+        run: echo "version=$(python -c \"from pathlib import Path; import re; text = Path('pyproject.toml').read_text(); print(re.search(r'^version\\s*=\\s*\\\"([^\\\"]+)\\\"', text, re.MULTILINE).group(1))\")" >> "$GITHUB_OUTPUT"
+
       - name: Extract metadata for Docker
         id: meta
         uses: docker/metadata-action@v5
@@ -141,9 +145,9 @@ jobs:
           tags: |
             type=ref,event=branch
             type=ref,event=pr
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
             type=sha,prefix=sha-
+            type=raw,value=v${{ steps.app-version.outputs.version }},enable=${{ github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' }}
+            type=raw,value=${{ steps.app-version.outputs.version }},enable=${{ github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' }}
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' }}
 
       - name: Build and push Docker image
