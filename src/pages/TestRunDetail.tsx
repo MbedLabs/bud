@@ -1,7 +1,11 @@
+import { useState, Fragment } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { testRunsApi, resultsApi, TestResult } from '../api/client'
-import { ArrowLeft, CheckCircle, XCircle, Clock, AlertCircle, Download, Activity } from 'lucide-react'
+import {
+  ArrowLeft, CheckCircle, XCircle, Clock, AlertCircle, Download, Activity,
+  ChevronDown, ChevronRight,
+} from 'lucide-react'
 
 export default function TestRunDetail() {
   const { id } = useParams<{ id: string }>()
@@ -113,7 +117,16 @@ export default function TestRunDetail() {
           <DetailItem label="Started At" value={run.started_at ? new Date(run.started_at).toLocaleString() : '-'} />
           <DetailItem label="Completed At" value={run.completed_at ? new Date(run.completed_at).toLocaleString() : '-'} />
           <DetailItem label="Duration" value={run.duration_seconds ? formatDuration(run.duration_seconds) : '-'} />
-          <DetailItem label="Test Station" value={run.runner_id ? `Station #${run.runner_id}` : 'Not assigned'} />
+          <DetailItem
+            label="Test Station"
+            value={
+              run.runner_account
+                ? run.runner_account
+                : run.runner_id
+                ? `Station #${run.runner_id}`
+                : 'Not assigned'
+            }
+          />
         </dl>
       </div>
 
@@ -128,73 +141,231 @@ export default function TestRunDetail() {
         ) : !results || results.length === 0 ? (
           <div className="p-8 text-center text-muted-foreground">No test results yet</div>
         ) : (
-          <table className="min-w-full divide-y divide-border">
-            <thead>
-              <tr className="bg-muted/50">
-                <th className="px-5 py-3 text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-5 py-3 text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                  Test Case
-                </th>
-                <th className="px-5 py-3 text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                  Duration
-                </th>
-                <th className="px-5 py-3 text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                  Message
-                </th>
-                <th className="px-5 py-3 text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                  Artifacts
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {results.map((result: TestResult) => (
-                <tr key={result.id} className={`hover:bg-accent/50 transition-colors ${
-                  !result.passed ? 'bg-red-500/[0.02]' : ''
-                }`}>
-                  <td className="px-5 py-3 whitespace-nowrap">
-                    <ResultIcon status={result.passed ? 'passed' : 'failed'} />
-                  </td>
-                  <td className="px-5 py-3">
-                    <div>
-                      <p className="text-sm font-medium text-foreground">{result.test_method}</p>
-                      <p className="text-xs text-muted-foreground">{result.test_class}</p>
-                    </div>
-                  </td>
-                  <td className="px-5 py-3 whitespace-nowrap text-xs text-muted-foreground">
-                    {result.duration_seconds ? formatDuration(result.duration_seconds) : '-'}
-                  </td>
-                  <td className="px-5 py-3 text-xs text-muted-foreground max-w-md truncate">
-                    {result.error_message || '-'}
-                  </td>
-                  <td className="px-5 py-3 whitespace-nowrap">
-                    {result.artifacts && result.artifacts.length > 0 ? (
-                      <div className="flex items-center gap-2">
-                        {result.artifacts.map((artifact: string, i: number) => (
-                          <a
-                            key={i}
-                            href={artifact}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-primary hover:text-primary/80 transition-colors"
-                          >
-                            <Download className="h-3.5 w-3.5" />
-                          </a>
-                        ))}
-                      </div>
-                    ) : (
-                      <span className="text-muted-foreground/40">-</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <ResultsTable results={results} />
         )}
       </div>
     </div>
   )
+}
+
+interface AssertionShape {
+  passed?: boolean
+  message?: string
+  expected?: unknown
+  actual?: unknown
+  timestamp?: string
+  metadata?: Record<string, unknown> | null
+}
+
+/**
+ * Tabular view of test results with per-row expandable panel showing the
+ * budtestlibrary assertions (message / expected / actual) and the full
+ * traceback. Keeps the default row lean — detail only renders when the user
+ * explicitly opens a row, because tracebacks can be long.
+ */
+function ResultsTable({ results }: { results: TestResult[] }) {
+  const [expanded, setExpanded] = useState<Record<number, boolean>>({})
+
+  const toggle = (id: number) => setExpanded(e => ({ ...e, [id]: !e[id] }))
+
+  return (
+    <table className="min-w-full divide-y divide-border">
+      <thead>
+        <tr className="bg-muted/50">
+          <th className="w-8 px-2 py-3" />
+          <th className="px-5 py-3 text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+            Status
+          </th>
+          <th className="px-5 py-3 text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+            Test Case
+          </th>
+          <th className="px-5 py-3 text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+            Duration
+          </th>
+          <th className="px-5 py-3 text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+            Assertions
+          </th>
+          <th className="px-5 py-3 text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+            Message
+          </th>
+          <th className="px-5 py-3 text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+            Artifacts
+          </th>
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-border">
+        {results.map((result: TestResult) => {
+          const isOpen = !!expanded[result.id]
+          const assertions = (result.assertions as AssertionShape[] | null) || []
+          const passedCount = assertions.filter(a => a.passed).length
+          const hasDetail = assertions.length > 0 || !!result.traceback
+          return (
+            <Fragment key={result.id}>
+              <tr
+                className={`transition-colors ${
+                  !result.passed ? 'bg-red-500/[0.02]' : ''
+                } ${hasDetail ? 'cursor-pointer hover:bg-accent/50' : ''}`}
+                onClick={() => hasDetail && toggle(result.id)}
+              >
+                <td className="px-2 py-3 text-muted-foreground">
+                  {hasDetail ? (
+                    isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />
+                  ) : null}
+                </td>
+                <td className="px-5 py-3 whitespace-nowrap">
+                  <ResultIcon status={result.passed ? 'passed' : 'failed'} />
+                </td>
+                <td className="px-5 py-3">
+                  <div>
+                    <p className="text-sm font-medium text-foreground">{result.test_method}</p>
+                    <p className="text-xs text-muted-foreground">{result.test_class}</p>
+                  </div>
+                </td>
+                <td className="px-5 py-3 whitespace-nowrap text-xs text-muted-foreground">
+                  {result.duration_seconds ? formatDuration(result.duration_seconds) : '-'}
+                </td>
+                <td className="px-5 py-3 whitespace-nowrap text-xs">
+                  {assertions.length === 0 ? (
+                    <span className="text-muted-foreground/40">—</span>
+                  ) : (
+                    <span className="text-muted-foreground">
+                      <span className="text-emerald-600 dark:text-emerald-400">{passedCount}</span>
+                      <span className="text-muted-foreground/60"> / {assertions.length}</span>
+                    </span>
+                  )}
+                </td>
+                <td className="px-5 py-3 text-xs text-muted-foreground max-w-md truncate">
+                  {result.error_message || '-'}
+                </td>
+                <td className="px-5 py-3 whitespace-nowrap">
+                  {result.artifacts && result.artifacts.length > 0 ? (
+                    <div className="flex items-center gap-2">
+                      {result.artifacts.map((artifact: string, i: number) => (
+                        <a
+                          key={i}
+                          href={artifact}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="text-primary hover:text-primary/80 transition-colors"
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                        </a>
+                      ))}
+                    </div>
+                  ) : (
+                    <span className="text-muted-foreground/40">-</span>
+                  )}
+                </td>
+              </tr>
+              {isOpen && hasDetail && (
+                <tr className="bg-muted/20">
+                  <td />
+                  <td colSpan={6} className="px-5 py-4">
+                    <ResultDetail
+                      assertions={assertions}
+                      traceback={result.traceback}
+                    />
+                  </td>
+                </tr>
+              )}
+            </Fragment>
+          )
+        })}
+      </tbody>
+    </table>
+  )
+}
+
+function ResultDetail({
+  assertions,
+  traceback,
+}: {
+  assertions: AssertionShape[]
+  traceback: string | null
+}) {
+  return (
+    <div className="space-y-4">
+      {assertions.length > 0 && (
+        <div>
+          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+            Assertions
+          </h4>
+          <div className="space-y-1.5">
+            {assertions.map((a, i) => (
+              <AssertionRow key={i} assertion={a} />
+            ))}
+          </div>
+        </div>
+      )}
+      {traceback && (
+        <div>
+          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+            Traceback
+          </h4>
+          <pre className="text-[11px] leading-relaxed text-foreground bg-background border border-border rounded-md p-3 overflow-x-auto whitespace-pre-wrap break-words">
+            {traceback}
+          </pre>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function AssertionRow({ assertion }: { assertion: AssertionShape }) {
+  const passed = assertion.passed !== false
+  const expected = assertion.expected
+  const actual = assertion.actual
+  const showValues = expected !== undefined && expected !== null
+    || actual !== undefined && actual !== null
+  return (
+    <div className={`rounded-md border p-2.5 text-xs ${
+      passed
+        ? 'border-emerald-500/20 bg-emerald-500/[0.03]'
+        : 'border-red-500/30 bg-red-500/[0.04]'
+    }`}>
+      <div className="flex items-start gap-2">
+        {passed ? (
+          <CheckCircle className="h-3.5 w-3.5 text-emerald-500 mt-0.5 shrink-0" />
+        ) : (
+          <XCircle className="h-3.5 w-3.5 text-red-500 mt-0.5 shrink-0" />
+        )}
+        <div className="flex-1 min-w-0">
+          <p className="text-foreground break-words">{assertion.message || '(no message)'}</p>
+          {showValues && (
+            <div className="mt-1.5 grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-[11px]">
+              <div>
+                <span className="text-muted-foreground mr-1.5">Expected:</span>
+                <code className="font-mono text-foreground">{formatVal(expected)}</code>
+              </div>
+              <div>
+                <span className="text-muted-foreground mr-1.5">Actual:</span>
+                <code className="font-mono text-foreground">{formatVal(actual)}</code>
+              </div>
+            </div>
+          )}
+          {assertion.metadata && Object.keys(assertion.metadata).length > 0 && (
+            <div className="mt-1.5 text-[11px] text-muted-foreground">
+              {Object.entries(assertion.metadata).map(([k, v]) => (
+                <span key={k} className="mr-3">
+                  <span className="opacity-70">{k}:</span>{' '}
+                  <code className="font-mono text-foreground">{formatVal(v)}</code>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function formatVal(v: unknown): string {
+  if (v === null || v === undefined) return '—'
+  if (typeof v === 'object') {
+    try { return JSON.stringify(v) } catch { return String(v) }
+  }
+  return String(v)
 }
 
 function DetailItem({ label, value }: { label: string; value: string }) {

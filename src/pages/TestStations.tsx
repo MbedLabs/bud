@@ -38,12 +38,19 @@ export default function TestStations() {
           </div>
           <h3 className="text-lg font-semibold text-foreground mb-2">No Test Stations Registered</h3>
           <p className="text-muted-foreground max-w-md mx-auto text-sm">
-            Test stations are test execution agents that connect to run your test cases.
-            Use the bud_runner CLI to register a test station.
+            A Test Station is a host where tests execute. Each station registers
+            one or more <span className="font-medium text-foreground">Bud runners</span>{' '}
+            (the execution agents). Register one with the <code>bud_runner</code> CLI:
           </p>
           <div className="mt-6 p-3 bg-muted rounded-lg inline-block text-left">
-            <code className="text-xs text-foreground font-mono">
-              bud_runner register --account my-station --location "Lab 1"
+            <code className="text-xs text-foreground font-mono block">
+              export RUNNER_API_KEY=... # shared secret from the Bud backend
+            </code>
+            <code className="text-xs text-foreground font-mono block">
+              export BUD_BACKEND_URL=https://bud.embedlabs.de
+            </code>
+            <code className="text-xs text-foreground font-mono block">
+              bud_runner register --username my-station
             </code>
           </div>
         </div>

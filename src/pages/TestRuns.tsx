@@ -1,30 +1,52 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { testRunsApi } from '../api/client'
-import { Search, Filter, ChevronLeft, ChevronRight, PlayCircle } from 'lucide-react'
+import { testRunsApi, testStationsApi } from '../api/client'
+import { Search, Filter, ChevronLeft, ChevronRight, PlayCircle, Server } from 'lucide-react'
 
 export default function TestRuns() {
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('')
+  // Bud runner *account* (matches Runner.account). We filter by account name
+  // rather than runner_id because the stations endpoint returns accounts and
+  // TestRun has a runner_id FK — we map id↔account via the stations list.
+  const [stationFilter, setStationFilter] = useState<string>('')
   const limit = 20
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['testRuns', { page, limit, status: statusFilter }],
-    queryFn: () => testRunsApi.list({ offset: (page - 1) * limit, limit, status: statusFilter || undefined }),
+    queryKey: ['testRuns', { page, limit, status: statusFilter, station: stationFilter }],
+    queryFn: () =>
+      testRunsApi.list({
+        offset: (page - 1) * limit,
+        limit,
+        status: statusFilter || undefined,
+        runner_account: stationFilter || undefined,
+      }),
   })
+
+  const { data: stationsData } = useQuery({
+    queryKey: ['testStations'],
+    queryFn: testStationsApi.status,
+    staleTime: 30_000,
+  })
+  const stations = stationsData?.runners || []
 
   const runs = data?.runs || []
   const total = data?.total || 0
   const totalPages = Math.ceil(total / limit)
 
-  const filteredRuns = search
-    ? runs.filter(run =>
-        run.name.toLowerCase().includes(search.toLowerCase()) ||
-        run.test_case_list.toLowerCase().includes(search.toLowerCase())
-      )
-    : runs
+  // Search is kept client-side because the backend list endpoint doesn't
+  // expose a ?q= parameter yet. Status + station are already server-side.
+  const filteredRuns = useMemo(() => {
+    if (!search) return runs
+    const q = search.toLowerCase()
+    return runs.filter(run =>
+      run.name.toLowerCase().includes(q) ||
+      run.test_case_list.toLowerCase().includes(q) ||
+      (run.runner_account && run.runner_account.toLowerCase().includes(q))
+    )
+  }, [runs, search])
 
   return (
     <div className="space-y-5 animate-fade-in">
@@ -45,7 +67,7 @@ export default function TestRuns() {
             <Filter className="h-4 w-4 text-muted-foreground" />
             <select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              onChange={(e) => { setStatusFilter(e.target.value); setPage(1) }}
               className="bg-background border border-input rounded-md px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-ring focus:border-ring transition-colors"
             >
               <option value="">All Status</option>
@@ -54,6 +76,20 @@ export default function TestRuns() {
               <option value="Completed">Completed</option>
               <option value="Failed">Failed</option>
               <option value="Cancelled">Cancelled</option>
+            </select>
+          </div>
+          <div className="flex items-center gap-2">
+            <Server className="h-4 w-4 text-muted-foreground" />
+            <select
+              value={stationFilter}
+              onChange={(e) => { setStationFilter(e.target.value); setPage(1) }}
+              className="bg-background border border-input rounded-md px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-ring focus:border-ring transition-colors"
+              title="Filter by Test Station (Bud runner account)"
+            >
+              <option value="">All Test Stations</option>
+              {stations.map(s => (
+                <option key={s.account} value={s.account}>{s.account}</option>
+              ))}
             </select>
           </div>
         </div>
@@ -89,6 +125,9 @@ export default function TestRuns() {
                   Results
                 </th>
                 <th className="px-5 py-3 text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                  Test Station
+                </th>
+                <th className="px-5 py-3 text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
                   Duration
                 </th>
                 <th className="px-5 py-3 text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
@@ -120,6 +159,16 @@ export default function TestRuns() {
                     )}
                     {run.skipped_tests > 0 && (
                       <span className="text-muted-foreground ml-1.5">{run.skipped_tests} skipped</span>
+                    )}
+                  </td>
+                  <td className="px-5 py-3.5 whitespace-nowrap text-xs text-muted-foreground">
+                    {run.runner_account ? (
+                      <span className="inline-flex items-center gap-1.5">
+                        <Server className="h-3 w-3 text-muted-foreground/60" />
+                        {run.runner_account}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground/40">—</span>
                     )}
                   </td>
                   <td className="px-5 py-3.5 whitespace-nowrap text-xs text-muted-foreground">
