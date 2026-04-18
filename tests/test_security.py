@@ -1,4 +1,7 @@
 from datetime import timedelta
+import os
+
+os.environ.setdefault("SECRET_KEY", "test-secret-key-for-ci-at-least-32-characters-long")
 
 from app.core.security import (
     create_access_token,
