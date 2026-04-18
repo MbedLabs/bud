@@ -115,7 +115,7 @@ export interface TestResult {
   metadata: Record<string, unknown> | null
   work_package_id: number | null
   created_at: string
-  test_run_id: number
+  test_run_id: number | null
   artifacts?: string[]
 }
 
