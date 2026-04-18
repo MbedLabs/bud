@@ -1,8 +1,10 @@
 import axios from 'axios'
 
+import packageJson from '../../package.json'
+
 const API_URL = import.meta.env.VITE_API_URL || '/api'
 
-export const APP_VERSION = '0.1.0'
+export const APP_VERSION = packageJson.version
 
 export const api = axios.create({
   baseURL: API_URL,
