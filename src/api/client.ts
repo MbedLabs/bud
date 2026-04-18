@@ -97,6 +97,8 @@ export interface TestRun {
   completed_at: string | null
   product_id: number | null
   runner_id: number | null
+  /** Bud runner (Test Station) account that executed this run, if any. */
+  runner_account: string | null
 }
 
 export interface TestResult {
@@ -126,9 +128,25 @@ export interface TestStation {
   location: string | null
 }
 
+export interface Runner {
+  id: number
+  account: string
+  socket_port: number
+  location: string | null
+  is_active: boolean
+  last_heartbeat: string | null
+  created_at: string
+}
+
 // API functions
 export const testRunsApi = {
-  list: async (params?: { status?: string; limit?: number; offset?: number }) => {
+  list: async (params?: {
+    status?: string
+    limit?: number
+    offset?: number
+    /** Filter by Bud runner / Test Station account. */
+    runner_account?: string
+  }) => {
     const response = await api.get<{ runs: TestRun[]; total: number }>('/test-runs', { params })
     return response.data
   },
@@ -154,6 +172,15 @@ export const resultsApi = {
 export const testStationsApi = {
   status: async () => {
     const response = await api.get<{ runners: TestStation[] }>('/runners/status')
+    return response.data
+  },
+
+  /**
+   * Fetch a single runner (a.k.a. test station) by account name.
+   * Used to resolve runner_id → account for display on test run detail pages.
+   */
+  getByAccount: async (account: string) => {
+    const response = await api.get<Runner>(`/runners/${account}`)
     return response.data
   },
 }
