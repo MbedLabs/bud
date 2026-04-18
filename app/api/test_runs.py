@@ -8,6 +8,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.api.auth import get_current_user
 from app.db import get_db
@@ -50,14 +51,28 @@ async def create_test_run(
 
     db.add(test_run)
     await db.flush()
-    await db.refresh(test_run)
+    # Eager-load the runner relationship so the response can expose
+    # runner_account without a second round-trip.
+    result = await db.execute(
+        select(TestRun)
+        .options(selectinload(TestRun.runner))
+        .where(TestRun.id == test_run.id)
+    )
+    test_run = result.scalar_one()
 
-    return test_run
+    return TestRunResponse.from_orm_with_runner(test_run)
 
 
 @router.get("", response_model=TestRunList)
 async def list_test_runs(
     status: Optional[str] = Query(None, description="Filter by status"),
+    runner_account: Optional[str] = Query(
+        None,
+        description=(
+            "Filter to test runs executed by the given Bud runner account "
+            "(a.k.a. Test Station)."
+        ),
+    ),
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_db),
@@ -65,26 +80,40 @@ async def list_test_runs(
 ):
     """
     List test runs with optional filtering and pagination.
+
+    ``runner_account`` filters by the Bud runner (Test Station) that executed
+    the run. Many suites can share one runner, so this returns every
+    ``TestRun`` tied to that runner — not just the latest.
     """
-    query = select(TestRun).order_by(TestRun.created_at.desc())
+    query = (
+        select(TestRun).options(selectinload(TestRun.runner)).order_by(TestRun.created_at.desc())
+    )
+    count_query = select(func.count(TestRun.id))
 
     if status:
         query = query.where(TestRun.status == status)
-
-    # Get total count
-    count_query = select(func.count(TestRun.id))
-    if status:
         count_query = count_query.where(TestRun.status == status)
+
+    if runner_account:
+        # Resolve the account → id once; avoids a join per row.
+        runner_result = await db.execute(
+            select(Runner.id).where(Runner.account == runner_account)
+        )
+        runner_id = runner_result.scalar_one_or_none()
+        if runner_id is None:
+            return TestRunList(runs=[], total=0, limit=limit, offset=offset)
+        query = query.where(TestRun.runner_id == runner_id)
+        count_query = count_query.where(TestRun.runner_id == runner_id)
+
     total_result = await db.execute(count_query)
     total = total_result.scalar()
 
-    # Get paginated results
     query = query.offset(offset).limit(limit)
     result = await db.execute(query)
     runs = result.scalars().all()
 
     return TestRunList(
-        runs=[TestRunResponse.model_validate(r) for r in runs],
+        runs=[TestRunResponse.from_orm_with_runner(r) for r in runs],
         total=total,
         limit=limit,
         offset=offset,
@@ -100,13 +129,15 @@ async def get_test_run(
     """
     Get a test run by ID.
     """
-    result = await db.execute(select(TestRun).where(TestRun.id == run_id))
+    result = await db.execute(
+        select(TestRun).options(selectinload(TestRun.runner)).where(TestRun.id == run_id)
+    )
     test_run = result.scalar_one_or_none()
 
     if not test_run:
         raise HTTPException(status_code=404, detail="Test run not found")
 
-    return test_run
+    return TestRunResponse.from_orm_with_runner(test_run)
 
 
 @router.patch("/{run_id}", response_model=TestRunResponse)
@@ -143,9 +174,12 @@ async def update_test_run(
         test_run.duration_seconds = data.duration_seconds
 
     await db.flush()
-    await db.refresh(test_run)
+    result = await db.execute(
+        select(TestRun).options(selectinload(TestRun.runner)).where(TestRun.id == test_run.id)
+    )
+    test_run = result.scalar_one()
 
-    return test_run
+    return TestRunResponse.from_orm_with_runner(test_run)
 
 
 @router.delete("/{run_id}", status_code=204)
