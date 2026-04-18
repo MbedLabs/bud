@@ -135,7 +135,15 @@ jobs:
 
       - name: Read app version
         id: app-version
-        run: echo "version=$(python -c \"from pathlib import Path; import re; text = Path('pyproject.toml').read_text(); print(re.search(r'^version\\s*=\\s*\\\"([^\\\"]+)\\\"', text, re.MULTILINE).group(1))\")" >> "$GITHUB_OUTPUT"
+        run: |
+          VERSION=$(python - <<'PY'
+          from pathlib import Path
+          import re
+          text = Path('pyproject.toml').read_text()
+          print(re.search(r'^version\s*=\s*"([^"]+)"', text, re.MULTILINE).group(1))
+          PY
+          )
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Extract metadata for Docker
         id: meta
