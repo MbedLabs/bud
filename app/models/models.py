@@ -26,6 +26,9 @@ class Product(Base):
 
     # Relationships
     test_runs: Mapped[List["TestRun"]] = relationship(back_populates="product")
+    results: Mapped[List["TestResult"]] = relationship(
+        "TestResult", backref="product_ref"
+    )  # backref to avoid collision with existing attributes
 
 
 class Runner(Base):
@@ -104,8 +107,9 @@ class TestResult(Base):
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
-    # Foreign key (optional: detached uploads before a TestRun exists)
+    # Foreign keys (optional: detached uploads before a TestRun exists)
     test_run_id: Mapped[Optional[int]] = mapped_column(ForeignKey("test_runs.id"), nullable=True)
+    product_id: Mapped[Optional[int]] = mapped_column(ForeignKey("products.id"), nullable=True)
 
     # Relationships
     test_run: Mapped[Optional["TestRun"]] = relationship(back_populates="results")
