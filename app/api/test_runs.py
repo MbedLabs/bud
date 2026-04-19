@@ -14,8 +14,7 @@ from app.api.auth import get_current_active_entity, get_current_user
 from app.db import get_db
 from app.models import Runner, TestRun
 from app.models.user import User
-from app.schemas import (TestRunCreate, TestRunList, TestRunResponse,
-                         TestRunUpdate)
+from app.schemas import TestRunCreate, TestRunList, TestRunResponse, TestRunUpdate
 
 router = APIRouter()
 
@@ -161,7 +160,7 @@ async def update_test_run(
     # Update fields
     if data.status is not None:
         test_run.status = data.status.value
-        if data.status.value in ("Completed", "Failed"):
+        if data.status.value in ("Completed", "Cancelled"):
             test_run.completed_at = datetime.utcnow()
 
     if data.total_tests is not None:
