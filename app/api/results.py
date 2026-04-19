@@ -2,6 +2,7 @@
 Test results API endpoints.
 """
 
+from datetime import datetime
 from typing import List, Union
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -60,10 +61,23 @@ async def upload_results(
         if test_run:
             passed = sum(1 for r in created_results if r.passed)
             failed = len(created_results) - passed
+            total_duration = sum(r.duration_seconds for r in created_results if r.duration_seconds)
 
             test_run.total_tests += len(created_results)
             test_run.passed_tests += passed
             test_run.failed_tests += failed
+
+            # Update duration and start/end times
+            if test_run.duration_seconds is None:
+                test_run.duration_seconds = 0.0
+            test_run.duration_seconds += total_duration
+
+            if not test_run.started_at:
+                test_run.started_at = datetime.utcnow()
+
+            # If this upload completes the run, the caller should ideally update status,
+            # but we'll set a default completion time for now.
+            test_run.completed_at = datetime.utcnow()
 
     await db.commit()
 
