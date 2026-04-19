@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
-from sqlalchemy import select
+from sqlalchemy import select, text
 
 from app.api import auth as auth_api
 from app.api import health, products, results, runners, test_runs, uploads
@@ -28,7 +28,8 @@ async def seed_admin_user():
     # (``from db import async_session_maker`` would keep the import-time binding).
     async with db.async_session_maker() as session:
         result = await session.execute(select(User).where(User.email == settings.ADMIN_EMAIL))
-        if not result.scalar_one_or_none():
+        admin = result.scalar_one_or_none()
+        if admin is None:
             admin = User(
                 email=settings.ADMIN_EMAIL,
                 full_name=settings.ADMIN_FULL_NAME,
@@ -37,22 +38,69 @@ async def seed_admin_user():
                 is_active=True,
             )
             session.add(admin)
-            await session.commit()
+        else:
+            admin.role = UserRole.admin
+            admin.is_active = True
+
+        await session.commit()
+
+
+async def migrate_user_columns() -> None:
+    async with db.engine.begin() as conn:
+        if conn.dialect.name != "postgresql":
+            return
+
+        await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS invited_at TIMESTAMP NULL"))
+        await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS invited_by_user_id INTEGER NULL"))
+        await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_invite_sent_at TIMESTAMP NULL"))
+        await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS invite_accepted_at TIMESTAMP NULL"))
+        await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS password_set_at TIMESTAMP NULL"))
+        await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified_at TIMESTAMP NULL"))
+
+
+async def migrate_user_roles_to_viewer() -> None:
+    async with db.engine.begin() as conn:
+        if conn.dialect.name == "postgresql":
+            await conn.execute(
+                text(
+                    """
+                    DO $$
+                    BEGIN
+                        IF EXISTS (SELECT 1 FROM pg_type WHERE typname = 'userrole') THEN
+                            BEGIN
+                                ALTER TYPE userrole ADD VALUE IF NOT EXISTS 'viewer';
+                            EXCEPTION
+                                WHEN duplicate_object THEN NULL;
+                            END;
+                        END IF;
+                    END
+                    $$;
+                    """
+                )
+            )
+
+    async with db.engine.begin() as conn:
+        if conn.dialect.name == "postgresql":
+            await conn.execute(text("UPDATE users SET role = 'viewer' WHERE role::text = 'user'"))
+        else:
+            await conn.execute(text("UPDATE users SET role = 'viewer' WHERE role = 'user'"))
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan handler."""
     await db.create_tables()
+    await migrate_user_columns()
+    await migrate_user_roles_to_viewer()
     await seed_admin_user()
     yield
 
 
 # L1: Hide docs endpoints in production; set ENABLE_DOCS=true for local dev
 app = FastAPI(
-    title="Bud Test Platform API",
+    title=f"{settings.BUD_APP_NAME} API",
     description="Backend API for bud.embedlabs.de - Test automation platform",
-    version="0.1.0",
+    version=settings.BUD_APP_VERSION,
     docs_url="/api/docs" if settings.ENABLE_DOCS else None,
     redoc_url="/api/redoc" if settings.ENABLE_DOCS else None,
     openapi_url="/api/openapi.json" if settings.ENABLE_DOCS else None,
@@ -88,5 +136,5 @@ async def root():
     """Root endpoint."""
     return {
         "message": "Bud Test Platform API",
-        "version": "0.1.0",
+        "version": settings.BUD_APP_VERSION,
     }
