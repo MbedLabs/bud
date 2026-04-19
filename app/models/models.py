@@ -97,7 +97,7 @@ class TestResult(Base):
     error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     traceback: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     assertions: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
-    result_metadata: Mapped[Optional[dict]] = mapped_column("metadata", JSON, nullable=True)
+    test_metadata: Mapped[Optional[dict]] = mapped_column("test_metadata", JSON, nullable=True)
 
     # OpenProject integration
     work_package_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
