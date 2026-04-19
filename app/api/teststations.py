@@ -5,7 +5,7 @@ H2: Rate-limited registration and heartbeat endpoints.
 C2: TestStation registration requires a server-side API key.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import select
@@ -97,12 +97,12 @@ async def teststation_heartbeat(
     if not teststation:
         raise HTTPException(status_code=404, detail="TestStation not found")
 
-    teststation.last_heartbeat = datetime.utcnow()
+    teststation.last_heartbeat = datetime.now(timezone.utc)
     teststation.is_active = True
 
     await db.flush()
 
-    return {"status": "ok", "timestamp": datetime.utcnow().isoformat()}
+    return {"status": "ok", "timestamp": datetime.now(timezone.utc).isoformat()}
 
 
 @router.get("/status")
@@ -120,7 +120,7 @@ async def get_teststation_status(
     from app.core.config import settings
 
     timeout = timedelta(seconds=settings.TESTSTATION_HEARTBEAT_TIMEOUT)
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
 
     teststation_list = []
     for teststation in teststations:

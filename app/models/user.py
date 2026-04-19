@@ -3,7 +3,7 @@ User model and role enum.
 """
 
 import enum
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy import Boolean, DateTime
@@ -36,7 +36,11 @@ class User(Base):
     invite_accepted_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     password_set_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     email_verified_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(timezone.utc)
+    )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
     )
