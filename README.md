@@ -1,9 +1,6 @@
 # bud-app-frontend
 
-Frontend application for the Bud project — Test automation dashboard.
-
-> **Note:** This repository was split from the original [MbedLabs/bud-web-app](https://github.com/MbedLabs/bud-web-app) monorepo.
-> Git history has been preserved for all files that were under `frontend/`.
+Frontend application for the Bud platform — a comprehensive test automation and runner orchestration dashboard.
 
 ## Stack
 
@@ -20,11 +17,28 @@ npm run dev
 
 The dev server runs on http://localhost:3000 by default.
 
-## Docker
+## Deployment
+
+This frontend is designed to be environment-agnostic using runtime configuration injection.
+
+### Environment Variables
+
+| Variable | Description | Default |
+| :--- | :--- | :--- |
+| `BACKEND_UPSTREAM` | Nginx upstream for the API proxy (`/api`) | `bud-backend.bud.svc.cluster.local:8000` |
+| `BLOOM_APP_URL` | URL of the Bloom ALM application (for sidebar links) | `http://localhost:3001` |
+| `BUD_APP_URL` | Public URL of this Bud instance (for self-referencing) | `http://localhost:3000` |
+
+### Docker
 
 ```bash
 docker build -t bud-app-frontend .
-docker run -p 3000:80 bud-app-frontend
+
+# Run with custom upstream and cross-links
+docker run -p 8080:80 \
+  -e BACKEND_UPSTREAM=backend:8000 \
+  -e BLOOM_APP_URL=https://bloom.example.com \
+  bud-app-frontend
 ```
 
 ## Related Repos
