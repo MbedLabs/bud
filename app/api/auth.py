@@ -26,6 +26,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 from typing import Union
 from app.models import Runner
 
+
 async def get_current_active_entity(
     token: str = Depends(oauth2_scheme),
     db: AsyncSession = Depends(get_db),
@@ -56,12 +57,10 @@ async def get_current_active_entity(
 
     if entity is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Entity not found")
-    
+
     # Both models have is_active
     if not entity.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Account is deactivated"
-        )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account is deactivated")
     return entity
 
 
