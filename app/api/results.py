@@ -39,7 +39,7 @@ async def upload_results(
             error_message=result_data.error_message,
             traceback=result_data.traceback,
             assertions=result_data.assertions,
-            result_metadata=result_data.metadata,
+            test_metadata=result_data.metadata,
             work_package_id=result_data.work_package_id,
             test_run_id=data.test_run_id,
         )
