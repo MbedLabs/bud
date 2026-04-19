@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { Activity } from 'lucide-react'
 import { APP_VERSION } from '../api/client'
@@ -69,6 +69,14 @@ export default function Login() {
                 className="w-full px-3 py-2.5 bg-background border border-input rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-ring focus:border-ring transition-colors"
                 placeholder="Enter your password"
               />
+              <div className="mt-1.5 text-right">
+                <Link
+                  to="/forgot-password"
+                  className="text-xs font-medium text-primary hover:text-primary/80 transition-colors"
+                >
+                  Forgot password?
+                </Link>
+              </div>
             </div>
 
             <button
