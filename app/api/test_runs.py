@@ -54,7 +54,9 @@ async def create_test_run(
     )
 
     db.add(test_run)
-    await db.flush()
+    await db.commit()
+    await db.refresh(test_run)
+
     # Eager-load the runner relationship so the response can expose
     # runner_account without a second round-trip.
     result = await db.execute(
@@ -174,7 +176,7 @@ async def update_test_run(
 
     await db.commit()
     await db.refresh(test_run)
-    
+
     result = await db.execute(
         select(TestRun).options(selectinload(TestRun.runner)).where(TestRun.id == test_run.id)
     )
@@ -199,3 +201,4 @@ async def delete_test_run(
         raise HTTPException(status_code=404, detail="Test run not found")
 
     await db.delete(test_run)
+    await db.commit()
