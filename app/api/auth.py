@@ -3,11 +3,6 @@ Auth API endpoints: login, get current user, update profile.
 Also provides shared auth dependencies used across the app.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.core.security import (
     create_access_token,
     decode_access_token,
@@ -17,6 +12,10 @@ from app.core.security import (
 from app.db.database import get_db
 from app.models.user import User, UserRole
 from app.schemas.auth import LoginRequest, TokenResponse, UserResponse, UserUpdate
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter()
 
@@ -24,6 +23,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
 
 from typing import Union
+
 from app.models import Runner
 
 
