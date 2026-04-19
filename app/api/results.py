@@ -29,6 +29,9 @@ async def upload_results(
     Accepts multiple test results and optionally associates them with a test run.
     """
     created_results = []
+    
+    # Identify target product for results not already associated with a run
+    target_product_id = data.product_id
 
     for result_data in data.results:
         result = TestResult(
@@ -42,6 +45,7 @@ async def upload_results(
             test_metadata=result_data.metadata,
             work_package_id=result_data.work_package_id,
             test_run_id=data.test_run_id,
+            product_id=target_product_id,
         )
         db.add(result)
         created_results.append(result)
