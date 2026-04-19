@@ -172,7 +172,9 @@ async def update_test_run(
     if data.duration_seconds is not None:
         test_run.duration_seconds = data.duration_seconds
 
-    await db.flush()
+    await db.commit()
+    await db.refresh(test_run)
+    
     result = await db.execute(
         select(TestRun).options(selectinload(TestRun.runner)).where(TestRun.id == test_run.id)
     )
