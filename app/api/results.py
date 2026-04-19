@@ -2,15 +2,15 @@
 Test results API endpoints.
 """
 
-from typing import List
+from typing import List, Union
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.auth import get_current_user
+from app.api.auth import get_current_user, get_current_active_entity
 from app.db import get_db
-from app.models import TestResult, TestRun
+from app.models import TestResult, TestRun, Runner
 from app.models.user import User
 from app.schemas import ResultsUpload, TestResultCreate, TestResultResponse
 
@@ -21,7 +21,7 @@ router = APIRouter()
 async def upload_results(
     data: ResultsUpload,
     db: AsyncSession = Depends(get_db),
-    _current_user: User = Depends(get_current_user),
+    _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
 ):
     """
     Upload test results.
