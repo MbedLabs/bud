@@ -17,7 +17,6 @@ class TestRunStatus(str, Enum):
     PENDING = "Pending"
     RUNNING = "Running"
     COMPLETED = "Completed"
-    FAILED = "Failed"
     CANCELLED = "Cancelled"
 
 
