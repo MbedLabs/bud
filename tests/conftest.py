@@ -20,6 +20,11 @@ os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
 
 import pytest  # noqa: E402
 import pytest_asyncio  # noqa: E402
+from app.api.auth import get_current_active_entity, get_current_user  # noqa: E402
+from app.db import database as db_module  # noqa: E402
+from app.db.database import Base, get_db  # noqa: E402
+from app.main import app  # noqa: E402
+from app.models.user import User, UserRole  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 from sqlalchemy.ext.asyncio import (  # noqa: E402
     AsyncSession,
@@ -27,12 +32,6 @@ from sqlalchemy.ext.asyncio import (  # noqa: E402
     create_async_engine,
 )
 from sqlalchemy.pool import StaticPool  # noqa: E402
-
-from app.api.auth import get_current_user  # noqa: E402
-from app.db import database as db_module  # noqa: E402
-from app.db.database import Base, get_db  # noqa: E402
-from app.main import app  # noqa: E402
-from app.models.user import User, UserRole  # noqa: E402
 
 TEST_DB_URL = "sqlite+aiosqlite:///:memory:"
 
@@ -102,11 +101,12 @@ async def client(_engine, test_user):
                 await session.rollback()
                 raise
 
-    async def override_get_current_user() -> User:
+    async def override_get_current_entity() -> User:
         return test_user
 
     app.dependency_overrides[get_db] = override_get_db
-    app.dependency_overrides[get_current_user] = override_get_current_user
+    app.dependency_overrides[get_current_user] = override_get_current_entity
+    app.dependency_overrides[get_current_active_entity] = override_get_current_entity
     try:
         with TestClient(app) as tc:
             yield tc
