@@ -76,7 +76,6 @@ export default function TestRuns() {
               <option value="Pending">Pending</option>
               <option value="Running">Running</option>
               <option value="Completed">Completed</option>
-              <option value="Failed">Failed</option>
               <option value="Cancelled">Cancelled</option>
             </select>
           </div>
@@ -219,15 +218,14 @@ export default function TestRuns() {
 
 function StatusBadge({ status }: { status: string }) {
   const config: Record<string, string> = {
-    Pending: 'bg-muted text-muted-foreground',
-    Running: 'bg-primary/10 text-primary',
-    Completed: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',
-    Failed: 'bg-red-500/10 text-red-700 dark:text-red-400',
-    Cancelled: 'bg-amber-500/10 text-amber-700 dark:text-amber-400',
+    Pending: 'bg-amber-500/10 text-amber-700 dark:text-amber-400',
+    Running: 'bg-blue-500/10 text-blue-700 dark:text-blue-400',
+    Completed: 'bg-muted text-muted-foreground',
+    Cancelled: 'bg-muted text-muted-foreground',
   }
 
   return (
-    <span className={`px-2 py-0.5 rounded-md text-[11px] font-semibold ${config[status] || config.Pending}`}>
+    <span className={`px-2 py-0.5 rounded-md text-[11px] font-semibold ${config[status] || config.Completed}`}>
       {status}
     </span>
   )
