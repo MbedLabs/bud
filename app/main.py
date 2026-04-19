@@ -50,12 +50,24 @@ async def migrate_user_columns() -> None:
         if conn.dialect.name != "postgresql":
             return
 
-        await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS invited_at TIMESTAMP NULL"))
-        await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS invited_by_user_id INTEGER NULL"))
-        await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_invite_sent_at TIMESTAMP NULL"))
-        await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS invite_accepted_at TIMESTAMP NULL"))
-        await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS password_set_at TIMESTAMP NULL"))
-        await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified_at TIMESTAMP NULL"))
+        await conn.execute(
+            text("ALTER TABLE users ADD COLUMN IF NOT EXISTS invited_at TIMESTAMP NULL")
+        )
+        await conn.execute(
+            text("ALTER TABLE users ADD COLUMN IF NOT EXISTS invited_by_user_id INTEGER NULL")
+        )
+        await conn.execute(
+            text("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_invite_sent_at TIMESTAMP NULL")
+        )
+        await conn.execute(
+            text("ALTER TABLE users ADD COLUMN IF NOT EXISTS invite_accepted_at TIMESTAMP NULL")
+        )
+        await conn.execute(
+            text("ALTER TABLE users ADD COLUMN IF NOT EXISTS password_set_at TIMESTAMP NULL")
+        )
+        await conn.execute(
+            text("ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified_at TIMESTAMP NULL")
+        )
 
 
 async def migrate_user_roles_to_viewer() -> None:

@@ -16,13 +16,8 @@ from app.core.security import get_password_hash
 from app.db.database import get_db
 from app.models.user import User, UserRole
 from app.models.user_token import UserTokenPurpose
-from app.schemas.auth import (
-    InviteCreateRequest,
-    InviteResponse,
-    UserCreate,
-    UserResponse,
-    UserUpdate,
-)
+from app.schemas.auth import (InviteCreateRequest, InviteResponse, UserCreate,
+                              UserResponse, UserUpdate)
 from app.services.mail_service import MailConfigurationError, send_invite_email
 from app.services.token_service import create_user_token
 
@@ -105,9 +100,7 @@ async def invite_user(
         ttl_hours=settings.INVITE_TOKEN_TTL_HOURS,
         created_by_user_id=admin.id,
     )
-    invite_link = (
-        f"{settings.FRONTEND_BASE_URL.rstrip('/')}/accept-invite?token={invite_token}"
-    )
+    invite_link = f"{settings.FRONTEND_BASE_URL.rstrip('/')}/accept-invite?token={invite_token}"
 
     try:
         send_invite_email(
@@ -151,9 +144,7 @@ async def resend_invite(
         ttl_hours=settings.INVITE_TOKEN_TTL_HOURS,
         created_by_user_id=admin.id,
     )
-    invite_link = (
-        f"{settings.FRONTEND_BASE_URL.rstrip('/')}/accept-invite?token={invite_token}"
-    )
+    invite_link = f"{settings.FRONTEND_BASE_URL.rstrip('/')}/accept-invite?token={invite_token}"
 
     try:
         send_invite_email(

@@ -1,25 +1,12 @@
 """Schemas package initialization."""
 
-from app.schemas.schemas import (
-    ArtifactResponse,
-    HealthResponse,
-    ProductBase,
-    ProductCreate,
-    ProductResponse,
-    ResultsUpload,
-    RunnerHeartbeat,
-    RunnerRegister,
-    RunnerResponse,
-    RunnerToken,
-    TestResultCreate,
-    TestResultResponse,
-    TestRunCreate,
-    TestRunList,
-    TestRunResponse,
-    TestRunStatus,
-    TestRunUpdate,
-    VersionResponse,
-)
+from app.schemas.schemas import (ArtifactResponse, HealthResponse, ProductBase,
+                                 ProductCreate, ProductResponse, ResultsUpload,
+                                 RunnerHeartbeat, RunnerRegister,
+                                 RunnerResponse, RunnerToken, TestResultCreate,
+                                 TestResultResponse, TestRunCreate,
+                                 TestRunList, TestRunResponse, TestRunStatus,
+                                 TestRunUpdate, VersionResponse)
 
 __all__ = [
     "ProductBase",
