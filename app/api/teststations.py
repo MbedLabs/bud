@@ -5,22 +5,28 @@ H2: Rate-limited registration and heartbeat endpoints.
 C2: TestStation registration requires a server-side API key.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Request
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 from datetime import datetime
 
+from fastapi import APIRouter, Depends, HTTPException, Request
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.deps import limiter, require_teststation_api_key
+from app.core.security import generate_teststation_token, get_password_hash
 from app.db import get_db
 from app.models import TestStation
-from app.schemas import TestStationRegister, TestStationResponse, TestStationToken, TestStationHeartbeat
-from app.core.security import get_password_hash, generate_teststation_token
-from app.core.deps import limiter, require_teststation_api_key
+from app.schemas import (TestStationHeartbeat, TestStationRegister,
+                         TestStationResponse, TestStationToken)
 
 router = APIRouter()
 
 
-@router.post("/register", response_model=TestStationToken, status_code=201,
-             dependencies=[Depends(require_teststation_api_key)])
+@router.post(
+    "/register",
+    response_model=TestStationToken,
+    status_code=201,
+    dependencies=[Depends(require_teststation_api_key)],
+)
 @limiter.limit("10/minute")  # H2: prevent registration flood
 async def register_teststation(
     request: Request,
@@ -35,9 +41,7 @@ async def register_teststation(
     Creates a teststation account and returns an authentication token.
     """
     # Check if teststation already exists
-    result = await db.execute(
-        select(TestStation).where(TestStation.account == data.username)
-    )
+    result = await db.execute(select(TestStation).where(TestStation.account == data.username))
     existing = result.scalar_one_or_none()
 
     if existing:
@@ -104,13 +108,12 @@ async def get_teststation_status(
     """
     Get status of all teststations.
     """
-    result = await db.execute(
-        select(TestStation).order_by(TestStation.last_heartbeat.desc())
-    )
+    result = await db.execute(select(TestStation).order_by(TestStation.last_heartbeat.desc()))
     teststations = result.scalars().all()
 
-    from app.core.config import settings
     from datetime import timedelta
+
+    from app.core.config import settings
 
     timeout = timedelta(seconds=settings.TESTSTATION_HEARTBEAT_TIMEOUT)
     now = datetime.utcnow()
@@ -121,14 +124,18 @@ async def get_teststation_status(
         if teststation.last_heartbeat:
             is_online = (now - teststation.last_heartbeat) < timeout
 
-        teststation_list.append({
-            "account": teststation.account,
-            "is_online": is_online,
-            "is_active": teststation.is_active,
-            "last_heartbeat": teststation.last_heartbeat.isoformat() if teststation.last_heartbeat else None,
-            "socket_port": teststation.socket_port,
-            "location": teststation.location,
-        })
+        teststation_list.append(
+            {
+                "account": teststation.account,
+                "is_online": is_online,
+                "is_active": teststation.is_active,
+                "last_heartbeat": (
+                    teststation.last_heartbeat.isoformat() if teststation.last_heartbeat else None
+                ),
+                "socket_port": teststation.socket_port,
+                "location": teststation.location,
+            }
+        )
 
     return {"teststations": teststation_list}
 
@@ -141,9 +148,7 @@ async def get_teststation(
     """
     Get a test station by account name.
     """
-    result = await db.execute(
-        select(TestStation).where(TestStation.account == account)
-    )
+    result = await db.execute(select(TestStation).where(TestStation.account == account))
     teststation = result.scalar_one_or_none()
 
     if not teststation:
@@ -152,8 +157,7 @@ async def get_teststation(
     return teststation
 
 
-@router.delete("/{account}", status_code=204,
-               dependencies=[Depends(require_teststation_api_key)])
+@router.delete("/{account}", status_code=204, dependencies=[Depends(require_teststation_api_key)])
 async def delete_teststation(
     request: Request,
     account: str,
@@ -162,9 +166,7 @@ async def delete_teststation(
     """
     Delete a test station. Requires X-API-Key (C2).
     """
-    result = await db.execute(
-        select(TestStation).where(TestStation.account == account)
-    )
+    result = await db.execute(select(TestStation).where(TestStation.account == account))
     teststation = result.scalar_one_or_none()
 
     if not teststation:

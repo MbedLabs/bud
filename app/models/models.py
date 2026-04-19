@@ -5,7 +5,8 @@ Database models for the bud test platform.
 from datetime import datetime
 from typing import List, Optional
 
-from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import (JSON, Boolean, DateTime, Float, ForeignKey, Integer,
+                        String, Text)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.database import Base
