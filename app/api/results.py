@@ -4,15 +4,14 @@ Test results API endpoints.
 
 from typing import List, Union
 
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.api.auth import get_current_active_entity, get_current_user
 from app.db import get_db
 from app.models import Runner, TestResult, TestRun
 from app.models.user import User
 from app.schemas import ResultsUpload, TestResultCreate, TestResultResponse
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter()
 
@@ -29,7 +28,7 @@ async def upload_results(
     Accepts multiple test results and optionally associates them with a test run.
     """
     created_results = []
-    
+
     # Identify target product for results not already associated with a run
     target_product_id = data.product_id
 
