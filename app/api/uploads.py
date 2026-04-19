@@ -5,7 +5,7 @@ File uploads API endpoints.
 import os
 import uuid
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 
 import aiofiles
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
@@ -13,10 +13,10 @@ from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.auth import get_current_user
+from app.api.auth import get_current_active_entity, get_current_user
 from app.core.config import settings
 from app.db import get_db
-from app.models import Artifact
+from app.models import Artifact, Runner
 from app.models.user import User
 from app.schemas import ArtifactResponse
 
@@ -47,7 +47,7 @@ async def upload_file(
     test_case: Optional[str] = Form(None),
     run_id: Optional[int] = Form(None),
     db: AsyncSession = Depends(get_db),
-    _current_user: User = Depends(get_current_user),
+    _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
 ):
     """
     Upload a file artifact (trace, log, etc.).
@@ -121,7 +121,7 @@ async def upload_file(
 async def download_artifact(
     artifact_id: int,
     db: AsyncSession = Depends(get_db),
-    _current_user: User = Depends(get_current_user),
+    _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
 ):
     """
     Download an artifact by ID.
@@ -154,7 +154,7 @@ async def download_artifact(
 async def get_artifact_info(
     artifact_id: int,
     db: AsyncSession = Depends(get_db),
-    _current_user: User = Depends(get_current_user),
+    _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
 ):
     """
     Get artifact metadata without downloading.

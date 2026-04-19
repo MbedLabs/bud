@@ -3,14 +3,14 @@ Test runs API endpoints.
 """
 
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Union
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.api.auth import get_current_user
+from app.api.auth import get_current_active_entity, get_current_user
 from app.db import get_db
 from app.models import Runner, TestRun
 from app.models.user import User
@@ -23,7 +23,7 @@ router = APIRouter()
 async def create_test_run(
     data: TestRunCreate,
     db: AsyncSession = Depends(get_db),
-    _current_user: User = Depends(get_current_user),
+    _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
 ):
     """
     Create a new test run.
@@ -37,6 +37,10 @@ async def create_test_run(
         runner = result.scalar_one_or_none()
         if runner:
             runner_id = runner.id
+
+    # Auto-associate if created by a runner and no account was explicitly provided
+    if isinstance(_current_entity, Runner) and not runner_id:
+        runner_id = _current_entity.id
 
     test_run = TestRun(
         name=data.test_suite_name,
@@ -73,7 +77,7 @@ async def list_test_runs(
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_db),
-    _current_user: User = Depends(get_current_user),
+    _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
 ):
     """
     List test runs with optional filtering and pagination.
@@ -119,7 +123,7 @@ async def list_test_runs(
 async def get_test_run(
     run_id: int,
     db: AsyncSession = Depends(get_db),
-    _current_user: User = Depends(get_current_user),
+    _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
 ):
     """
     Get a test run by ID.
@@ -140,7 +144,7 @@ async def update_test_run(
     run_id: int,
     data: TestRunUpdate,
     db: AsyncSession = Depends(get_db),
-    _current_user: User = Depends(get_current_user),
+    _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
 ):
     """
     Update a test run with results or status.
