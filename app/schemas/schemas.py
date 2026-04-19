@@ -122,6 +122,7 @@ class TestRunUpdate(BaseModel):
     duration_seconds: Optional[float] = None
     completed_at: Optional[datetime] = None
     results: Optional[List[Dict[str, Any]]] = None
+    product_id: Optional[int] = None
 
 
 class TestRunResponse(BaseModel):
@@ -214,6 +215,7 @@ class ResultsUpload(BaseModel):
 
     results: List[TestResultCreate]
     test_run_id: Optional[int] = None
+    product_id: Optional[int] = None
 
 
 # ==================== Artifact Schemas ====================
