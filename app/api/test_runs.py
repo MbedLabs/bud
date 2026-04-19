@@ -14,7 +14,8 @@ from app.api.auth import get_current_active_entity, get_current_user
 from app.db import get_db
 from app.models import Runner, TestRun
 from app.models.user import User
-from app.schemas import TestRunCreate, TestRunList, TestRunResponse, TestRunUpdate
+from app.schemas import (TestRunCreate, TestRunList, TestRunResponse,
+                         TestRunUpdate)
 
 router = APIRouter()
 
