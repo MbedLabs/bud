@@ -83,8 +83,12 @@ class TestRun(Base):
     # Relationships
     product: Mapped[Optional["Product"]] = relationship(back_populates="test_runs")
     runner: Mapped[Optional["Runner"]] = relationship(back_populates="test_runs")
-    results: Mapped[List["TestResult"]] = relationship(back_populates="test_run")
-    artifacts: Mapped[List["Artifact"]] = relationship(back_populates="test_run")
+    results: Mapped[List["TestResult"]] = relationship(
+        back_populates="test_run", cascade="all, delete-orphan"
+    )
+    artifacts: Mapped[List["Artifact"]] = relationship(
+        back_populates="test_run", cascade="all, delete-orphan"
+    )
 
 
 class TestResult(Base):
