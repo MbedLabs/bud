@@ -14,7 +14,7 @@ from slowapi.errors import RateLimitExceeded
 from sqlalchemy import select
 
 from app.api import auth as auth_api
-from app.api import health, results, runners, test_runs, uploads
+from app.api import health, products, results, runners, test_runs, uploads
 from app.api import users as users_api
 from app.core.config import settings
 from app.core.deps import limiter
@@ -76,6 +76,7 @@ app.add_middleware(
 app.include_router(health.router, prefix="/api", tags=["Health"])
 app.include_router(auth_api.router, prefix="/api/auth", tags=["Auth"])
 app.include_router(users_api.router, prefix="/api/users", tags=["Users"])
+app.include_router(products.router, prefix="/api/products", tags=["Products"])
 app.include_router(test_runs.router, prefix="/api/test-runs", tags=["Test Runs"])
 app.include_router(results.router, prefix="/api/results", tags=["Results"])
 app.include_router(uploads.router, prefix="/api/uploads", tags=["Uploads"])
