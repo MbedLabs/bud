@@ -268,3 +268,19 @@ export const healthApi = {
     return response.data
   },
 }
+
+export interface ALMIntegrationSettings {
+  bloom_url: string
+  bloom_token: string
+}
+
+export const settingsApi = {
+  getALM: async () => {
+    const response = await api.get<ALMIntegrationSettings>('/settings/integrations/alm')
+    return response.data
+  },
+  updateALM: async (data: ALMIntegrationSettings) => {
+    const response = await api.post<ALMIntegrationSettings>('/settings/integrations/alm', data)
+    return response.data
+  },
+}
