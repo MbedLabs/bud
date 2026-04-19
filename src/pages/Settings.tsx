@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
-import { Sun, Moon, Monitor, Key, Info, ExternalLink } from 'lucide-react'
-import { APP_VERSION } from '../api/client'
+import { Sun, Moon, Monitor, Key, Info, ExternalLink, Link as LinkIcon, Save, Loader2 } from 'lucide-react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { APP_VERSION, settingsApi, extractApiErrorMessage } from '../api/client'
+import { useAuth } from '../contexts/AuthContext'
 
 function useDarkMode() {
   const [dark, setDark] = useState(() => {
@@ -23,14 +25,53 @@ function useDarkMode() {
 }
 
 export default function Settings() {
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'admin'
+  const queryClient = useQueryClient()
+  
   const [dark, setDark] = useDarkMode()
   const [apiKey, setApiKey] = useState(() => localStorage.getItem('bud-api-key') || '')
   const [saved, setSaved] = useState(false)
+
+  // ALM Integration local state
+  const [bloomUrl, setBloomUrl] = useState('')
+  const [bloomToken, setBloomToken] = useState('')
+
+  const { data: almSettings, isLoading: almLoading } = useQuery({
+    queryKey: ['almSettings'],
+    queryFn: settingsApi.getALM,
+    enabled: isAdmin,
+  })
+
+  useEffect(() => {
+    if (almSettings) {
+      setBloomUrl(almSettings.bloom_url)
+      setBloomToken(almSettings.bloom_token)
+    }
+  }, [almSettings])
+
+  const almMutation = useMutation({
+    mutationFn: settingsApi.updateALM,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['almSettings'] })
+      alert('ALM settings updated successfully')
+    },
+    onError: (error) => {
+      alert(`Error updating ALM settings: ${extractApiErrorMessage(error)}`)
+    },
+  })
 
   const handleSaveKey = () => {
     localStorage.setItem('bud-api-key', apiKey)
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
+  }
+
+  const handleSaveALM = () => {
+    almMutation.mutate({
+      bloom_url: bloomUrl,
+      bloom_token: bloomToken
+    })
   }
 
   return (
@@ -63,6 +104,60 @@ export default function Settings() {
         </div>
       </div>
 
+      {/* ALM Integration (Admin Only) */}
+      {isAdmin && (
+        <div className="bg-card rounded-lg border border-border shadow-elegant overflow-hidden">
+          <div className="px-5 py-4 border-b border-border flex items-center gap-2">
+            <LinkIcon className="h-4 w-4 text-primary" />
+            <h3 className="text-sm font-semibold text-foreground">ALM Integration (Bloom)</h3>
+          </div>
+          <div className="p-5 space-y-4">
+            {almLoading ? (
+              <div className="flex items-center justify-center py-4">
+                <Loader2 className="h-5 w-5 text-muted-foreground animate-spin" />
+              </div>
+            ) : (
+              <>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5">
+                    Bloom URL
+                  </label>
+                  <input
+                    type="url"
+                    value={bloomUrl}
+                    onChange={(e) => setBloomUrl(e.target.value)}
+                    placeholder="https://bloom.embedlabs.de"
+                    className="w-full px-3 py-2 bg-background border border-input rounded-md text-sm text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-ring focus:border-ring transition-colors font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5">
+                    Bloom Access Token
+                  </label>
+                  <input
+                    type="password"
+                    value={bloomToken}
+                    onChange={(e) => setBloomToken(e.target.value)}
+                    placeholder="Enter Bloom API token..."
+                    className="w-full px-3 py-2 bg-background border border-input rounded-md text-sm text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-ring focus:border-ring transition-colors font-mono"
+                  />
+                </div>
+                <div className="flex justify-end">
+                  <button
+                    onClick={handleSaveALM}
+                    disabled={almMutation.isPending}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
+                  >
+                    {almMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                    Save Integration
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* API Configuration */}
       <div className="bg-card rounded-lg border border-border shadow-elegant overflow-hidden">
         <div className="px-5 py-4 border-b border-border flex items-center gap-2">
@@ -80,7 +175,7 @@ export default function Settings() {
           </div>
           <div>
             <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5">
-              API Key
+              Local API Key (Browser)
             </label>
             <div className="flex gap-2">
               <input
