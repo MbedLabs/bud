@@ -4,7 +4,15 @@ import { LayoutDashboard, PlayCircle, Server, Settings, Sun, Moon, Activity, Log
 import { useAuth } from '../contexts/AuthContext'
 import { APP_VERSION } from '../api/client'
 
-const BLOOM_ALM_URL = import.meta.env.VITE_BLOOM_ALM_URL || 'http://localhost:3001'
+const getBloomUrl = () => {
+  const runtimeUrl = window.runtimeConfig?.BLOOM_APP_URL
+  const buildTimeUrl = import.meta.env.VITE_BLOOM_ALM_URL
+  const rawUrl = runtimeUrl || buildTimeUrl || 'http://localhost:3001'
+  // Strip trailing /api if present in the URL for navigation purposes
+  return rawUrl.replace(/\/api\/?$/, '')
+}
+
+const BLOOM_ALM_URL = getBloomUrl()
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
