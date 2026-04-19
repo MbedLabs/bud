@@ -92,10 +92,10 @@ async def runner_heartbeat(
     if not runner:
         raise HTTPException(status_code=404, detail="Runner not found")
 
-    runner.last_heartbeat = datetime.now(timezone.utc)
+    runner.last_heartbeat = datetime.utcnow()
     runner.is_active = True
 
-    await db.flush()
+    await db.commit()
 
     return {"status": "ok", "timestamp": datetime.now(timezone.utc).isoformat()}
 
@@ -116,7 +116,7 @@ async def get_runner_status(
     from app.core.config import settings
 
     timeout = timedelta(seconds=settings.RUNNER_HEARTBEAT_TIMEOUT)
-    now = datetime.now(timezone.utc)
+    now = datetime.utcnow()
 
     runner_list = []
     for runner in runners:
