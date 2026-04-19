@@ -1,9 +1,6 @@
 # bud-app-backend
 
-Backend application for the Bud project — Test automation API.
-
-> **Note:** This repository was split from the original [MbedLabs/bud-web-app](https://github.com/MbedLabs/bud-web-app) monorepo.
-> Git history has been preserved for all files that were under `backend/`.
+Backend application for the Bud platform — a comprehensive test automation and runner orchestration API.
 
 ## Stack
 
@@ -86,7 +83,7 @@ it as `X-API-Key`:
 
 ```bash
 export RUNNER_API_KEY=...   # same value as the backend
-export BUD_BACKEND_URL=https://bud.embedlabs.de
+export BUD_BACKEND_URL=https://<your-bud-instance-url>
 bud_runner register --username my-runner
 ```
 

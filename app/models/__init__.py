@@ -5,13 +5,13 @@ from app.models.user import User, UserRole
 from app.models.user_token import UserToken, UserTokenPurpose
 
 __all__ = [
-	"Product",
-	"Runner",
-	"TestRun",
-	"TestResult",
-	"Artifact",
-	"User",
-	"UserRole",
-	"UserToken",
-	"UserTokenPurpose",
+    "Product",
+    "Runner",
+    "TestRun",
+    "TestResult",
+    "Artifact",
+    "User",
+    "UserRole",
+    "UserToken",
+    "UserTokenPurpose",
 ]
