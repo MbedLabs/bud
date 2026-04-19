@@ -6,9 +6,9 @@ Loads settings from environment variables with sensible defaults.
 
 import secrets
 from functools import lru_cache
-from typing import List
+from typing import List, Optional
 
-from pydantic import field_validator, model_validator
+from pydantic import EmailStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -33,6 +33,11 @@ class Settings(BaseSettings):
     # C1: SECRET_KEY must be set explicitly — no insecure fallback in production
     SECRET_KEY: str = ""
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
+    BUD_APP_NAME: str = "Bud Test Platform"
+    BUD_APP_VERSION: str = "0.1.0"
+
+    APP_BASE_URL: str = "http://localhost:8001"
+    FRONTEND_BASE_URL: str = "http://localhost:3000"
 
     # H1: Shorter runner token lifetime (24 hours, renewable via heartbeat)
     RUNNER_TOKEN_EXPIRE_HOURS: int = 24
@@ -72,6 +77,22 @@ class Settings(BaseSettings):
 
     # Runner settings
     RUNNER_HEARTBEAT_TIMEOUT: int = 120  # seconds
+
+    SMTP_ENABLED: bool = False
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM_EMAIL: Optional[EmailStr] = None
+    SMTP_FROM_NAME: str = ""
+    SMTP_REPLY_TO: Optional[EmailStr] = None
+    SMTP_STARTTLS: bool = True
+    SMTP_SSL: bool = False
+    SMTP_TIMEOUT_SECONDS: int = 30
+
+    INVITE_TOKEN_TTL_HOURS: int = 72
+    EMAIL_VERIFICATION_TOKEN_TTL_HOURS: int = 24
+    PASSWORD_RESET_TOKEN_TTL_HOURS: int = 2
 
     # L1: Disable API docs in production (set ENABLE_DOCS=true to enable locally)
     ENABLE_DOCS: bool = False
