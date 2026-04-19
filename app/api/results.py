@@ -4,15 +4,14 @@ Test results API endpoints.
 
 from typing import List, Union
 
+from app.api.auth import get_current_active_entity, get_current_user
+from app.db import get_db
+from app.models import Runner, TestResult, TestRun
+from app.models.user import User
+from app.schemas import ResultsUpload, TestResultCreate, TestResultResponse
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.api.auth import get_current_user, get_current_active_entity
-from app.db import get_db
-from app.models import TestResult, TestRun, Runner
-from app.models.user import User
-from app.schemas import ResultsUpload, TestResultCreate, TestResultResponse
 
 router = APIRouter()
 
