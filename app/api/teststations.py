@@ -97,12 +97,12 @@ async def teststation_heartbeat(
     if not teststation:
         raise HTTPException(status_code=404, detail="TestStation not found")
 
-    teststation.last_heartbeat = datetime.now(timezone.utc)
+    teststation.last_heartbeat = datetime.utcnow()
     teststation.is_active = True
 
-    await db.flush()
+    await db.commit()
 
-    return {"status": "ok", "timestamp": datetime.now(timezone.utc).isoformat()}
+    return {"status": "ok", "timestamp": datetime.utcnow().isoformat()}
 
 
 @router.get("/status")
@@ -120,7 +120,7 @@ async def get_teststation_status(
     from app.core.config import settings
 
     timeout = timedelta(seconds=settings.TESTSTATION_HEARTBEAT_TIMEOUT)
-    now = datetime.now(timezone.utc)
+    now = datetime.utcnow()
 
     teststation_list = []
     for teststation in teststations:
