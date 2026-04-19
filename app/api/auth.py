@@ -23,10 +23,13 @@ router = APIRouter()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
 
-async def get_current_user(
+from typing import Union
+from app.models import Runner
+
+async def get_current_active_entity(
     token: str = Depends(oauth2_scheme),
     db: AsyncSession = Depends(get_db),
-) -> User:
+) -> Union[User, Runner]:
     payload = decode_access_token(token)
     if payload is None:
         raise HTTPException(
@@ -34,18 +37,43 @@ async def get_current_user(
             detail="Could not validate credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    user_id = payload.get("sub")
-    if user_id is None:
+    sub = payload.get("sub")
+    entity_type = payload.get("type", "user")
+
+    if sub is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
-    result = await db.execute(select(User).where(User.id == int(user_id)))
-    user = result.scalar_one_or_none()
-    if user is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
-    if not user.is_active:
+
+    if entity_type == "runner":
+        result = await db.execute(select(Runner).where(Runner.account == sub))
+        entity = result.scalar_one_or_none()
+    else:
+        try:
+            entity_id = int(sub)
+        except ValueError:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user ID")
+        result = await db.execute(select(User).where(User.id == entity_id))
+        entity = result.scalar_one_or_none()
+
+    if entity is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Entity not found")
+    
+    # Both models have is_active
+    if not entity.is_active:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="User account is deactivated"
+            status_code=status.HTTP_403_FORBIDDEN, detail="Account is deactivated"
         )
-    return user
+    return entity
+
+
+async def get_current_user(
+    current_entity: Union[User, Runner] = Depends(get_current_active_entity),
+) -> User:
+    if not isinstance(current_entity, User):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User privileges required.",
+        )
+    return current_entity
 
 
 def require_role(*roles: UserRole):
