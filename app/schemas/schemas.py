@@ -236,6 +236,47 @@ class ArtifactResponse(BaseModel):
         from_attributes = True
 
 
+# ==================== TestStation Schemas ====================
+
+
+class TestStationRegister(BaseModel):
+    """Schema for teststation registration."""
+
+    username: str = Field(..., min_length=3, max_length=50, pattern=r"^[a-zA-Z0-9_\-]+$")
+    password: str = Field(..., min_length=12, max_length=128)
+    socket_port: int = Field(default=53035, ge=1024, le=65535)
+    location: Optional[str] = Field(default=None, max_length=255)
+
+
+class TestStationResponse(BaseModel):
+    """Schema for teststation response."""
+
+    id: int
+    account: str
+    socket_port: int
+    location: Optional[str]
+    is_active: bool
+    last_heartbeat: Optional[datetime]
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class TestStationToken(BaseModel):
+    """Schema for teststation token response."""
+
+    account: str
+    token: str
+    message: str = "TestStation registered successfully"
+
+
+class TestStationHeartbeat(BaseModel):
+    """Schema for teststation heartbeat."""
+
+    teststation_account: str = Field(..., min_length=3, max_length=50)
+
+
 # ==================== Health Schemas ====================
 
 
@@ -252,3 +293,37 @@ class VersionResponse(BaseModel):
 
     version: str
     api_version: str = "v1"
+
+
+# ==================== Settings Schemas ====================
+
+
+class SystemSettingBase(BaseModel):
+    """Base schema for system settings."""
+
+    key: str
+    value: str
+    description: Optional[str] = None
+
+
+class SystemSettingUpdate(BaseModel):
+    """Schema for updating a system setting."""
+
+    value: str
+    description: Optional[str] = None
+
+
+class SystemSettingResponse(SystemSettingBase):
+    """Schema for system setting response."""
+
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class ALMIntegrationSettings(BaseModel):
+    """Schema for ALM integration settings (Bloom)."""
+
+    bloom_url: str
+    bloom_token: str

@@ -152,3 +152,36 @@ class Artifact(Base):
 
     # Relationships
     test_run: Mapped[Optional["TestRun"]] = relationship(back_populates="artifacts")
+
+
+class SystemSetting(Base):
+    """General system settings (integrations, keys, etc.)."""
+
+    __tablename__ = "system_settings"
+
+    key: Mapped[str] = mapped_column(String(100), primary_key=True)
+    value: Mapped[str] = mapped_column(Text)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+
+class TestStation(Base):
+    """Test station (bench) registration."""
+
+    __tablename__ = "teststations"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    account: Mapped[str] = mapped_column(String(100), unique=True)
+    password_hash: Mapped[str] = mapped_column(String(255))
+    token: Mapped[str] = mapped_column(String(500))
+    socket_port: Mapped[int] = mapped_column(Integer, default=53035)
+    location: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    last_heartbeat: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(timezone.utc)
+    )
