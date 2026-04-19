@@ -65,6 +65,8 @@ async def upload_results(
             test_run.passed_tests += passed
             test_run.failed_tests += failed
 
+    await db.commit()
+
     return {
         "message": f"Uploaded {len(created_results)} results",
         "count": len(created_results),
