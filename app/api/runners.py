@@ -5,7 +5,7 @@ H2: Rate-limited registration and heartbeat endpoints.
 C2: Runner registration requires a server-side API key.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import select
@@ -92,12 +92,12 @@ async def runner_heartbeat(
     if not runner:
         raise HTTPException(status_code=404, detail="Runner not found")
 
-    runner.last_heartbeat = datetime.utcnow()
+    runner.last_heartbeat = datetime.now(timezone.utc)
     runner.is_active = True
 
     await db.flush()
 
-    return {"status": "ok", "timestamp": datetime.utcnow().isoformat()}
+    return {"status": "ok", "timestamp": datetime.now(timezone.utc).isoformat()}
 
 
 @router.get("/status")
@@ -116,7 +116,7 @@ async def get_runner_status(
     from app.core.config import settings
 
     timeout = timedelta(seconds=settings.RUNNER_HEARTBEAT_TIMEOUT)
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
 
     runner_list = []
     for runner in runners:
