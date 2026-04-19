@@ -201,7 +201,7 @@ class TestResultResponse(BaseModel):
     error_message: Optional[str]
     traceback: Optional[str]
     assertions: Optional[List[Dict[str, Any]]]
-    metadata: Optional[Dict[str, Any]]
+    test_metadata: Optional[Dict[str, Any]]
     work_package_id: Optional[int]
     created_at: datetime
     test_run_id: Optional[int] = None
