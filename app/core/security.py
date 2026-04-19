@@ -90,3 +90,13 @@ def generate_runner_token(runner_account: str) -> str:
         data={"sub": runner_account, "type": "runner"},
         expires_delta=timedelta(hours=settings.RUNNER_TOKEN_EXPIRE_HOURS),
     )
+
+
+def generate_teststation_token(account: str) -> str:
+    """
+    Generate a short-lived token for a test station.
+    """
+    return create_access_token(
+        data={"sub": account, "type": "teststation"},
+        expires_delta=timedelta(hours=settings.RUNNER_TOKEN_EXPIRE_HOURS),
+    )
