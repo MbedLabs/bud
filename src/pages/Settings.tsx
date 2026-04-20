@@ -186,7 +186,7 @@ export default function Settings() {
                     type="url"
                     value={bloomUrl}
                     onChange={(e) => setBloomUrl(e.target.value)}
-                    placeholder="https://bloom.embedlabs.de"
+                    placeholder="Your Bloom URL"
                     className="w-full px-3 py-2 bg-background border border-input rounded-md text-sm text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-ring focus:border-ring transition-colors font-mono"
                   />
                 </div>

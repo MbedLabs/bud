@@ -47,7 +47,7 @@ export default function TestStations() {
               export RUNNER_API_KEY=... # shared secret from the Bud backend
             </code>
             <code className="text-xs text-foreground font-mono block">
-              export BUD_BACKEND_URL=https://bud.embedlabs.de
+              export BUD_BACKEND_URL=&lt;your Bud backend URL&gt;
             </code>
             <code className="text-xs text-foreground font-mono block">
               bud_runner register --username my-station
