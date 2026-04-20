@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { testRunsApi, testStationsApi, type TestRun } from '../api/client'
+import { formatDateTime } from '../test/date-utils'
 
 const EMPTY_TEST_RUNS: TestRun[] = []
 import { Search, Filter, ChevronLeft, ChevronRight, PlayCircle, Server } from 'lucide-react'
@@ -176,7 +177,7 @@ export default function TestRuns() {
                     {run.duration_seconds ? formatDuration(run.duration_seconds) : '-'}
                   </td>
                   <td className="px-5 py-3.5 whitespace-nowrap text-xs text-muted-foreground">
-                    {run.started_at ? new Date(run.started_at).toLocaleString() : '-'}
+                    {formatDateTime(run.started_at)}
                   </td>
                 </tr>
               ))}

@@ -1,8 +1,20 @@
 import { useState, useEffect } from 'react'
-import { Sun, Moon, Monitor, Key, Info, ExternalLink, Link as LinkIcon, Save, Loader2 } from 'lucide-react'
+import { Sun, Moon, Monitor, Key, Info, ExternalLink, Link as LinkIcon, Save, Loader2, Clock, Globe } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { APP_VERSION, settingsApi, extractApiErrorMessage } from '../api/client'
 import { useAuth } from '../contexts/AuthContext'
+
+const COMMON_TIMEZONES = [
+  { label: 'Auto (Browser)', value: 'auto' },
+  { label: 'UTC', value: 'UTC' },
+  { label: 'Germany (Berlin)', value: 'Europe/Berlin' },
+  { label: 'Qatar (Doha)', value: 'Asia/Qatar' },
+  { label: 'UK (London)', value: 'Europe/London' },
+  { label: 'USA (New York)', value: 'America/New_York' },
+  { label: 'USA (Los Angeles)', value: 'America/Los_Angeles' },
+  { label: 'China (Shanghai)', value: 'Asia/Shanghai' },
+  { label: 'Japan (Tokyo)', value: 'Asia/Tokyo' },
+]
 
 function useDarkMode() {
   const [dark, setDark] = useState(() => {
@@ -32,6 +44,9 @@ export default function Settings() {
   const [dark, setDark] = useDarkMode()
   const [apiKey, setApiKey] = useState(() => localStorage.getItem('bud-api-key') || '')
   const [saved, setSaved] = useState(false)
+
+  // Timezone state
+  const [timezone, setTimezone] = useState(() => localStorage.getItem('bud-timezone') || 'auto')
 
   // ALM Integration local state
   const [bloomUrl, setBloomUrl] = useState('')
@@ -74,15 +89,23 @@ export default function Settings() {
     })
   }
 
+  const handleTimezoneChange = (newTz: string) => {
+    setTimezone(newTz)
+    localStorage.setItem('bud-timezone', newTz)
+    // Optional: Refresh page or trigger context update to apply change immediately
+    window.location.reload()
+  }
+
   return (
     <div className="max-w-2xl space-y-6 animate-fade-in">
-      {/* Appearance */}
+      {/* Appearance & Regional */}
       <div className="bg-card rounded-lg border border-border shadow-elegant overflow-hidden">
         <div className="px-5 py-4 border-b border-border flex items-center gap-2">
           <Monitor className="h-4 w-4 text-primary" />
-          <h3 className="text-sm font-semibold text-foreground">Appearance</h3>
+          <h3 className="text-sm font-semibold text-foreground">Appearance & Regional</h3>
         </div>
-        <div className="p-5">
+        <div className="p-5 space-y-6">
+          {/* Theme Toggle */}
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-foreground">Theme</p>
@@ -100,6 +123,38 @@ export default function Settings() {
                 {dark ? <Moon className="h-3 w-3 text-primary" /> : <Sun className="h-3 w-3 text-amber-500" />}
               </span>
             </button>
+          </div>
+
+          <div className="h-px bg-border/50" />
+
+          {/* Timezone Selection */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Globe className="h-4 w-4 text-muted-foreground" />
+              <div>
+                <p className="text-sm font-medium text-foreground">Timezone</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Choose how dates and times are displayed</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {COMMON_TIMEZONES.map((tz) => (
+                <button
+                  key={tz.value}
+                  onClick={() => handleTimezoneChange(tz.value)}
+                  className={`flex items-center justify-between px-3 py-2 rounded-md text-xs border transition-all ${
+                    timezone === tz.value
+                      ? 'bg-primary/5 border-primary text-primary font-medium'
+                      : 'bg-background border-input text-muted-foreground hover:border-primary/50'
+                  }`}
+                >
+                  {tz.label}
+                  {timezone === tz.value && <Clock className="h-3 w-3" />}
+                </button>
+              ))}
+            </div>
+            <p className="text-[10px] text-muted-foreground italic mt-2">
+              * Page will reload to apply timezone changes to all timestamps.
+            </p>
           </div>
         </div>
       </div>
