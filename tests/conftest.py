@@ -17,6 +17,9 @@ from typing import AsyncGenerator
 os.environ.setdefault("SECRET_KEY", secrets.token_hex(32))
 os.environ.setdefault("RUNNER_API_KEY", "test-runner-api-key")
 os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
+os.environ.setdefault("BUD_SECRET_KEY", os.environ["SECRET_KEY"])
+os.environ.setdefault("BUD_RUNNER_API_KEY", os.environ["RUNNER_API_KEY"])
+os.environ.setdefault("BUD_DATABASE_URL", os.environ["DATABASE_URL"])
 
 import pytest  # noqa: E402
 import pytest_asyncio  # noqa: E402
