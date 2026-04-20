@@ -128,18 +128,9 @@ async def get_teststation_status(
         if teststation.last_heartbeat:
             is_online = (now - teststation.last_heartbeat) < timeout
 
-        teststation_list.append(
-            {
-                "account": teststation.account,
-                "is_online": is_online,
-                "is_active": teststation.is_active,
-                "last_heartbeat": (
-                    teststation.last_heartbeat.isoformat() if teststation.last_heartbeat else None
-                ),
-                "socket_port": teststation.socket_port,
-                "location": teststation.location,
-            }
-        )
+        # Use TestStationResponse for consistent serialization
+        teststation_list.append(TestStationResponse.model_validate(teststation).model_dump())
+        teststation_list[-1]["is_online"] = is_online
 
     return {"teststations": teststation_list}
 

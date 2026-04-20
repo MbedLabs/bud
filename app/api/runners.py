@@ -124,18 +124,10 @@ async def get_runner_status(
         if runner.last_heartbeat:
             is_online = (now - runner.last_heartbeat) < timeout
 
-        runner_list.append(
-            {
-                "account": runner.account,
-                "is_online": is_online,
-                "is_active": runner.is_active,
-                "last_heartbeat": (
-                    runner.last_heartbeat.isoformat() if runner.last_heartbeat else None
-                ),
-                "socket_port": runner.socket_port,
-                "location": runner.location,
-            }
-        )
+        # Use RunnerResponse for consistent serialization
+        runner_list.append(RunnerResponse.model_validate(runner).model_dump())
+        # Add the dynamic is_online status which is not in the schema
+        runner_list[-1]["is_online"] = is_online
 
     return {"runners": runner_list}
 
