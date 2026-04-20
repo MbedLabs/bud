@@ -248,8 +248,8 @@ export const resultsApi = {
 
 export const testStationsApi = {
   status: async () => {
-    const response = await api.get<{ teststations: TestStation[] }>('/teststations/status')
-    return { runners: response.data.teststations }
+    const response = await api.get<{ runners: TestStation[] }>('/runners/status')
+    return response.data
   },
 
   /**
