@@ -128,7 +128,7 @@ export default function UsersPage() {
                     {new Date(u.created_at).toLocaleDateString()}
                   </td>
                   <td className="px-4 py-3">
-                    {!isSelf && (
+                    {!isSelf && currentUser?.role === 'admin' && (
                       <div className="flex items-center justify-end gap-1">
                         <button
                           onClick={() => updateMutation.mutate({ id: u.id, data: { is_active: !u.is_active } })}
