@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Sun, Moon, Monitor, Key, Info, ExternalLink, Link as LinkIcon, Save, Loader2, Clock, Globe } from 'lucide-react'
+import { Sun, Moon, Monitor, Info, ExternalLink, Link as LinkIcon, Save, Loader2, Globe } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { APP_VERSION, settingsApi, extractApiErrorMessage } from '../api/client'
 import { useAuth } from '../contexts/AuthContext'
@@ -42,8 +42,7 @@ export default function Settings() {
   const queryClient = useQueryClient()
   
   const [dark, setDark] = useDarkMode()
-  const [apiKey, setApiKey] = useState(() => localStorage.getItem('bud-api-key') || '')
-  const [saved, setSaved] = useState(false)
+  const [apiKey] = useState(() => localStorage.getItem('bud-api-key') || '')
 
   // Timezone state
   const [timezone, setTimezone] = useState(() => localStorage.getItem('bud-timezone') || 'auto')
@@ -75,12 +74,6 @@ export default function Settings() {
       alert(`Error updating ALM settings: ${extractApiErrorMessage(error)}`)
     },
   })
-
-  const handleSaveKey = () => {
-    localStorage.setItem('bud-api-key', apiKey)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
-  }
 
   const handleSaveALM = () => {
     almMutation.mutate({
