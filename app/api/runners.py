@@ -5,20 +5,21 @@ H2: Rate-limited registration and heartbeat endpoints.
 C2: Runner registration requires a server-side API key.
 """
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.auth import get_current_user
+from app.core.config import settings
 from app.core.deps import limiter, require_runner_api_key
 from app.core.security import generate_runner_token, get_password_hash
 from app.db import get_db
 from app.models import Runner
 from app.models.user import User
 from app.schemas import (RunnerHeartbeat, RunnerRegister, RunnerResponse,
-                         RunnerToken, RunnerStatusList)
+                         RunnerStatusList, RunnerToken)
 
 router = APIRouter()
 
@@ -95,14 +96,12 @@ async def runner_heartbeat(
 
     runner.last_heartbeat = datetime.utcnow()
     runner.is_active = True
-from app.schemas import (RunnerHeartbeat, RunnerRegister, RunnerResponse,
-                         RunnerToken, RunnerStatusList)
 
-router = APIRouter()
+    await db.commit()
+
+    return {"status": "ok", "timestamp": datetime.utcnow().isoformat()}
 
 
-@router.post(
-...
 @router.get("/status", response_model=RunnerStatusList)
 async def get_runner_status(
     db: AsyncSession = Depends(get_db),
@@ -114,10 +113,6 @@ async def get_runner_status(
     result = await db.execute(select(Runner).order_by(Runner.last_heartbeat.desc()))
     runners = result.scalars().all()
 
-    from datetime import timedelta
-
-    from app.core.config import settings
-
     timeout = timedelta(seconds=settings.RUNNER_HEARTBEAT_TIMEOUT)
     now = datetime.utcnow()
 
@@ -127,18 +122,21 @@ async def get_runner_status(
         if runner.last_heartbeat:
             is_online = (now - runner.last_heartbeat) < timeout
 
-        runner_list.append({
-            "id": runner.id,
-            "account": runner.account,
-            "socket_port": runner.socket_port,
-            "location": runner.location,
-            "is_active": runner.is_active,
-            "last_heartbeat": runner.last_heartbeat,
-            "created_at": runner.created_at,
-            "is_online": is_online
-        })
+        runner_list.append(
+            {
+                "id": runner.id,
+                "account": runner.account,
+                "socket_port": runner.socket_port,
+                "location": runner.location,
+                "is_active": runner.is_active,
+                "last_heartbeat": runner.last_heartbeat,
+                "created_at": runner.created_at,
+                "is_online": is_online,
+            }
+        )
 
     return {"runners": runner_list}
+
 
 @router.get("/{account}", response_model=RunnerResponse)
 async def get_runner(

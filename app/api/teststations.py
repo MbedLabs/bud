@@ -15,12 +15,8 @@ from app.core.deps import limiter, require_teststation_api_key
 from app.core.security import generate_teststation_token, get_password_hash
 from app.db import get_db
 from app.models import TestStation
-from app.schemas import (
-    TestStationHeartbeat,
-    TestStationRegister,
-    TestStationResponse,
-    TestStationToken,
-)
+from app.schemas import (TestStationHeartbeat, TestStationRegister,
+                         TestStationResponse, TestStationToken)
 
 router = APIRouter()
 
@@ -99,14 +95,15 @@ async def teststation_heartbeat(
 
     teststation.last_heartbeat = datetime.utcnow()
     teststation.is_active = True
-from app.schemas import (
-    TestStationHeartbeat,
-    TestStationRegister,
-    TestStationResponse,
-    TestStationToken,
-    TestStationStatusList
-)
+
+
+from app.schemas import (TestStationHeartbeat, TestStationRegister,
+                         TestStationResponse, TestStationStatusList,
+                         TestStationToken)
+
 ...
+
+
 @router.get("/status", response_model=TestStationStatusList)
 async def get_teststation_status(
     db: AsyncSession = Depends(get_db),
@@ -130,16 +127,18 @@ async def get_teststation_status(
         if teststation.last_heartbeat:
             is_online = (now - teststation.last_heartbeat) < timeout
 
-        teststation_list.append({
-            "id": teststation.id,
-            "account": teststation.account,
-            "socket_port": teststation.socket_port,
-            "location": teststation.location,
-            "is_active": teststation.is_active,
-            "last_heartbeat": teststation.last_heartbeat,
-            "created_at": teststation.created_at,
-            "is_online": is_online
-        })
+        teststation_list.append(
+            {
+                "id": teststation.id,
+                "account": teststation.account,
+                "socket_port": teststation.socket_port,
+                "location": teststation.location,
+                "is_active": teststation.is_active,
+                "last_heartbeat": teststation.last_heartbeat,
+                "created_at": teststation.created_at,
+                "is_online": is_online,
+            }
+        )
 
     return {"teststations": teststation_list}
 
