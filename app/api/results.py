@@ -5,7 +5,7 @@ Test results API endpoints.
 from datetime import datetime, timezone
 from typing import List, Union
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,6 +14,7 @@ from app.db import get_db
 from app.models import Runner, TestResult, TestRun
 from app.models.user import User
 from app.schemas import ResultsUpload, TestResultCreate, TestResultResponse
+from app.services.bloom_sync import sync_results_to_bloom
 
 router = APIRouter()
 
@@ -21,6 +22,7 @@ router = APIRouter()
 @router.post("", status_code=201)
 async def upload_results(
     data: ResultsUpload,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
 ):
@@ -80,6 +82,10 @@ async def upload_results(
             test_run.completed_at = datetime.utcnow()
 
     await db.commit()
+
+    # Trigger Bloom Sync in background if this is part of a run
+    if data.test_run_id:
+        background_tasks.add_task(sync_results_to_bloom, data.test_run_id)
 
     return {
         "message": f"Uploaded {len(created_results)} results",
