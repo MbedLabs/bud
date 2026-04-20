@@ -4,14 +4,14 @@ from app.schemas.schemas import (ALMIntegrationSettings, ArtifactResponse,
                                  HealthResponse, ProductBase, ProductCreate,
                                  ProductResponse, ResultsUpload,
                                  RunnerHeartbeat, RunnerRegister,
-                                 RunnerResponse, RunnerToken,
+                                 RunnerResponse, RunnerStatusList, RunnerToken,
                                  SystemSettingResponse, SystemSettingUpdate,
                                  TestResultCreate, TestResultResponse,
                                  TestRunCreate, TestRunList, TestRunResponse,
                                  TestRunStatus, TestRunUpdate,
                                  TestStationHeartbeat, TestStationRegister,
-                                 TestStationResponse, TestStationToken,
-                                 VersionResponse)
+                                 TestStationResponse, TestStationStatusList,
+                                 TestStationToken, VersionResponse)
 
 __all__ = [
     "ProductBase",
@@ -21,6 +21,7 @@ __all__ = [
     "RunnerResponse",
     "RunnerToken",
     "RunnerHeartbeat",
+    "RunnerStatusList",
     "TestRunCreate",
     "TestRunUpdate",
     "TestRunResponse",
@@ -39,4 +40,5 @@ __all__ = [
     "TestStationResponse",
     "TestStationToken",
     "TestStationHeartbeat",
+    "TestStationStatusList",
 ]
