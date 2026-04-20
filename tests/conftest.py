@@ -25,8 +25,7 @@ from sqlalchemy.ext.asyncio import AsyncSession  # noqa: E402
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool  # noqa: E402
 
-from app.api.auth import (get_current_active_entity,  # noqa: E402
-                          get_current_user)
+from app.api.auth import get_current_active_entity, get_current_user  # noqa: E402
 from app.db import database as db_module  # noqa: E402
 from app.db.database import Base, get_db  # noqa: E402
 from app.main import app  # noqa: E402
