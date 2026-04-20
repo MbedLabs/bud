@@ -2,12 +2,14 @@
 Users API endpoints (admin only): CRUD for user management.
 """
 
+import logging
 import secrets
 import string
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import delete, select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.auth import require_role
@@ -15,7 +17,7 @@ from app.core.config import settings
 from app.core.security import get_password_hash
 from app.db.database import get_db
 from app.models.user import User, UserRole
-from app.models.user_token import UserTokenPurpose
+from app.models.user_token import UserToken, UserTokenPurpose
 from app.schemas.auth import (
     InviteCreateRequest,
     InviteResponse,
@@ -25,6 +27,8 @@ from app.schemas.auth import (
 )
 from app.services.mail_service import MailConfigurationError, send_invite_email
 from app.services.token_service import create_user_token
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -239,4 +243,32 @@ async def delete_user(
             status_code=400,
             detail="Admin users cannot delete their own account",
         )
-    await db.delete(user)
+
+    try:
+        # Delete tokens for this user
+        await db.execute(delete(UserToken).where(UserToken.user_id == user_id))
+        # Nullify creator of tokens
+        await db.execute(
+            update(UserToken)
+            .where(UserToken.created_by_user_id == user_id)
+            .values(created_by_user_id=None)
+        )
+        # Nullify invited_by references
+        await db.execute(
+            update(User).where(User.invited_by_user_id == user_id).values(invited_by_user_id=None)
+        )
+
+        await db.delete(user)
+        await db.flush()
+    except IntegrityError as exc:
+        logger.error(f"Integrity error deleting user {user_id}: {exc}")
+        raise HTTPException(
+            status_code=409,
+            detail="User could not be deleted because related records still reference this account",
+        ) from exc
+    except Exception as exc:
+        logger.error(f"Unexpected error deleting user {user_id}: {exc}")
+        raise HTTPException(
+            status_code=500,
+            detail="An unexpected error occurred while deleting the user",
+        ) from exc
