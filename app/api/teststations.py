@@ -119,7 +119,7 @@ async def get_teststation_status(
 
     from app.core.config import settings
 
-    timeout = timedelta(seconds=settings.TESTSTATION_HEARTBEAT_TIMEOUT)
+    timeout = timedelta(seconds=settings.RUNNER_HEARTBEAT_TIMEOUT)
     now = datetime.utcnow()
 
     teststation_list = []
