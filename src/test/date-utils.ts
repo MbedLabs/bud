@@ -25,8 +25,13 @@ export function formatDateTime(
   
   try {
     const date = new Date(dateString)
-    const preferredTz = localStorage.getItem('bud-timezone') || 'auto'
+    let preferredTz = localStorage.getItem('bud-timezone') || 'auto'
     
+    // Normalize UTC selection to avoid raw ISO fallback in some environments
+    if (preferredTz.toLowerCase() === 'utc') {
+      preferredTz = 'UTC'
+    }
+
     const finalOptions: Intl.DateTimeFormatOptions = { ...options }
     if (preferredTz !== 'auto') {
       finalOptions.timeZone = preferredTz
