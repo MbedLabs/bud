@@ -12,11 +12,8 @@ from app.api.auth import require_role
 from app.db import get_db
 from app.models import SystemSetting, UserRole
 from app.models.user import User
-from app.schemas import (
-    ALMIntegrationSettings,
-    SystemSettingResponse,
-    SystemSettingUpdate,
-)
+from app.schemas import (ALMIntegrationSettings, SystemSettingResponse,
+                         SystemSettingUpdate)
 
 router = APIRouter()
 

@@ -21,8 +21,8 @@ os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
 import pytest  # noqa: E402
 import pytest_asyncio  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
-from sqlalchemy.ext.asyncio import (AsyncSession,  # noqa: E402
-                                    async_sessionmaker, create_async_engine)
+from sqlalchemy.ext.asyncio import AsyncSession  # noqa: E402
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool  # noqa: E402
 
 from app.api.auth import (get_current_active_entity,  # noqa: E402

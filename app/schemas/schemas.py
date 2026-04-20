@@ -6,7 +6,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional  # noqa: F401
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_serializer, field_validator
 
 # ==================== Enums ====================
 
@@ -44,6 +44,10 @@ class ProductResponse(ProductBase):
     created_at: datetime
     updated_at: datetime
 
+    @field_serializer("created_at", "updated_at")
+    def serialize_dt(self, dt: datetime, _info):
+        return f"{dt.isoformat()}Z"
+
     class Config:
         from_attributes = True
 
@@ -74,6 +78,10 @@ class RunnerResponse(BaseModel):
     is_active: bool
     last_heartbeat: Optional[datetime]
     created_at: datetime
+
+    @field_serializer("last_heartbeat", "created_at")
+    def serialize_dt(self, dt: Optional[datetime], _info):
+        return f"{dt.isoformat()}Z" if dt else None
 
     class Config:
         from_attributes = True
@@ -145,6 +153,10 @@ class TestRunResponse(BaseModel):
     runner_id: Optional[int]
     runner_account: Optional[str] = None
 
+    @field_serializer("created_at", "started_at", "completed_at")
+    def serialize_dt(self, dt: Optional[datetime], _info):
+        return f"{dt.isoformat()}Z" if dt else None
+
     class Config:
         from_attributes = True
 
@@ -205,6 +217,10 @@ class TestResultResponse(BaseModel):
     created_at: datetime
     test_run_id: Optional[int] = None
 
+    @field_serializer("created_at")
+    def serialize_dt(self, dt: datetime, _info):
+        return f"{dt.isoformat()}Z"
+
     class Config:
         from_attributes = True
 
@@ -232,6 +248,10 @@ class ArtifactResponse(BaseModel):
     created_at: datetime
     test_run_id: Optional[int]
 
+    @field_serializer("created_at")
+    def serialize_dt(self, dt: datetime, _info):
+        return f"{dt.isoformat()}Z"
+
     class Config:
         from_attributes = True
 
@@ -258,6 +278,10 @@ class TestStationResponse(BaseModel):
     is_active: bool
     last_heartbeat: Optional[datetime]
     created_at: datetime
+
+    @field_serializer("last_heartbeat", "created_at")
+    def serialize_dt(self, dt: Optional[datetime], _info):
+        return f"{dt.isoformat()}Z" if dt else None
 
     class Config:
         from_attributes = True
@@ -317,6 +341,10 @@ class SystemSettingResponse(SystemSettingBase):
     """Schema for system setting response."""
 
     updated_at: datetime
+
+    @field_serializer("updated_at")
+    def serialize_dt(self, dt: datetime, _info):
+        return f"{dt.isoformat()}Z"
 
     class Config:
         from_attributes = True
