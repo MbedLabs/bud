@@ -163,7 +163,7 @@ async def update_test_run(
         if data.status.value in ("Completed", "Cancelled"):
             from datetime import timezone
 
-            test_run.completed_at = datetime.now(timezone.utc)
+            test_run.completed_at = datetime.utcnow()
 
     if data.total_tests is not None:
         test_run.total_tests = data.total_tests

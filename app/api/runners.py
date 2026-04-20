@@ -97,7 +97,7 @@ async def runner_heartbeat(
 
     await db.commit()
 
-    return {"status": "ok", "timestamp": datetime.now(timezone.utc).isoformat()}
+    return {"status": "ok", "timestamp": datetime.utcnow().isoformat()}
 
 
 @router.get("/status")
