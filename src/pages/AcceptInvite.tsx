@@ -83,22 +83,26 @@ export default function AcceptInvite() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-teal-900 via-teal-800 to-cyan-900 p-4">
       <div className="w-full max-w-md bg-card rounded-2xl shadow-2xl p-8 border border-border">
-        <h1 className="text-2xl font-bold text-foreground mb-2">Accept Invitation</h1>
-        <p className="text-sm text-muted-foreground mb-6">Set your account password to activate Bud access.</p>
+        {!submitMessage && (
+          <>
+            <h1 className="text-2xl font-bold text-foreground mb-2">Accept Invitation</h1>
+            <p className="text-sm text-muted-foreground mb-6">Set your account password to activate Bud access.</p>
+          </>
+        )}
 
-        {loadingInviteInfo && (
+        {loadingInviteInfo && !submitMessage && (
           <div className="mb-4 p-3 rounded-lg bg-muted text-muted-foreground text-sm">
             Loading invitation details...
           </div>
         )}
 
-        {inviteInfoError && (
+        {inviteInfoError && !submitMessage && (
           <div className="mb-4 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
             {inviteInfoError}
           </div>
         )}
 
-        {inviteInfo && (
+        {inviteInfo && !submitMessage && (
           <div className="mb-4 p-3 rounded-lg bg-muted/40 border border-border text-sm text-foreground">
             <p className="font-medium">{inviteInfo.full_name}</p>
             <p className="text-muted-foreground">{inviteInfo.email}</p>
@@ -122,41 +126,43 @@ export default function AcceptInvite() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-1.5">New Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={6}
-              className="w-full px-3 py-2.5 bg-background border border-input rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-ring focus:border-ring transition-colors"
-              placeholder="Choose a password"
-            />
-          </div>
+        {!submitMessage && (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1.5">New Password</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                minLength={6}
+                className="w-full px-3 py-2.5 bg-background border border-input rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-ring focus:border-ring transition-colors"
+                placeholder="Choose a password"
+              />
+            </div>
 
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-1.5">Confirm Password</label>
-            <input
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required
-              minLength={6}
-              className="w-full px-3 py-2.5 bg-background border border-input rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-ring focus:border-ring transition-colors"
-              placeholder="Repeat your password"
-            />
-          </div>
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1.5">Confirm Password</label>
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                minLength={6}
+                className="w-full px-3 py-2.5 bg-background border border-input rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-ring focus:border-ring transition-colors"
+                placeholder="Repeat your password"
+              />
+            </div>
 
-          <button
-            type="submit"
-            disabled={!canSubmit}
-            className="w-full py-2.5 px-4 bg-gradient-to-r from-primary to-teal-700 text-white text-sm font-medium rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {submitting ? 'Accepting invitation...' : 'Accept Invitation'}
-          </button>
-        </form>
+            <button
+              type="submit"
+              disabled={!canSubmit}
+              className="w-full py-2.5 px-4 bg-gradient-to-r from-primary to-teal-700 text-white text-sm font-medium rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {submitting ? 'Accepting invitation...' : 'Accept Invitation'}
+            </button>
+          </form>
+        )}
 
         <div className="mt-6 text-center text-sm">
           <Link to="/login" className="text-primary hover:text-primary/80 font-medium transition-colors">
