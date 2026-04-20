@@ -109,7 +109,7 @@ class Settings(BaseSettings):
 
     # Default admin user (seeded on first startup)
     ADMIN_EMAIL: str = Field(
-        default="admin@embedlabs.de",
+        default="admin@example.com",
         validation_alias=AliasChoices("BUD_ADMIN_EMAIL", "ADMIN_EMAIL"),
     )
     ADMIN_PASSWORD: str = Field(

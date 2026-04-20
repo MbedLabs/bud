@@ -78,7 +78,7 @@ def test_settings_reads_bud_prefixed_env(monkeypatch):
     monkeypatch.setenv("BUD_FRONTEND_BASE_URL", "http://localhost:5174")
     monkeypatch.setenv("BUD_CORS_ORIGINS", '["http://localhost:5174"]')
     monkeypatch.setenv("BUD_ENABLE_DOCS", "true")
-    monkeypatch.setenv("BUD_ADMIN_EMAIL", "admin@embedlabs.de")
+    monkeypatch.setenv("BUD_ADMIN_EMAIL", "admin@example.com")
     monkeypatch.setenv("BUD_ADMIN_PASSWORD", "admin-password")
     monkeypatch.setenv("BUD_ADMIN_FULL_NAME", "Bud Admin")
     monkeypatch.setenv("BUD_RUNNER_API_KEY", "runner-key")
@@ -90,13 +90,13 @@ def test_settings_reads_bud_prefixed_env(monkeypatch):
     monkeypatch.setenv("BUD_EMAIL_VERIFICATION_TOKEN_TTL_HOURS", "6")
     monkeypatch.setenv("BUD_PASSWORD_RESET_TOKEN_TTL_HOURS", "3")
     monkeypatch.setenv("BUD_SMTP_ENABLED", "true")
-    monkeypatch.setenv("BUD_SMTP_HOST", "smtp.example.test")
+    monkeypatch.setenv("BUD_SMTP_HOST", "smtp.example.com")
     monkeypatch.setenv("BUD_SMTP_PORT", "2525")
     monkeypatch.setenv("BUD_SMTP_USERNAME", "smtp-user")
     monkeypatch.setenv("BUD_SMTP_PASSWORD", "smtp-password")
-    monkeypatch.setenv("BUD_SMTP_FROM_EMAIL", "noreply@embedlabs.de")
+    monkeypatch.setenv("BUD_SMTP_FROM_EMAIL", "noreply@example.com")
     monkeypatch.setenv("BUD_SMTP_FROM_NAME", "Bud Mailer")
-    monkeypatch.setenv("BUD_SMTP_REPLY_TO", "reply@embedlabs.de")
+    monkeypatch.setenv("BUD_SMTP_REPLY_TO", "reply@example.com")
     monkeypatch.setenv("BUD_SMTP_STARTTLS", "false")
     monkeypatch.setenv("BUD_SMTP_SSL", "true")
     monkeypatch.setenv("BUD_SMTP_TIMEOUT_SECONDS", "9")
@@ -110,7 +110,7 @@ def test_settings_reads_bud_prefixed_env(monkeypatch):
     assert settings.FRONTEND_BASE_URL == "http://localhost:5174"
     assert settings.CORS_ORIGINS == ["http://localhost:5174"]
     assert settings.ENABLE_DOCS is True
-    assert settings.ADMIN_EMAIL == "admin@embedlabs.de"
+    assert settings.ADMIN_EMAIL == "admin@example.com"
     assert settings.ADMIN_PASSWORD == "admin-password"
     assert settings.ADMIN_FULL_NAME == "Bud Admin"
     assert settings.RUNNER_API_KEY == "runner-key"
@@ -122,13 +122,13 @@ def test_settings_reads_bud_prefixed_env(monkeypatch):
     assert settings.EMAIL_VERIFICATION_TOKEN_TTL_HOURS == 6
     assert settings.PASSWORD_RESET_TOKEN_TTL_HOURS == 3
     assert settings.SMTP_ENABLED is True
-    assert settings.SMTP_HOST == "smtp.example.test"
+    assert settings.SMTP_HOST == "smtp.example.com"
     assert settings.SMTP_PORT == 2525
     assert settings.SMTP_USERNAME == "smtp-user"
     assert settings.SMTP_PASSWORD == "smtp-password"
-    assert str(settings.SMTP_FROM_EMAIL) == "noreply@embedlabs.de"
+    assert str(settings.SMTP_FROM_EMAIL) == "noreply@example.com"
     assert settings.SMTP_FROM_NAME == "Bud Mailer"
-    assert str(settings.SMTP_REPLY_TO) == "reply@embedlabs.de"
+    assert str(settings.SMTP_REPLY_TO) == "reply@example.com"
     assert settings.SMTP_STARTTLS is False
     assert settings.SMTP_SSL is True
     assert settings.SMTP_TIMEOUT_SECONDS == 9
@@ -139,15 +139,15 @@ def test_settings_falls_back_to_unprefixed_env(monkeypatch):
 
     monkeypatch.setenv("SECRET_KEY", "s" * 32)
     monkeypatch.setenv("SMTP_ENABLED", "true")
-    monkeypatch.setenv("SMTP_HOST", "smtp.unprefixed.test")
-    monkeypatch.setenv("SMTP_FROM_EMAIL", "noreply@embedlabs.de")
+    monkeypatch.setenv("SMTP_HOST", "smtp.unprefixed.example.com")
+    monkeypatch.setenv("SMTP_FROM_EMAIL", "noreply@example.com")
 
     settings = Settings(_env_file=None)
 
     assert settings.SECRET_KEY == "s" * 32
     assert settings.SMTP_ENABLED is True
-    assert settings.SMTP_HOST == "smtp.unprefixed.test"
-    assert str(settings.SMTP_FROM_EMAIL) == "noreply@embedlabs.de"
+    assert settings.SMTP_HOST == "smtp.unprefixed.example.com"
+    assert str(settings.SMTP_FROM_EMAIL) == "noreply@example.com"
 
 
 def test_settings_prefers_bud_prefixed_env(monkeypatch):
@@ -155,10 +155,10 @@ def test_settings_prefers_bud_prefixed_env(monkeypatch):
 
     monkeypatch.setenv("SECRET_KEY", "s" * 32)
     monkeypatch.setenv("BUD_SECRET_KEY", "b" * 32)
-    monkeypatch.setenv("SMTP_HOST", "smtp.unprefixed.test")
-    monkeypatch.setenv("BUD_SMTP_HOST", "smtp.bud-prefixed.test")
+    monkeypatch.setenv("SMTP_HOST", "smtp.unprefixed.example.com")
+    monkeypatch.setenv("BUD_SMTP_HOST", "smtp.bud-prefixed.example.com")
 
     settings = Settings(_env_file=None)
 
     assert settings.SECRET_KEY == "b" * 32
-    assert settings.SMTP_HOST == "smtp.bud-prefixed.test"
+    assert settings.SMTP_HOST == "smtp.bud-prefixed.example.com"

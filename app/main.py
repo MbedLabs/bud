@@ -1,5 +1,5 @@
 """
-FastAPI application for bud.embedlabs.de
+FastAPI application for the Bud test automation platform
 
 Main entry point for the backend API.
 """
@@ -119,7 +119,7 @@ async def lifespan(app: FastAPI):
 # L1: Hide docs endpoints in production; set ENABLE_DOCS=true for local dev
 app = FastAPI(
     title=f"{app_settings.BUD_APP_NAME} API",
-    description="Backend API for bud.embedlabs.de - Test automation platform",
+    description="Backend API for the Bud test automation platform",
     version=app_settings.BUD_APP_VERSION,
     docs_url="/api/docs" if app_settings.ENABLE_DOCS else None,
     redoc_url="/api/redoc" if app_settings.ENABLE_DOCS else None,
