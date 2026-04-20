@@ -87,6 +87,18 @@ class RunnerResponse(BaseModel):
         from_attributes = True
 
 
+class RunnerStatusEntry(RunnerResponse):
+    """Schema for runner status entry with dynamic online status."""
+
+    is_online: bool
+
+
+class RunnerStatusList(BaseModel):
+    """Schema for runner status list response."""
+
+    runners: List[RunnerStatusEntry]
+
+
 class RunnerToken(BaseModel):
     """Schema for runner token response."""
 
@@ -285,6 +297,18 @@ class TestStationResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class TestStationStatusEntry(TestStationResponse):
+    """Schema for teststation status entry with dynamic online status."""
+
+    is_online: bool
+
+
+class TestStationStatusList(BaseModel):
+    """Schema for teststation status list response."""
+
+    teststations: List[TestStationStatusEntry]
 
 
 class TestStationToken(BaseModel):
