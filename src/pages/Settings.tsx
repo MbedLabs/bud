@@ -42,7 +42,6 @@ export default function Settings() {
   const queryClient = useQueryClient()
   
   const [dark, setDark] = useDarkMode()
-  const [apiKey] = useState(() => localStorage.getItem('bud-api-key') || '')
 
   // Timezone state
   const [timezone, setTimezone] = useState(() => localStorage.getItem('bud-timezone') || 'auto')
