@@ -13,8 +13,16 @@ from slowapi.errors import RateLimitExceeded
 from sqlalchemy import select, text
 
 from app.api import auth as auth_api
-from app.api import (health, products, results, runners, settings, test_runs,
-                     teststations, uploads)
+from app.api import (
+    health,
+    products,
+    results,
+    runners,
+    settings,
+    test_runs,
+    teststations,
+    uploads,
+)
 from app.api import users as users_api
 from app.core.config import settings as app_settings
 from app.core.deps import limiter
