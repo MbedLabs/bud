@@ -7,13 +7,13 @@ import { useAuth } from '../contexts/AuthContext'
 const COMMON_TIMEZONES = [
   { label: 'Auto (Browser)', value: 'auto' },
   { label: 'UTC', value: 'UTC' },
-  { label: 'Germany (Berlin)', value: 'Europe/Berlin' },
-  { label: 'Qatar (Doha)', value: 'Asia/Qatar' },
-  { label: 'UK (London)', value: 'Europe/London' },
-  { label: 'USA (New York)', value: 'America/New_York' },
-  { label: 'USA (Los Angeles)', value: 'America/Los_Angeles' },
-  { label: 'China (Shanghai)', value: 'Asia/Shanghai' },
-  { label: 'Japan (Tokyo)', value: 'Asia/Tokyo' },
+  ...Array.from({ length: 25 }, (_, i) => {
+    const offset = i - 12
+    const label = offset >= 0 ? `UTC+${offset}` : `UTC${offset}`
+    return { label, value: label }
+  }),
+  { label: 'UTC+13', value: 'UTC+13' },
+  { label: 'UTC+14', value: 'UTC+14' },
 ]
 
 function useDarkMode() {
@@ -97,18 +97,17 @@ export default function Settings() {
   }
 
   return (
-    <div className="max-w-2xl space-y-6 animate-fade-in">
-      {/* Appearance & Regional */}
+    <div className="max-w-2xl space-y-6 animate-fade-in pb-20">
+      {/* Appearance */}
       <div className="bg-card rounded-lg border border-border shadow-elegant overflow-hidden">
-        <div className="px-5 py-4 border-b border-border flex items-center gap-2">
+        <div className="px-5 py-4 border-b border-border flex items-center gap-2 bg-muted/30">
           <Monitor className="h-4 w-4 text-primary" />
-          <h3 className="text-sm font-semibold text-foreground">Appearance & Regional</h3>
+          <h3 className="text-sm font-semibold text-foreground">Appearance</h3>
         </div>
         <div className="p-5 space-y-6">
-          {/* Theme Toggle */}
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-foreground">Theme</p>
+              <p className="text-sm font-medium text-foreground">Theme Mode</p>
               <p className="text-xs text-muted-foreground mt-0.5">Toggle between light and dark mode</p>
             </div>
             <button
@@ -124,45 +123,43 @@ export default function Settings() {
               </span>
             </button>
           </div>
+        </div>
+      </div>
 
-          <div className="h-px bg-border/50" />
-
-          {/* Timezone Selection */}
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <Globe className="h-4 w-4 text-muted-foreground" />
-              <div>
-                <p className="text-sm font-medium text-foreground">Timezone</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Choose how dates and times are displayed</p>
-              </div>
+      {/* Regional Settings */}
+      <div className="bg-card rounded-lg border border-border shadow-elegant overflow-hidden">
+        <div className="px-5 py-4 border-b border-border flex items-center gap-2 bg-muted/30">
+          <Globe className="h-4 w-4 text-emerald-500" />
+          <h3 className="text-sm font-semibold text-foreground">Regional Settings</h3>
+        </div>
+        <div className="p-5 space-y-4">
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-foreground">Display Timezone</p>
+            <p className="text-xs text-muted-foreground">Timestamps are stored in UTC on the server. Choose how they are displayed to you.</p>
+            <div className="max-w-sm mt-3">
+              <select
+                value={timezone}
+                onChange={(e) => handleTimezoneChange(e.target.value)}
+                className="w-full bg-background border border-input rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+              >
+                {COMMON_TIMEZONES.map((tz) => (
+                  <option key={tz.value} value={tz.value}>
+                    {tz.label}
+                  </option>
+                ))}
+              </select>
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              {COMMON_TIMEZONES.map((tz) => (
-                <button
-                  key={tz.value}
-                  onClick={() => handleTimezoneChange(tz.value)}
-                  className={`flex items-center justify-between px-3 py-2 rounded-md text-xs border transition-all ${
-                    timezone === tz.value
-                      ? 'bg-primary/5 border-primary text-primary font-medium'
-                      : 'bg-background border-input text-muted-foreground hover:border-primary/50'
-                  }`}
-                >
-                  {tz.label}
-                  {timezone === tz.value && <Clock className="h-3 w-3" />}
-                </button>
-              ))}
-            </div>
-            <p className="text-[10px] text-muted-foreground italic mt-2">
-              * Page will reload to apply timezone changes to all timestamps.
-            </p>
           </div>
+          <p className="text-[10px] text-muted-foreground italic">
+            * Page will reload to apply timezone changes to all timestamps.
+          </p>
         </div>
       </div>
 
       {/* ALM Integration (Admin Only) */}
       {isAdmin && (
         <div className="bg-card rounded-lg border border-border shadow-elegant overflow-hidden">
-          <div className="px-5 py-4 border-b border-border flex items-center gap-2">
+          <div className="px-5 py-4 border-b border-border flex items-center gap-2 bg-muted/30">
             <LinkIcon className="h-4 w-4 text-primary" />
             <h3 className="text-sm font-semibold text-foreground">ALM Integration (Bloom)</h3>
           </div>
@@ -212,44 +209,6 @@ export default function Settings() {
           </div>
         </div>
       )}
-
-      {/* API Configuration */}
-      <div className="bg-card rounded-lg border border-border shadow-elegant overflow-hidden">
-        <div className="px-5 py-4 border-b border-border flex items-center gap-2">
-          <Key className="h-4 w-4 text-primary" />
-          <h3 className="text-sm font-semibold text-foreground">API Configuration</h3>
-        </div>
-        <div className="p-5 space-y-4">
-          <div>
-            <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5">
-              API URL
-            </label>
-            <div className="px-3 py-2 bg-muted rounded-md text-sm text-muted-foreground font-mono">
-              {window.location.origin}/api
-            </div>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5">
-              Local API Key (Browser)
-            </label>
-            <div className="flex gap-2">
-              <input
-                type="password"
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                placeholder="Enter your API key..."
-                className="flex-1 px-3 py-2 bg-background border border-input rounded-md text-sm text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-ring focus:border-ring transition-colors"
-              />
-              <button
-                onClick={handleSaveKey}
-                className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 transition-colors"
-              >
-                {saved ? 'Saved!' : 'Save'}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
 
       {/* About */}
       <div className="bg-card rounded-lg border border-border shadow-elegant overflow-hidden">
