@@ -17,7 +17,8 @@ from app.core.security import generate_runner_token, get_password_hash
 from app.db import get_db
 from app.models import Runner
 from app.models.user import User
-from app.schemas import RunnerHeartbeat, RunnerRegister, RunnerResponse, RunnerToken
+from app.schemas import (RunnerHeartbeat, RunnerRegister, RunnerResponse,
+                         RunnerToken, RunnerStatusList)
 
 router = APIRouter()
 
@@ -94,13 +95,15 @@ async def runner_heartbeat(
 
     runner.last_heartbeat = datetime.utcnow()
     runner.is_active = True
+from app.schemas import (RunnerHeartbeat, RunnerRegister, RunnerResponse,
+                         RunnerToken, RunnerStatusList)
 
-    await db.commit()
-
-    return {"status": "ok", "timestamp": datetime.utcnow().isoformat()}
+router = APIRouter()
 
 
-@router.get("/status")
+@router.post(
+...
+@router.get("/status", response_model=RunnerStatusList)
 async def get_runner_status(
     db: AsyncSession = Depends(get_db),
     _current_user: User = Depends(get_current_user),
@@ -124,13 +127,18 @@ async def get_runner_status(
         if runner.last_heartbeat:
             is_online = (now - runner.last_heartbeat) < timeout
 
-        # Use RunnerResponse for consistent serialization
-        runner_list.append(RunnerResponse.model_validate(runner).model_dump())
-        # Add the dynamic is_online status which is not in the schema
-        runner_list[-1]["is_online"] = is_online
+        runner_list.append({
+            "id": runner.id,
+            "account": runner.account,
+            "socket_port": runner.socket_port,
+            "location": runner.location,
+            "is_active": runner.is_active,
+            "last_heartbeat": runner.last_heartbeat,
+            "created_at": runner.created_at,
+            "is_online": is_online
+        })
 
     return {"runners": runner_list}
-
 
 @router.get("/{account}", response_model=RunnerResponse)
 async def get_runner(

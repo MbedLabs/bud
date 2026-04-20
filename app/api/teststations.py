@@ -99,13 +99,15 @@ async def teststation_heartbeat(
 
     teststation.last_heartbeat = datetime.utcnow()
     teststation.is_active = True
-
-    await db.commit()
-
-    return {"status": "ok", "timestamp": datetime.utcnow().isoformat()}
-
-
-@router.get("/status")
+from app.schemas import (
+    TestStationHeartbeat,
+    TestStationRegister,
+    TestStationResponse,
+    TestStationToken,
+    TestStationStatusList
+)
+...
+@router.get("/status", response_model=TestStationStatusList)
 async def get_teststation_status(
     db: AsyncSession = Depends(get_db),
 ):
@@ -128,9 +130,16 @@ async def get_teststation_status(
         if teststation.last_heartbeat:
             is_online = (now - teststation.last_heartbeat) < timeout
 
-        # Use TestStationResponse for consistent serialization
-        teststation_list.append(TestStationResponse.model_validate(teststation).model_dump())
-        teststation_list[-1]["is_online"] = is_online
+        teststation_list.append({
+            "id": teststation.id,
+            "account": teststation.account,
+            "socket_port": teststation.socket_port,
+            "location": teststation.location,
+            "is_active": teststation.is_active,
+            "last_heartbeat": teststation.last_heartbeat,
+            "created_at": teststation.created_at,
+            "is_online": is_online
+        })
 
     return {"teststations": teststation_list}
 
