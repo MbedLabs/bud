@@ -2,6 +2,7 @@ import { useState, Fragment } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { testRunsApi, resultsApi, TestResult } from '../api/client'
+import { formatDateTime } from '../test/date-utils'
 import {
   ArrowLeft, CheckCircle, XCircle, Clock, AlertCircle, Download, Activity,
   ChevronDown, ChevronRight,
@@ -114,8 +115,8 @@ export default function TestRunDetail() {
           Run Details
         </h3>
         <dl className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <DetailItem label="Started At" value={run.started_at ? new Date(run.started_at).toLocaleString() : '-'} />
-          <DetailItem label="Completed At" value={run.completed_at ? new Date(run.completed_at).toLocaleString() : '-'} />
+          <DetailItem label="Started At" value={formatDateTime(run.started_at)} />
+          <DetailItem label="Completed At" value={formatDateTime(run.completed_at)} />
           <DetailItem label="Duration" value={run.duration_seconds ? formatDuration(run.duration_seconds) : '-'} />
           <DetailItem
             label="Test Station"
@@ -379,15 +380,15 @@ function DetailItem({ label, value }: { label: string; value: string }) {
 
 function StatusBadge({ status }: { status: string }) {
   const config: Record<string, string> = {
-    Pending: 'bg-muted text-muted-foreground',
-    Running: 'bg-primary/10 text-primary',
-    Completed: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',
-    Failed: 'bg-red-500/10 text-red-700 dark:text-red-400',
-    Cancelled: 'bg-amber-500/10 text-amber-700 dark:text-amber-400',
+    Pending: 'bg-amber-500/10 text-amber-700 dark:text-amber-400',
+    Running: 'bg-blue-500/10 text-blue-700 dark:text-blue-400',
+    Completed: 'bg-muted text-muted-foreground',
+    Failed: 'bg-muted text-muted-foreground',
+    Cancelled: 'bg-muted text-muted-foreground',
   }
 
   return (
-    <span className={`px-3 py-1.5 rounded-md text-xs font-semibold ${config[status] || config.Pending}`}>
+    <span className={`px-3 py-1.5 rounded-md text-xs font-semibold ${config[status] || config.Completed}`}>
       {status}
     </span>
   )
