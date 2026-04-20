@@ -17,8 +17,7 @@ from app.core.security import generate_runner_token, get_password_hash
 from app.db import get_db
 from app.models import Runner
 from app.models.user import User
-from app.schemas import (RunnerHeartbeat, RunnerRegister, RunnerResponse,
-                         RunnerToken)
+from app.schemas import RunnerHeartbeat, RunnerRegister, RunnerResponse, RunnerToken
 
 router = APIRouter()
 
