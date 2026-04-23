@@ -64,7 +64,7 @@ export default function Settings() {
   // Timezone state
   const [timezone, setTimezone] = useState(() => localStorage.getItem('bud-timezone') || 'auto')
 
-  // ALM Integration local state
+  // PLM Integration local state
   const [bloomUrl, setBloomUrl] = useState('')
   const [bloomToken, setBloomToken] = useState('')
 
@@ -85,10 +85,10 @@ export default function Settings() {
     mutationFn: settingsApi.updateALM,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['almSettings'] })
-      alert('ALM settings updated successfully')
+      alert('PLM settings updated successfully')
     },
     onError: (error) => {
-      alert(`Error updating ALM settings: ${extractApiErrorMessage(error)}`)
+      alert(`Error updating PLM settings: ${extractApiErrorMessage(error)}`)
     },
   })
 
@@ -164,12 +164,12 @@ export default function Settings() {
         </div>
       </div>
 
-      {/* ALM Integration (Admin Only) */}
+      {/* PLM Integration (Admin Only) */}
       {isAdmin && (
         <div className="bg-card rounded-lg border border-border shadow-elegant overflow-hidden">
           <div className="px-5 py-4 border-b border-border flex items-center gap-2 bg-muted/30">
             <LinkIcon className="h-4 w-4 text-primary" />
-            <h3 className="text-sm font-semibold text-foreground">ALM Integration (Bloom)</h3>
+            <h3 className="text-sm font-semibold text-foreground">PLM Integration (Bloom)</h3>
           </div>
           <div className="p-5 space-y-4">
             {almLoading ? (
@@ -230,7 +230,7 @@ export default function Settings() {
               <span className="text-white font-bold text-sm">B</span>
             </div>
             <div>
-              <p className="text-sm font-semibold text-foreground">Bud Test Platform</p>
+              <p className="text-sm font-semibold text-foreground">Bud TMP</p>
               <p className="text-xs text-muted-foreground">v{APP_VERSION}</p>
             </div>
           </div>

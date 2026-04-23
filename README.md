@@ -26,7 +26,7 @@ This frontend is designed to be environment-agnostic using runtime configuration
 | Variable | Description | Default |
 | :--- | :--- | :--- |
 | `BACKEND_UPSTREAM` | Nginx upstream for the API proxy (`/api`) | `bud-backend.bud.svc.cluster.local:8000` |
-| `BLOOM_APP_URL` | URL of the Bloom ALM application (for sidebar links) | `http://localhost:3001` |
+| `BLOOM_APP_URL` | URL of the Bloom PLM application (for sidebar links) | `http://localhost:3001` |
 | `BUD_APP_URL` | Public URL of this Bud instance (for self-referencing) | `http://localhost:3000` |
 
 ### Docker
