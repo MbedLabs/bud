@@ -89,7 +89,7 @@ async def sync_results_to_bloom(test_run_id: int):
                     data = response.json()
                     logger.info(
                         f"Successfully synced {data.get('updated')} results to Bloom for run {test_run_id}."
-                        + (f" Not found: {data.get('not_found')}" if data.get('not_found') else "")
+                        + (f" Not found: {data.get('not_found')}" if data.get("not_found") else "")
                     )
                 else:
                     logger.error(
