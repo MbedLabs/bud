@@ -72,13 +72,13 @@ async def update_setting(
     return setting
 
 
-@router.get("/integrations/alm", response_model=ALMIntegrationSettings)
+@router.get("/integrations/PLM", response_model=ALMIntegrationSettings)
 async def get_alm_integration(
     db: AsyncSession = Depends(get_db),
     _admin: User = Depends(require_role(UserRole.admin)),
 ):
     """
-    Get ALM integration settings (Bloom).
+    Get PLM integration settings (Bloom).
     """
     url_setting = await db.get(SystemSetting, "bloom_url")
     token_setting = await db.get(SystemSetting, "bloom_token")
@@ -89,14 +89,14 @@ async def get_alm_integration(
     )
 
 
-@router.post("/integrations/alm", response_model=ALMIntegrationSettings)
+@router.post("/integrations/PLM", response_model=ALMIntegrationSettings)
 async def update_alm_integration(
     data: ALMIntegrationSettings,
     db: AsyncSession = Depends(get_db),
     _admin: User = Depends(require_role(UserRole.admin)),
 ):
     """
-    Update ALM integration settings.
+    Update PLM integration settings.
     """
     for key, val in [("bloom_url", data.bloom_url), ("bloom_token", data.bloom_token)]:
         setting = await db.get(SystemSetting, key)

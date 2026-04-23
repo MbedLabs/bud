@@ -52,7 +52,7 @@ class Settings(BaseSettings):
             "BUD_ACCESS_TOKEN_EXPIRE_MINUTES", "ACCESS_TOKEN_EXPIRE_MINUTES"
         ),
     )
-    BUD_APP_NAME: str = "Bud Test Platform"
+    BUD_APP_NAME: str = "Bud TMP"
     BUD_APP_VERSION: str = "0.1.0"
 
     APP_BASE_URL: str = Field(

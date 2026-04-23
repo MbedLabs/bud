@@ -375,7 +375,7 @@ class SystemSettingResponse(SystemSettingBase):
 
 
 class ALMIntegrationSettings(BaseModel):
-    """Schema for ALM integration settings (Bloom)."""
+    """Schema for PLM integration settings (Bloom)."""
 
     bloom_url: str
     bloom_token: str
