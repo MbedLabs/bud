@@ -1,5 +1,5 @@
 """
-Database models for the bud test platform.
+Database models for the bud TMP.
 """
 
 from datetime import datetime, timezone

@@ -157,6 +157,6 @@ app.include_router(settings.router, prefix="/api/settings", tags=["Settings"])
 async def root():
     """Root endpoint."""
     return {
-        "message": "Bud Test Platform API",
+        "message": "Bud TMP API",
         "version": app_settings.BUD_APP_VERSION,
     }
