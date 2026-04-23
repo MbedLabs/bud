@@ -1,5 +1,5 @@
 /**
- * Date and time utilities for the Bud Test Platform.
+ * Date and time utilities for the Bud TMP.
  */
 
 /**

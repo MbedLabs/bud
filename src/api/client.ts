@@ -276,11 +276,11 @@ export interface ALMIntegrationSettings {
 
 export const settingsApi = {
   getALM: async () => {
-    const response = await api.get<ALMIntegrationSettings>('/settings/integrations/alm')
+    const response = await api.get<ALMIntegrationSettings>('/settings/integrations/PLM')
     return response.data
   },
   updateALM: async (data: ALMIntegrationSettings) => {
-    const response = await api.post<ALMIntegrationSettings>('/settings/integrations/alm', data)
+    const response = await api.post<ALMIntegrationSettings>('/settings/integrations/PLM', data)
     return response.data
   },
 }

@@ -86,7 +86,7 @@ export default function Layout() {
             </div>
             <div>
               <h1 className="text-xl font-bold text-teal-100 tracking-tight">Bud</h1>
-              <p className="text-[11px] text-teal-300/60 font-medium uppercase tracking-wider">Test Platform</p>
+              <p className="text-[11px] text-teal-300/60 font-medium uppercase tracking-wider">Test Management Platform</p>
             </div>
           </div>
         </div>
@@ -137,7 +137,7 @@ export default function Layout() {
             className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-teal-100/70 hover:bg-[var(--sidebar-hover)] hover:text-white transition-all duration-200 group"
           >
             <ExternalLink className="h-[18px] w-[18px] text-teal-400/50 group-hover:text-teal-300" />
-            Bloom ALM
+            Bloom PLM
           </a>
           <Link
             to="/settings"

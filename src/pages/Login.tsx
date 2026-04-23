@@ -91,7 +91,7 @@ export default function Login() {
 
         <div className="text-center mt-6">
           <p className="text-sm text-teal-200/60">
-            Bud Test Platform
+            Bud TMP
           </p>
           <p className="text-xs text-teal-300/50 mt-1">v{APP_VERSION}</p>
           <a
