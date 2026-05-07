@@ -1,16 +1,18 @@
-import { useState, Fragment } from 'react'
+import { useMemo, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { testRunsApi, resultsApi, TestResult } from '../api/client'
+import { testRunsApi, resultsApi, TestResult, type TestRunEvent } from '../api/client'
 import { formatDateTime } from '../test/date-utils'
 import {
-  ArrowLeft, CheckCircle, XCircle, Clock, AlertCircle, Download, Activity,
-  ChevronDown, ChevronRight,
+  ArrowLeft, CheckCircle, XCircle, Clock, AlertCircle, Activity,
+  ChevronDown, ChevronRight, UploadCloud, RefreshCw, Radio, GitBranch,
 } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 
 export default function TestRunDetail() {
   const { id } = useParams<{ id: string }>()
   const runId = parseInt(id || '0')
+  const [systemReportOpen, setSystemReportOpen] = useState(false)
 
   const { data: run, isLoading: runLoading, error: runError } = useQuery({
     queryKey: ['testRun', runId],
@@ -21,6 +23,12 @@ export default function TestRunDetail() {
   const { data: results, isLoading: resultsLoading } = useQuery({
     queryKey: ['testResults', runId],
     queryFn: () => resultsApi.list(runId),
+    enabled: !!runId,
+  })
+
+  const { data: events, isLoading: eventsLoading } = useQuery({
+    queryKey: ['testRunEvents', runId],
+    queryFn: () => testRunsApi.getEvents(runId),
     enabled: !!runId,
   })
 
@@ -45,8 +53,12 @@ export default function TestRunDetail() {
     )
   }
 
-  const passRate = run.total_tests > 0
-    ? ((run.passed_tests / run.total_tests) * 100).toFixed(1)
+  const assertionSummary = summarizeAssertions(results || [])
+  const totalCount = assertionSummary.total || run.total_tests
+  const passedCount = assertionSummary.total > 0 ? assertionSummary.passed : run.passed_tests
+  const failedCount = assertionSummary.total > 0 ? assertionSummary.failed : run.failed_tests
+  const passRate = totalCount > 0
+    ? ((passedCount / totalCount) * 100).toFixed(1)
     : '0'
 
   return (
@@ -68,22 +80,22 @@ export default function TestRunDetail() {
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <SummaryCard
-          label="Total Tests"
-          value={run.total_tests}
+          label="Total Assertions"
+          value={totalCount}
           icon={Activity}
           gradient="from-primary/10 to-cyan-500/10"
           iconColor="text-primary"
         />
         <SummaryCard
           label="Passed"
-          value={run.passed_tests}
+          value={passedCount}
           icon={CheckCircle}
           gradient="from-emerald-500/10 to-emerald-500/5"
           iconColor="text-emerald-600 dark:text-emerald-400"
         />
         <SummaryCard
           label="Failed"
-          value={run.failed_tests}
+          value={failedCount}
           icon={XCircle}
           gradient="from-red-500/10 to-red-500/5"
           iconColor="text-red-600 dark:text-red-400"
@@ -145,185 +157,340 @@ export default function TestRunDetail() {
           <ResultsTable results={results} />
         )}
       </div>
+
+      {/* System Report */}
+      <div className="bg-card rounded-lg border border-border shadow-elegant overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setSystemReportOpen(open => !open)}
+          className="w-full px-5 py-4 text-left hover:bg-accent/40 transition-colors"
+        >
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2 min-w-0">
+              <GitBranch className="h-4 w-4 text-primary shrink-0" />
+              <div className="min-w-0">
+                <h3 className="text-sm font-semibold text-foreground">System Report</h3>
+                <p className="text-xs text-muted-foreground">
+                  {eventsLoading
+                    ? 'Loading system steps...'
+                    : `${events?.length || 0} reported step${events?.length === 1 ? '' : 's'}`}
+                </p>
+              </div>
+            </div>
+            {systemReportOpen ? (
+              <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+            ) : (
+              <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+            )}
+          </div>
+        </button>
+        {systemReportOpen && (
+          <>
+            {eventsLoading ? (
+              <div className="p-8 text-center text-muted-foreground border-t border-border">Loading system steps...</div>
+            ) : !events || events.length === 0 ? (
+              <div className="p-8 text-center text-muted-foreground border-t border-border">No system steps reported yet</div>
+            ) : (
+              <div className="border-t border-border">
+                <RunEventTimeline events={events} />
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </div>
   )
+}
+
+function RunEventTimeline({ events }: { events: TestRunEvent[] }) {
+  return (
+    <div className="divide-y divide-border">
+      {events.map((event) => {
+        const Icon = getStageIcon(event.stage)
+        return (
+          <div key={event.id} className="px-5 py-4">
+            <div className="flex items-start gap-3">
+              <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md ${getEventTone(event.status).surface}`}>
+                <Icon className={`h-4 w-4 ${getEventTone(event.status).icon}`} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-sm font-medium text-foreground">{event.title}</p>
+                  <span className={`px-2 py-0.5 rounded-md text-[11px] font-semibold ${getEventTone(event.status).badge}`}>
+                    {formatEventStatus(event.status)}
+                  </span>
+                  <span className="text-[11px] text-muted-foreground">{formatDateTime(event.created_at)}</span>
+                </div>
+                {event.message && (
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{event.message}</p>
+                )}
+                {event.event_metadata && Object.keys(event.event_metadata).length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {Object.entries(event.event_metadata).slice(0, 4).map(([key, value]) => (
+                      <span key={key} className="rounded-md border border-border bg-background px-2 py-1 text-[11px] text-muted-foreground">
+                        <span className="font-medium text-foreground">{key}</span>: {formatVal(value)}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function getStageIcon(stage: string): LucideIcon {
+  const icons: Record<string, LucideIcon> = {
+    bloom_scope: GitBranch,
+    runner: Radio,
+    execution: Activity,
+    results: UploadCloud,
+    bloom_sync: RefreshCw,
+  }
+  return icons[stage] || Activity
+}
+
+function getEventTone(status: string) {
+  const tones: Record<string, { surface: string; icon: string; badge: string }> = {
+    completed: {
+      surface: 'bg-emerald-500/10',
+      icon: 'text-emerald-600 dark:text-emerald-400',
+      badge: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',
+    },
+    running: {
+      surface: 'bg-blue-500/10',
+      icon: 'text-blue-600 dark:text-blue-400',
+      badge: 'bg-blue-500/10 text-blue-700 dark:text-blue-400',
+    },
+    warning: {
+      surface: 'bg-amber-500/10',
+      icon: 'text-amber-600 dark:text-amber-400',
+      badge: 'bg-amber-500/10 text-amber-700 dark:text-amber-400',
+    },
+    failed: {
+      surface: 'bg-red-500/10',
+      icon: 'text-red-600 dark:text-red-400',
+      badge: 'bg-red-500/10 text-red-700 dark:text-red-400',
+    },
+    skipped: {
+      surface: 'bg-muted',
+      icon: 'text-muted-foreground',
+      badge: 'bg-muted text-muted-foreground',
+    },
+    queued: {
+      surface: 'bg-muted',
+      icon: 'text-muted-foreground',
+      badge: 'bg-muted text-muted-foreground',
+    },
+  }
+  return tones[status] || tones.queued
+}
+
+function formatEventStatus(status: string): string {
+  return status.charAt(0).toUpperCase() + status.slice(1)
 }
 
 interface AssertionShape {
   passed?: boolean
   message?: string
+  assertion_type?: string
   expected?: unknown
   actual?: unknown
+  result?: unknown
+  source_file?: string | null
+  source_line?: number | null
+  source_function?: string | null
+  code_context?: string | null
+  traceback?: string | null
   timestamp?: string
   metadata?: Record<string, unknown> | null
 }
 
-/**
- * Tabular view of test results with per-row expandable panel showing the
- * budtestlibrary assertions (message / expected / actual) and the full
- * traceback. Keeps the default row lean — detail only renders when the user
- * explicitly opens a row, because tracebacks can be long.
- */
 function ResultsTable({ results }: { results: TestResult[] }) {
-  const [expanded, setExpanded] = useState<Record<number, boolean>>({})
+  const [expandedCases, setExpandedCases] = useState<Record<string, boolean>>({})
+  const testCases = useMemo(() => groupResultsByTestCase(results), [results])
 
-  const toggle = (id: number) => setExpanded(e => ({ ...e, [id]: !e[id] }))
+  const toggleCase = (key: string) =>
+    setExpandedCases(e => ({ ...e, [key]: !(e[key] ?? true) }))
 
   return (
-    <table className="min-w-full divide-y divide-border">
-      <thead>
-        <tr className="bg-muted/50">
-          <th className="w-8 px-2 py-3" />
-          <th className="px-5 py-3 text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-            Status
-          </th>
-          <th className="px-5 py-3 text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-            Test Case
-          </th>
-          <th className="px-5 py-3 text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-            Duration
-          </th>
-          <th className="px-5 py-3 text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-            Assertions
-          </th>
-          <th className="px-5 py-3 text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-            Message
-          </th>
-          <th className="px-5 py-3 text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-            Artifacts
-          </th>
-        </tr>
-      </thead>
-      <tbody className="divide-y divide-border">
-        {results.map((result: TestResult) => {
-          const isOpen = !!expanded[result.id]
-          const assertions = (result.assertions as AssertionShape[] | null) || []
-          const passedCount = assertions.filter(a => a.passed).length
-          const hasDetail = assertions.length > 0 || !!result.traceback
-          return (
-            <Fragment key={result.id}>
-              <tr
-                className={`transition-colors ${
-                  !result.passed ? 'bg-red-500/[0.02]' : ''
-                } ${hasDetail ? 'cursor-pointer hover:bg-accent/50' : ''}`}
-                onClick={() => hasDetail && toggle(result.id)}
-              >
-                <td className="px-2 py-3 text-muted-foreground">
-                  {hasDetail ? (
-                    isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />
-                  ) : null}
-                </td>
-                <td className="px-5 py-3 whitespace-nowrap">
-                  <ResultIcon status={result.passed ? 'passed' : 'failed'} />
-                </td>
-                <td className="px-5 py-3">
-                  <div>
-                    <p className="text-sm font-medium text-foreground">{result.test_method}</p>
-                    <p className="text-xs text-muted-foreground">{result.test_class}</p>
-                  </div>
-                </td>
-                <td className="px-5 py-3 whitespace-nowrap text-xs text-muted-foreground">
-                  {result.duration_seconds ? formatDuration(result.duration_seconds) : '-'}
-                </td>
-                <td className="px-5 py-3 whitespace-nowrap text-xs">
-                  {assertions.length === 0 ? (
-                    <span className="text-muted-foreground/40">—</span>
-                  ) : (
-                    <span className="text-muted-foreground">
-                      <span className="text-emerald-600 dark:text-emerald-400">{passedCount}</span>
-                      <span className="text-muted-foreground/60"> / {assertions.length}</span>
+    <div className="divide-y divide-border">
+      {testCases.map((testCase) => {
+        const isOpen = expandedCases[testCase.key] ?? true
+        return (
+          <section key={testCase.key}>
+            <button
+              type="button"
+              onClick={() => toggleCase(testCase.key)}
+              className="w-full px-5 py-3 text-left hover:bg-accent/40 transition-colors"
+            >
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3 min-w-0">
+                  <span className="mt-0.5 text-muted-foreground">
+                    {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                  </span>
+                  <ResultIcon status={testCase.failedAssertions > 0 ? 'failed' : 'passed'} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-semibold text-foreground">
+                      {testCase.name}
                     </span>
+                    <span className="mt-0.5 flex min-w-0 flex-wrap gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
+                      {testCase.tcId && <span className="font-medium text-primary">{testCase.tcId}</span>}
+                      {testCase.sourceFile && <span className="truncate">{testCase.sourceFile}</span>}
+                      <span>{testCase.assertionCount} check{testCase.assertionCount === 1 ? '' : 's'}</span>
+                    </span>
+                  </span>
+                </div>
+                <span className="shrink-0 text-right text-xs">
+                  <span className={testCase.failedAssertions > 0 ? 'block text-red-600 dark:text-red-400' : 'block text-emerald-600 dark:text-emerald-400'}>
+                    {testCase.passedAssertions} / {testCase.assertionCount} passed
+                  </span>
+                  {testCase.failedAssertions > 0 && (
+                    <span className="block text-red-600 dark:text-red-400">{testCase.failedAssertions} failed</span>
                   )}
-                </td>
-                <td className="px-5 py-3 text-xs text-muted-foreground max-w-md truncate">
-                  {result.error_message || '-'}
-                </td>
-                <td className="px-5 py-3 whitespace-nowrap">
-                  {result.artifacts && result.artifacts.length > 0 ? (
-                    <div className="flex items-center gap-2">
-                      {result.artifacts.map((artifact: string, i: number) => (
-                        <a
-                          key={i}
-                          href={artifact}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={(e) => e.stopPropagation()}
-                          className="text-primary hover:text-primary/80 transition-colors"
-                        >
-                          <Download className="h-3.5 w-3.5" />
-                        </a>
-                      ))}
-                    </div>
-                  ) : (
-                    <span className="text-muted-foreground/40">-</span>
-                  )}
-                </td>
-              </tr>
-              {isOpen && hasDetail && (
-                <tr className="bg-muted/20">
-                  <td />
-                  <td colSpan={6} className="px-5 py-4">
-                    <ResultDetail
-                      assertions={assertions}
-                      traceback={result.traceback}
-                    />
-                  </td>
-                </tr>
-              )}
-            </Fragment>
-          )
-        })}
-      </tbody>
-    </table>
+                </span>
+              </div>
+            </button>
+
+            {isOpen && (
+              <div className="border-t border-border bg-muted/10 px-5 py-2">
+                <ResultDetail assertions={testCase.assertions} />
+              </div>
+            )}
+          </section>
+        )
+      })}
+    </div>
   )
 }
 
-function ResultDetail({
-  assertions,
-  traceback,
-}: {
-  assertions: AssertionShape[]
-  traceback: string | null
-}) {
+interface TestCaseGroup {
+  key: string
+  name: string
+  sourceFile: string | null
+  tcId: string | null
+  methodNames: Set<string>
+  methodCount: number
+  assertions: AssertionViewModel[]
+  assertionCount: number
+  passedAssertions: number
+  failedAssertions: number
+  failedMethods: number
+}
+
+function groupResultsByTestCase(results: TestResult[]): TestCaseGroup[] {
+  const groups = new Map<string, TestCaseGroup>()
+  for (const result of results) {
+    const metadata = result.test_metadata || {}
+    const sourceFile = stringFromMeta(metadata, 'test_case_file')
+    const className = stringFromMeta(metadata, 'test_case_class') || result.test_class
+    const name = className || stringFromMeta(metadata, 'test_case_name') || 'UnknownTestCase'
+    const key = className ? `${sourceFile || 'unknown'}:${className}` : sourceFile || name
+    const assertions = (result.assertions as AssertionShape[] | null) || []
+
+    if (!groups.has(key)) {
+      groups.set(key, {
+        key,
+        name,
+        sourceFile,
+        tcId: stringFromMeta(metadata, 'tc_id'),
+        methodNames: new Set<string>(),
+        methodCount: 0,
+        assertions: [],
+        failedMethods: 0,
+        assertionCount: 0,
+        passedAssertions: 0,
+        failedAssertions: 0,
+      })
+    }
+
+    const group = groups.get(key)!
+    group.methodNames.add(result.test_method)
+    group.methodCount = group.methodNames.size
+    if (!result.passed) group.failedMethods += 1
+
+    assertions.forEach((assertion) => {
+      const passed = assertion.passed !== false
+      group.assertions.push({
+        ...assertion,
+        methodName: result.test_method,
+        durationSeconds: result.duration_seconds,
+        methodErrorMessage: result.error_message,
+      })
+      group.assertionCount += 1
+      if (passed) group.passedAssertions += 1
+      else group.failedAssertions += 1
+    })
+  }
+  return Array.from(groups.values())
+}
+
+function stringFromMeta(metadata: Record<string, unknown>, key: string): string | null {
+  const value = metadata[key]
+  return typeof value === 'string' && value.trim() ? value : null
+}
+
+function basename(path: string): string {
+  return path.split(/[\\/]/).filter(Boolean).pop() || path
+}
+
+function inferAssertionType(assertion: AssertionShape): string {
+  const expected = String(assertion.expected ?? '')
+  const metadata = assertion.metadata || {}
+  if ('tolerance' in metadata || expected.includes('+/-') || expected.includes('±')) return 'AssertInTolerance'
+  if ('lower_bound' in metadata || expected.startsWith('[') || expected.startsWith('(') || expected.includes('..')) return 'AssertInRange'
+  if (expected.startsWith('[') && expected.endsWith(']')) return 'AssertIn'
+  if (expected !== '' && assertion.actual !== undefined) return 'AssertEqual'
+  return 'Assert'
+}
+
+interface AssertionViewModel extends AssertionShape {
+  methodName: string
+  durationSeconds: number
+  methodErrorMessage: string | null
+}
+
+function summarizeAssertions(results: TestResult[]) {
+  return results.reduce(
+    (summary, result) => {
+      const assertions = (result.assertions as AssertionShape[] | null) || []
+      assertions.forEach(assertion => {
+        summary.total += 1
+        if (assertion.passed !== false) summary.passed += 1
+        else summary.failed += 1
+      })
+      return summary
+    },
+    { total: 0, passed: 0, failed: 0 },
+  )
+}
+
+function ResultDetail({ assertions }: { assertions: AssertionViewModel[] }) {
   return (
-    <div className="space-y-4">
-      {assertions.length > 0 && (
-        <div>
-          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-            Assertions
-          </h4>
-          <div className="space-y-1.5">
-            {assertions.map((a, i) => (
-              <AssertionRow key={i} assertion={a} />
-            ))}
-          </div>
-        </div>
-      )}
-      {traceback && (
-        <div>
-          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-            Traceback
-          </h4>
-          <pre className="text-[11px] leading-relaxed text-foreground bg-background border border-border rounded-md p-3 overflow-x-auto whitespace-pre-wrap break-words">
-            {traceback}
-          </pre>
-        </div>
+    <div className="space-y-2 pl-10">
+      {assertions.length > 0 ? (
+        assertions.map((a, i) => <AssertionRow key={i} assertion={a} index={i + 1} />)
+      ) : (
+        <div className="py-3 text-xs text-muted-foreground">No assertions were reported for this test case.</div>
       )}
     </div>
   )
 }
 
-function AssertionRow({ assertion }: { assertion: AssertionShape }) {
+function AssertionRow({ assertion, index }: { assertion: AssertionViewModel; index: number }) {
   const passed = assertion.passed !== false
   const expected = assertion.expected
   const actual = assertion.actual
-  const showValues = expected !== undefined && expected !== null
-    || actual !== undefined && actual !== null
+  const message = assertion.message || '(no message)'
+  const assertionType = assertion.assertion_type || inferAssertionType(assertion)
   return (
-    <div className={`rounded-md border p-2.5 text-xs ${
+    <div className={`border-l-2 py-2 pl-3 pr-2 text-xs ${
       passed
-        ? 'border-emerald-500/20 bg-emerald-500/[0.03]'
-        : 'border-red-500/30 bg-red-500/[0.04]'
+        ? 'border-emerald-500/50 bg-emerald-500/[0.02]'
+        : 'border-red-500/70 bg-red-500/[0.03]'
     }`}>
       <div className="flex items-start gap-2">
         {passed ? (
@@ -332,9 +499,28 @@ function AssertionRow({ assertion }: { assertion: AssertionShape }) {
           <XCircle className="h-3.5 w-3.5 text-red-500 mt-0.5 shrink-0" />
         )}
         <div className="flex-1 min-w-0">
-          <p className="text-foreground break-words">{assertion.message || '(no message)'}</p>
-          {showValues && (
-            <div className="mt-1.5 grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-[11px]">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+            <span className="font-mono text-[11px] text-muted-foreground">#{index}</span>
+            <span className={`text-[11px] font-semibold ${
+              passed
+                ? 'text-emerald-700 dark:text-emerald-400'
+                : 'text-red-700 dark:text-red-400'
+            }`}>
+              {assertionType}
+            </span>
+            <span className="max-w-full truncate text-[11px] text-muted-foreground">{assertion.methodName}</span>
+            {assertion.source_file && (
+              <span className="text-[11px] text-muted-foreground">
+                {basename(assertion.source_file)}{assertion.source_line ? `:${assertion.source_line}` : ''}
+              </span>
+            )}
+          </div>
+          {(expected !== undefined || actual !== undefined || message) && (
+            <div className="mt-1 grid grid-cols-1 gap-x-3 gap-y-0.5 text-[11px] sm:grid-cols-3">
+              <div>
+                <span className="text-muted-foreground mr-1.5">Message:</span>
+                <span className="text-foreground">{message}</span>
+              </div>
               <div>
                 <span className="text-muted-foreground mr-1.5">Expected:</span>
                 <code className="font-mono text-foreground">{formatVal(expected)}</code>
@@ -346,7 +532,7 @@ function AssertionRow({ assertion }: { assertion: AssertionShape }) {
             </div>
           )}
           {assertion.metadata && Object.keys(assertion.metadata).length > 0 && (
-            <div className="mt-1.5 text-[11px] text-muted-foreground">
+            <div className="mt-1 text-[11px] text-muted-foreground">
               {Object.entries(assertion.metadata).map(([k, v]) => (
                 <span key={k} className="mr-3">
                   <span className="opacity-70">{k}:</span>{' '}
@@ -354,6 +540,16 @@ function AssertionRow({ assertion }: { assertion: AssertionShape }) {
                 </span>
               ))}
             </div>
+          )}
+          {assertion.traceback && (
+            <details className="mt-1.5">
+              <summary className="cursor-pointer text-[11px] text-muted-foreground hover:text-foreground">
+                trace
+              </summary>
+              <pre className="mt-1 text-[11px] leading-relaxed text-foreground bg-background border border-border rounded-md p-2 overflow-x-auto whitespace-pre-wrap break-words">
+                {assertion.traceback}
+              </pre>
+            </details>
           )}
         </div>
       </div>

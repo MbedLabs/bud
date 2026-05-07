@@ -196,6 +196,18 @@ export interface TestResult {
   artifacts?: string[]
 }
 
+export interface TestRunEvent {
+  id: number
+  test_run_id: number
+  sequence: number
+  stage: string
+  status: string
+  title: string
+  message: string | null
+  event_metadata: Record<string, unknown> | null
+  created_at: string
+}
+
 export interface TestStation {
   account: string
   is_online: boolean
@@ -235,6 +247,11 @@ export const testRunsApi = {
 
   getResults: async (id: number) => {
     const response = await api.get<TestResult[]>(`/results/${id}`)
+    return response.data
+  },
+
+  getEvents: async (id: number) => {
+    const response = await api.get<TestRunEvent[]>(`/test-runs/${id}/events`)
     return response.data
   },
 }
