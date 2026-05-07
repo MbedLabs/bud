@@ -106,12 +106,30 @@ async def migrate_user_roles_to_viewer() -> None:
             await conn.execute(text("UPDATE users SET role = 'viewer' WHERE role = 'user'"))
 
 
+async def migrate_execution_columns() -> None:
+    async with db.engine.begin() as conn:
+        if conn.dialect.name != "postgresql":
+            return
+
+        await conn.execute(
+            text("ALTER TABLE test_results ADD COLUMN IF NOT EXISTS assertions JSON NULL")
+        )
+        await conn.execute(
+            text("ALTER TABLE test_results ADD COLUMN IF NOT EXISTS test_metadata JSON NULL")
+        )
+        await conn.execute(
+            text("ALTER TABLE test_results ADD COLUMN IF NOT EXISTS product_id INTEGER NULL")
+        )
+        await conn.execute(text("ALTER TABLE test_results ALTER COLUMN test_run_id DROP NOT NULL"))
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan handler."""
     await db.create_tables()
     await migrate_user_columns()
     await migrate_user_roles_to_viewer()
+    await migrate_execution_columns()
     await seed_admin_user()
     yield
 

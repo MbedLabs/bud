@@ -187,6 +187,27 @@ class TestRunResponse(BaseModel):
         return cls.model_validate(data)
 
 
+class TestRunEventResponse(BaseModel):
+    """System-reported execution/integration step for a test run."""
+
+    id: int
+    test_run_id: int
+    sequence: int
+    stage: str
+    status: str
+    title: str
+    message: Optional[str]
+    event_metadata: Optional[Dict[str, Any]]
+    created_at: datetime
+
+    @field_serializer("created_at")
+    def serialize_dt(self, dt: datetime, _info):
+        return f"{dt.isoformat()}Z"
+
+    class Config:
+        from_attributes = True
+
+
 class TestRunList(BaseModel):
     """Schema for test run list response."""
 

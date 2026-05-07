@@ -7,6 +7,7 @@ from app.models.models import (
     SystemSetting,
     TestResult,
     TestRun,
+    TestRunEvent,
     TestStation,
 )
 from app.models.user import User, UserRole
@@ -16,6 +17,7 @@ __all__ = [
     "Product",
     "Runner",
     "TestRun",
+    "TestRunEvent",
     "TestResult",
     "Artifact",
     "User",
