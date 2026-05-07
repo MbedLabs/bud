@@ -23,7 +23,9 @@ def _coalesce_results_by_tc_id(results: list[TestResult], test_run_id: int) -> l
         if not tc_id:
             continue
 
-        executed_at = res.created_at.isoformat() if res.created_at else datetime.utcnow().isoformat()
+        executed_at = (
+            res.created_at.isoformat() if res.created_at else datetime.utcnow().isoformat()
+        )
         entry = grouped.setdefault(
             tc_id,
             {

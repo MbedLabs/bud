@@ -175,6 +175,7 @@ class Settings(BaseSettings):
     ENABLE_DOCS: bool = Field(
         default=False, validation_alias=AliasChoices("BUD_ENABLE_DOCS", "ENABLE_DOCS")
     )
+
     @model_validator(mode="after")
     def populate_database_url(self):
         if not self.DATABASE_URL:
