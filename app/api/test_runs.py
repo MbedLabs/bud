@@ -12,9 +12,16 @@ from sqlalchemy.orm import selectinload
 
 from app.api.auth import get_current_active_entity, get_current_user
 from app.db import get_db
-from app.models import Runner, TestRun
+from app.models import Runner, TestRun, TestRunEvent
 from app.models.user import User
-from app.schemas import TestRunCreate, TestRunList, TestRunResponse, TestRunUpdate
+from app.schemas import (
+    TestRunCreate,
+    TestRunEventResponse,
+    TestRunList,
+    TestRunResponse,
+    TestRunUpdate,
+)
+from app.services.run_events import record_test_run_event
 
 router = APIRouter()
 
@@ -54,6 +61,20 @@ async def create_test_run(
     )
 
     db.add(test_run)
+    await db.flush()
+    await record_test_run_event(
+        db,
+        test_run_id=test_run.id,
+        stage="execution",
+        status="running" if data.status.value == "Running" else "queued",
+        title="Test run created",
+        message=(
+            f"{data.test_suite_name} was created from {data.test_case_list}."
+            if data.test_case_list
+            else None
+        ),
+        event_metadata={"runner_account": data.runner_account} if data.runner_account else None,
+    )
     await db.commit()
     await db.refresh(test_run)
 
@@ -65,6 +86,27 @@ async def create_test_run(
     test_run = result.scalar_one()
 
     return TestRunResponse.from_orm_with_runner(test_run)
+
+
+@router.get("/{run_id}/events", response_model=list[TestRunEventResponse])
+async def get_test_run_events(
+    run_id: int,
+    db: AsyncSession = Depends(get_db),
+    _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
+):
+    """
+    Get system-reported execution and integration events for a test run.
+    """
+    run_result = await db.execute(select(TestRun.id).where(TestRun.id == run_id))
+    if run_result.scalar_one_or_none() is None:
+        raise HTTPException(status_code=404, detail="Test run not found")
+
+    result = await db.execute(
+        select(TestRunEvent)
+        .where(TestRunEvent.test_run_id == run_id)
+        .order_by(TestRunEvent.sequence, TestRunEvent.created_at, TestRunEvent.id)
+    )
+    return result.scalars().all()
 
 
 @router.get("", response_model=TestRunList)
@@ -161,9 +203,19 @@ async def update_test_run(
     if data.status is not None:
         test_run.status = data.status.value
         if data.status.value in ("Completed", "Cancelled"):
-            from datetime import timezone
-
             test_run.completed_at = datetime.utcnow()
+        await record_test_run_event(
+            db,
+            test_run_id=test_run.id,
+            stage="execution",
+            status=data.status.value.lower(),
+            title=f"Run marked {data.status.value}",
+            message=(
+                "The runner reported the final execution state."
+                if data.status.value in ("Completed", "Cancelled")
+                else "The runner updated the execution state."
+            ),
+        )
 
     if data.total_tests is not None:
         test_run.total_tests = data.total_tests

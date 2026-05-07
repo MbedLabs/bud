@@ -91,6 +91,27 @@ class TestRun(Base):
     artifacts: Mapped[List["Artifact"]] = relationship(
         back_populates="test_run", cascade="all, delete-orphan"
     )
+    events: Mapped[List["TestRunEvent"]] = relationship(
+        back_populates="test_run", cascade="all, delete-orphan"
+    )
+
+
+class TestRunEvent(Base):
+    """System-visible execution and integration event for a test run."""
+
+    __tablename__ = "test_run_events"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    test_run_id: Mapped[int] = mapped_column(ForeignKey("test_runs.id"), nullable=False)
+    sequence: Mapped[int] = mapped_column(Integer, default=0)
+    stage: Mapped[str] = mapped_column(String(100))
+    status: Mapped[str] = mapped_column(String(50), default="completed")
+    title: Mapped[str] = mapped_column(String(255))
+    message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    event_metadata: Mapped[Optional[dict]] = mapped_column("event_metadata", JSON, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    test_run: Mapped["TestRun"] = relationship(back_populates="events")
 
 
 class TestResult(Base):

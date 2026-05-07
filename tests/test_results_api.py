@@ -13,7 +13,7 @@ from __future__ import annotations
 import pytest
 from sqlalchemy import select
 
-from app.models import TestResult, TestRun
+from app.models import TestResult, TestRun, TestRunEvent
 
 
 @pytest.mark.asyncio
@@ -102,6 +102,16 @@ async def test_upload_results_persists_assertions_and_updates_counters(client, d
     assert run.total_tests == 2
     assert run.passed_tests == 1
     assert run.failed_tests == 1
+
+    events_q = await db_session.execute(
+        select(TestRunEvent).where(TestRunEvent.test_run_id == run_id).order_by(TestRunEvent.id)
+    )
+    events = events_q.scalars().all()
+    assert any(event.title == "Results uploaded" for event in events)
+
+    events_response = client.get(f"/api/test-runs/{run_id}/events")
+    assert events_response.status_code == 200, events_response.text
+    assert events_response.json()[0]["title"] == "Results uploaded"
 
 
 @pytest.mark.asyncio

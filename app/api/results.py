@@ -15,6 +15,7 @@ from app.models import Runner, TestResult, TestRun
 from app.models.user import User
 from app.schemas import ResultsUpload, TestResultCreate, TestResultResponse
 from app.services.bloom_sync import sync_results_to_bloom
+from app.services.run_events import record_test_run_event
 
 router = APIRouter()
 
@@ -80,6 +81,19 @@ async def upload_results(
             # If this upload completes the run, the caller should ideally update status,
             # but we'll set a default completion time for now.
             test_run.completed_at = datetime.utcnow()
+            await record_test_run_event(
+                db,
+                test_run_id=data.test_run_id,
+                stage="results",
+                status="completed",
+                title="Results uploaded",
+                message=f"{len(created_results)} result rows were accepted from the runner.",
+                event_metadata={
+                    "passed": passed,
+                    "failed": failed,
+                    "duration_seconds": total_duration,
+                },
+            )
 
     await db.commit()
 
