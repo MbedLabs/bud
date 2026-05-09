@@ -31,7 +31,7 @@ def _coalesce_results_by_tc_id(results: list[TestResult], test_run_id: int) -> l
             {
                 "tc_id": tc_id,
                 "status": "Passed",
-                "comment": "Automated sync from Bud",
+                "comment": f"Last result from Bud run {test_run_id}, executed at {executed_at}",
                 "executed_at": executed_at,
                 "bud_run_id": test_run_id,
             },
