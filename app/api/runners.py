@@ -90,8 +90,7 @@ async def runner_heartbeat(
     """
     Receive a heartbeat from a runner.
 
-    Updates the last_heartbeat timestamp for the runner.
-    Rate-limited to 60 requests/minute per IP (H2).
+    Updates the last_heartbeat timestamp and returns a fresh token for rotation.
     """
     result = await db.execute(select(Runner).where(Runner.account == data.runner_account))
     runner = result.scalar_one_or_none()
@@ -102,9 +101,17 @@ async def runner_heartbeat(
     runner.last_heartbeat = datetime.utcnow()
     runner.is_active = True
 
+    # Generate a fresh token to keep the runner session persistent
+    token = generate_runner_token(runner.account)
+
     await db.commit()
 
-    return {"status": "ok", "timestamp": datetime.utcnow().isoformat()}
+    return {
+        "status": "ok",
+        "timestamp": datetime.utcnow().isoformat(),
+        "token": token,
+        "account": runner.account,
+    }
 
 
 @router.get("/status", response_model=RunnerStatusList)
