@@ -1,6 +1,5 @@
 from app.core.config import Settings
 
-
 CONFIG_ENV_KEYS = [
     "ACCESS_TOKEN_EXPIRE_MINUTES",
     "ADMIN_EMAIL",

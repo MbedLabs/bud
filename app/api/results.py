@@ -5,8 +5,9 @@ Results API endpoints: upload test results, list results for a run.
 import logging
 from typing import List, Optional, Union
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status, Header
-from sqlalchemy import select, func
+from fastapi import (APIRouter, BackgroundTasks, Depends, Header,
+                     HTTPException, Request, status)
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.auth import decode_access_token, oauth2_scheme
@@ -23,6 +24,7 @@ logger = logging.getLogger(__name__)
 
 # Optional OAuth2 scheme for endpoints that support dual auth (JWT or API Key)
 from fastapi.security import OAuth2PasswordBearer
+
 oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
 
 
@@ -56,7 +58,7 @@ async def get_uploader_entity(
                         entity = result.scalar_one_or_none()
                     except ValueError:
                         entity = None
-                
+
                 if entity and entity.is_active:
                     return entity
 
@@ -68,7 +70,7 @@ async def get_uploader_entity(
             runner = result.scalar_one_or_none()
             if runner and runner.is_active:
                 return runner
-            
+
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials. Provide a valid JWT or X-API-Key + runner_account.",
@@ -99,11 +101,13 @@ async def upload_results(
         result = await db.execute(select(TestRun).where(TestRun.id == data.test_run_id))
         test_run = result.scalar_one_or_none()
         if test_run and test_run.runner_id != _current_entity.id:
-             # Associate run with runner if it wasn't already (e.g. ad-hoc execution)
-             if test_run.runner_id is None:
-                 test_run.runner_id = _current_entity.id
-             else:
-                 logger.warning(f"Runner {_current_entity.account} attempting to upload to run {data.test_run_id} owned by runner_id {test_run.runner_id}")
+            # Associate run with runner if it wasn't already (e.g. ad-hoc execution)
+            if test_run.runner_id is None:
+                test_run.runner_id = _current_entity.id
+            else:
+                logger.warning(
+                    f"Runner {_current_entity.account} attempting to upload to run {data.test_run_id} owned by runner_id {test_run.runner_id}"
+                )
 
     for result_data in data.results:
         result = TestResult(
@@ -131,17 +135,16 @@ async def upload_results(
         if test_run:
             # Recalculate totals based on all results for this run
             res = await db.execute(
-                select(
-                    func.count(TestResult.id),
-                    func.sum(TestResult.passed.cast(int))
-                ).where(TestResult.test_run_id == data.test_run_id)
+                select(func.count(TestResult.id), func.sum(TestResult.passed.cast(int))).where(
+                    TestResult.test_run_id == data.test_run_id
+                )
             )
             total, passed = res.fetchone()
-            
+
             test_run.total_tests = total or 0
             test_run.passed_tests = passed or 0
             test_run.failed_tests = (total or 0) - (passed or 0)
-            
+
             await record_test_run_event(
                 db,
                 test_run_id=test_run.id,
@@ -169,6 +172,8 @@ async def list_results_for_run(
     List results for a specific test run.
     """
     result = await db.execute(
-        select(TestResult).where(TestResult.test_run_id == test_run_id).order_by(TestResult.created_at.asc())
+        select(TestResult)
+        .where(TestResult.test_run_id == test_run_id)
+        .order_by(TestResult.created_at.asc())
     )
     return result.scalars().all()
