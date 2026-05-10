@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from typing import List, Optional, Union
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, status
-from sqlalchemy import func, select
+from sqlalchemy import Integer, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.auth import decode_access_token
@@ -100,7 +100,8 @@ async def upload_results(
             runner_id=_current_entity.id if isinstance(_current_entity, Runner) else None,
             product_id=target_product_id,
             status="Completed",
-            title=f"Ad-hoc Upload ({datetime.now().strftime('%Y-%m-%d %H:%M')})",
+            name=f"Ad-hoc Upload ({datetime.now().strftime('%Y-%m-%d %H:%M')})",
+            test_case_list="ad-hoc",
             started_at=datetime.utcnow(),
             completed_at=datetime.utcnow(),
         )
@@ -136,15 +137,17 @@ async def upload_results(
     if test_run:
         # Recalculate totals based on all results for this run
         res = await db.execute(
-            select(func.count(TestResult.id), func.sum(TestResult.passed.cast(int))).where(
+            select(func.count(TestResult.id), func.sum(TestResult.passed.cast(Integer))).where(
                 TestResult.test_run_id == target_run_id
             )
         )
-        total, passed = res.fetchone()
+        row = res.fetchone()
+        total = row[0] if row else 0
+        passed = row[1] if row and row[1] is not None else 0
 
-        test_run.total_tests = total or 0
-        test_run.passed_tests = passed or 0
-        test_run.failed_tests = (total or 0) - (passed or 0)
+        test_run.total_tests = total
+        test_run.passed_tests = passed
+        test_run.failed_tests = total - passed
 
         # Ensure completion status
         if test_run.status != "Completed":
@@ -164,8 +167,8 @@ async def upload_results(
     await db.commit()
 
     # Trigger Bloom Sync in background
-    if settings.BLOOM_SYNC_ENABLED:
-        background_tasks.add_task(sync_results_to_bloom, target_run_id)
+    # Note: sync_results_to_bloom handles checking if bloom is configured
+    background_tasks.add_task(sync_results_to_bloom, target_run_id)
 
     return {
         "message": f"Uploaded {len(created_results)} results to run {target_run_id}",
