@@ -112,6 +112,7 @@ class RunnerHeartbeat(BaseModel):
 
     # M2: limit account field length to match DB constraint
     runner_account: str = Field(..., min_length=3, max_length=50)
+    location: Optional[str] = Field(default=None, max_length=255)
 
 
 # ==================== Test Run Schemas ====================
