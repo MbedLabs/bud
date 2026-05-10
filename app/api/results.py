@@ -2,11 +2,12 @@
 Test results API endpoints.
 """
 
+import logging
 from datetime import datetime, timezone
 from typing import List, Optional, Union
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.auth import decode_access_token
@@ -19,6 +20,7 @@ from app.services.bloom_sync import sync_results_to_bloom
 from app.services.run_events import record_test_run_event
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 # Optional OAuth2 scheme for identifying the uploader
 from fastapi.security import OAuth2PasswordBearer
@@ -87,12 +89,27 @@ async def upload_results(
 
     Accepts multiple test results and optionally associates them with a test run.
     Identifies uploader via JWT or persistent machine credentials.
+    Automatically creates a TestRun if missing.
     """
-    created_results = []
-
-    # Identify target product for results not already associated with a run
+    target_run_id = data.test_run_id
     target_product_id = data.product_id
 
+    # AUTO-ALIGNMENT: Create a TestRun if results are uploaded without one
+    if not target_run_id:
+        new_run = TestRun(
+            runner_id=_current_entity.id if isinstance(_current_entity, Runner) else None,
+            product_id=target_product_id,
+            status="Completed",
+            title=f"Ad-hoc Upload ({datetime.now().strftime('%Y-%m-%d %H:%M')})",
+            started_at=datetime.utcnow(),
+            completed_at=datetime.utcnow(),
+        )
+        db.add(new_run)
+        await db.flush()
+        target_run_id = new_run.id
+        logger.info(f"Auto-created TestRun {target_run_id} for results upload")
+
+    created_results = []
     for result_data in data.results:
         result = TestResult(
             test_class=result_data.test_class,
@@ -104,7 +121,7 @@ async def upload_results(
             assertions=result_data.assertions,
             test_metadata=result_data.metadata,
             work_package_id=result_data.work_package_id,
-            test_run_id=data.test_run_id,
+            test_run_id=target_run_id,
             product_id=target_product_id,
         )
         db.add(result)
@@ -112,53 +129,47 @@ async def upload_results(
 
     await db.flush()
 
-    # Update test run statistics if associated
-    if data.test_run_id:
-        result = await db.execute(select(TestRun).where(TestRun.id == data.test_run_id))
-        test_run = result.scalar_one_or_none()
+    # Update test run statistics
+    res = await db.execute(select(TestRun).where(TestRun.id == target_run_id))
+    test_run = res.scalar_one_or_none()
 
-        if test_run:
-            passed = sum(1 for r in created_results if r.passed)
-            failed = len(created_results) - passed
-            total_duration = sum(r.duration_seconds for r in created_results if r.duration_seconds)
+    if test_run:
+        # Recalculate totals based on all results for this run
+        res = await db.execute(
+            select(func.count(TestResult.id), func.sum(TestResult.passed.cast(int))).where(
+                TestResult.test_run_id == target_run_id
+            )
+        )
+        total, passed = res.fetchone()
 
-            test_run.total_tests += len(created_results)
-            test_run.passed_tests += passed
-            test_run.failed_tests += failed
+        test_run.total_tests = total or 0
+        test_run.passed_tests = passed or 0
+        test_run.failed_tests = (total or 0) - (passed or 0)
 
-            # Update duration and start/end times
-            if test_run.duration_seconds is None:
-                test_run.duration_seconds = 0.0
-            test_run.duration_seconds += total_duration
-
-            if not test_run.started_at:
-                test_run.started_at = datetime.utcnow()
-
-            # Completion time
+        # Ensure completion status
+        if test_run.status != "Completed":
+            test_run.status = "Completed"
+        if not test_run.completed_at:
             test_run.completed_at = datetime.utcnow()
 
-            await record_test_run_event(
-                db,
-                test_run_id=data.test_run_id,
-                stage="results",
-                status="completed",
-                title="Results uploaded",
-                message=f"{len(created_results)} results accepted from {_current_entity.account if hasattr(_current_entity, 'account') else 'user'}.",
-                event_metadata={
-                    "passed": passed,
-                    "failed": failed,
-                    "duration_seconds": total_duration,
-                },
-            )
+        await record_test_run_event(
+            db,
+            test_run_id=target_run_id,
+            stage="results",
+            status="completed",
+            title="Results uploaded",
+            message=f"{len(created_results)} results accepted. Total in run: {test_run.total_tests}",
+        )
 
     await db.commit()
 
-    # Sync to Bloom PLM
-    if data.test_run_id:
-        background_tasks.add_task(sync_results_to_bloom, data.test_run_id)
+    # Trigger Bloom Sync in background
+    if settings.BLOOM_SYNC_ENABLED:
+        background_tasks.add_task(sync_results_to_bloom, target_run_id)
 
     return {
-        "message": f"Uploaded {len(created_results)} results",
+        "message": f"Uploaded {len(created_results)} results to run {target_run_id}",
+        "test_run_id": target_run_id,
         "count": len(created_results),
     }
 
