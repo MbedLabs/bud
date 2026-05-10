@@ -264,6 +264,7 @@ class ResultsUpload(BaseModel):
     results: List[TestResultCreate]
     test_run_id: Optional[int] = None
     product_id: Optional[int] = None
+    runner_account: Optional[str] = None
 
 
 # ==================== Artifact Schemas ====================
