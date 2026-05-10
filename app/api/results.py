@@ -3,26 +3,28 @@ Test results API endpoints.
 """
 
 from datetime import datetime, timezone
-from typing import List, Union, Optional
+from typing import List, Optional, Union
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Header, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.auth import decode_access_token
+from app.core.config import settings
 from app.db import get_db
 from app.models import Runner, TestResult, TestRun
 from app.models.user import User
 from app.schemas import ResultsUpload, TestResultCreate, TestResultResponse
 from app.services.bloom_sync import sync_results_to_bloom
 from app.services.run_events import record_test_run_event
-from app.core.config import settings
 
 router = APIRouter()
 
 # Optional OAuth2 scheme for identifying the uploader
 from fastapi.security import OAuth2PasswordBearer
+
 oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
+
 
 async def get_uploader_entity(
     data: ResultsUpload,
@@ -52,7 +54,7 @@ async def get_uploader_entity(
                         entity = res.scalar_one_or_none()
                     except ValueError:
                         entity = None
-                
+
                 if entity and entity.is_active:
                     return entity
 
@@ -134,7 +136,7 @@ async def upload_results(
 
             # Completion time
             test_run.completed_at = datetime.utcnow()
-            
+
             await record_test_run_event(
                 db,
                 test_run_id=data.test_run_id,
