@@ -101,6 +101,9 @@ async def runner_heartbeat(
     runner.last_heartbeat = datetime.utcnow()
     runner.is_active = True
 
+    if data.location:
+        runner.location = data.location
+
     # Generate a fresh token to keep the runner session persistent
     token = generate_runner_token(runner.account)
 
