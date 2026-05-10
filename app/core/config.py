@@ -177,6 +177,11 @@ class Settings(BaseSettings):
         default=False, validation_alias=AliasChoices("BUD_ENABLE_DOCS", "ENABLE_DOCS")
     )
 
+    # Bloom Sync
+    BLOOM_SYNC_ENABLED: bool = Field(
+        default=True, validation_alias=AliasChoices("BUD_BLOOM_SYNC_ENABLED", "BLOOM_SYNC_ENABLED")
+    )
+
     @model_validator(mode="after")
     def populate_database_url(self):
         if not self.DATABASE_URL:
