@@ -14,23 +14,42 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.deps import limiter
-from app.core.security import (create_access_token, decode_access_token,
-                               get_password_hash, verify_password)
+from app.core.security import (
+    create_access_token,
+    decode_access_token,
+    get_password_hash,
+    verify_password,
+)
 from app.db.database import get_db
 from app.models import Runner
 from app.models.user import User, UserRole
 from app.models.user_token import UserTokenPurpose
-from app.schemas.auth import (AcceptInviteRequest, AcceptInviteResponse,
-                              ForgotPasswordRequest, GenericMessageResponse,
-                              InviteInfoResponse, LoginRequest, PasswordChange,
-                              ResetPasswordRequest, TokenResponse,
-                              UserResponse, UserUpdate, VerifyEmailRequest)
-from app.services.mail_service import (MailConfigurationError,
-                                       send_password_reset_email,
-                                       send_verification_email)
-from app.services.token_service import (TokenValidationError,
-                                        create_user_token, find_token,
-                                        get_valid_token, mark_token_used)
+from app.schemas.auth import (
+    AcceptInviteRequest,
+    AcceptInviteResponse,
+    ForgotPasswordRequest,
+    GenericMessageResponse,
+    InviteInfoResponse,
+    LoginRequest,
+    PasswordChange,
+    ResetPasswordRequest,
+    TokenResponse,
+    UserResponse,
+    UserUpdate,
+    VerifyEmailRequest,
+)
+from app.services.mail_service import (
+    MailConfigurationError,
+    send_password_reset_email,
+    send_verification_email,
+)
+from app.services.token_service import (
+    TokenValidationError,
+    create_user_token,
+    find_token,
+    get_valid_token,
+    mark_token_used,
+)
 
 router = APIRouter()
 logger = logging.getLogger(__name__)

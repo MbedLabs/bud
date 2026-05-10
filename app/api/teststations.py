@@ -15,8 +15,12 @@ from app.core.deps import limiter, require_teststation_api_key
 from app.core.security import generate_teststation_token, get_password_hash
 from app.db import get_db
 from app.models import TestStation
-from app.schemas import (TestStationHeartbeat, TestStationRegister,
-                         TestStationResponse, TestStationToken)
+from app.schemas import (
+    TestStationHeartbeat,
+    TestStationRegister,
+    TestStationResponse,
+    TestStationToken,
+)
 
 router = APIRouter()
 
@@ -97,9 +101,13 @@ async def teststation_heartbeat(
     teststation.is_active = True
 
 
-from app.schemas import (TestStationHeartbeat, TestStationRegister,
-                         TestStationResponse, TestStationStatusList,
-                         TestStationToken)
+from app.schemas import (
+    TestStationHeartbeat,
+    TestStationRegister,
+    TestStationResponse,
+    TestStationStatusList,
+    TestStationToken,
+)
 
 ...
 
