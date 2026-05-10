@@ -30,6 +30,7 @@ from sqlalchemy.pool import StaticPool  # noqa: E402
 
 from app.api.auth import (get_current_active_entity,  # noqa: E402
                           get_current_user)
+from app.api.results import get_uploader_entity  # noqa: E402
 from app.db import database as db_module  # noqa: E402
 from app.db.database import Base, get_db  # noqa: E402
 from app.main import app  # noqa: E402
@@ -109,6 +110,7 @@ async def client(_engine, test_user):
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_current_user] = override_get_current_entity
     app.dependency_overrides[get_current_active_entity] = override_get_current_entity
+    app.dependency_overrides[get_uploader_entity] = override_get_current_entity
     try:
         with TestClient(app) as tc:
             yield tc

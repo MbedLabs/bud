@@ -1,47 +1,41 @@
 """
-Results API endpoints: upload test results, list results for a run.
+Test results API endpoints.
 """
 
-import logging
-from typing import List, Optional, Union
+from datetime import datetime, timezone
+from typing import List, Union, Optional
 
-from fastapi import (APIRouter, BackgroundTasks, Depends, Header,
-                     HTTPException, Request, status)
-from sqlalchemy import func, select
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Header, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.auth import decode_access_token, oauth2_scheme
-from app.core.config import settings
-from app.db.database import get_db
+from app.api.auth import decode_access_token
+from app.db import get_db
 from app.models import Runner, TestResult, TestRun
 from app.models.user import User
-from app.schemas.schemas import ResultsUpload, TestResultResponse
+from app.schemas import ResultsUpload, TestResultCreate, TestResultResponse
 from app.services.bloom_sync import sync_results_to_bloom
 from app.services.run_events import record_test_run_event
+from app.core.config import settings
 
 router = APIRouter()
-logger = logging.getLogger(__name__)
 
-# Optional OAuth2 scheme for endpoints that support dual auth (JWT or API Key)
+# Optional OAuth2 scheme for identifying the uploader
 from fastapi.security import OAuth2PasswordBearer
-
 oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
 
-
 async def get_uploader_entity(
-    request: Request,
     data: ResultsUpload,
     db: AsyncSession = Depends(get_db),
     token: Optional[str] = Depends(oauth2_scheme_optional),
     x_api_key: Optional[str] = Header(None, alias="X-API-Key"),
 ) -> Union[User, Runner]:
     """
-    Identifies the entity uploading results.
-    Supports:
-    1. Valid JWT (User or Runner).
-    2. Valid X-API-Key + runner_account in the payload.
+    Identifies the uploader via either:
+    1. A valid JWT (User or Runner).
+    2. A valid machine-level X-API-Key + runner_account in payload.
     """
-    # 1. Try JWT first (Standard Path)
+    # 1. Try JWT first (Standard path for UI and existing tests)
     if token:
         payload = decode_access_token(token)
         if payload:
@@ -49,31 +43,32 @@ async def get_uploader_entity(
             entity_type = payload.get("type", "user")
             if sub:
                 if entity_type == "runner":
-                    result = await db.execute(select(Runner).where(Runner.account == sub))
-                    entity = result.scalar_one_or_none()
+                    res = await db.execute(select(Runner).where(Runner.account == sub))
+                    entity = res.scalar_one_or_none()
                 else:
                     try:
                         entity_id = int(sub)
-                        result = await db.execute(select(User).where(User.id == entity_id))
-                        entity = result.scalar_one_or_none()
+                        res = await db.execute(select(User).where(User.id == entity_id))
+                        entity = res.scalar_one_or_none()
                     except ValueError:
                         entity = None
-
+                
                 if entity and entity.is_active:
                     return entity
 
-    # 2. Fallback to API Key + Runner Name (Persistent Path)
+    # 2. Fallback to Persistent Auth (API Key + Account Name)
     if x_api_key and data.runner_account:
         expected = getattr(settings, "RUNNER_API_KEY", "")
         if expected and x_api_key == expected:
-            result = await db.execute(select(Runner).where(Runner.account == data.runner_account))
-            runner = result.scalar_one_or_none()
+            res = await db.execute(select(Runner).where(Runner.account == data.runner_account))
+            runner = res.scalar_one_or_none()
             if runner and runner.is_active:
                 return runner
 
+    # 3. If no valid auth method found
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials. Provide a valid JWT or X-API-Key + runner_account.",
+        detail="Authentication required. Provide a valid JWT or X-API-Key and runner_account.",
         headers={"WWW-Authenticate": "Bearer"},
     )
 
@@ -89,25 +84,12 @@ async def upload_results(
     Upload test results.
 
     Accepts multiple test results and optionally associates them with a test run.
-    Identifies the uploader via JWT or persistent X-API-Key + Runner Name.
+    Identifies uploader via JWT or persistent machine credentials.
     """
     created_results = []
 
     # Identify target product for results not already associated with a run
     target_product_id = data.product_id
-
-    # If we are a runner and uploading results for a run, verify we own the run
-    if isinstance(_current_entity, Runner) and data.test_run_id:
-        result = await db.execute(select(TestRun).where(TestRun.id == data.test_run_id))
-        test_run = result.scalar_one_or_none()
-        if test_run and test_run.runner_id != _current_entity.id:
-            # Associate run with runner if it wasn't already (e.g. ad-hoc execution)
-            if test_run.runner_id is None:
-                test_run.runner_id = _current_entity.id
-            else:
-                logger.warning(
-                    f"Runner {_current_entity.account} attempting to upload to run {data.test_run_id} owned by runner_id {test_run.runner_id}"
-                )
 
     for result_data in data.results:
         result = TestResult(
@@ -132,48 +114,87 @@ async def upload_results(
     if data.test_run_id:
         result = await db.execute(select(TestRun).where(TestRun.id == data.test_run_id))
         test_run = result.scalar_one_or_none()
+
         if test_run:
-            # Recalculate totals based on all results for this run
-            res = await db.execute(
-                select(func.count(TestResult.id), func.sum(TestResult.passed.cast(int))).where(
-                    TestResult.test_run_id == data.test_run_id
-                )
-            )
-            total, passed = res.fetchone()
+            passed = sum(1 for r in created_results if r.passed)
+            failed = len(created_results) - passed
+            total_duration = sum(r.duration_seconds for r in created_results if r.duration_seconds)
 
-            test_run.total_tests = total or 0
-            test_run.passed_tests = passed or 0
-            test_run.failed_tests = (total or 0) - (passed or 0)
+            test_run.total_tests += len(created_results)
+            test_run.passed_tests += passed
+            test_run.failed_tests += failed
 
+            # Update duration and start/end times
+            if test_run.duration_seconds is None:
+                test_run.duration_seconds = 0.0
+            test_run.duration_seconds += total_duration
+
+            if not test_run.started_at:
+                test_run.started_at = datetime.utcnow()
+
+            # Completion time
+            test_run.completed_at = datetime.utcnow()
+            
             await record_test_run_event(
                 db,
-                test_run_id=test_run.id,
-                stage="execution",
-                status="running",
+                test_run_id=data.test_run_id,
+                stage="results",
+                status="completed",
                 title="Results uploaded",
-                message=f"Uploaded {len(data.results)} new results. Total results: {test_run.total_tests}",
+                message=f"{len(created_results)} results accepted from {_current_entity.account if hasattr(_current_entity, 'account') else 'user'}.",
+                event_metadata={
+                    "passed": passed,
+                    "failed": failed,
+                    "duration_seconds": total_duration,
+                },
             )
 
     await db.commit()
 
-    # Sync to Bloom PLM in background
-    if settings.BLOOM_SYNC_ENABLED:
-        background_tasks.add_task(sync_results_to_bloom, created_results)
+    # Sync to Bloom PLM
+    if data.test_run_id:
+        background_tasks.add_task(sync_results_to_bloom, data.test_run_id)
 
-    return {"status": "ok", "count": len(created_results)}
+    return {
+        "message": f"Uploaded {len(created_results)} results",
+        "count": len(created_results),
+    }
 
 
-@router.get("/run/{test_run_id}", response_model=List[TestResultResponse])
-async def list_results_for_run(
-    test_run_id: int,
+@router.get("/{run_id}", response_model=List[TestResultResponse])
+async def get_results_for_run(
+    run_id: int,
     db: AsyncSession = Depends(get_db),
 ):
     """
-    List results for a specific test run.
+    Get all results for a test run.
     """
+    # Verify test run exists
+    run_result = await db.execute(select(TestRun.id).where(TestRun.id == run_id))
+    if not run_result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Test run not found")
+
+    # Get results
     result = await db.execute(
-        select(TestResult)
-        .where(TestResult.test_run_id == test_run_id)
-        .order_by(TestResult.created_at.asc())
+        select(TestResult).where(TestResult.test_run_id == run_id).order_by(TestResult.created_at)
     )
-    return result.scalars().all()
+    results = result.scalars().all()
+
+    return results
+
+
+@router.get("/detail/{result_id}", response_model=TestResultResponse)
+async def get_result(
+    result_id: int,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Get a single test result by ID.
+    """
+    result = await db.execute(select(TestResult).where(TestResult.id == result_id))
+    test_result = result.scalar_one_or_none()
+
+    if not test_result:
+        raise HTTPException(status_code=404, detail="Test result not found")
+
+    return test_result
