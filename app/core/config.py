@@ -64,9 +64,10 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("BUD_FRONTEND_BASE_URL", "FRONTEND_BASE_URL"),
     )
 
-    # H1: Shorter runner token lifetime (24 hours, renewable via heartbeat)
+    # H1: Persistent runner tokens (90 days / 3 months)
+    # The clock resets to 3 months with every heartbeat
     RUNNER_TOKEN_EXPIRE_HOURS: int = Field(
-        default=24,
+        default=2160,
         validation_alias=AliasChoices("BUD_RUNNER_TOKEN_EXPIRE_HOURS", "RUNNER_TOKEN_EXPIRE_HOURS"),
     )
 
