@@ -153,17 +153,21 @@ async def upload_results(
     if test_run:
         # Recalculate totals based on all results for this run
         res = await db.execute(
-            select(func.count(TestResult.id), func.sum(TestResult.passed.cast(Integer))).where(
-                TestResult.test_run_id == target_run_id
-            )
+            select(
+                func.count(TestResult.id),
+                func.sum(TestResult.passed.cast(Integer)),
+                func.sum(TestResult.duration_seconds),
+            ).where(TestResult.test_run_id == target_run_id)
         )
         row = res.fetchone()
         total = row[0] if row else 0
         passed = row[1] if row and row[1] is not None else 0
+        duration = row[2] if row and row[2] is not None else 0.0
 
         test_run.total_tests = total
         test_run.passed_tests = passed
         test_run.failed_tests = total - passed
+        test_run.duration_seconds = duration
 
         # Ensure completion status
         if test_run.status != "Completed":
