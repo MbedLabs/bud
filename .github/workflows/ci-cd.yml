@@ -4,13 +4,11 @@ on:
   push:
     branches:
       - main
-      - master
     tags:
       - 'v*'
   pull_request:
     branches:
       - main
-      - master
 
 env:
   REGISTRY: ghcr.io
@@ -19,7 +17,7 @@ jobs:
   # Quality checks - runs on all pushes and PRs
   lint-and-test:
     name: Lint & Test
-    runs-on: [self-hosted, contabo]
+    runs-on: [self-hosted, hostinger, bud]
 
     steps:
       - name: Checkout code
@@ -45,7 +43,7 @@ jobs:
 
   build-and-push:
     name: Build & Push Docker Image
-    runs-on: [self-hosted, contabo]
+    runs-on: [self-hosted, hostinger, bud]
     needs: lint-and-test
     if: github.event_name == 'push'
 
