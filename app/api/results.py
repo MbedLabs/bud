@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.auth import decode_access_token
 from app.core.config import settings
 from app.db import get_db
-from app.models import Runner, TestResult, TestRun
+from app.models import Product, Runner, TestResult, TestRun
 from app.models.user import User
 from app.schemas import ResultsUpload, TestResultCreate, TestResultResponse
 from app.services.bloom_sync import sync_results_to_bloom
@@ -41,24 +41,28 @@ async def get_uploader_entity(
     """
     # 1. Try JWT first (Standard path for UI and existing tests)
     if token:
-        payload = decode_access_token(token)
-        if payload:
-            sub = payload.get("sub")
-            entity_type = payload.get("type", "user")
-            if sub:
-                if entity_type == "runner":
-                    res = await db.execute(select(Runner).where(Runner.account == sub))
-                    entity = res.scalar_one_or_none()
-                else:
-                    try:
-                        entity_id = int(sub)
-                        res = await db.execute(select(User).where(User.id == entity_id))
+        try:
+            payload = decode_access_token(token)
+            if payload:
+                sub = payload.get("sub")
+                entity_type = payload.get("type", "user")
+                if sub:
+                    if entity_type == "runner":
+                        res = await db.execute(select(Runner).where(Runner.account == sub))
                         entity = res.scalar_one_or_none()
-                    except ValueError:
-                        entity = None
+                    else:
+                        try:
+                            entity_id = int(sub)
+                            res = await db.execute(select(User).where(User.id == entity_id))
+                            entity = res.scalar_one_or_none()
+                        except ValueError:
+                            entity = None
 
-                if entity and entity.is_active:
-                    return entity
+                    if entity and entity.is_active:
+                        return entity
+        except Exception:
+            # Fallthrough to persistent auth if JWT is expired/invalid
+            pass
 
     # 2. Fallback to Persistent Auth (API Key + Account Name)
     if x_api_key and data.runner_account:
@@ -96,19 +100,31 @@ async def upload_results(
 
     # AUTO-ALIGNMENT: Create a TestRun if results are uploaded without one
     if not target_run_id:
+        # Determine a meaningful name
+        suite_name = data.test_suite_name or "Ad-hoc"
+        product_name = "Unknown Project"
+
+        if target_product_id:
+            res = await db.execute(select(Product.name).where(Product.id == target_product_id))
+            p_name = res.scalar_one_or_none()
+            if p_name:
+                product_name = p_name
+
+        run_name = f"{product_name} - {suite_name}"
+
         new_run = TestRun(
             runner_id=_current_entity.id if isinstance(_current_entity, Runner) else None,
             product_id=target_product_id,
             status="Completed",
-            name=f"Ad-hoc Upload ({datetime.now().strftime('%Y-%m-%d %H:%M')})",
-            test_case_list="ad-hoc",
+            name=run_name,
+            test_case_list=suite_name,
             started_at=datetime.utcnow(),
             completed_at=datetime.utcnow(),
         )
         db.add(new_run)
         await db.flush()
         target_run_id = new_run.id
-        logger.info(f"Auto-created TestRun {target_run_id} for results upload")
+        logger.info(f"Auto-created TestRun {target_run_id} ({run_name})")
 
     created_results = []
     for result_data in data.results:
@@ -167,8 +183,8 @@ async def upload_results(
     await db.commit()
 
     # Trigger Bloom Sync in background
-    # Note: sync_results_to_bloom handles checking if bloom is configured
-    background_tasks.add_task(sync_results_to_bloom, target_run_id)
+    if settings.BLOOM_SYNC_ENABLED:
+        background_tasks.add_task(sync_results_to_bloom, target_run_id)
 
     return {
         "message": f"Uploaded {len(created_results)} results to run {target_run_id}",
