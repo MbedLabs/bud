@@ -5,10 +5,14 @@ Security utilities for authentication and authorization.
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
+from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 
 from app.core.config import settings
+
+# OAuth2 scheme
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")

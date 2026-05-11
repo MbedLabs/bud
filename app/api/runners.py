@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.auth import get_current_user
 from app.core.config import settings
-from app.core.deps import limiter, require_runner_api_key
+from app.core.deps import get_current_runner, limiter, require_runner_api_key
 from app.core.security import generate_runner_token, get_password_hash
 from app.db import get_db
 from app.models import Runner, TestRun
@@ -86,26 +86,27 @@ async def runner_heartbeat(
     request: Request,
     data: RunnerHeartbeat,
     db: AsyncSession = Depends(get_db),
+    current_runner: Runner = Depends(get_current_runner),
 ):
     """
     Receive a heartbeat from a runner.
 
-    Updates the last_heartbeat timestamp and returns a fresh token for rotation.
+    M3: Authenticated — only the owner of the account can update its heartbeat/location.
     """
-    result = await db.execute(select(Runner).where(Runner.account == data.runner_account))
-    runner = result.scalar_one_or_none()
+    if current_runner.account != data.runner_account:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only send heartbeats for your own runner account.",
+        )
 
-    if not runner:
-        raise HTTPException(status_code=404, detail="Runner not found")
-
-    runner.last_heartbeat = datetime.utcnow()
-    runner.is_active = True
+    current_runner.last_heartbeat = datetime.utcnow()
+    current_runner.is_active = True
 
     if data.location:
-        runner.location = data.location
+        current_runner.location = data.location
 
     # Generate a fresh token to keep the runner session persistent
-    token = generate_runner_token(runner.account)
+    token = generate_runner_token(current_runner.account)
 
     await db.commit()
 
@@ -113,7 +114,7 @@ async def runner_heartbeat(
         "status": "ok",
         "timestamp": datetime.utcnow().isoformat(),
         "token": token,
-        "account": runner.account,
+        "account": current_runner.account,
     }
 
 
