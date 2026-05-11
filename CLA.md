@@ -8,7 +8,7 @@ By submitting a contribution (including issues, pull requests, patches, document
 
 - **"You"** means the individual or legal entity submitting the contribution.
 - **"Contribution"** means any original work of authorship, including modifications or additions to the project, that you intentionally submit for inclusion in the project.
-- **"EmbedLabs"** means EmbedLabs (contact: dev@embedlabs.de).
+- **"EmbedLabs"** means EmbedLabs (contact: dev@embedlabs.net).
 
 ## 2. Grant of copyright
 
@@ -29,7 +29,7 @@ You represent that:
 
 ## 5. Dual licensing
 
-You acknowledge that the project may be distributed under the GNU Affero General Public License v3.0 or later (AGPL-3.0-or-later) and that EmbedLabs may offer the project or combined works under other license terms (including proprietary commercial licenses) without further permission from you beyond this agreement.
+You acknowledge that the project may be distributed under the GNU Affero General Public License v3.0 (AGPL-3.0) and that EmbedLabs may offer the project or combined works under other license terms (including proprietary commercial licenses) without further permission from you beyond this agreement.
 
 ## 6. No obligation
 
@@ -37,4 +37,4 @@ Nothing in this agreement obligates EmbedLabs to accept or use your Contribution
 
 ## 7. Contact
 
-For questions about this CLA or commercial licensing: dev@embedlabs.de
+For questions about this CLA or commercial licensing: dev@embedlabs.net
