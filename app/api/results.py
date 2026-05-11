@@ -151,18 +151,27 @@ async def upload_results(
     test_run = res.scalar_one_or_none()
 
     if test_run:
-        # Recalculate totals based on all results for this run
-        res = await db.execute(
+        # Aggregate at the test-class (test file) level: a class passes
+        # only when every method inside it passed.
+        class_stats = await db.execute(
             select(
-                func.count(TestResult.id),
-                func.sum(TestResult.passed.cast(Integer)),
-                func.sum(TestResult.duration_seconds),
-            ).where(TestResult.test_run_id == target_run_id)
+                TestResult.test_class,
+                func.min(TestResult.passed.cast(Integer)).label("all_passed"),
+            )
+            .where(TestResult.test_run_id == target_run_id)
+            .group_by(TestResult.test_class)
         )
-        row = res.fetchone()
-        total = row[0] if row else 0
-        passed = row[1] if row and row[1] is not None else 0
-        duration = row[2] if row and row[2] is not None else 0.0
+        rows = class_stats.fetchall()
+        total = len(rows)
+        passed = sum(1 for r in rows if r.all_passed == 1)
+
+        # Duration stays as the sum across all method rows.
+        dur_res = await db.execute(
+            select(func.sum(TestResult.duration_seconds)).where(
+                TestResult.test_run_id == target_run_id
+            )
+        )
+        duration = dur_res.scalar() or 0.0
 
         test_run.total_tests = total
         test_run.passed_tests = passed
@@ -181,7 +190,7 @@ async def upload_results(
             stage="results",
             status="completed",
             title="Results uploaded",
-            message=f"{len(created_results)} results accepted. Total in run: {test_run.total_tests}",
+            message=f"{len(created_results)} method results accepted. {test_run.total_tests} test case(s): {test_run.passed_tests} passed, {test_run.failed_tests} failed.",
         )
 
     await db.commit()

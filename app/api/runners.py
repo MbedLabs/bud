@@ -16,7 +16,7 @@ from app.core.config import settings
 from app.core.deps import limiter, require_runner_api_key
 from app.core.security import generate_runner_token, get_password_hash
 from app.db import get_db
-from app.models import Runner
+from app.models import Runner, TestRun
 from app.models.user import User
 from app.schemas import (
     RunnerHeartbeat,
@@ -128,6 +128,20 @@ async def get_runner_status(
     result = await db.execute(select(Runner).order_by(Runner.last_heartbeat.desc()))
     runners = result.scalars().all()
 
+    runner_ids = [r.id for r in runners]
+
+    # Find any test run currently executing on each runner.
+    active_runs_map: dict[int, dict] = {}
+    if runner_ids:
+        active_q = await db.execute(
+            select(TestRun)
+            .where(TestRun.status == "Running", TestRun.runner_id.in_(runner_ids))
+            .order_by(TestRun.started_at.desc())
+        )
+        for run in active_q.scalars().all():
+            if run.runner_id not in active_runs_map:
+                active_runs_map[run.runner_id] = {"id": run.id, "name": run.name}
+
     timeout = timedelta(seconds=settings.RUNNER_HEARTBEAT_TIMEOUT)
     now = datetime.utcnow()
 
@@ -137,18 +151,18 @@ async def get_runner_status(
         if runner.last_heartbeat:
             is_online = (now - runner.last_heartbeat) < timeout
 
-        runner_list.append(
-            {
-                "id": runner.id,
-                "account": runner.account,
-                "socket_port": runner.socket_port,
-                "location": runner.location,
-                "is_active": runner.is_active,
-                "last_heartbeat": runner.last_heartbeat,
-                "created_at": runner.created_at,
-                "is_online": is_online,
-            }
-        )
+        entry: dict = {
+            "id": runner.id,
+            "account": runner.account,
+            "socket_port": runner.socket_port,
+            "location": runner.location,
+            "is_active": runner.is_active,
+            "last_heartbeat": runner.last_heartbeat,
+            "created_at": runner.created_at,
+            "is_online": is_online,
+            "current_run": active_runs_map.get(runner.id),
+        }
+        runner_list.append(entry)
 
     return {"runners": runner_list}
 
