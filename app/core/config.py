@@ -53,7 +53,7 @@ class Settings(BaseSettings):
         ),
     )
     BUD_APP_NAME: str = "Bud TMP"
-    BUD_APP_VERSION: str = "0.1.0"
+    BUD_APP_VERSION: str = "0.2.0"
 
     APP_BASE_URL: str = Field(
         default="http://localhost:8001",
