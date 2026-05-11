@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { testRunsApi, resultsApi, TestResult, type TestRunEvent } from '../api/client'
+import { summarizeAssertions } from '../lib/testRunAssertions'
 import { formatDateTime } from '../test/date-utils'
 import {
   ArrowLeft, CheckCircle, XCircle, Clock, AlertCircle, Activity,
@@ -244,7 +245,6 @@ function RunEventTimeline({ events }: { events: TestRunEvent[] }) {
 
 function getStageIcon(stage: string): LucideIcon {
   const icons: Record<string, LucideIcon> = {
-    bloom_scope: GitBranch,
     runner: Radio,
     execution: Activity,
     results: UploadCloud,
@@ -451,21 +451,6 @@ interface AssertionViewModel extends AssertionShape {
   methodName: string
   durationSeconds: number
   methodErrorMessage: string | null
-}
-
-function summarizeAssertions(results: TestResult[]) {
-  return results.reduce(
-    (summary, result) => {
-      const assertions = (result.assertions as AssertionShape[] | null) || []
-      assertions.forEach(assertion => {
-        summary.total += 1
-        if (assertion.passed !== false) summary.passed += 1
-        else summary.failed += 1
-      })
-      return summary
-    },
-    { total: 0, passed: 0, failed: 0 },
-  )
 }
 
 function ResultDetail({ assertions }: { assertions: AssertionViewModel[] }) {
