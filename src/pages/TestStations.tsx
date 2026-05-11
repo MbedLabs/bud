@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { Link } from 'react-router-dom'
 import { testStationsApi } from '../api/client'
 import { Server, Wifi, WifiOff, Clock, MapPin, Monitor, Radio } from 'lucide-react'
 
@@ -6,7 +7,7 @@ export default function TestStations() {
   const { data, isLoading, error } = useQuery({
     queryKey: ['testStations'],
     queryFn: testStationsApi.status,
-    refetchInterval: 30000,
+    refetchInterval: 15000,
   })
 
   const runners = data?.runners || []
@@ -80,11 +81,14 @@ interface TestStationInfo {
 
 function TestStationCard({ runner }: { runner: TestStationInfo }) {
   return (
-    <div className={`bg-card rounded-lg border shadow-elegant overflow-hidden transition-all duration-300 hover:shadow-glow group ${
-      runner.is_online
-        ? 'border-primary/20 hover:border-primary/40'
-        : 'border-border opacity-70'
-    }`}>
+    <Link
+      to={`/runs?station=${encodeURIComponent(runner.account)}`}
+      className={`block bg-card rounded-lg border shadow-elegant overflow-hidden transition-all duration-300 hover:shadow-glow group cursor-pointer ${
+        runner.is_online
+          ? 'border-primary/20 hover:border-primary/40'
+          : 'border-border opacity-70'
+      }`}
+    >
       {/* Top accent bar */}
       <div className={`h-1 ${
         runner.is_online
@@ -142,8 +146,8 @@ function TestStationCard({ runner }: { runner: TestStationInfo }) {
 
           {runner.current_run && (
             <div className="flex items-center text-xs">
-              <Monitor className="h-3.5 w-3.5 mr-2 text-primary" />
-              <span className="text-primary font-medium">
+              <Monitor className="h-3.5 w-3.5 mr-2 text-blue-600 dark:text-blue-400" />
+              <span className="text-blue-700 dark:text-blue-400 font-medium">
                 Running: {runner.current_run.name}
               </span>
             </div>
@@ -162,16 +166,16 @@ function TestStationCard({ runner }: { runner: TestStationInfo }) {
 
         {runner.is_online && runner.current_run && (
           <div className="mt-4 pt-3 border-t border-border">
-            <div className="flex items-center justify-center py-2 bg-primary/10 rounded-md">
+            <div className="flex items-center justify-center py-2 bg-blue-500/10 rounded-md">
               <div className="flex items-center">
-                <div className="w-2 h-2 bg-primary rounded-full mr-2 animate-pulse" />
-                <span className="text-xs text-primary font-medium">Executing Tests</span>
+                <div className="w-2 h-2 bg-blue-500 rounded-full mr-2 animate-pulse" />
+                <span className="text-xs text-blue-700 dark:text-blue-400 font-medium">Executing Tests</span>
               </div>
             </div>
           </div>
         )}
       </div>
-    </div>
+    </Link>
   )
 }
 

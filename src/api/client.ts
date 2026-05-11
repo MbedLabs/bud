@@ -215,6 +215,7 @@ export interface TestStation {
   last_heartbeat: string | null
   socket_port: number
   location: string | null
+  current_run?: { id: number; name: string }
 }
 
 export interface Runner {

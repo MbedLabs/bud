@@ -338,7 +338,7 @@ function ResultsTable({ results }: { results: TestResult[] }) {
                       {testCase.name}
                     </span>
                     <span className="mt-0.5 flex min-w-0 flex-wrap gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
-                      {testCase.tcId && <span className="font-medium text-primary">{testCase.tcId}</span>}
+                      {testCase.tcId && <span className={`font-medium ${testCase.failedAssertions > 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}`}>{testCase.tcId}</span>}
                       {testCase.sourceFile && <span className="truncate">{testCase.sourceFile}</span>}
                       <span>{testCase.assertionCount} check{testCase.assertionCount === 1 ? '' : 's'}</span>
                     </span>

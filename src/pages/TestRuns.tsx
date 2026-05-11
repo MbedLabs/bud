@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { testRunsApi, testStationsApi, type TestRun } from '../api/client'
 import { formatDateTime } from '../test/date-utils'
 
@@ -8,13 +8,11 @@ const EMPTY_TEST_RUNS: TestRun[] = []
 import { Search, Filter, ChevronLeft, ChevronRight, PlayCircle, Server } from 'lucide-react'
 
 export default function TestRuns() {
+  const [searchParams, setSearchParams] = useSearchParams()
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('')
-  // Bud runner *account* (matches Runner.account). We filter by account name
-  // rather than runner_id because the stations endpoint returns accounts and
-  // TestRun has a runner_id FK — we map id↔account via the stations list.
-  const [stationFilter, setStationFilter] = useState<string>('')
+  const [stationFilter, setStationFilter] = useState<string>(searchParams.get('station') || '')
   const limit = 20
 
   const { data, isLoading, error } = useQuery({
@@ -84,7 +82,16 @@ export default function TestRuns() {
             <Server className="h-4 w-4 text-muted-foreground" />
             <select
               value={stationFilter}
-              onChange={(e) => { setStationFilter(e.target.value); setPage(1) }}
+              onChange={(e) => {
+                const v = e.target.value
+                setStationFilter(v)
+                setPage(1)
+                setSearchParams(prev => {
+                  if (v) prev.set('station', v)
+                  else prev.delete('station')
+                  return prev
+                }, { replace: true })
+              }}
               className="bg-background border border-input rounded-md px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-ring focus:border-ring transition-colors"
               title="Filter by Test Station (Bud runner account)"
             >

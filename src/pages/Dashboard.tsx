@@ -144,7 +144,11 @@ export default function Dashboard() {
         ) : (
           <div className="divide-y divide-border">
             {runners.map((runner) => (
-              <div key={runner.account} className="px-5 py-3.5 flex items-center justify-between">
+              <Link
+                key={runner.account}
+                to={`/runs?station=${encodeURIComponent(runner.account)}`}
+                className="px-5 py-3.5 flex items-center justify-between hover:bg-accent/50 transition-colors duration-150"
+              >
                 <div className="flex items-center gap-3">
                   <div className={`w-2.5 h-2.5 rounded-full ${
                     runner.is_online ? 'bg-emerald-500 animate-pulse' : 'bg-muted-foreground/30'
@@ -157,7 +161,7 @@ export default function Dashboard() {
                 <span className={`text-xs font-medium ${runner.is_online ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>
                   {runner.is_online ? 'Online' : 'Offline'}
                 </span>
-              </div>
+              </Link>
             ))}
           </div>
         )}
