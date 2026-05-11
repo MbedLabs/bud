@@ -65,13 +65,13 @@ export default function TestRunDetail() {
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Link to="/runs" className="p-2 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors">
+        <div className="flex items-center gap-4 min-w-0">
+          <Link to="/runs" className="p-2 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors shrink-0">
             <ArrowLeft className="h-4 w-4" />
           </Link>
-          <div>
-            <h2 className="text-xl font-bold text-foreground">{run.name}</h2>
-            <p className="text-sm text-muted-foreground">{run.test_case_list}</p>
+          <div className="min-w-0">
+            <h2 className="text-xl font-bold text-foreground truncate">{run.name}</h2>
+            <p className="text-sm text-muted-foreground truncate">{run.test_case_list}</p>
           </div>
         </div>
         <StatusBadge status={run.status} />
@@ -314,12 +314,12 @@ function ResultsTable({ results }: { results: TestResult[] }) {
   const testCases = useMemo(() => groupResultsByTestCase(results), [results])
 
   const toggleCase = (key: string) =>
-    setExpandedCases(e => ({ ...e, [key]: !(e[key] ?? true) }))
+    setExpandedCases(e => ({ ...e, [key]: !(e[key] ?? false) }))
 
   return (
     <div className="divide-y divide-border">
       {testCases.map((testCase) => {
-        const isOpen = expandedCases[testCase.key] ?? true
+        const isOpen = expandedCases[testCase.key] ?? false
         return (
           <section key={testCase.key}>
             <button
@@ -523,11 +523,11 @@ function AssertionRow({ assertion, index }: { assertion: AssertionViewModel; ind
               </div>
               <div>
                 <span className="text-muted-foreground mr-1.5">Expected:</span>
-                <code className="font-mono text-foreground">{formatVal(expected)}</code>
+                <code className="font-mono text-foreground break-all">{formatVal(expected)}</code>
               </div>
               <div>
                 <span className="text-muted-foreground mr-1.5">Actual:</span>
-                <code className="font-mono text-foreground">{formatVal(actual)}</code>
+                <code className="font-mono text-foreground break-all">{formatVal(actual)}</code>
               </div>
             </div>
           )}
@@ -536,7 +536,7 @@ function AssertionRow({ assertion, index }: { assertion: AssertionViewModel; ind
               {Object.entries(assertion.metadata).map(([k, v]) => (
                 <span key={k} className="mr-3">
                   <span className="opacity-70">{k}:</span>{' '}
-                  <code className="font-mono text-foreground">{formatVal(v)}</code>
+                  <code className="font-mono text-foreground break-all">{formatVal(v)}</code>
                 </span>
               ))}
             </div>
@@ -569,7 +569,7 @@ function DetailItem({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <dt className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">{label}</dt>
-      <dd className="text-sm text-foreground mt-1">{value}</dd>
+      <dd className="text-sm text-foreground mt-1 break-words">{value}</dd>
     </div>
   )
 }

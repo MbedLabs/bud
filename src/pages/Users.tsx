@@ -80,6 +80,7 @@ export default function UsersPage() {
       )}
 
       <div className="bg-card border border-border rounded-xl overflow-hidden">
+        <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
             <tr className="border-b border-border bg-muted/30">
@@ -101,9 +102,9 @@ export default function UsersPage() {
                       <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-teal-700 flex items-center justify-center text-white text-xs font-bold">
                         {u.full_name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)}
                       </div>
-                      <div>
-                        <p className="text-sm font-medium text-foreground">{u.full_name}</p>
-                        <p className="text-xs text-muted-foreground">{u.email}</p>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">{u.full_name}</p>
+                        <p className="text-xs text-muted-foreground truncate">{u.email}</p>
                       </div>
                     </div>
                   </td>
@@ -161,6 +162,7 @@ export default function UsersPage() {
             })}
           </tbody>
         </table>
+        </div>
       </div>
 
       {showInviteModal && (
@@ -248,7 +250,7 @@ function InviteUserModal({
                 title="Generated invitation link"
                 aria-label="Generated invitation link"
                 placeholder="Generated invitation link"
-                className="flex-1 px-2 py-1 bg-background border border-input rounded text-xs text-foreground"
+                className="flex-1 min-w-0 px-2 py-1 bg-background border border-input rounded text-xs text-foreground"
               />
               <button
                 type="button"

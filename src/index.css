@@ -83,21 +83,26 @@
 }
 
 @layer utilities {
+  .sidebar-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(20, 184, 166, 0.25) transparent;
+  }
+
   .sidebar-scrollbar::-webkit-scrollbar {
-    width: 4px;
+    width: 6px;
   }
 
   .sidebar-scrollbar::-webkit-scrollbar-track {
-    background: transparent;
+    background: rgba(255, 255, 255, 0.04);
   }
 
   .sidebar-scrollbar::-webkit-scrollbar-thumb {
-    background: rgba(20, 184, 166, 0.3);
-    border-radius: 2px;
+    background: rgba(20, 184, 166, 0.25);
+    border-radius: 3px;
   }
 
   .sidebar-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: rgba(20, 184, 166, 0.5);
+    background: rgba(20, 184, 166, 0.45);
   }
 
   .glass {

@@ -109,8 +109,8 @@ function TestStationCard({ runner }: { runner: TestStationInfo }) {
                 runner.is_online ? 'text-primary' : 'text-muted-foreground'
               }`} />
             </div>
-            <div>
-              <h3 className="font-semibold text-foreground text-sm">{runner.account}</h3>
+            <div className="min-w-0">
+              <h3 className="font-semibold text-foreground text-sm truncate">{runner.account}</h3>
               <div className="flex items-center mt-1 gap-1.5">
                 {runner.is_online ? (
                   <>
@@ -131,9 +131,9 @@ function TestStationCard({ runner }: { runner: TestStationInfo }) {
         {/* Details */}
         <div className="space-y-2.5">
           {runner.location && (
-            <div className="flex items-center text-xs text-muted-foreground">
-              <MapPin className="h-3.5 w-3.5 mr-2 text-muted-foreground/50" />
-              {runner.location}
+            <div className="flex items-center text-xs text-muted-foreground min-w-0">
+              <MapPin className="h-3.5 w-3.5 mr-2 text-muted-foreground/50 shrink-0" />
+              <span className="truncate">{runner.location}</span>
             </div>
           )}
 
@@ -145,9 +145,9 @@ function TestStationCard({ runner }: { runner: TestStationInfo }) {
           )}
 
           {runner.current_run && (
-            <div className="flex items-center text-xs">
-              <Monitor className="h-3.5 w-3.5 mr-2 text-blue-600 dark:text-blue-400" />
-              <span className="text-blue-700 dark:text-blue-400 font-medium">
+            <div className="flex items-center text-xs min-w-0">
+              <Monitor className="h-3.5 w-3.5 mr-2 text-blue-600 dark:text-blue-400 shrink-0" />
+              <span className="text-blue-700 dark:text-blue-400 font-medium truncate">
                 Running: {runner.current_run.name}
               </span>
             </div>
