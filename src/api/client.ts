@@ -246,11 +246,6 @@ export const testRunsApi = {
     return response.data
   },
 
-  getResults: async (id: number) => {
-    const response = await api.get<TestResult[]>(`/results/${id}`)
-    return response.data
-  },
-
   getEvents: async (id: number) => {
     const response = await api.get<TestRunEvent[]>(`/test-runs/${id}/events`)
     return response.data
