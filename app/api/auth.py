@@ -18,6 +18,7 @@ from app.core.security import (
     create_access_token,
     decode_access_token,
     get_password_hash,
+    oauth2_scheme,
     verify_password,
 )
 from app.db.database import get_db
@@ -53,8 +54,6 @@ from app.services.token_service import (
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
-
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
 
 async def get_current_active_entity(
