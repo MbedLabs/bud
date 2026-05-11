@@ -106,8 +106,8 @@ export default function Dashboard() {
                 <div className="flex items-center justify-between">
                   <div className="min-w-0 flex-1">
                     <p className="font-medium text-foreground group-hover:text-primary transition-colors truncate">{run.name}</p>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <p className="text-xs text-muted-foreground">{run.test_case_list}</p>
+                    <div className="flex items-center gap-2 mt-0.5 min-w-0">
+                      <p className="text-xs text-muted-foreground truncate">{run.test_case_list}</p>
                       <span className="text-[10px] text-muted-foreground/40">•</span>
                       <p className="text-[10px] text-muted-foreground font-mono">{formatDateTime(run.started_at)}</p>
                     </div>
@@ -149,13 +149,13 @@ export default function Dashboard() {
                 to={`/runs?station=${encodeURIComponent(runner.account)}`}
                 className="px-5 py-3.5 flex items-center justify-between hover:bg-accent/50 transition-colors duration-150"
               >
-                <div className="flex items-center gap-3">
-                  <div className={`w-2.5 h-2.5 rounded-full ${
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${
                     runner.is_online ? 'bg-emerald-500 animate-pulse' : 'bg-muted-foreground/30'
                   }`} />
-                  <div>
-                    <p className="font-medium text-foreground text-sm">{runner.account}</p>
-                    <p className="text-xs text-muted-foreground">{runner.location || 'Unknown location'}</p>
+                  <div className="min-w-0">
+                    <p className="font-medium text-foreground text-sm truncate">{runner.account}</p>
+                    <p className="text-xs text-muted-foreground truncate">{runner.location || 'Unknown location'}</p>
                   </div>
                 </div>
                 <span className={`text-xs font-medium ${runner.is_online ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>
