@@ -245,9 +245,6 @@ export default function TestRuns() {
                   Name
                 </th>
                 <th className="px-5 py-3 text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                  Test List
-                </th>
-                <th className="px-5 py-3 text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
                   Status
                 </th>
                 <th className="px-5 py-3 text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
@@ -260,7 +257,10 @@ export default function TestRuns() {
                   Duration
                 </th>
                 <th className="px-5 py-3 text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                  Started
+                  Started At
+                </th>
+                <th className="px-5 py-3 text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                  Completed At
                 </th>
               </tr>
             </thead>
@@ -275,17 +275,12 @@ export default function TestRuns() {
                       {run.name}
                     </Link>
                   </td>
-                  <td className="px-5 py-3.5 whitespace-nowrap text-xs text-muted-foreground">
-                    {run.test_case_list}
-                  </td>
                   <td className="px-5 py-3.5 whitespace-nowrap">
                     <StatusBadge status={run.status} />
                   </td>
                   <td className="px-5 py-3.5 whitespace-nowrap text-xs">
                     <span className="text-emerald-600 dark:text-emerald-400">{run.passed_tests} passed</span>
-                    {run.failed_tests > 0 && (
-                      <span className="text-red-600 dark:text-red-400 ml-1.5">{run.failed_tests} failed</span>
-                    )}
+                    <span className="text-red-600 dark:text-red-400 ml-1.5">{run.failed_tests} failed</span>
                     {run.skipped_tests > 0 && (
                       <span className="text-muted-foreground ml-1.5">{run.skipped_tests} skipped</span>
                     )}
@@ -305,6 +300,9 @@ export default function TestRuns() {
                   </td>
                   <td className="px-5 py-3.5 whitespace-nowrap text-xs text-muted-foreground">
                     {formatDateTime(run.started_at)}
+                  </td>
+                  <td className="px-5 py-3.5 whitespace-nowrap text-xs text-muted-foreground">
+                    {run.completed_at ? formatDateTime(run.completed_at) : '-'}
                   </td>
                 </tr>
               ))}
