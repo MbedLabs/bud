@@ -10,16 +10,51 @@ from __future__ import annotations
 
 import os
 import secrets
+from pathlib import Path
 from typing import AsyncGenerator
+
+# Workspace `.env` at `budProject/.env` — load first so local dev matches production variable names.
+
+
+def _load_workspace_dotenv_into_environ() -> None:
+    path = Path(__file__).resolve().parents[2] / ".env"
+    if not path.is_file():
+        return
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError:
+        return
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("export "):
+            line = line[7:].strip()
+        if "=" not in line:
+            continue
+        key, _, val = line.partition("=")
+        key = key.strip()
+        val = val.strip()
+        if len(val) >= 2 and val[0] == val[-1] and val[0] in "\"'":
+            val = val[1:-1]
+        if key and key not in os.environ:
+            os.environ[key] = val
+
+
+_load_workspace_dotenv_into_environ()
+if "SECRET_KEY" not in os.environ and os.environ.get("BUD_SECRET_KEY"):
+    os.environ["SECRET_KEY"] = os.environ["BUD_SECRET_KEY"]
 
 # These MUST be set BEFORE ``app.core.config`` is imported — the Settings
 # validator rejects an empty SECRET_KEY.
 os.environ.setdefault("SECRET_KEY", secrets.token_hex(32))
-os.environ.setdefault("RUNNER_API_KEY", "test-runner-api-key")
-os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
+# Contract tests send ``X-API-Key: test-runner-api-key``; never use production key from ``.env``.
+os.environ["RUNNER_API_KEY"] = "test-runner-api-key"
+os.environ["BUD_RUNNER_API_KEY"] = os.environ["RUNNER_API_KEY"]
+# Always use isolated SQLite for ORM tests; real ``BUD_DATABASE_URL`` stays in ``.env`` for operators.
+os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
+os.environ["BUD_DATABASE_URL"] = os.environ["DATABASE_URL"]
 os.environ.setdefault("BUD_SECRET_KEY", os.environ["SECRET_KEY"])
-os.environ.setdefault("BUD_RUNNER_API_KEY", os.environ["RUNNER_API_KEY"])
-os.environ.setdefault("BUD_DATABASE_URL", os.environ["DATABASE_URL"])
 
 import pytest  # noqa: E402
 import pytest_asyncio  # noqa: E402
@@ -28,8 +63,7 @@ from sqlalchemy.ext.asyncio import AsyncSession  # noqa: E402
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool  # noqa: E402
 
-from app.api.auth import (get_current_active_entity,  # noqa: E402
-                          get_current_user)
+from app.api.auth import get_current_active_entity, get_current_user  # noqa: E402
 from app.api.results import get_uploader_entity  # noqa: E402
 from app.db import database as db_module  # noqa: E402
 from app.db.database import Base, get_db  # noqa: E402
