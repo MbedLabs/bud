@@ -19,7 +19,7 @@ RUN pip install --no-cache-dir .
 COPY app/ app/
 
 # Create non-root user with upload directory ownership
-RUN useradd -m appuser && mkdir -p /app/uploads && chown -R appuser:appuser /app
+RUN useradd -m appuser && mkdir -p /app/uploads && chown appuser:appuser /app/uploads
 USER appuser
 
 # Expose port
