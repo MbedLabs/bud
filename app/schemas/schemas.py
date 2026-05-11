@@ -87,10 +87,18 @@ class RunnerResponse(BaseModel):
         from_attributes = True
 
 
+class CurrentRunSummary(BaseModel):
+    """Lightweight view of a test run currently executing on a runner."""
+
+    id: int
+    name: str
+
+
 class RunnerStatusEntry(RunnerResponse):
     """Schema for runner status entry with dynamic online status."""
 
     is_online: bool
+    current_run: Optional[CurrentRunSummary] = None
 
 
 class RunnerStatusList(BaseModel):

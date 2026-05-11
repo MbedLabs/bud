@@ -98,9 +98,10 @@ async def test_upload_results_persists_assertions_and_updates_counters(client, d
     passing = next(r for r in rows if r.test_method == "bud_check_pack_voltage")
     assert passing.passed is True
 
-    # Counters on TestRun must reflect the 2 uploads.
-    assert run.total_tests == 2
-    assert run.passed_tests == 1
+    # Counters roll up at the test-class (file) level: both methods belong to
+    # "VoltageTest", and one method failed → the whole class counts as failed.
+    assert run.total_tests == 1
+    assert run.passed_tests == 0
     assert run.failed_tests == 1
 
     events_q = await db_session.execute(
@@ -112,6 +113,58 @@ async def test_upload_results_persists_assertions_and_updates_counters(client, d
     events_response = client.get(f"/api/test-runs/{run_id}/events")
     assert events_response.status_code == 200, events_response.text
     assert events_response.json()[0]["title"] == "Results uploaded"
+
+
+@pytest.mark.asyncio
+async def test_upload_results_two_classes_mixed(client, db_session):
+    """Two test classes: one all-pass, one mixed → total 2, passed 1, failed 1."""
+    run = TestRun(
+        name="CI-2-multi",
+        test_case_list="Bud_Test_Suite.MULTI",
+        status="Running",
+    )
+    db_session.add(run)
+    await db_session.commit()
+    await db_session.refresh(run)
+
+    payload = {
+        "test_run_id": run.id,
+        "results": [
+            {
+                "test_class": "AlphaTest",
+                "test_method": "bud_step_one",
+                "passed": True,
+                "duration_seconds": 0.5,
+            },
+            {
+                "test_class": "AlphaTest",
+                "test_method": "bud_step_two",
+                "passed": True,
+                "duration_seconds": 0.3,
+            },
+            {
+                "test_class": "BetaTest",
+                "test_method": "bud_step_one",
+                "passed": True,
+                "duration_seconds": 0.4,
+            },
+            {
+                "test_class": "BetaTest",
+                "test_method": "bud_step_two",
+                "passed": False,
+                "duration_seconds": 0.6,
+                "error_message": "assertion failed",
+            },
+        ],
+    }
+
+    response = client.post("/api/results", json=payload)
+    assert response.status_code == 201, response.text
+
+    await db_session.refresh(run)
+    assert run.total_tests == 2
+    assert run.passed_tests == 1
+    assert run.failed_tests == 1
 
 
 @pytest.mark.asyncio
