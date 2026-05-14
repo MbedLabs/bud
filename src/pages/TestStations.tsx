@@ -169,7 +169,7 @@ function TestStationCard({ runner }: { runner: TestStationInfo }) {
             <div className="flex items-center justify-center py-2 bg-blue-500/10 rounded-md">
               <div className="flex items-center">
                 <div className="w-2 h-2 bg-blue-500 rounded-full mr-2 animate-pulse" />
-                <span className="text-xs text-blue-700 dark:text-blue-400 font-medium">Executing Tests</span>
+                <span className="text-xs text-blue-700 dark:text-blue-400 font-medium">Busy</span>
               </div>
             </div>
           </div>
