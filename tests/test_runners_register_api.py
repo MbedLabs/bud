@@ -46,12 +46,24 @@ def test_register_with_correct_api_key_creates_runner(client):
     assert body["token"]  # non-empty JWT
 
 
-def test_register_same_username_twice_fails(client):
+def test_register_same_username_reauthenticates(client):
     headers = {"X-API-Key": "test-runner-api-key"}
 
     first = client.post("/api/runners/register", json=VALID_PAYLOAD, headers=headers)
     assert first.status_code == 201
 
     second = client.post("/api/runners/register", json=VALID_PAYLOAD, headers=headers)
+    assert second.status_code == 201
+    assert "token" in second.json()
+
+def test_register_existing_username_wrong_password_fails(client):
+    headers = {"X-API-Key": "test-runner-api-key"}
+
+    first = client.post("/api/runners/register", json=VALID_PAYLOAD, headers=headers)
+    assert first.status_code == 201
+
+    bad_payload = dict(VALID_PAYLOAD)
+    bad_payload["password"] = "wrong-password"
+    second = client.post("/api/runners/register", json=bad_payload, headers=headers)
     assert second.status_code == 400
-    assert "already exists" in second.json()["detail"].lower()
+    assert "does not match" in second.json()["detail"].lower()
