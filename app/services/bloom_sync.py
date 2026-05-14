@@ -1,9 +1,16 @@
 import logging
+from collections.abc import AsyncIterable
 from datetime import datetime
 
 import httpx
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 from app.db.database import async_session_maker
 from app.models import TestResult
@@ -12,10 +19,12 @@ from app.services.run_events import record_test_run_event
 logger = logging.getLogger(__name__)
 
 
-def _coalesce_results_by_tc_id(results: list[TestResult], test_run_id: int) -> list[dict]:
+async def _coalesce_results_by_tc_id(
+    results: AsyncIterable[TestResult], test_run_id: int
+) -> list[dict]:
     grouped: dict[str, dict] = {}
 
-    for res in results:
+    async for res in results:
         tc_id = None
         if res.test_metadata and isinstance(res.test_metadata, dict):
             tc_id = res.test_metadata.get("tc_id")
@@ -48,6 +57,24 @@ def _coalesce_results_by_tc_id(results: list[TestResult], test_run_id: int) -> l
                 entry["comment"] = res.error_message
 
     return list(grouped.values())
+
+
+@retry(
+    stop=stop_after_attempt(5),
+    wait=wait_exponential(multiplier=1, min=2, max=30),
+    retry=retry_if_exception_type((httpx.RequestError, httpx.HTTPStatusError)),
+    reraise=True,
+)
+async def _post_to_bloom_with_retry(bloom_url: str, bloom_token: str, payload_results: list[dict]):
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        response = await client.post(
+            f"{bloom_url}/api/campaigns/sync-results",
+            json={"results": payload_results},
+            headers={"Authorization": f"Bearer {bloom_token}"},
+        )
+        if response.status_code >= 500:
+            response.raise_for_status()
+        return response
 
 
 async def sync_results_to_bloom(test_run_id: int):
@@ -90,12 +117,13 @@ async def sync_results_to_bloom(test_run_id: int):
             bloom_token = token_setting.value
 
             # 2. Get all results for this run that carry a tc_id in their metadata
-            results_query = await db.execute(
-                select(TestResult).where(TestResult.test_run_id == test_run_id)
+            results_stream = await db.stream_scalars(
+                select(TestResult)
+                .where(TestResult.test_run_id == test_run_id)
+                .execution_options(yield_per=500)
             )
-            results = results_query.scalars().all()
 
-            payload_results = _coalesce_results_by_tc_id(results, test_run_id)
+            payload_results = await _coalesce_results_by_tc_id(results_stream, test_run_id)
 
             if not payload_results:
                 logger.info(
@@ -124,50 +152,43 @@ async def sync_results_to_bloom(test_run_id: int):
             )
             await db.commit()
 
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.post(
-                    f"{bloom_url}/api/campaigns/sync-results",
-                    json={"results": payload_results},
-                    headers={"Authorization": f"Bearer {bloom_token}"},
-                )
+            response = await _post_to_bloom_with_retry(bloom_url, bloom_token, payload_results)
 
-                if response.status_code == 200:
-                    data = response.json()
-                    logger.info(
-                        f"Successfully synced {data.get('updated')} results to Bloom for run {test_run_id}."
-                        + (f" Not found: {data.get('not_found')}" if data.get("not_found") else "")
-                    )
-                    await record_test_run_event(
-                        db,
-                        test_run_id=test_run_id,
-                        stage="bloom_sync",
-                        status="completed" if not data.get("not_found") else "warning",
-                        title="Bloom sync completed",
-                        message=(
-                            f"Bloom updated {data.get('updated', 0)} test case execution record(s)."
-                            + (
-                                f" Unmatched tc_id values: {', '.join(data.get('not_found', []))}."
-                                if data.get("not_found")
-                                else ""
-                            )
-                        ),
-                        event_metadata=data,
-                    )
-                    await db.commit()
-                else:
-                    logger.error(
-                        f"Failed to sync to Bloom: {response.status_code} - {response.text}"
-                    )
-                    await record_test_run_event(
-                        db,
-                        test_run_id=test_run_id,
-                        stage="bloom_sync",
-                        status="failed",
-                        title="Bloom sync failed",
-                        message=f"Bloom returned HTTP {response.status_code}.",
-                        event_metadata={"response": response.text[:500]},
-                    )
-                    await db.commit()
+            if response.status_code == 200:
+                data = response.json()
+                logger.info(
+                    f"Successfully synced {data.get('updated')} results to Bloom for run {test_run_id}."
+                    + (f" Not found: {data.get('not_found')}" if data.get("not_found") else "")
+                )
+                await record_test_run_event(
+                    db,
+                    test_run_id=test_run_id,
+                    stage="bloom_sync",
+                    status="completed" if not data.get("not_found") else "warning",
+                    title="Bloom sync completed",
+                    message=(
+                        f"Bloom updated {data.get('updated', 0)} test case execution record(s)."
+                        + (
+                            f" Unmatched tc_id values: {', '.join(data.get('not_found', []))}."
+                            if data.get("not_found")
+                            else ""
+                        )
+                    ),
+                    event_metadata=data,
+                )
+                await db.commit()
+            else:
+                logger.error(f"Failed to sync to Bloom: {response.status_code} - {response.text}")
+                await record_test_run_event(
+                    db,
+                    test_run_id=test_run_id,
+                    stage="bloom_sync",
+                    status="failed",
+                    title="Bloom sync failed",
+                    message=f"Bloom returned HTTP {response.status_code}.",
+                    event_metadata={"response": response.text[:500]},
+                )
+                await db.commit()
 
         except Exception as e:
             logger.exception(f"Error during Bloom sync for run {test_run_id}: {e}")
