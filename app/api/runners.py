@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.auth import get_current_user
 from app.core.config import settings
 from app.core.deps import get_current_runner, limiter, require_runner_api_key
-from app.core.security import generate_runner_token, get_password_hash
+from app.core.security import generate_runner_token, get_password_hash, verify_password
 from app.db import get_db
 from app.models import Runner, TestRun
 from app.models.user import User
@@ -50,28 +50,34 @@ async def register_runner(
     """
     # Check if runner already exists
     result = await db.execute(select(Runner).where(Runner.account == data.username))
-    existing = result.scalar_one_or_none()
+    runner = result.scalar_one_or_none()
 
-    if existing:
-        raise HTTPException(
-            status_code=400,
-            detail="Runner with this account name already exists",
+    if runner:
+        # If it exists, verify password (M3)
+        if not verify_password(data.password, runner.password_hash):
+            raise HTTPException(
+                status_code=400,
+                detail="Runner already exists and password does not match.",
+            )
+        # Update socket_port and location if provided
+        runner.socket_port = data.socket_port
+        if data.location:
+            runner.location = data.location
+    else:
+        # Create new runner
+        runner = Runner(
+            account=data.username,
+            password_hash=get_password_hash(data.password),
+            socket_port=data.socket_port,
+            location=data.location,
         )
+        db.add(runner)
 
-    # Generate token
+    # Generate fresh token
     token = generate_runner_token(data.username)
+    runner.token = token
 
-    # Create runner
-    runner = Runner(
-        account=data.username,
-        password_hash=get_password_hash(data.password),
-        token=token,
-        socket_port=data.socket_port,
-        location=data.location,
-    )
-
-    db.add(runner)
-    await db.flush()
+    await db.commit()
     await db.refresh(runner)
 
     return RunnerToken(
@@ -105,15 +111,11 @@ async def runner_heartbeat(
     if data.location:
         current_runner.location = data.location
 
-    # Generate a fresh token to keep the runner session persistent
-    token = generate_runner_token(current_runner.account)
-
     await db.commit()
 
     return {
         "status": "ok",
         "timestamp": datetime.utcnow().isoformat(),
-        "token": token,
         "account": current_runner.account,
     }
 
