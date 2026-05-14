@@ -183,4 +183,12 @@ async def test_upload_results_without_test_run_id_still_accepts_assertions(clien
 
     response = client.post("/api/results", json=payload)
     assert response.status_code == 201, response.text
-    assert response.json()["count"] == 1
+    body = response.json()
+    assert body["count"] == 1
+
+    run_id = body["test_run_id"]
+    run_q = await db_session.execute(select(TestRun).where(TestRun.id == run_id))
+    auto_run = run_q.scalar_one()
+    assert auto_run.started_at is not None
+    assert auto_run.completed_at is not None
+    assert auto_run.completed_at >= auto_run.started_at

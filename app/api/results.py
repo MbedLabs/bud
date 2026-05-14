@@ -119,7 +119,7 @@ async def upload_results(
             name=run_name,
             test_case_list=suite_name,
             started_at=datetime.utcnow(),
-            completed_at=datetime.utcnow(),
+            completed_at=None,
         )
         db.add(new_run)
         await db.flush()
