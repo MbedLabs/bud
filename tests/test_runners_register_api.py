@@ -56,6 +56,7 @@ def test_register_same_username_reauthenticates(client):
     assert second.status_code == 201
     assert "token" in second.json()
 
+
 def test_register_existing_username_wrong_password_fails(client):
     headers = {"X-API-Key": "test-runner-api-key"}
 

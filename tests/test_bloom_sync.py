@@ -3,7 +3,12 @@ from types import SimpleNamespace
 from app.services.bloom_sync import _coalesce_results_by_tc_id
 
 
-def test_coalesce_results_by_tc_id_reduces_methods_to_one_tc_result():
+async def async_iter(iterable):
+    for item in iterable:
+        yield item
+
+
+async def test_coalesce_results_by_tc_id_reduces_methods_to_one_tc_result():
     results = [
         SimpleNamespace(
             passed=True,
@@ -25,7 +30,8 @@ def test_coalesce_results_by_tc_id_reduces_methods_to_one_tc_result():
         ),
     ]
 
-    payload = sorted(_coalesce_results_by_tc_id(results, 5), key=lambda item: item["tc_id"])
+    coalesced = await _coalesce_results_by_tc_id(async_iter(results), 5)
+    payload = sorted(coalesced, key=lambda item: item["tc_id"])
 
     assert payload == [
         {

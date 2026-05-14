@@ -79,8 +79,12 @@ class TestRun(Base):
     completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
     # Foreign keys
-    product_id: Mapped[Optional[int]] = mapped_column(ForeignKey("products.id"), nullable=True)
-    runner_id: Mapped[Optional[int]] = mapped_column(ForeignKey("runners.id"), nullable=True)
+    product_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("products.id"), index=True, nullable=True
+    )
+    runner_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("runners.id"), index=True, nullable=True
+    )
 
     # Relationships
     product: Mapped[Optional["Product"]] = relationship(back_populates="test_runs")
@@ -102,7 +106,7 @@ class TestRunEvent(Base):
     __tablename__ = "test_run_events"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    test_run_id: Mapped[int] = mapped_column(ForeignKey("test_runs.id"), nullable=False)
+    test_run_id: Mapped[int] = mapped_column(ForeignKey("test_runs.id"), index=True, nullable=False)
     sequence: Mapped[int] = mapped_column(Integer, default=0)
     stage: Mapped[str] = mapped_column(String(100))
     status: Mapped[str] = mapped_column(String(50), default="completed")
@@ -130,13 +134,17 @@ class TestResult(Base):
     test_metadata: Mapped[Optional[dict]] = mapped_column("test_metadata", JSON, nullable=True)
 
     # OpenProject integration
-    work_package_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    work_package_id: Mapped[Optional[int]] = mapped_column(Integer, index=True, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     # Foreign keys (optional: detached uploads before a TestRun exists)
-    test_run_id: Mapped[Optional[int]] = mapped_column(ForeignKey("test_runs.id"), nullable=True)
-    product_id: Mapped[Optional[int]] = mapped_column(ForeignKey("products.id"), nullable=True)
+    test_run_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("test_runs.id"), index=True, nullable=True
+    )
+    product_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("products.id"), index=True, nullable=True
+    )
 
     # Relationships
     test_run: Mapped[Optional["TestRun"]] = relationship(back_populates="results")
