@@ -10,11 +10,11 @@ from typing import Optional
 from fastapi import Depends, Header, HTTPException, Request, status
 from slowapi import Limiter
 from slowapi.util import get_remote_address
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.core.security import decode_access_token, oauth2_scheme
+from app.core.runner_auth import authenticate_runner_token
+from app.core.security import oauth2_scheme
 from app.db import get_db
 from app.models import Runner
 
@@ -33,32 +33,13 @@ async def get_current_runner(
     Extracts the runner account from the token 'sub' claim and verifies
     it exists and is active in the database.
     """
-    payload = decode_access_token(token)
-    if not payload:
+    runner = await authenticate_runner_token(token, db)
+    if not runner:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
-
-    account = payload.get("sub")
-    entity_type = payload.get("type")
-
-    if not account or entity_type != "runner":
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid runner token",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    result = await db.execute(select(Runner).where(Runner.account == account))
-    runner = result.scalar_one_or_none()
-
-    if not runner:
-        raise HTTPException(status_code=404, detail="Runner not found")
-
-    if not runner.is_active:
-        raise HTTPException(status_code=400, detail="Inactive runner")
 
     return runner
 

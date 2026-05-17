@@ -64,8 +64,8 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("BUD_FRONTEND_BASE_URL", "FRONTEND_BASE_URL"),
     )
 
-    # H1: Persistent runner tokens (90 days / 3 months)
-    # The clock resets to 3 months with every heartbeat
+    # H1: Runner JWT lifetime at registration (default 90 days). Expired runner JWTs
+    # remain usable for heartbeat/results while last_heartbeat is within RUNNER_HEARTBEAT_TIMEOUT.
     RUNNER_TOKEN_EXPIRE_HOURS: int = Field(
         default=2160,
         validation_alias=AliasChoices("BUD_RUNNER_TOKEN_EXPIRE_HOURS", "RUNNER_TOKEN_EXPIRE_HOURS"),
