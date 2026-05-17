@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.auth import decode_access_token
 from app.core.config import settings
+from app.core.runner_auth import authenticate_runner_token
 from app.db import get_db
 from app.models import Product, Runner, TestResult, TestRun
 from app.models.user import User
@@ -39,30 +40,25 @@ async def get_uploader_entity(
     1. A valid JWT (User or Runner).
     2. A valid machine-level X-API-Key + runner_account in payload.
     """
-    # 1. Try JWT first (Standard path for UI and existing tests)
+    # 1. Try JWT first (standard path for UI; runners may use expired JWT + heartbeat)
     if token:
-        try:
-            payload = decode_access_token(token)
-            if payload:
-                sub = payload.get("sub")
-                entity_type = payload.get("type", "user")
-                if sub:
-                    if entity_type == "runner":
-                        res = await db.execute(select(Runner).where(Runner.account == sub))
-                        entity = res.scalar_one_or_none()
-                    else:
-                        try:
-                            entity_id = int(sub)
-                            res = await db.execute(select(User).where(User.id == entity_id))
-                            entity = res.scalar_one_or_none()
-                        except ValueError:
-                            entity = None
+        runner = await authenticate_runner_token(token, db)
+        if runner:
+            return runner
 
+        payload = decode_access_token(token)
+        if payload:
+            sub = payload.get("sub")
+            entity_type = payload.get("type", "user")
+            if sub and entity_type != "runner":
+                try:
+                    entity_id = int(sub)
+                    res = await db.execute(select(User).where(User.id == entity_id))
+                    entity = res.scalar_one_or_none()
                     if entity and entity.is_active:
                         return entity
-        except Exception:
-            # Fallthrough to persistent auth if JWT is expired/invalid
-            pass
+                except ValueError:
+                    pass
 
     # 2. Fallback to Persistent Auth (API Key + Account Name)
     if x_api_key and data.runner_account:
