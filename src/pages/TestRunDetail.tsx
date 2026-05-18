@@ -3,10 +3,19 @@ import { useParams, Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { testRunsApi, resultsApi, TestResult, type TestRunEvent } from '../api/client'
 import { summarizeAssertions } from '../lib/testRunAssertions'
+import {
+  EMPTY_OUTCOME_FILTERS,
+  filterAssertionsForDisplay,
+  hasActiveOutcomeFilters,
+  shouldShowTestCase,
+  toggleOutcomeFilter,
+  type OutcomeFilters,
+} from '../lib/testRunResultFilters'
 import { formatDateTime } from '../test/date-utils'
 import {
   ArrowLeft, CheckCircle, XCircle, Clock, AlertCircle, Activity,
   ChevronDown, ChevronRight, UploadCloud, RefreshCw, Radio, GitBranch,
+  Filter, X,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
@@ -14,6 +23,8 @@ export default function TestRunDetail() {
   const { id } = useParams<{ id: string }>()
   const runId = parseInt(id || '0')
   const [systemReportOpen, setSystemReportOpen] = useState(false)
+  const [resultsFiltersOpen, setResultsFiltersOpen] = useState(false)
+  const [outcomeFilters, setOutcomeFilters] = useState<OutcomeFilters>(EMPTY_OUTCOME_FILTERS)
 
   const { data: run, isLoading: runLoading, error: runError } = useQuery({
     queryKey: ['testRun', runId],
@@ -146,16 +157,87 @@ export default function TestRunDetail() {
 
       {/* Test Results */}
       <div className="bg-card rounded-lg border border-border shadow-elegant overflow-hidden">
-        <div className="px-5 py-4 border-b border-border">
+        <div className="flex flex-col gap-3 border-b border-border p-4 md:flex-row md:items-center md:justify-between">
           <h3 className="text-sm font-semibold text-foreground">Test Results</h3>
+          {results && results.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setResultsFiltersOpen((open) => !open)}
+              className={`inline-flex items-center justify-center gap-2 rounded-md border px-2.5 py-1.5 text-sm font-medium transition-colors ${
+                resultsFiltersOpen || hasActiveOutcomeFilters(outcomeFilters)
+                  ? 'border-primary bg-primary/10 text-primary'
+                  : 'border-input bg-background text-foreground hover:bg-accent'
+              }`}
+              aria-expanded={resultsFiltersOpen}
+              aria-controls="testrun-results-filter-panel"
+            >
+              <Filter className="h-4 w-4" />
+              Filters
+              {hasActiveOutcomeFilters(outcomeFilters) && (
+                <span className="rounded bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-primary-foreground">
+                  On
+                </span>
+              )}
+            </button>
+          )}
         </div>
+
+        {resultsFiltersOpen && results && results.length > 0 && (
+          <div id="testrun-results-filter-panel" className="space-y-3 border-b border-border p-4">
+            <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+              <Filter className="h-4 w-4 text-primary" />
+              Outcome
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {(
+                [
+                  { key: 'passed' as const, label: 'Passed' },
+                  { key: 'failed' as const, label: 'Failed' },
+                  { key: 'failedOnly' as const, label: 'Failed only' },
+                ] as const
+              ).map(({ key, label }) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setOutcomeFilters((current) => toggleOutcomeFilter(current, key))}
+                  className={`rounded-md border px-2.5 py-1 text-xs font-medium transition-colors ${
+                    outcomeFilters[key]
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : 'border-border bg-background text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Failed shows failing test cases with every assertion. Failed only keeps failing cases but hides
+              passing assertions inside them.
+            </p>
+            {hasActiveOutcomeFilters(outcomeFilters) && (
+              <div className="flex flex-wrap items-center gap-2 border-t border-border pt-2">
+                {outcomeFilters.passed && <OutcomeFilterChip label="Passed" />}
+                {outcomeFilters.failed && <OutcomeFilterChip label="Failed" />}
+                {outcomeFilters.failedOnly && <OutcomeFilterChip label="Failed only" />}
+                <button
+                  type="button"
+                  onClick={() => setOutcomeFilters(EMPTY_OUTCOME_FILTERS)}
+                  className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-3.5 w-3.5" />
+                  Clear all
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         {resultsLoading ? (
           <div className="p-8 text-center text-muted-foreground">Loading results...</div>
         ) : !results || results.length === 0 ? (
           <div className="p-8 text-center text-muted-foreground">No test results yet</div>
         ) : (
-          <ResultsTable results={results} />
+          <ResultsTable results={results} outcomeFilters={outcomeFilters} />
         )}
       </div>
 
@@ -309,16 +391,39 @@ interface AssertionShape {
   metadata?: Record<string, unknown> | null
 }
 
-function ResultsTable({ results }: { results: TestResult[] }) {
+function ResultsTable({
+  results,
+  outcomeFilters,
+}: {
+  results: TestResult[]
+  outcomeFilters: OutcomeFilters
+}) {
   const [expandedCases, setExpandedCases] = useState<Record<string, boolean>>({})
   const testCases = useMemo(() => groupResultsByTestCase(results), [results])
+  const visibleTestCases = useMemo(
+    () => testCases.filter((testCase) => shouldShowTestCase(testCase.failedAssertions, outcomeFilters)),
+    [testCases, outcomeFilters],
+  )
 
   const toggleCase = (key: string) =>
     setExpandedCases(e => ({ ...e, [key]: !(e[key] ?? false) }))
 
+  if (visibleTestCases.length === 0) {
+    return (
+      <div className="p-8 text-center text-muted-foreground">
+        No test cases match the current outcome filters.
+      </div>
+    )
+  }
+
   return (
     <div className="divide-y divide-border">
-      {testCases.map((testCase) => {
+      {visibleTestCases.map((testCase) => {
+        const visibleAssertions = filterAssertionsForDisplay(
+          testCase.assertions,
+          testCase.failedAssertions,
+          outcomeFilters,
+        )
         const isOpen = expandedCases[testCase.key] ?? false
         return (
           <section key={testCase.key}>
@@ -357,7 +462,7 @@ function ResultsTable({ results }: { results: TestResult[] }) {
 
             {isOpen && (
               <div className="border-t border-border bg-muted/10 px-5 py-2">
-                <ResultDetail assertions={testCase.assertions} />
+                <ResultDetail assertions={visibleAssertions} />
               </div>
             )}
           </section>
@@ -618,4 +723,12 @@ function formatDuration(seconds: number): string {
   const hours = Math.floor(minutes / 60)
   const mins = minutes % 60
   return `${hours}h ${mins}m`
+}
+
+function OutcomeFilterChip({ label }: { label: string }) {
+  return (
+    <span className="inline-flex items-center rounded-md border border-border bg-background px-2 py-0.5 text-xs font-medium text-foreground">
+      {label}
+    </span>
+  )
 }
