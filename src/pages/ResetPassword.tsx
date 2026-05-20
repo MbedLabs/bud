@@ -118,7 +118,7 @@ export default function ResetPassword() {
           <p className="text-sm text-teal-200/60">Bud TMP</p>
           <p className="text-xs text-teal-300/50 mt-1">v{APP_VERSION}</p>
           <a
-            href="https://www.embedlabs.de/en"
+            href="https://www.embedlabs.net"
             target="_blank"
             rel="noopener noreferrer"
             className="text-xs text-teal-300/40 mt-1 inline-block hover:text-teal-200 transition-colors"

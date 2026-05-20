@@ -237,7 +237,7 @@ export default function Settings() {
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <span>by</span>
             <a
-              href="https://www.embedlabs.de/en"
+              href="https://www.embedlabs.net"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1 text-primary hover:text-primary/80 transition-colors font-medium"
