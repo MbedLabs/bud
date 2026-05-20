@@ -191,7 +191,7 @@ export default function Layout() {
           {!sidebarCollapsed && (
             <div className="pt-2 pb-1 px-3 text-center">
               <a
-                href="https://www.embedlabs.de/en"
+                href="https://www.embedlabs.net"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-[10px] text-teal-300/50 hover:text-teal-200 transition-colors"
