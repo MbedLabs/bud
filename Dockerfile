@@ -18,6 +18,10 @@ RUN pip install --no-cache-dir .
 # Copy application source
 COPY app/ app/
 
+# Copy Alembic migrations
+COPY alembic/ alembic/
+COPY alembic.ini ./
+
 # Create non-root user with upload directory ownership
 RUN useradd -m appuser && mkdir -p /app/uploads && chown -R appuser:appuser /app
 USER appuser
