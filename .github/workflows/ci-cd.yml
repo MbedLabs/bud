@@ -96,6 +96,33 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
 
+      - name: Create tables (model-driven base schema)
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_bud
+          PYTHONPATH: ${{ github.workspace }}
+          SECRET_KEY: test-secret-key-for-ci-at-least-32-characters-long
+          RUNNER_API_KEY: test-runner-api-key
+        run: |
+          python -c "
+          from app.db.database import engine, Base
+          from app.db import models  # noqa: F401
+          import asyncio
+          async def run():
+              async with engine.begin() as conn:
+                  await conn.run_sync(Base.metadata.create_all)
+          asyncio.run(run())
+          print('Base tables created from models.')
+          "
+
+      - name: Alembic upgrade (data migrations + indexes)
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_bud
+          PYTHONPATH: ${{ github.workspace }}
+          SECRET_KEY: test-secret-key-for-ci-at-least-32-characters-long
+        run: |
+          pip install alembic
+          alembic upgrade head
+
       - name: Run tests with coverage
         env:
           DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_bud
@@ -104,8 +131,6 @@ jobs:
           RUNNER_API_KEY: test-runner-api-key
           ENABLE_DOCS: "false"
         run: |
-          pip install alembic
-          alembic upgrade head
           pytest --cov=app --cov-report=xml --cov-report=term-missing --cov-fail-under=50 -v
 
       - name: Upload coverage reports
