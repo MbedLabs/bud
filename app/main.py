@@ -8,6 +8,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from sqlalchemy import select, text
@@ -127,9 +128,10 @@ async def migrate_execution_columns() -> None:
 async def lifespan(app: FastAPI):
     """Application lifespan handler."""
     await db.create_tables()
-    await migrate_user_columns()
-    await migrate_user_roles_to_viewer()
-    await migrate_execution_columns()
+    if app_settings.RUN_STARTUP_DATA_REPAIR:
+        await migrate_user_columns()
+        await migrate_user_roles_to_viewer()
+        await migrate_execution_columns()
     await seed_admin_user()
     yield
 
@@ -148,6 +150,8 @@ app = FastAPI(
 # H2: Attach rate-limiter state and error handler
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 # M1: Restrict CORS — only listed origins, explicit methods, no wildcard headers
 app.add_middleware(
