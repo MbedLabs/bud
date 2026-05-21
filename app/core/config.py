@@ -41,6 +41,15 @@ class Settings(BaseSettings):
     )
     DB_PORT: int = Field(default=5432, validation_alias=AliasChoices("BUD_DB_PORT", "DB_PORT"))
 
+    # Environment (override in CI)
+    BUD_DOTENV_DISABLED: bool = Field(default=False)
+
+    # Run legacy startup migrations (prefer Alembic in production)
+    RUN_STARTUP_DATA_REPAIR: bool = Field(
+        default=True,
+        validation_alias=AliasChoices("BUD_RUN_STARTUP_DATA_REPAIR", "RUN_STARTUP_DATA_REPAIR"),
+    )
+
     # Security
     # C1: SECRET_KEY must be set explicitly — no insecure fallback in production
     SECRET_KEY: str = Field(

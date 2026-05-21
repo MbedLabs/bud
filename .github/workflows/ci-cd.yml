@@ -10,6 +10,10 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
@@ -43,6 +47,16 @@ jobs:
       - name: Check import sorting with isort
         run: |
           isort --profile black --check-only --diff app/
+
+      - name: Security scan (Bandit)
+        run: |
+          pip install bandit==1.8.3
+          bandit -r app/ -ll
+
+      - name: Security scan (pip-audit)
+        run: |
+          pip install pip-audit
+          pip-audit || true
 
   # ===========================================================================
   # Run Tests
@@ -90,7 +104,9 @@ jobs:
           RUNNER_API_KEY: test-runner-api-key
           ENABLE_DOCS: "false"
         run: |
-          pytest --cov=app --cov-report=xml --cov-report=term-missing -v
+          pip install alembic
+          alembic upgrade head
+          pytest --cov=app --cov-report=xml --cov-report=term-missing --cov-fail-under=50 -v
 
       - name: Upload coverage reports
         uses: codecov/codecov-action@v4
