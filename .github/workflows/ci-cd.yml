@@ -10,6 +10,10 @@ on:
     branches:
       - main
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   REGISTRY: ghcr.io
 
@@ -38,8 +42,12 @@ jobs:
       - name: TypeScript type check
         run: npx tsc --noEmit
 
-      - name: Run tests
-        run: npm run test
+      - name: Run tests with coverage
+        run: npm run test -- --coverage
+
+      - name: npm audit (high+)
+        run: npm audit --audit-level=high
+        continue-on-error: true
 
   build-and-push:
     name: Build & Push Docker Image
