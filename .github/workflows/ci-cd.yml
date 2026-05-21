@@ -105,7 +105,7 @@ jobs:
         run: |
           python -c "
           from app.db.database import engine, Base
-          from app.db import models  # noqa: F401
+          import app.models  # noqa: F401
           import asyncio
           async def run():
               async with engine.begin() as conn:
