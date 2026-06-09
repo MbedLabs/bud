@@ -38,7 +38,7 @@ async def test_runner_heartbeat_wrong_account_returns_403(client, db_session):
 
 
 @pytest.mark.asyncio
-async def test_runner_cannot_download_unowned_artifact(client, db_session, test_user):
+async def test_runner_cannot_download_unowned_artifact(client, db_session):
     owner_runner = Runner(
         account="owner-runner",
         password_hash="hash",
@@ -56,10 +56,10 @@ async def test_runner_cannot_download_unowned_artifact(client, db_session, test_
 
     test_run = TestRun(
         name="run-1",
+        test_case_list="[]",
         status="Completed",
         started_at=datetime.utcnow(),
         runner_id=owner_runner.id,
-        created_by=test_user.id,
     )
     db_session.add(test_run)
     await db_session.flush()
@@ -94,7 +94,7 @@ async def test_runner_cannot_download_unowned_artifact(client, db_session, test_
 
 
 @pytest.mark.asyncio
-async def test_runner_can_read_owned_artifact_info(client, db_session, test_user):
+async def test_runner_can_read_owned_artifact_info(client, db_session):
     owner_runner = Runner(
         account="owner-runner",
         password_hash="hash",
@@ -106,10 +106,10 @@ async def test_runner_can_read_owned_artifact_info(client, db_session, test_user
 
     test_run = TestRun(
         name="run-1",
+        test_case_list="[]",
         status="Completed",
         started_at=datetime.utcnow(),
         runner_id=owner_runner.id,
-        created_by=test_user.id,
     )
     db_session.add(test_run)
     await db_session.flush()
@@ -151,7 +151,7 @@ async def test_non_admin_cannot_delete_artifact(client, db_session):
         email="maintainer@example.com",
         full_name="Maintainer",
         hashed_password="hash",
-        role=UserRole.maintainer,
+        role=UserRole.viewer,
         is_active=True,
     )
     db_session.add(user)

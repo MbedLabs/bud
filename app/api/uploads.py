@@ -12,6 +12,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.api.auth import get_current_active_entity, get_current_user
 from app.core.config import settings
@@ -139,7 +140,9 @@ async def download_artifact(
     """
     Download an artifact by ID.
     """
-    result = await db.execute(select(Artifact).where(Artifact.id == artifact_id))
+    result = await db.execute(
+        select(Artifact).options(selectinload(Artifact.test_run)).where(Artifact.id == artifact_id)
+    )
     artifact = result.scalar_one_or_none()
 
     if not artifact:
@@ -177,7 +180,9 @@ async def get_artifact_info(
     """
     Get artifact metadata without downloading.
     """
-    result = await db.execute(select(Artifact).where(Artifact.id == artifact_id))
+    result = await db.execute(
+        select(Artifact).options(selectinload(Artifact.test_run)).where(Artifact.id == artifact_id)
+    )
     artifact = result.scalar_one_or_none()
 
     if not artifact:
