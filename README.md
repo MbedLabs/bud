@@ -60,6 +60,43 @@ The backend uses two distinct credentials:
 | **User JWT (`BUD_TOKEN`)** | Most API calls (create test runs, upload results, etc.) | `Authorization: Bearer <token>` |
 | **`RUNNER_API_KEY`** | `POST /api/runners/register` only | `X-API-Key: <key>` header |
 
+## Production bootstrap
+
+Bud now rejects unsafe bootstrap defaults in production mode.
+
+Set at least these values before starting a release deployment:
+
+```env
+BUD_ENV=production
+SECRET_KEY=<strong-random-secret-at-least-32-chars>
+ADMIN_EMAIL=<real-admin-email>
+ADMIN_PASSWORD=<strong-admin-password-at-least-16-chars>
+RUNNER_API_KEY=<shared-runner-registration-secret>
+```
+
+Startup fails in production if any of these are still using bootstrap defaults:
+
+- `ADMIN_EMAIL=admin@example.com`
+- `ADMIN_PASSWORD=changeme123`
+- admin password shorter than 16 characters
+
+### First admin bootstrap
+
+1. Set `BUD_ENV=production` and the admin variables above.
+2. Start the backend once.
+3. The startup seed promotes or creates the configured admin user.
+4. Sign in as that admin and create normal operator accounts for daily use.
+
+### Password rotation
+
+Rotate the bootstrap admin password by:
+
+1. generating a new strong password,
+2. updating `ADMIN_PASSWORD` in the deployment secret or environment,
+3. restarting the backend so the seeded admin account is updated,
+4. verifying login with the new credential,
+5. revoking or removing any old shared storage of the previous password.
+
 ### Runner registration
 
 `POST /api/runners/register` is protected by a shared secret so that only
