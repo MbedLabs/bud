@@ -41,6 +41,8 @@ class Settings(BaseSettings):
     )
     DB_PORT: int = Field(default=5432, validation_alias=AliasChoices("BUD_DB_PORT", "DB_PORT"))
 
+    BUD_ENV: str = Field(default="development", validation_alias=AliasChoices("BUD_ENV", "APP_ENV"))
+
     # Environment (override in CI)
     BUD_DOTENV_DISABLED: bool = Field(default=False)
 
@@ -198,6 +200,19 @@ class Settings(BaseSettings):
                 f"postgresql://{self.DB_USER}:{self.DB_PASSWORD}"
                 f"@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
             )
+        return self
+
+    @model_validator(mode="after")
+    def reject_unsafe_admin_defaults_in_production(self):
+        if self.BUD_ENV.lower() != "production":
+            return self
+
+        if self.ADMIN_EMAIL == "admin@example.com":
+            raise ValueError("ADMIN_EMAIL must be changed before production startup.")
+        if self.ADMIN_PASSWORD == "changeme123":
+            raise ValueError("ADMIN_PASSWORD must be changed before production startup.")
+        if len(self.ADMIN_PASSWORD) < 16:
+            raise ValueError("ADMIN_PASSWORD must be at least 16 characters long in production.")
         return self
 
     @field_validator("SECRET_KEY")

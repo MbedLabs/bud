@@ -13,6 +13,7 @@ CONFIG_ENV_KEYS = [
     "BUD_APP_BASE_URL",
     "BUD_CORS_ORIGINS",
     "BUD_DATABASE_URL",
+    "BUD_ENV",
     "BUD_EMAIL_VERIFICATION_TOKEN_TTL_HOURS",
     "BUD_ENABLE_DOCS",
     "BUD_FRONTEND_BASE_URL",
@@ -37,6 +38,7 @@ CONFIG_ENV_KEYS = [
     "BUD_UPLOAD_DIR",
     "CORS_ORIGINS",
     "DATABASE_URL",
+    "APP_ENV",
     "EMAIL_VERIFICATION_TOKEN_TTL_HOURS",
     "ENABLE_DOCS",
     "FRONTEND_BASE_URL",
@@ -161,3 +163,59 @@ def test_settings_prefers_bud_prefixed_env(monkeypatch):
 
     assert settings.SECRET_KEY == "b" * 32
     assert settings.SMTP_HOST == "smtp.bud-prefixed.example.com"
+
+
+def test_production_rejects_default_admin_email(monkeypatch):
+    clear_config_env(monkeypatch)
+
+    monkeypatch.setenv("BUD_ENV", "production")
+    monkeypatch.setenv("BUD_SECRET_KEY", "b" * 32)
+    monkeypatch.setenv("BUD_ADMIN_EMAIL", "admin@example.com")
+    monkeypatch.setenv("BUD_ADMIN_PASSWORD", "this-is-a-long-password")
+
+    import pytest
+
+    with pytest.raises(ValueError, match="ADMIN_EMAIL"):
+        Settings(_env_file=None)
+
+
+def test_production_rejects_default_admin_password(monkeypatch):
+    clear_config_env(monkeypatch)
+
+    monkeypatch.setenv("BUD_ENV", "production")
+    monkeypatch.setenv("BUD_SECRET_KEY", "b" * 32)
+    monkeypatch.setenv("BUD_ADMIN_EMAIL", "ops@embedlabs.de")
+    monkeypatch.setenv("BUD_ADMIN_PASSWORD", "changeme123")
+
+    import pytest
+
+    with pytest.raises(ValueError, match="ADMIN_PASSWORD"):
+        Settings(_env_file=None)
+
+
+def test_production_rejects_short_admin_password(monkeypatch):
+    clear_config_env(monkeypatch)
+
+    monkeypatch.setenv("BUD_ENV", "production")
+    monkeypatch.setenv("BUD_SECRET_KEY", "b" * 32)
+    monkeypatch.setenv("BUD_ADMIN_EMAIL", "ops@embedlabs.de")
+    monkeypatch.setenv("BUD_ADMIN_PASSWORD", "short-password")
+
+    import pytest
+
+    with pytest.raises(ValueError, match="at least 16"):
+        Settings(_env_file=None)
+
+
+def test_development_allows_bootstrap_defaults(monkeypatch):
+    clear_config_env(monkeypatch)
+
+    monkeypatch.setenv("BUD_ENV", "development")
+    monkeypatch.setenv("BUD_SECRET_KEY", "b" * 32)
+    monkeypatch.setenv("BUD_ADMIN_EMAIL", "admin@example.com")
+    monkeypatch.setenv("BUD_ADMIN_PASSWORD", "changeme123")
+
+    settings = Settings(_env_file=None)
+
+    assert settings.ADMIN_EMAIL == "admin@example.com"
+    assert settings.ADMIN_PASSWORD == "changeme123"
