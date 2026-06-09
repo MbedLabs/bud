@@ -17,7 +17,7 @@ from app.api.auth import get_current_active_entity, get_current_user
 from app.core.config import settings
 from app.db import get_db
 from app.models import Artifact, Runner
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.schemas import ArtifactResponse
 
 router = APIRouter()
@@ -39,6 +39,19 @@ async def ensure_upload_dir() -> Path:
     upload_path = get_upload_root()
     upload_path.mkdir(parents=True, exist_ok=True)
     return upload_path
+
+
+def _can_runner_access_artifact(runner: Runner, artifact: Artifact) -> bool:
+    """Runner reads are limited to artifacts associated with its own run."""
+    return (
+        artifact.test_run is not None
+        and artifact.test_run.runner_id is not None
+        and artifact.test_run.runner_id == runner.id
+    )
+
+
+def _can_user_delete_artifact(user: User) -> bool:
+    return user.role == UserRole.admin
 
 
 @router.post("", response_model=ArtifactResponse, status_code=201)
@@ -132,6 +145,11 @@ async def download_artifact(
     if not artifact:
         raise HTTPException(status_code=404, detail="Artifact not found")
 
+    if isinstance(_current_entity, Runner) and not _can_runner_access_artifact(
+        _current_entity, artifact
+    ):
+        raise HTTPException(status_code=403, detail="Runner is not authorized for this artifact")
+
     # C3: Reconstruct the full path from the trusted upload root + relative filename
     upload_root = get_upload_root()
     storage_path = (upload_root / artifact.storage_path).resolve()
@@ -165,6 +183,11 @@ async def get_artifact_info(
     if not artifact:
         raise HTTPException(status_code=404, detail="Artifact not found")
 
+    if isinstance(_current_entity, Runner) and not _can_runner_access_artifact(
+        _current_entity, artifact
+    ):
+        raise HTTPException(status_code=403, detail="Runner is not authorized for this artifact")
+
     return artifact
 
 
@@ -182,6 +205,9 @@ async def delete_artifact(
 
     if not artifact:
         raise HTTPException(status_code=404, detail="Artifact not found")
+
+    if not _can_user_delete_artifact(_current_user):
+        raise HTTPException(status_code=403, detail="Only admins may delete artifacts")
 
     # C3: Resolve path safely before deletion
     upload_root = get_upload_root()
