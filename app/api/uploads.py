@@ -17,7 +17,7 @@ from sqlalchemy.orm import selectinload
 from app.api.auth import get_current_active_entity, get_current_user
 from app.core.config import settings
 from app.db import get_db
-from app.models import Artifact, Runner
+from app.models import Artifact, Runner, TestRun
 from app.models.user import User, UserRole
 from app.schemas import ArtifactResponse
 
@@ -55,6 +55,23 @@ def _can_user_delete_artifact(user: User) -> bool:
     return user.role == UserRole.admin
 
 
+async def _validate_runner_upload_run(
+    db: AsyncSession, current_entity: Union[User, Runner], run_id: Optional[int]
+) -> None:
+    """Prevent a runner from attaching an artifact to another runner's test run."""
+    if not isinstance(current_entity, Runner) or run_id is None:
+        return
+
+    test_run = await db.get(TestRun, run_id)
+    if test_run is None:
+        raise HTTPException(status_code=404, detail="Test run not found")
+    if test_run.runner_id != current_entity.id:
+        raise HTTPException(
+            status_code=403,
+            detail="Runner is not authorized to upload artifacts for this test run",
+        )
+
+
 @router.post("", response_model=ArtifactResponse, status_code=201)
 async def upload_file(
     file: UploadFile = File(...),
@@ -69,6 +86,8 @@ async def upload_file(
     Files are stored with a UUID filename and can be associated with
     a test case and/or test run.
     """
+    await _validate_runner_upload_run(db, _current_entity, run_id)
+
     # H4: Validate MIME type against allowlist
     content_type = file.content_type or "application/octet-stream"
     if content_type not in settings.ALLOWED_UPLOAD_MIME_TYPES:
