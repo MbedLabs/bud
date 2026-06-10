@@ -116,6 +116,8 @@ async def upload_results(
             test_case_list=suite_name,
             url_test_software=data.url_test_software,
             ref_test_software=data.ref_test_software or "main",
+            url_software_under_test=data.url_software_under_test,
+            ref_software_under_test=data.ref_software_under_test,
             started_at=datetime.utcnow(),
             completed_at=None,
         )

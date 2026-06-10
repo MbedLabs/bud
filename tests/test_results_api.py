@@ -195,13 +195,15 @@ async def test_upload_results_without_test_run_id_still_accepts_assertions(clien
 
 
 @pytest.mark.asyncio
-async def test_upload_results_without_test_run_id_persists_software_under_test_metadata(
+async def test_upload_results_without_test_run_id_persists_test_software_metadata(
     client, db_session
 ):
     payload = {
         "test_suite_name": "Nightly Firmware Validation",
-        "url_test_software": "https://github.com/example/fw-under-test",
-        "ref_test_software": "abc123def",
+        "url_test_software": "https://github.com/example/test-suite-repo",
+        "ref_test_software": "tests-abc123def",
+        "url_software_under_test": "https://github.com/example/fw-under-test",
+        "ref_software_under_test": "fw-abc123def",
         "results": [
             {
                 "test_class": "SmokeTest",
@@ -219,5 +221,7 @@ async def test_upload_results_without_test_run_id_persists_software_under_test_m
     auto_run = run_q.scalar_one()
 
     assert auto_run.test_case_list == "Nightly Firmware Validation"
-    assert auto_run.url_test_software == "https://github.com/example/fw-under-test"
-    assert auto_run.ref_test_software == "abc123def"
+    assert auto_run.url_test_software == "https://github.com/example/test-suite-repo"
+    assert auto_run.ref_test_software == "tests-abc123def"
+    assert auto_run.url_software_under_test == "https://github.com/example/fw-under-test"
+    assert auto_run.ref_software_under_test == "fw-abc123def"

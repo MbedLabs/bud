@@ -62,9 +62,13 @@ class TestRun(Base):
     test_case_list: Mapped[str] = mapped_column(String(500))
     status: Mapped[str] = mapped_column(String(50), default="Pending")
 
-    # Software under test
+    # Test software repository
     url_test_software: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     ref_test_software: Mapped[str] = mapped_column(String(100), default="main")
+
+    # Software under test repository
+    url_software_under_test: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    ref_software_under_test: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
 
     # Statistics
     total_tests: Mapped[int] = mapped_column(Integer, default=0)
