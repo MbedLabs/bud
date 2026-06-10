@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import { authApi, User } from '../api/client'
+import { clearAuthToken, getAuthToken, setAuthToken } from '../lib/tokenStorage'
 
 interface AuthContextType {
   user: User | null
@@ -16,7 +17,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true)
 
   const loadUser = useCallback(async () => {
-    const token = localStorage.getItem('bud_token')
+    const token = getAuthToken()
     if (!token) {
       setIsLoading(false)
       return
@@ -25,7 +26,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const userData = await authApi.getMe()
       setUser(userData)
     } catch {
-      localStorage.removeItem('bud_token')
+      clearAuthToken()
       setUser(null)
     } finally {
       setIsLoading(false)
@@ -38,12 +39,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (email: string, password: string) => {
     const response = await authApi.login(email, password)
-    localStorage.setItem('bud_token', response.access_token)
+    setAuthToken(response.access_token)
     setUser(response.user)
   }
 
   const logout = () => {
-    localStorage.removeItem('bud_token')
+    clearAuthToken()
     setUser(null)
   }
 

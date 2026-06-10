@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import type { ReactNode } from 'react'
-import { render, screen, waitFor } from '@testing-library/react'
+import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router-dom'
 
@@ -77,6 +77,32 @@ beforeEach(() => {
 })
 
 describe('route smoke (Bud)', () => {
+  it('shows public auth screens without redirect loops', async () => {
+    renderAt('/login')
+    expect(screen.getByRole('heading', { name: /Welcome to Bud/i })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Forgot password\?/i })).toHaveAttribute('href', '/forgot-password')
+
+    cleanup()
+    renderAt('/accept-invite')
+    expect(screen.getByRole('heading', { name: /Accept Invitation/i })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Back to Login/i })).toHaveAttribute('href', '/login')
+
+    cleanup()
+    renderAt('/verify-email')
+    expect(screen.getByRole('heading', { name: /Verify Email/i })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Go to Login/i })).toHaveAttribute('href', '/login')
+
+    cleanup()
+    renderAt('/forgot-password')
+    expect(screen.getByRole('heading', { name: /Forgot Password/i })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Back to Login/i })).toHaveAttribute('href', '/login')
+
+    cleanup()
+    renderAt('/reset-password')
+    expect(screen.getByRole('heading', { name: /Reset Password/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Reset Password/i })).toBeDisabled()
+  })
+
   it('shows Settings PLM Integration at /settings', async () => {
     renderAt('/settings')
     await waitFor(() => {

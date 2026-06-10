@@ -27,11 +27,18 @@ function createMemoryStorage(): Storage {
 
 beforeEach(() => {
   const localStub = createMemoryStorage()
+  const sessionStub = createMemoryStorage()
   vi.stubGlobal('localStorage', localStub)
+  vi.stubGlobal('sessionStorage', sessionStub)
 
   if (typeof window !== 'undefined') {
     Object.defineProperty(window, 'localStorage', {
       value: localStub,
+      writable: true,
+      configurable: true,
+    })
+    Object.defineProperty(window, 'sessionStorage', {
+      value: sessionStub,
       writable: true,
       configurable: true,
     })

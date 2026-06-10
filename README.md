@@ -21,6 +21,13 @@ The dev server runs on http://localhost:3000 by default.
 
 This frontend is designed to be environment-agnostic using runtime configuration injection.
 
+## Beta Security Note
+
+This frontend keeps the Bud access token in `sessionStorage` for the active
+browser session only. Closing the tab or browser clears it. This avoids
+long-lived JWT persistence in `localStorage` while the product remains on a
+token-based browser auth flow.
+
 ### Environment Variables
 
 | Variable | Description | Default |
