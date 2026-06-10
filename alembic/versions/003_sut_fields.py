@@ -1,6 +1,6 @@
 """add software-under-test repository fields to test runs
 
-Revision ID: 003_add_software_under_test_fields
+Revision ID: 003_sut_fields
 Revises: 002_startup_schema
 Create Date: 2026-06-10
 """
@@ -10,7 +10,7 @@ from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
 
-revision: str = "003_add_software_under_test_fields"
+revision: str = "003_sut_fields"
 down_revision: Union[str, Sequence[str], None] = "002_startup_schema"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
