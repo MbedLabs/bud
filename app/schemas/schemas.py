@@ -275,6 +275,8 @@ class ResultsUpload(BaseModel):
     product_id: Optional[int] = None
     runner_account: Optional[str] = None
     test_suite_name: Optional[str] = None
+    url_test_software: Optional[str] = None
+    ref_test_software: Optional[str] = None
 
 
 # ==================== Artifact Schemas ====================
