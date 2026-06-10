@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { clearAuthToken, getAuthToken } from '../lib/tokenStorage'
 
 import packageJson from '../../package.json'
 
@@ -14,7 +15,7 @@ export const api = axios.create({
 })
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('bud_token')
+  const token = getAuthToken()
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
@@ -25,7 +26,7 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('bud_token')
+      clearAuthToken()
       const publicPaths = ['/login', '/accept-invite', '/verify-email', '/forgot-password', '/reset-password']
       if (!publicPaths.includes(window.location.pathname)) {
         window.location.href = '/login'
