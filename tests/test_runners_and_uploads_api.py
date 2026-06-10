@@ -181,3 +181,122 @@ async def test_non_admin_cannot_delete_artifact(client, db_session):
 
     assert response.status_code == 403
     assert "Only admins" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_runner_cannot_upload_artifact_to_another_runners_run(client, db_session):
+    owner_runner = Runner(
+        account="owner-upload-runner",
+        password_hash="hash",
+        token="owner-upload-token",
+        socket_port=53035,
+    )
+    other_runner = Runner(
+        account="other-upload-runner",
+        password_hash="hash",
+        token="other-upload-token",
+        socket_port=53036,
+    )
+    db_session.add_all([owner_runner, other_runner])
+    await db_session.flush()
+
+    test_run = TestRun(
+        name="owned-run",
+        test_case_list="[]",
+        status="Running",
+        started_at=datetime.utcnow(),
+        runner_id=owner_runner.id,
+    )
+    db_session.add(test_run)
+    await db_session.commit()
+
+    from app.api.auth import get_current_active_entity
+    from app.main import app
+
+    async def override_entity():
+        return other_runner
+
+    app.dependency_overrides[get_current_active_entity] = override_entity
+    try:
+        response = client.post(
+            "/api/uploads",
+            files={"file": ("artifact.txt", b"data", "text/plain")},
+            data={"run_id": str(test_run.id)},
+        )
+    finally:
+        app.dependency_overrides.pop(get_current_active_entity, None)
+
+    assert response.status_code == 403
+    assert "not authorized" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_runner_can_upload_artifact_to_owned_run(client, db_session):
+    runner = Runner(
+        account="owned-upload-runner",
+        password_hash="hash",
+        token="owned-upload-token",
+        socket_port=53035,
+    )
+    db_session.add(runner)
+    await db_session.flush()
+
+    test_run = TestRun(
+        name="owned-run",
+        test_case_list="[]",
+        status="Running",
+        started_at=datetime.utcnow(),
+        runner_id=runner.id,
+    )
+    db_session.add(test_run)
+    await db_session.commit()
+
+    from app.api.auth import get_current_active_entity
+    from app.main import app
+
+    async def override_entity():
+        return runner
+
+    app.dependency_overrides[get_current_active_entity] = override_entity
+    try:
+        response = client.post(
+            "/api/uploads",
+            files={"file": ("artifact.txt", b"data", "text/plain")},
+            data={"run_id": str(test_run.id)},
+        )
+    finally:
+        app.dependency_overrides.pop(get_current_active_entity, None)
+
+    assert response.status_code == 201
+    assert response.json()["test_run_id"] == test_run.id
+
+
+@pytest.mark.asyncio
+async def test_runner_upload_with_unknown_run_returns_404(client, db_session):
+    runner = Runner(
+        account="missing-run-upload-runner",
+        password_hash="hash",
+        token="missing-run-upload-token",
+        socket_port=53035,
+    )
+    db_session.add(runner)
+    await db_session.commit()
+
+    from app.api.auth import get_current_active_entity
+    from app.main import app
+
+    async def override_entity():
+        return runner
+
+    app.dependency_overrides[get_current_active_entity] = override_entity
+    try:
+        response = client.post(
+            "/api/uploads",
+            files={"file": ("artifact.txt", b"data", "text/plain")},
+            data={"run_id": "999999"},
+        )
+    finally:
+        app.dependency_overrides.pop(get_current_active_entity, None)
+
+    assert response.status_code == 404
+    assert "Test run not found" in response.json()["detail"]
