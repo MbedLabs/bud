@@ -114,6 +114,8 @@ async def upload_results(
             status="Completed",
             name=run_name,
             test_case_list=suite_name,
+            url_test_software=data.url_test_software,
+            ref_test_software=data.ref_test_software or "main",
             started_at=datetime.utcnow(),
             completed_at=None,
         )

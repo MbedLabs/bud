@@ -192,3 +192,32 @@ async def test_upload_results_without_test_run_id_still_accepts_assertions(clien
     assert auto_run.started_at is not None
     assert auto_run.completed_at is not None
     assert auto_run.completed_at >= auto_run.started_at
+
+
+@pytest.mark.asyncio
+async def test_upload_results_without_test_run_id_persists_software_under_test_metadata(
+    client, db_session
+):
+    payload = {
+        "test_suite_name": "Nightly Firmware Validation",
+        "url_test_software": "https://github.com/example/fw-under-test",
+        "ref_test_software": "abc123def",
+        "results": [
+            {
+                "test_class": "SmokeTest",
+                "test_method": "bud_smoke",
+                "passed": True,
+            }
+        ],
+    }
+
+    response = client.post("/api/results", json=payload)
+    assert response.status_code == 201, response.text
+
+    run_id = response.json()["test_run_id"]
+    run_q = await db_session.execute(select(TestRun).where(TestRun.id == run_id))
+    auto_run = run_q.scalar_one()
+
+    assert auto_run.test_case_list == "Nightly Firmware Validation"
+    assert auto_run.url_test_software == "https://github.com/example/fw-under-test"
+    assert auto_run.ref_test_software == "abc123def"
