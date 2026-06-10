@@ -129,6 +129,45 @@ bud_runner register --username my-runner
 > shown in the frontend. One station can run many test suites; a pure
 > software station can host multiple Bud runners.
 
+## Upgrade
+
+When upgrading an existing Bud deployment:
+
+1. pull the new application image or package version,
+2. keep the existing PostgreSQL database,
+3. set the same `DATABASE_URL`, `SECRET_KEY`, and production environment variables,
+4. run Alembic before serving traffic:
+
+```bash
+alembic upgrade head
+```
+
+5. restart the backend and verify:
+
+```bash
+curl -sf http://<bud-backend-host>:8000/api/health
+curl -sf http://<bud-backend-host>:8000/api/version
+```
+
+## Backup and restore
+
+Bud stores durable state in PostgreSQL. Back up the database before upgrades.
+
+Example backup:
+
+```bash
+pg_dump "$DATABASE_URL" > bud-backup.sql
+```
+
+Example restore into a fresh database:
+
+```bash
+psql "$DATABASE_URL" < bud-backup.sql
+alembic upgrade head
+```
+
+After restore, start the backend and verify `/api/health` before reconnecting runners or users.
+
 ## Related Repos
 
 - Frontend: [MbedLabs/bud-app-frontend](https://github.com/MbedLabs/bud-app-frontend)
