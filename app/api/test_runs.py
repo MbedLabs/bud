@@ -55,6 +55,8 @@ async def create_test_run(
         status=data.status.value,
         url_test_software=data.url_test_software,
         ref_test_software=data.ref_test_software,
+        url_software_under_test=data.url_software_under_test,
+        ref_software_under_test=data.ref_software_under_test,
         product_id=data.product_composition_id,
         runner_id=runner_id,
         started_at=datetime.utcnow() if data.status.value == "Running" else None,

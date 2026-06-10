@@ -133,6 +133,8 @@ class TestRunCreate(BaseModel):
     test_suite_name: str
     url_test_software: Optional[str] = None
     ref_test_software: str = "main"
+    url_software_under_test: Optional[str] = None
+    ref_software_under_test: Optional[str] = None
     product_composition_id: Optional[int] = None
     status: TestRunStatus = TestRunStatus.RUNNING
     pipeline_software_under_test: bool = False
@@ -162,6 +164,8 @@ class TestRunResponse(BaseModel):
     status: str
     url_test_software: Optional[str]
     ref_test_software: str
+    url_software_under_test: Optional[str]
+    ref_software_under_test: Optional[str]
     total_tests: int
     passed_tests: int
     failed_tests: int
@@ -277,6 +281,8 @@ class ResultsUpload(BaseModel):
     test_suite_name: Optional[str] = None
     url_test_software: Optional[str] = None
     ref_test_software: Optional[str] = None
+    url_software_under_test: Optional[str] = None
+    ref_software_under_test: Optional[str] = None
 
 
 # ==================== Artifact Schemas ====================
