@@ -127,12 +127,12 @@ async def migrate_execution_columns() -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan handler."""
-    await db.create_tables()
     if app_settings.RUN_STARTUP_DATA_REPAIR:
+        await db.create_tables()
         await migrate_user_columns()
         await migrate_user_roles_to_viewer()
         await migrate_execution_columns()
-    await seed_admin_user()
+        await seed_admin_user()
     yield
 
 
