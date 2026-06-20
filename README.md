@@ -87,9 +87,13 @@ bootstrap or password rotation, set:
 AUTO_SEED_ADMIN=true
 ```
 
+Legacy startup schema repair now defaults **on in development** and **off in production**.
+Only set `RUN_STARTUP_DATA_REPAIR=true` explicitly when you intentionally need the legacy
+repair path for a controlled recovery or migration window.
+
 ### First admin bootstrap
 
-1. Run your schema/bootstrap path first (`alembic upgrade head`; keep `RUN_STARTUP_DATA_REPAIR=false` in release).
+1. Run your schema/bootstrap path first (`alembic upgrade head`; production already defaults `RUN_STARTUP_DATA_REPAIR` to `false`).
 2. Set `BUD_ENV=production`, the admin variables above, and `AUTO_SEED_ADMIN=true`.
 3. Start the backend once so the configured admin user is created or promoted.
 4. Remove `AUTO_SEED_ADMIN` or set it back to `false`, then restart the backend.

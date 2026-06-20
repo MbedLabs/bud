@@ -22,6 +22,7 @@ CONFIG_ENV_KEYS = [
     "BUD_INVITE_TOKEN_TTL_HOURS",
     "BUD_MAX_UPLOAD_SIZE",
     "BUD_PASSWORD_RESET_TOKEN_TTL_HOURS",
+    "BUD_RUN_STARTUP_DATA_REPAIR",
     "BUD_RUNNER_API_KEY",
     "BUD_RUNNER_HEARTBEAT_TIMEOUT",
     "BUD_RUNNER_TOKEN_EXPIRE_HOURS",
@@ -47,6 +48,7 @@ CONFIG_ENV_KEYS = [
     "INVITE_TOKEN_TTL_HOURS",
     "MAX_UPLOAD_SIZE",
     "PASSWORD_RESET_TOKEN_TTL_HOURS",
+    "RUN_STARTUP_DATA_REPAIR",
     "RUNNER_API_KEY",
     "RUNNER_HEARTBEAT_TIMEOUT",
     "RUNNER_TOKEN_EXPIRE_HOURS",
@@ -234,6 +236,17 @@ def test_development_auto_seed_admin_defaults_on(monkeypatch):
     assert settings.AUTO_SEED_ADMIN is True
 
 
+def test_development_startup_data_repair_defaults_on(monkeypatch):
+    clear_config_env(monkeypatch)
+
+    monkeypatch.setenv("BUD_ENV", "development")
+    monkeypatch.setenv("BUD_SECRET_KEY", "b" * 32)
+
+    settings = Settings(_env_file=None)
+
+    assert settings.RUN_STARTUP_DATA_REPAIR is True
+
+
 def test_production_auto_seed_admin_defaults_off(monkeypatch):
     clear_config_env(monkeypatch)
 
@@ -245,6 +258,19 @@ def test_production_auto_seed_admin_defaults_off(monkeypatch):
     settings = Settings(_env_file=None)
 
     assert settings.AUTO_SEED_ADMIN is False
+
+
+def test_production_startup_data_repair_defaults_off(monkeypatch):
+    clear_config_env(monkeypatch)
+
+    monkeypatch.setenv("BUD_ENV", "production")
+    monkeypatch.setenv("BUD_SECRET_KEY", "b" * 32)
+    monkeypatch.setenv("BUD_ADMIN_EMAIL", "ops@embedlabs.de")
+    monkeypatch.setenv("BUD_ADMIN_PASSWORD", "this-is-a-long-password")
+
+    settings = Settings(_env_file=None)
+
+    assert settings.RUN_STARTUP_DATA_REPAIR is False
 
 
 def test_production_auto_seed_admin_can_be_explicitly_enabled(monkeypatch):
@@ -259,3 +285,17 @@ def test_production_auto_seed_admin_can_be_explicitly_enabled(monkeypatch):
     settings = Settings(_env_file=None)
 
     assert settings.AUTO_SEED_ADMIN is True
+
+
+def test_production_startup_data_repair_can_be_explicitly_enabled(monkeypatch):
+    clear_config_env(monkeypatch)
+
+    monkeypatch.setenv("BUD_ENV", "production")
+    monkeypatch.setenv("BUD_SECRET_KEY", "b" * 32)
+    monkeypatch.setenv("BUD_ADMIN_EMAIL", "ops@embedlabs.de")
+    monkeypatch.setenv("BUD_ADMIN_PASSWORD", "this-is-a-long-password")
+    monkeypatch.setenv("BUD_RUN_STARTUP_DATA_REPAIR", "true")
+
+    settings = Settings(_env_file=None)
+
+    assert settings.RUN_STARTUP_DATA_REPAIR is True

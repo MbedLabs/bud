@@ -47,8 +47,8 @@ class Settings(BaseSettings):
     BUD_DOTENV_DISABLED: bool = Field(default=False)
 
     # Run legacy startup migrations (prefer Alembic in production)
-    RUN_STARTUP_DATA_REPAIR: bool = Field(
-        default=True,
+    RUN_STARTUP_DATA_REPAIR: bool | None = Field(
+        default=None,
         validation_alias=AliasChoices("BUD_RUN_STARTUP_DATA_REPAIR", "RUN_STARTUP_DATA_REPAIR"),
     )
 
@@ -210,6 +210,8 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def default_auto_seed_admin(self):
+        if self.RUN_STARTUP_DATA_REPAIR is None:
+            self.RUN_STARTUP_DATA_REPAIR = self.BUD_ENV.lower() != "production"
         if self.AUTO_SEED_ADMIN is None:
             self.AUTO_SEED_ADMIN = self.BUD_ENV.lower() != "production"
         return self
