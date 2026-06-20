@@ -4,6 +4,7 @@ Application configuration.
 Loads settings from environment variables with sensible defaults.
 """
 
+import os
 import secrets
 from functools import lru_cache
 from pathlib import Path
@@ -13,8 +14,7 @@ from pydantic import AliasChoices, EmailStr, Field, field_validator, model_valid
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BACKEND_DIR = Path(__file__).resolve().parents[2]
-WORKSPACE_DIR = BACKEND_DIR.parent
-ENV_FILES = (WORKSPACE_DIR / ".env", BACKEND_DIR / ".env")
+ENV_FILES = (BACKEND_DIR / ".env",)
 
 
 class Settings(BaseSettings):
@@ -26,6 +26,14 @@ class Settings(BaseSettings):
         extra="ignore",
         populate_by_name=True,
     )
+
+    @classmethod
+    def settings_customise_sources(
+        cls, settings_cls, init_settings, env_settings, dotenv_settings, file_secret_settings
+    ):
+        if os.environ.get("BUD_DOTENV_DISABLED") == "1":
+            return init_settings, env_settings, file_secret_settings
+        return init_settings, env_settings, dotenv_settings, file_secret_settings
 
     # Database
     DATABASE_URL: str = Field(
@@ -70,14 +78,14 @@ class Settings(BaseSettings):
         ),
     )
     BUD_APP_NAME: str = "Bud TMP"
-    BUD_APP_VERSION: str = "0.2.0"
+    BUD_APP_VERSION: str = "1.0.0"
 
     APP_BASE_URL: str = Field(
         default="http://localhost:8001",
         validation_alias=AliasChoices("BUD_APP_BASE_URL", "APP_BASE_URL"),
     )
     FRONTEND_BASE_URL: str = Field(
-        default="http://localhost:3000",
+        default="http://localhost:8001",
         validation_alias=AliasChoices("BUD_FRONTEND_BASE_URL", "FRONTEND_BASE_URL"),
     )
 
@@ -94,6 +102,7 @@ class Settings(BaseSettings):
         default=[
             "http://localhost:3000",
             "http://localhost:5173",
+            "http://localhost:8001",
         ],
         validation_alias=AliasChoices("BUD_CORS_ORIGINS", "CORS_ORIGINS"),
     )

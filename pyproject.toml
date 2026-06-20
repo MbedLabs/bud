@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "bud-app-backend"
-version = "0.2.0"
+version = "1.0.0"
 description = "Backend API for Bud Test Management Platform by EmbedLabs"
 readme = "README.md"
 license = {text = "AGPL-3.0"}
@@ -43,7 +43,7 @@ dev = [
 
 [project.urls]
 Homepage = "https://www.embedlabs.de"
-Repository = "https://github.com/MbedLabs/bud-app-backend"
+Repository = "https://github.com/MbedLabs/bud"
 
 [tool.setuptools.packages.find]
 where = ["."]

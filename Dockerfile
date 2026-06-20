@@ -1,37 +1,47 @@
+FROM node:20-alpine AS frontend-build
+
+WORKDIR /frontend
+
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
+
+COPY frontend/ ./
+RUN npm run build
+
 FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-# Install system dependencies
 RUN apt-get update && apt-get install -y \
+    curl \
     gcc \
     libpq-dev \
-    curl \
+    nginx \
+    supervisor \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy package metadata first for better layer caching
 COPY pyproject.toml README.md ./
-
-# Install Python dependencies
-RUN pip install --no-cache-dir .
-
-# Copy application source
 COPY app/ app/
-
-# Copy Alembic migrations
 COPY alembic/ alembic/
 COPY alembic.ini ./
+RUN pip install --no-cache-dir .
 
-# Create non-root user with upload directory ownership
-RUN useradd -m appuser && mkdir -p /app/uploads && chown -R appuser:appuser /app
-USER appuser
+COPY docker/nginx.conf /etc/nginx/sites-enabled/default
+COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY docker/start.sh /usr/local/bin/start-product
+COPY --from=frontend-build /frontend/dist /var/www/app
 
-# Expose port
-EXPOSE 8000
+RUN chmod +x /usr/local/bin/start-product \
+    && useradd -m appuser \
+    && mkdir -p /app/uploads /run/nginx /var/lib/nginx /var/log/nginx /var/log/supervisor \
+    && chown -R appuser:appuser /app /var/www/app /run/nginx /var/lib/nginx /var/log/nginx
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s \
-    CMD curl -f http://localhost:8000/api/health || exit 1
+EXPOSE 8080
 
-# Run the application
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s \
+    CMD curl -f http://localhost:8080/api/health || exit 1
+
+CMD ["/usr/local/bin/start-product"]

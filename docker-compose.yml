@@ -1,0 +1,46 @@
+services:
+  bud:
+    build:
+      context: .
+    image: ghcr.io/mbedlabs/bud:1.0.0
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      SECRET_KEY: ${SECRET_KEY}
+      RUNNER_API_KEY: ${RUNNER_API_KEY}
+      APP_BASE_URL: ${APP_BASE_URL}
+      FRONTEND_BASE_URL: ${FRONTEND_BASE_URL}
+      BUD_APP_URL: ${BUD_APP_URL}
+      BLOOM_APP_URL: ${BLOOM_APP_URL}
+      BUD_ENV: ${BUD_ENV}
+      RUN_STARTUP_DATA_REPAIR: ${RUN_STARTUP_DATA_REPAIR}
+      AUTO_SEED_ADMIN: ${AUTO_SEED_ADMIN}
+      ENABLE_DOCS: ${ENABLE_DOCS}
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      ADMIN_FULL_NAME: ${ADMIN_FULL_NAME}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8001:8080"
+
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: bud
+      POSTGRES_PASSWORD: bud
+      POSTGRES_DB: buddb
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bud -d buddb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "5432:5432"
+    volumes:
+      - bud-postgres-data:/var/lib/postgresql/data
+
+volumes:
+  bud-postgres-data:
