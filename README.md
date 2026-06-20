@@ -80,12 +80,20 @@ Startup fails in production if any of these are still using bootstrap defaults:
 - `ADMIN_PASSWORD=changeme123`
 - admin password shorter than 16 characters
 
+Production also leaves startup admin seeding **off by default**. To opt in for a one-time
+bootstrap or password rotation, set:
+
+```env
+AUTO_SEED_ADMIN=true
+```
+
 ### First admin bootstrap
 
-1. Set `BUD_ENV=production` and the admin variables above.
-2. Start the backend once.
-3. The startup seed promotes or creates the configured admin user.
-4. Sign in as that admin and create normal operator accounts for daily use.
+1. Run your schema/bootstrap path first (`alembic upgrade head`; keep `RUN_STARTUP_DATA_REPAIR=false` in release).
+2. Set `BUD_ENV=production`, the admin variables above, and `AUTO_SEED_ADMIN=true`.
+3. Start the backend once so the configured admin user is created or promoted.
+4. Remove `AUTO_SEED_ADMIN` or set it back to `false`, then restart the backend.
+5. Sign in as that admin and create normal operator accounts for daily use.
 
 ### Password rotation
 
@@ -93,9 +101,11 @@ Rotate the bootstrap admin password by:
 
 1. generating a new strong password,
 2. updating `ADMIN_PASSWORD` in the deployment secret or environment,
-3. restarting the backend so the seeded admin account is updated,
-4. verifying login with the new credential,
-5. revoking or removing any old shared storage of the previous password.
+3. temporarily setting `AUTO_SEED_ADMIN=true`,
+4. restarting the backend so the seeded admin account is updated,
+5. setting `AUTO_SEED_ADMIN=false` again and restarting once more,
+6. verifying login with the new credential,
+7. revoking or removing any old shared storage of the previous password.
 
 ### Runner registration
 

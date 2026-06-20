@@ -5,11 +5,13 @@ CONFIG_ENV_KEYS = [
     "ADMIN_EMAIL",
     "ADMIN_FULL_NAME",
     "ADMIN_PASSWORD",
+    "AUTO_SEED_ADMIN",
     "APP_BASE_URL",
     "BUD_ACCESS_TOKEN_EXPIRE_MINUTES",
     "BUD_ADMIN_EMAIL",
     "BUD_ADMIN_FULL_NAME",
     "BUD_ADMIN_PASSWORD",
+    "BUD_AUTO_SEED_ADMIN",
     "BUD_APP_BASE_URL",
     "BUD_CORS_ORIGINS",
     "BUD_DATABASE_URL",
@@ -219,3 +221,41 @@ def test_development_allows_bootstrap_defaults(monkeypatch):
 
     assert settings.ADMIN_EMAIL == "admin@example.com"
     assert settings.ADMIN_PASSWORD == "changeme123"
+
+
+def test_development_auto_seed_admin_defaults_on(monkeypatch):
+    clear_config_env(monkeypatch)
+
+    monkeypatch.setenv("BUD_ENV", "development")
+    monkeypatch.setenv("BUD_SECRET_KEY", "b" * 32)
+
+    settings = Settings(_env_file=None)
+
+    assert settings.AUTO_SEED_ADMIN is True
+
+
+def test_production_auto_seed_admin_defaults_off(monkeypatch):
+    clear_config_env(monkeypatch)
+
+    monkeypatch.setenv("BUD_ENV", "production")
+    monkeypatch.setenv("BUD_SECRET_KEY", "b" * 32)
+    monkeypatch.setenv("BUD_ADMIN_EMAIL", "ops@embedlabs.de")
+    monkeypatch.setenv("BUD_ADMIN_PASSWORD", "this-is-a-long-password")
+
+    settings = Settings(_env_file=None)
+
+    assert settings.AUTO_SEED_ADMIN is False
+
+
+def test_production_auto_seed_admin_can_be_explicitly_enabled(monkeypatch):
+    clear_config_env(monkeypatch)
+
+    monkeypatch.setenv("BUD_ENV", "production")
+    monkeypatch.setenv("BUD_SECRET_KEY", "b" * 32)
+    monkeypatch.setenv("BUD_ADMIN_EMAIL", "ops@embedlabs.de")
+    monkeypatch.setenv("BUD_ADMIN_PASSWORD", "this-is-a-long-password")
+    monkeypatch.setenv("BUD_AUTO_SEED_ADMIN", "true")
+
+    settings = Settings(_env_file=None)
+
+    assert settings.AUTO_SEED_ADMIN is True
