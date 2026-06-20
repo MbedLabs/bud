@@ -132,6 +132,7 @@ async def lifespan(app: FastAPI):
         await migrate_user_columns()
         await migrate_user_roles_to_viewer()
         await migrate_execution_columns()
+    if app_settings.AUTO_SEED_ADMIN:
         await seed_admin_user()
     yield
 
