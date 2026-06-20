@@ -110,7 +110,7 @@ jobs:
       - name: Run frontend checks
         run: |
           npm --prefix frontend run lint
-          npx --prefix frontend tsc --noEmit
+          npx --prefix frontend tsc --project frontend/tsconfig.json --noEmit
           npm --prefix frontend run test -- --coverage
 
   build-image:
