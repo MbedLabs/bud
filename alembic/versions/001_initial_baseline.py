@@ -10,8 +10,9 @@ Subsequent revisions migrate legacy startup schema changes from app/main.py.
 
 from typing import Sequence, Union
 
-from alembic import op
 import sqlalchemy as sa
+
+from alembic import op
 
 revision: str = "001_initial_baseline"
 down_revision: Union[str, Sequence[str], None] = None
@@ -20,7 +21,11 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    pass
+    import app.models  # noqa: F401
+    from app.db.database import Base
+
+    bind = op.get_bind()
+    Base.metadata.create_all(bind=bind)
 
 
 def downgrade() -> None:
