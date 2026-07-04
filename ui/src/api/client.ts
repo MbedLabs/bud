@@ -237,6 +237,8 @@ export const testRunsApi = {
     offset?: number
     /** Filter by Bud runner / Test Station account. */
     runner_account?: string
+    /** Return only the latest run for each test suite name. */
+    latest_per_suite?: boolean
   }) => {
     const response = await api.get<{ runs: TestRun[]; total: number }>('/test-runs', { params })
     return response.data

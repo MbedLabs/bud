@@ -2,7 +2,7 @@
 
 ## Supported Versions
 
-Security fixes are applied to the latest published image/build and the current `main` branch of `bud-app-frontend`.
+Security fixes are applied to the latest published image/build and the current `main` branch of the Bud product repo.
 
 ## Reporting a Vulnerability
 

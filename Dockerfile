@@ -1,11 +1,11 @@
-FROM node:20-alpine AS frontend-build
+FROM node:20-alpine AS ui-build
 
-WORKDIR /frontend
+WORKDIR /ui
 
-COPY frontend/package.json frontend/package-lock.json ./
+COPY ui/package.json ui/package-lock.json ./
 RUN npm ci
 
-COPY frontend/ ./
+COPY ui/ ./
 RUN npm run build
 
 FROM python:3.11-slim
@@ -32,7 +32,7 @@ RUN pip install --no-cache-dir .
 COPY docker/nginx.conf /etc/nginx/sites-enabled/default
 COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY docker/start.sh /usr/local/bin/start-product
-COPY --from=frontend-build /frontend/dist /var/www/app
+COPY --from=ui-build /ui/dist /var/www/app
 
 RUN chmod +x /usr/local/bin/start-product \
     && useradd -m appuser \

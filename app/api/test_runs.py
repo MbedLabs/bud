@@ -120,6 +120,10 @@ async def list_test_runs(
             "Filter to test runs executed by the given Bud runner account " "(a.k.a. Test Station)."
         ),
     ),
+    latest_per_suite: bool = Query(
+        False,
+        description="When true, return only the latest run for each test suite name.",
+    ),
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_db),
@@ -133,7 +137,9 @@ async def list_test_runs(
     ``TestRun`` tied to that runner — not just the latest.
     """
     query = (
-        select(TestRun).options(selectinload(TestRun.runner)).order_by(TestRun.created_at.desc())
+        select(TestRun)
+        .options(selectinload(TestRun.runner))
+        .order_by(TestRun.created_at.desc(), TestRun.id.desc())
     )
     count_query = select(func.count(TestRun.id))
 
@@ -149,6 +155,25 @@ async def list_test_runs(
             return TestRunList(runs=[], total=0, limit=limit, offset=offset)
         query = query.where(TestRun.runner_id == runner_id)
         count_query = count_query.where(TestRun.runner_id == runner_id)
+
+    if latest_per_suite:
+        result = await db.execute(query)
+        latest_runs: list[TestRun] = []
+        seen_suite_names: set[str] = set()
+        for run in result.scalars().all():
+            if run.name in seen_suite_names:
+                continue
+            seen_suite_names.add(run.name)
+            latest_runs.append(run)
+
+        total = len(latest_runs)
+        paginated_runs = latest_runs[offset : offset + limit]
+        return TestRunList(
+            runs=[TestRunResponse.from_orm_with_runner(r) for r in paginated_runs],
+            total=total,
+            limit=limit,
+            offset=offset,
+        )
 
     total_result = await db.execute(count_query)
     total = total_result.scalar()

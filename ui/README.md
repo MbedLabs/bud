@@ -1,6 +1,6 @@
-# bud-app-frontend
+# Bud UI
 
-Frontend application for the Bud platform — a comprehensive test automation and runner orchestration dashboard.
+UI application for the Bud platform — a comprehensive test automation and runner orchestration dashboard.
 
 ## Stack
 
@@ -19,11 +19,11 @@ The dev server runs on http://localhost:3000 by default.
 
 ## Deployment
 
-This frontend is designed to be environment-agnostic using runtime configuration injection.
+This UI is designed to be environment-agnostic using runtime configuration injection.
 
 ## Beta Security Note
 
-This frontend keeps the Bud access token in `sessionStorage` for the active
+This UI keeps the Bud access token in `sessionStorage` for the active
 browser session only. Closing the tab or browser clears it. This avoids
 long-lived JWT persistence in `localStorage` while the product remains on a
 token-based browser auth flow.
@@ -39,18 +39,18 @@ token-based browser auth flow.
 ### Docker
 
 ```bash
-docker build -t bud-app-frontend .
+docker build -t bud-ui .
 
 # Run with custom upstream and cross-links
 docker run -p 8080:80 \
   -e BACKEND_UPSTREAM=backend:8000 \
   -e BLOOM_APP_URL=https://bloom.example.com \
-  bud-app-frontend
+  bud-ui
 ```
 
-## Related Repos
+## Product Repo
 
-- Backend: [MbedLabs/bud-app-backend](https://github.com/MbedLabs/bud-app-backend)
+The Bud backend and UI are shipped together from this product repo.
 
 ## License
 

@@ -10,5 +10,5 @@ uploads/
 .venv
 .pytest_cache
 coverage.xml
-frontend/node_modules
-frontend/dist
+ui/node_modules
+ui/dist
