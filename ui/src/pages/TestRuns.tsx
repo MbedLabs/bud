@@ -27,6 +27,7 @@ export default function TestRuns() {
       testRunsApi.list({
         offset: (page - 1) * limit,
         limit,
+        latest_per_suite: true,
         status: statusFilter || undefined,
         runner_account: stationFilter || undefined,
       }),

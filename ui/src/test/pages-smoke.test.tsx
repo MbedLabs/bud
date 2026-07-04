@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router-dom'
 
 import App from '../App'
+import { testRunsApi } from '../api/client'
 
 vi.mock('../contexts/AuthContext', () => ({
   useAuth: () => ({
@@ -116,6 +117,9 @@ describe('route smoke (Bud)', () => {
     await waitFor(() => {
       expect(screen.getByPlaceholderText(/search test runs/i)).toBeInTheDocument()
     })
+    expect(testRunsApi.list).toHaveBeenCalledWith(
+      expect.objectContaining({ latest_per_suite: true }),
+    )
   })
 
   it('shows not-found state with Back link for bogus run detail', async () => {

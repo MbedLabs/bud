@@ -1,33 +1,32 @@
 # Bud
 
-Bud is the combined product repo for the EmbedLabs test management platform. It keeps the FastAPI backend at the repo root, the React frontend under [`frontend/`](frontend), and ships a single product image that serves both the UI and the `/api` surface.
+Bud is an open source test management and execution platform for teams that need runs, results, artifacts, and runner orchestration in one place.
 
-## What is in this repo
+## What you can do with Bud
 
-- Backend API and Alembic migrations at the root
-- Frontend application in [`frontend/`](frontend)
-- One combined Docker image build from the root `Dockerfile`
-- One product CI workflow in [`.github/workflows/ci-cd.yml`](.github/workflows/ci-cd.yml)
+- Manage test runs, execution history, and uploaded artifacts from one workspace
+- Register and monitor runners and test stations across hardware and software setups
+- Collect structured execution results from automated and operator-driven workflows
+- Coordinate execution infrastructure while keeping product-facing run history in one system
+- Connect execution outcomes with Bloom when the two products are deployed together
 
-## Version
+## Self-host Bud
 
-This combined product repo is currently at `1.0.0`.
+Bud ships as a combined product repo with a FastAPI backend at the repository top level, a React UI in [`ui/`](ui), and one product image that serves both the UI and the `/api` surface.
 
-## Quick start
+Bud requires PostgreSQL plus runtime configuration for database access, application secrets, public URLs, admin access, and runner registration. Runner registration is protected by the shared `RUNNER_API_KEY` secret. Run `alembic upgrade head` before serving traffic.
 
-```bash
-cp .env.example .env
-docker compose up -d postgres
-docker compose run --rm bud alembic upgrade head
-docker compose up -d bud
-curl -sf http://localhost:8001/api/health
-```
+## Get Started
 
-Open `http://localhost:8001`.
+- Review [`docker-compose.yml`](docker-compose.yml) for a reference self-host layout
+- Use [`Dockerfile`](Dockerfile) if you want to build the combined product image directly
+- Verify the deployed instance through the `/api/health` endpoint on your Bud URL
 
-For the first admin bootstrap, temporarily set `AUTO_SEED_ADMIN=true` in `.env`, start Bud once, sign in, then set it back to `false`.
+## Runner Registration
 
-## Local development
+New runner registration requires the same shared `RUNNER_API_KEY` value on both the Bud backend and the registering runner.
+
+## Local Development
 
 Backend:
 
@@ -38,10 +37,10 @@ pip install -e ".[dev]"
 uvicorn app.main:app --reload --port 8000
 ```
 
-Frontend:
+UI:
 
 ```bash
-cd frontend
+cd ui
 npm ci
 npm run dev
 ```
@@ -56,10 +55,10 @@ isort --profile black --check-only --diff app/
 pytest --cov=app --cov-report=term-missing --cov-fail-under=50 -v
 ```
 
-Frontend checks:
+UI checks:
 
 ```bash
-cd frontend
+cd ui
 npm run lint
 npx tsc --noEmit
 npm run test -- --coverage
@@ -69,24 +68,12 @@ Combined image:
 
 ```bash
 docker build -t bud:1.0.0 .
-docker run --rm -p 8001:8080 bud:1.0.0
 ```
 
-## Runner registration
+## Resources
 
-Runner registration still requires the shared `RUNNER_API_KEY` secret. The backend reads it from the environment and the `bud-runner` CLI sends it as `X-API-Key` during `bud-runner register`.
-
-```bash
-export RUNNER_API_KEY=<shared-runner-registration-secret>
-export BUD_BACKEND_URL=http://localhost:8001
-bud-runner register --username local-runner
-```
-
-## Production notes
-
-- `BUD_ENV=production` rejects unsafe bootstrap defaults.
-- `RUN_STARTUP_DATA_REPAIR` defaults off in production.
-- `AUTO_SEED_ADMIN` defaults off in production and should only be enabled for controlled bootstrap or rotation windows.
+- [`CHANGELOG.md`](CHANGELOG.md)
+- [`CONTRIBUTING.md`](CONTRIBUTING.md)
 
 ## License
 
