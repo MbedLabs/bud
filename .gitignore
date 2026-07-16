@@ -16,3 +16,5 @@ uploads/
 .coverage
 coverage.xml
 .worktrees/
+PREPARE_FOR_OPEN_SOURCING.md
+
