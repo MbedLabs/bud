@@ -8,6 +8,7 @@ htmlcov/
 *.pyo
 .env
 .env.*
+!.env.example
 *.egg-info/
 dist/
 build/
@@ -17,4 +18,3 @@ uploads/
 coverage.xml
 .worktrees/
 PREPARE_FOR_OPEN_SOURCING.md
-
