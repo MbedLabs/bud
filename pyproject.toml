@@ -42,7 +42,7 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://www.embedlabs.de"
+Homepage = "https://www.embedlabs.net"
 Repository = "https://github.com/MbedLabs/bud"
 
 [tool.setuptools.packages.find]
