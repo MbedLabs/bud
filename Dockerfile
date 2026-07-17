@@ -23,11 +23,11 @@ RUN apt-get update && apt-get install -y \
     supervisor \
     && rm -rf /var/lib/apt/lists/*
 
-COPY pyproject.toml README.md ./
+COPY pyproject.toml README.md constraints.txt ./
 COPY app/ app/
 COPY alembic/ alembic/
 COPY alembic.ini ./
-RUN pip install --no-cache-dir .
+RUN pip install --no-cache-dir -c constraints.txt .
 
 COPY docker/nginx.conf /etc/nginx/sites-enabled/default
 COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
@@ -37,7 +37,10 @@ COPY --from=ui-build /ui/dist /var/www/app
 RUN chmod +x /usr/local/bin/start-product \
     && useradd -m appuser \
     && mkdir -p /app/uploads /run/nginx /var/lib/nginx /var/log/nginx /var/log/supervisor \
-    && chown -R appuser:appuser /app /var/www/app /run/nginx /var/lib/nginx /var/log/nginx
+    && chown -R appuser:appuser /app /var/www/app /run/nginx /var/lib/nginx /var/log/nginx /var/log/supervisor
+
+# Run the whole stack unprivileged: supervisord, nginx (port 8080) and uvicorn
+USER appuser
 
 EXPOSE 8080
 
