@@ -27,9 +27,16 @@ from app.api import (
 from app.api import users as users_api
 from app.core.config import settings as app_settings
 from app.core.deps import limiter
+from app.core.observability import (
+    RequestObservabilityMiddleware,
+    metrics_router,
+    setup_logging,
+)
 from app.core.security import get_password_hash
 from app.db import database as db
 from app.models.user import User, UserRole
+
+setup_logging(level=app_settings.LOG_LEVEL, json_logs=bool(app_settings.LOG_JSON))
 
 
 async def seed_admin_user():
@@ -154,6 +161,9 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
+# Outermost middleware: request-id propagation, access logs, Prometheus metrics
+app.add_middleware(RequestObservabilityMiddleware)
+
 # M1: Restrict CORS — only listed origins, explicit methods, no wildcard headers
 app.add_middleware(
     CORSMiddleware,
@@ -165,6 +175,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(health.router, prefix="/api", tags=["Health"])
+app.include_router(metrics_router, prefix="/api", tags=["Observability"])
 app.include_router(auth_api.router, prefix="/api/auth", tags=["Auth"])
 app.include_router(users_api.router, prefix="/api/users", tags=["Users"])
 app.include_router(products.router, prefix="/api/products", tags=["Products"])

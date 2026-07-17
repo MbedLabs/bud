@@ -198,6 +198,18 @@ class Settings(BaseSettings):
         ),
     )
 
+    # Observability
+    LOG_LEVEL: str = Field(
+        default="INFO", validation_alias=AliasChoices("BUD_LOG_LEVEL", "LOG_LEVEL")
+    )
+    # None -> JSON logs in production, human-readable text elsewhere
+    LOG_JSON: bool | None = Field(
+        default=None, validation_alias=AliasChoices("BUD_LOG_JSON", "LOG_JSON")
+    )
+    ENABLE_METRICS: bool = Field(
+        default=True, validation_alias=AliasChoices("BUD_ENABLE_METRICS", "ENABLE_METRICS")
+    )
+
     # L1: Disable API docs in production (set ENABLE_DOCS=true to enable locally)
     ENABLE_DOCS: bool = Field(
         default=False, validation_alias=AliasChoices("BUD_ENABLE_DOCS", "ENABLE_DOCS")
@@ -223,6 +235,8 @@ class Settings(BaseSettings):
             self.RUN_STARTUP_DATA_REPAIR = self.BUD_ENV.lower() != "production"
         if self.AUTO_SEED_ADMIN is None:
             self.AUTO_SEED_ADMIN = self.BUD_ENV.lower() != "production"
+        if self.LOG_JSON is None:
+            self.LOG_JSON = self.BUD_ENV.lower() == "production"
         return self
 
     @model_validator(mode="after")
