@@ -19,7 +19,7 @@ anyio==4.14.2
     #   watchfiles
 asyncpg==0.31.0
     # via bud-app-backend (pyproject.toml)
-bcrypt==3.2.2
+bcrypt==5.0.0
     # via
     #   bud-app-backend (pyproject.toml)
     #   passlib
