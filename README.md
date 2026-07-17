@@ -52,7 +52,7 @@ Backend checks:
 ```bash
 black --check --diff app/
 isort --profile black --check-only --diff app/
-pytest --cov=app --cov-report=term-missing --cov-fail-under=50 -v
+pytest --cov=app --cov-report=term-missing --cov-fail-under=60 -v
 ```
 
 UI checks:
@@ -72,6 +72,7 @@ docker build -t bud:1.0.0 .
 
 ## Resources
 
+- [`docs/OPERATIONS.md`](docs/OPERATIONS.md) — production operations: logs, metrics, backup/restore, upgrades
 - [`CHANGELOG.md`](CHANGELOG.md)
 - [`CONTRIBUTING.md`](CONTRIBUTING.md)
 
