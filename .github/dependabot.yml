@@ -4,15 +4,32 @@ updates:
     directory: "/"
     schedule:
       interval: weekly
+    ignore:
+      # passlib 1.7.4 is incompatible with bcrypt >= 4 — the <4 ceiling in
+      # pyproject.toml is deliberate. Revisit when passlib is replaced.
+      - dependency-name: "bcrypt"
+      # pydantic-core must move in lockstep with pydantic; single-package
+      # bumps break the constraints resolve. Refresh via pip-compile instead.
+      - dependency-name: "pydantic-core"
   - package-ecosystem: npm
     directory: "/ui"
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    ignore:
+      # majors (react 19, router 7, tailwind 4, TS 7, eslint 9+, vitest 4)
+      # are deliberate migrations, not bot merges
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: docker
     directory: "/"
     schedule:
       interval: weekly
+    ignore:
+      # python/node base-image majors change the runtime + build toolchain
+      # and must move together with CI's pinned versions
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
