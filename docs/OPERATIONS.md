@@ -104,3 +104,17 @@ tag. Never run a newer schema against an older application version.
 Every release build publishes an SPDX SBOM as a CI artifact
 (`bud-sbom.spdx.json`) alongside the container image, and CI runs Bandit and
 pip-audit on every push.
+
+Backend dependencies are pinned in [`constraints.txt`](../constraints.txt)
+(generated with `pip-compile`), and both the image build and CI install with
+`-c constraints.txt`, so builds are reproducible. Dependabot watches pip, npm,
+Docker and GitHub Actions weekly. Refresh the pins with:
+
+```bash
+pip install pip-tools
+pip-compile --strip-extras --output-file=constraints.txt pyproject.toml
+```
+
+The container runs unprivileged end to end (`USER appuser` — supervisord,
+nginx on port 8080, and uvicorn), which also satisfies Kubernetes
+`runAsNonRoot` policies.
