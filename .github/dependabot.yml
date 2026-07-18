@@ -7,14 +7,11 @@ updates:
       day: monday
       time: "06:00"
       timezone: "Europe/Berlin"
-    # Version updates must survive public ecosystem scrutiny first.
-    # Dependabot security updates are not delayed by cooldown settings.
     cooldown:
       default-days: 7
       semver-patch-days: 7
       semver-minor-days: 14
       semver-major-days: 30
-      include: ["*"]
     open-pull-requests-limit: 2
     groups:
       python-minor-patch:
@@ -36,7 +33,6 @@ updates:
       semver-patch-days: 7
       semver-minor-days: 14
       semver-major-days: 30
-      include: ["*"]
     open-pull-requests-limit: 2
     groups:
       ui-production-minor-patch:
@@ -67,7 +63,6 @@ updates:
       semver-patch-days: 7
       semver-minor-days: 14
       semver-major-days: 30
-      include: ["*"]
     open-pull-requests-limit: 1
     groups:
       container-minor-patch:
@@ -76,8 +71,6 @@ updates:
     ignore:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
-      # Python and Node feature-line changes are runtime migrations even though
-      # Docker Dependabot may classify them as semver-minor updates.
       - dependency-name: "python"
         versions: [">=3.12"]
       - dependency-name: "node"
@@ -95,7 +88,6 @@ updates:
       semver-patch-days: 7
       semver-minor-days: 14
       semver-major-days: 30
-      include: ["*"]
     open-pull-requests-limit: 1
     groups:
       actions-minor-patch:
