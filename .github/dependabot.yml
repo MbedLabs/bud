@@ -21,6 +21,13 @@ updates:
       # are deliberate migrations, not bot merges
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
+      # 0.5+ requires ESLint 9/10 and flat config; migrate the ESLint toolchain
+      # together instead of accepting an isolated plugin update.
+      - dependency-name: "eslint-plugin-react-refresh"
+        versions: [">=0.5.0"]
+      # Freeze the large 0.x icon-library jump until the post-review UI cycle.
+      - dependency-name: "lucide-react"
+        versions: [">=0.304.0"]
   - package-ecosystem: docker
     directory: "/"
     schedule:
