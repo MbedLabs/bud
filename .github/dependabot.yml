@@ -59,10 +59,7 @@ updates:
       time: "06:30"
       timezone: "Europe/Berlin"
     cooldown:
-      default-days: 7
-      semver-patch-days: 7
-      semver-minor-days: 14
-      semver-major-days: 30
+      default-days: 14
     open-pull-requests-limit: 1
     groups:
       container-minor-patch:
@@ -84,10 +81,7 @@ updates:
       time: "06:45"
       timezone: "Europe/Berlin"
     cooldown:
-      default-days: 7
-      semver-patch-days: 7
-      semver-minor-days: 14
-      semver-major-days: 30
+      default-days: 14
     open-pull-requests-limit: 1
     groups:
       actions-minor-patch:
