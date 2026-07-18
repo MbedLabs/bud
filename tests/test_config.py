@@ -100,7 +100,7 @@ def test_settings_reads_bud_prefixed_env(monkeypatch):
     monkeypatch.setenv("BUD_SMTP_USERNAME", "smtp-user")
     monkeypatch.setenv("BUD_SMTP_PASSWORD", "smtp-password")
     monkeypatch.setenv("BUD_SMTP_FROM_EMAIL", "noreply@example.com")
-    monkeypatch.setenv("BUD_SMTP_FROM_NAME", "Bud Mailer")
+    monkeypatch.setenv("BUD_SMTP_FROM_NAME", "Attempted Override")
     monkeypatch.setenv("BUD_SMTP_REPLY_TO", "reply@example.com")
     monkeypatch.setenv("BUD_SMTP_STARTTLS", "false")
     monkeypatch.setenv("BUD_SMTP_SSL", "true")
@@ -132,7 +132,7 @@ def test_settings_reads_bud_prefixed_env(monkeypatch):
     assert settings.SMTP_USERNAME == "smtp-user"
     assert settings.SMTP_PASSWORD == "smtp-password"
     assert str(settings.SMTP_FROM_EMAIL) == "noreply@example.com"
-    assert settings.SMTP_FROM_NAME == "Bud Mailer"
+    assert not hasattr(settings, "SMTP_FROM_NAME")
     assert str(settings.SMTP_REPLY_TO) == "reply@example.com"
     assert settings.SMTP_STARTTLS is False
     assert settings.SMTP_SSL is True

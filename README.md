@@ -59,13 +59,15 @@ Open `.env` and replace every active `replace-with-...` placeholder. At minimum:
 - Set `RUNNER_API_KEY` to a separate 64-character registration secret.
 - Set `ADMIN_EMAIL`, `ADMIN_PASSWORD`, and `ADMIN_FULL_NAME` for the first administrator. Production admin passwords must contain at least 16 characters.
 - Set `APP_BASE_URL`, `FRONTEND_BASE_URL`, and `BUD_APP_URL` to the externally reachable Bud URL.
-- Leave `AUTO_SEED_ADMIN=true` for the first startup only.
+- Keep the shipped `AUTO_SEED_ADMIN=false` setting. For a new instance with an empty database, explicitly change it to `true` immediately before the one-time first-administrator startup.
 
-The example keeps `SMTP_ENABLED=false`. Before enabling email, replace the SMTP host, username, password, sender, and reply-to placeholders with real values.
+The example keeps `SMTP_ENABLED=false`. Before enabling email, replace the SMTP host, username, password, sender address, and reply-to placeholders with real values. The sender display name is fixed to `Bud TMP by EmbedLabs` and is not configurable.
 
 `BUD_VERSION=latest` selects the evaluation channel. Set it to a published version such as `1.0.0` for a production deployment, or to a prerelease such as `1.0.0-rc.1` when evaluating a release candidate.
 
 ### 3. Pull, migrate, and start
+
+For the initial startup of a new instance only, opt in to administrator creation by setting `AUTO_SEED_ADMIN=true` in `.env`. Do not enable it for an existing instance.
 
 ```bash
 docker compose pull
@@ -85,7 +87,7 @@ curl -fsS http://localhost:8001/api/health
 
 The health response reports `"status":"healthy"`. Open [http://localhost:8001](http://localhost:8001) and sign in with `ADMIN_EMAIL` and `ADMIN_PASSWORD` from `.env`.
 
-After the first successful login, set this in `.env`:
+Immediately after the first successful login, restore the secure default in `.env`:
 
 ```dotenv
 AUTO_SEED_ADMIN=false

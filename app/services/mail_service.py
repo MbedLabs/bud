@@ -9,6 +9,7 @@ from app.core.config import settings
 logger = logging.getLogger(__name__)
 
 TEMPLATE_DIR = Path(__file__).resolve().parent.parent / "templates" / "email"
+BUD_FROM_NAME = "Bud TMP by EmbedLabs"
 
 
 class MailConfigurationError(Exception):
@@ -31,11 +32,7 @@ def send_email(
 
     message = EmailMessage()
     message["Subject"] = subject
-    message["From"] = (
-        f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
-        if settings.SMTP_FROM_NAME
-        else settings.SMTP_FROM_EMAIL
-    )
+    message["From"] = f"{BUD_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
     message["To"] = to_email
     if settings.SMTP_REPLY_TO:
         message["Reply-To"] = settings.SMTP_REPLY_TO
