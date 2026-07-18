@@ -4,6 +4,17 @@ updates:
     directory: "/"
     schedule:
       interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: "Europe/Berlin"
+    open-pull-requests-limit: 2
+    groups:
+      python-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
     ignore:
       # passlib 1.7.4 is incompatible with bcrypt >= 4 — the <4 ceiling in
       # pyproject.toml is deliberate. Revisit when passlib is replaced.
@@ -11,14 +22,32 @@ updates:
       # pydantic-core must move in lockstep with pydantic; single-package
       # bumps break the constraints resolve. Refresh via pip-compile instead.
       - dependency-name: "pydantic-core"
+
   - package-ecosystem: npm
     directory: "/ui"
     schedule:
       interval: weekly
-    open-pull-requests-limit: 5
+      day: monday
+      time: "06:15"
+      timezone: "Europe/Berlin"
+    open-pull-requests-limit: 2
+    groups:
+      ui-production-minor-patch:
+        dependency-type: production
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+      ui-development-minor-patch:
+        dependency-type: development
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
     ignore:
-      # majors (react 19, router 7, tailwind 4, TS 7, eslint 9+, vitest 4)
-      # are deliberate migrations, not bot merges
+      # Major frontend upgrades are deliberate migrations, not bot merges.
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
       # 0.5+ requires ESLint 9/10 and flat config; migrate the ESLint toolchain
@@ -28,16 +57,36 @@ updates:
       # Freeze the large 0.x icon-library jump until the post-review UI cycle.
       - dependency-name: "lucide-react"
         versions: [">=0.304.0"]
+
   - package-ecosystem: docker
     directory: "/"
     schedule:
       interval: weekly
+      day: monday
+      time: "06:30"
+      timezone: "Europe/Berlin"
+    open-pull-requests-limit: 1
+    groups:
+      container-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
     ignore:
-      # python/node base-image majors change the runtime + build toolchain
-      # and must move together with CI's pinned versions
+      # Base-image majors change the runtime and must be reviewed deliberately.
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
+
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
       interval: weekly
+      day: monday
+      time: "06:45"
+      timezone: "Europe/Berlin"
+    open-pull-requests-limit: 1
+    groups:
+      actions:
+        patterns:
+          - "*"
