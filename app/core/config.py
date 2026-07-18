@@ -166,9 +166,6 @@ class Settings(BaseSettings):
     SMTP_FROM_EMAIL: Optional[EmailStr] = Field(
         default=None, validation_alias=AliasChoices("BUD_SMTP_FROM_EMAIL", "SMTP_FROM_EMAIL")
     )
-    SMTP_FROM_NAME: str = Field(
-        default="", validation_alias=AliasChoices("BUD_SMTP_FROM_NAME", "SMTP_FROM_NAME")
-    )
     SMTP_REPLY_TO: Optional[EmailStr] = Field(
         default=None, validation_alias=AliasChoices("BUD_SMTP_REPLY_TO", "SMTP_REPLY_TO")
     )
