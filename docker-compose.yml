@@ -1,12 +1,10 @@
 services:
   bud:
-    build:
-      context: .
-    image: ghcr.io/mbedlabs/bud:1.0.0
+    image: ghcr.io/mbedlabs/bud:${BUD_VERSION:-latest}
     env_file:
       - .env
     environment:
-      DATABASE_URL: ${DATABASE_URL}
+      DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@postgres:5432/${DB_NAME}
       SECRET_KEY: ${SECRET_KEY}
       RUNNER_API_KEY: ${RUNNER_API_KEY}
       APP_BASE_URL: ${APP_BASE_URL}
@@ -25,22 +23,23 @@ services:
         condition: service_healthy
     ports:
       - "8001:8080"
+    volumes:
+      - bud-uploads:/app/uploads
 
   postgres:
     image: postgres:16
     environment:
-      POSTGRES_USER: bud
-      POSTGRES_PASSWORD: bud
-      POSTGRES_DB: buddb
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U bud -d buddb"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
       interval: 10s
       timeout: 5s
       retries: 5
-    ports:
-      - "5432:5432"
     volumes:
       - bud-postgres-data:/var/lib/postgresql/data
 
 volumes:
   bud-postgres-data:
+  bud-uploads:
