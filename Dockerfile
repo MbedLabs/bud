@@ -36,7 +36,9 @@ COPY --from=ui-build /ui/dist /var/www/app
 
 RUN useradd -m appuser \
     && mkdir -p /app/uploads /run/nginx /var/lib/nginx /var/log/nginx /var/log/supervisor \
-    && chown -R appuser:appuser /app /var/www/app /run/nginx /var/lib/nginx /var/log/nginx /var/log/supervisor
+    && chown -R appuser:appuser /app /var/www/app /run/nginx /var/lib/nginx /var/log/nginx /var/log/supervisor \
+    && chown appuser:appuser /usr/local/bin/start-product \
+    && chmod 0755 /usr/local/bin/start-product
 
 # Run the whole stack unprivileged: supervisord, nginx (port 8080) and uvicorn
 USER appuser
@@ -46,4 +48,4 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s \
     CMD curl -f http://localhost:8080/api/health || exit 1
 
-CMD ["/usr/local/bin/start-product"]
+CMD ["/bin/sh", "/usr/local/bin/start-product"]
