@@ -186,7 +186,7 @@ jobs:
 
       - name: Verify published image startup contract
         run: |
-          image="${{ env.REGISTRY }}/${{ github.repository }}:sha-${GITHUB_SHA::7}"
+          image="$(printf '%s\n' "$DOCKER_METADATA_OUTPUT_TAGS" | grep ':sha-' | head -n 1)"
           docker pull --platform linux/amd64 "$image"
           docker run --rm --platform linux/amd64 --entrypoint /bin/sh "$image" -c '
             test "$(stat -c %a /usr/local/bin/start-product)" = "755"
