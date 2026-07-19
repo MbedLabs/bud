@@ -189,6 +189,7 @@ jobs:
           image="$(printf '%s\n' "$DOCKER_METADATA_OUTPUT_TAGS" | grep ':sha-' | head -n 1)"
           docker pull --platform linux/amd64 "$image"
           docker run --rm --platform linux/amd64 --entrypoint /bin/sh "$image" -c '
+            set -eu
             test "$(stat -c %a /usr/local/bin/start-product)" = "755"
             test "$(stat -c %a /etc/supervisor/conf.d/supervisord.conf)" = "644"
             test "$(stat -c %a /etc/nginx/sites-enabled/default)" = "644"
@@ -197,7 +198,12 @@ jobs:
             test -r /etc/supervisor/conf.d/supervisord.conf
             test -r /etc/nginx/sites-enabled/default
             /bin/sh -n /usr/local/bin/start-product
-            /usr/bin/supervisord -t -c /etc/supervisor/conf.d/supervisord.conf
+            set +e
+            timeout 5 /bin/sh /usr/local/bin/start-product >/tmp/startup.log 2>&1
+            status=$?
+            set -e
+            cat /tmp/startup.log
+            test "$status" = "124"
           '
 
       - name: Generate SBOM (SPDX)
