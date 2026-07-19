@@ -39,7 +39,8 @@ RUN useradd -m appuser \
     && chown -R appuser:appuser /app /var/www/app /run/nginx /var/lib/nginx /var/log/nginx /var/log/supervisor \
     && chown appuser:appuser /usr/local/bin/start-product \
     && chmod 0755 /usr/local/bin/start-product \
-    && chmod 0644 /etc/supervisor/conf.d/supervisord.conf /etc/nginx/sites-enabled/default
+    && chmod 0644 /etc/supervisor/conf.d/supervisord.conf /etc/nginx/sites-enabled/default \
+    && sed -i 's#^pid .*#pid /run/nginx/nginx.pid;#' /etc/nginx/nginx.conf
 
 # Run the whole stack unprivileged: supervisord, nginx (port 8080) and uvicorn
 USER appuser

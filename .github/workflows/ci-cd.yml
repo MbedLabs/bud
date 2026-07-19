@@ -192,12 +192,13 @@ jobs:
             set -eu
             test "$(stat -c %a /usr/local/bin/start-product)" = "755"
             test "$(stat -c %a /etc/supervisor/conf.d/supervisord.conf)" = "644"
-            test "$(stat -c %a /etc/nginx/sites-enabled/default)" = "644"
+            test "$(stat -Lc %a /etc/nginx/sites-enabled/default)" = "644"
             test -r /usr/local/bin/start-product
             test -x /usr/local/bin/start-product
             test -r /etc/supervisor/conf.d/supervisord.conf
             test -r /etc/nginx/sites-enabled/default
             /bin/sh -n /usr/local/bin/start-product
+            /usr/sbin/nginx -t
             set +e
             timeout 5 /bin/sh /usr/local/bin/start-product >/tmp/startup.log 2>&1
             status=$?
