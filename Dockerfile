@@ -31,11 +31,10 @@ RUN pip install --no-cache-dir -c constraints.txt .
 
 COPY docker/nginx.conf /etc/nginx/sites-enabled/default
 COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-COPY docker/start.sh /usr/local/bin/start-product
+COPY --chmod=0755 docker/start.sh /usr/local/bin/start-product
 COPY --from=ui-build /ui/dist /var/www/app
 
-RUN chmod +x /usr/local/bin/start-product \
-    && useradd -m appuser \
+RUN useradd -m appuser \
     && mkdir -p /app/uploads /run/nginx /var/lib/nginx /var/log/nginx /var/log/supervisor \
     && chown -R appuser:appuser /app /var/www/app /run/nginx /var/lib/nginx /var/log/nginx /var/log/supervisor
 
