@@ -38,7 +38,8 @@ RUN useradd -m appuser \
     && mkdir -p /app/uploads /run/nginx /var/lib/nginx /var/log/nginx /var/log/supervisor \
     && chown -R appuser:appuser /app /var/www/app /run/nginx /var/lib/nginx /var/log/nginx /var/log/supervisor \
     && chown appuser:appuser /usr/local/bin/start-product \
-    && chmod 0755 /usr/local/bin/start-product
+    && chmod 0755 /usr/local/bin/start-product \
+    && chmod 0644 /etc/supervisor/conf.d/supervisord.conf /etc/nginx/sites-enabled/default
 
 # Run the whole stack unprivileged: supervisord, nginx (port 8080) and uvicorn
 USER appuser
