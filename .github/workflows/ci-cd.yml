@@ -184,6 +184,17 @@ jobs:
           cache-to: type=gha,mode=max
           platforms: linux/amd64,linux/arm64
 
+      - name: Verify published image startup contract
+        run: |
+          image="${{ env.REGISTRY }}/${{ github.repository }}:sha-${GITHUB_SHA::7}"
+          docker pull --platform linux/amd64 "$image"
+          docker run --rm --platform linux/amd64 --entrypoint /bin/sh "$image" -c '
+            test "$(stat -c %a /usr/local/bin/start-product)" = "755"
+            test -r /usr/local/bin/start-product
+            test -x /usr/local/bin/start-product
+            /bin/sh -n /usr/local/bin/start-product
+          '
+
       - name: Generate SBOM (SPDX)
         uses: anchore/sbom-action@v0
         with:
