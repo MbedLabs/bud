@@ -35,7 +35,7 @@ export default function Dashboard() {
           title="Total Test Runs"
           value={totalRuns}
           icon={PlayCircle}
-          gradient="from-primary to-teal-700"
+          gradient="from-primary to-[#e85d04]"
         />
         <StatCard
           title="Passed"
@@ -53,7 +53,7 @@ export default function Dashboard() {
           title="Test Stations Online"
           value={`${onlineRunners}/${runners.length}`}
           icon={Server}
-          gradient="from-cyan-500 to-teal-700"
+          gradient="from-[#0064e6] to-[#e85d04]"
           subtitle={onlineRunners === runners.length && runners.length > 0 ? 'All stations online' : undefined}
         />
       </div>

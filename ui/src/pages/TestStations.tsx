@@ -92,7 +92,7 @@ function TestStationCard({ runner }: { runner: TestStationInfo }) {
       {/* Top accent bar */}
       <div className={`h-1 ${
         runner.is_online
-          ? 'bg-gradient-to-r from-primary via-teal-500 to-cyan-500'
+          ? 'bg-gradient-to-r from-primary via-[#0064e6] to-[#e85d04]'
           : 'bg-muted'
       }`} />
 
