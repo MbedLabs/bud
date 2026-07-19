@@ -29,8 +29,8 @@ COPY alembic/ alembic/
 COPY alembic.ini ./
 RUN pip install --no-cache-dir -c constraints.txt .
 
-COPY docker/nginx.conf /etc/nginx/sites-enabled/default
-COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY --chmod=0644 docker/nginx.conf /etc/nginx/sites-enabled/default
+COPY --chmod=0644 docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY --chmod=0755 docker/start.sh /usr/local/bin/start-product
 COPY --from=ui-build /ui/dist /var/www/app
 
