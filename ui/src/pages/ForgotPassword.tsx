@@ -24,7 +24,7 @@ export default function ForgotPassword() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-teal-900 via-teal-800 to-cyan-900 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0a1628] via-[#0c2a5c] to-[#e85d04] p-4">
       <div className="w-full max-w-md bg-card rounded-2xl shadow-2xl p-8 border border-border">
         {!message && (
           <>
@@ -63,7 +63,7 @@ export default function ForgotPassword() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-2.5 px-4 bg-gradient-to-r from-primary to-teal-700 text-white text-sm font-medium rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-2.5 px-4 bg-gradient-to-r from-primary to-[#e85d04] text-white text-sm font-medium rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? 'Sending reset email...' : 'Send Reset Link'}
             </button>
@@ -77,13 +77,13 @@ export default function ForgotPassword() {
         </div>
 
         <div className="text-center mt-6">
-          <p className="text-sm text-teal-200/60">Bud Test Management Platform</p>
-          <p className="text-xs text-teal-300/50 mt-1">v{APP_VERSION}</p>
+          <p className="text-sm text-blue-100/70">Bud Test Management Platform</p>
+          <p className="text-xs text-blue-200/50 mt-1">v{APP_VERSION}</p>
           <a
             href="https://www.embedlabs.net"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-xs text-teal-300/40 mt-1 inline-block hover:text-teal-200 transition-colors"
+            className="text-xs text-orange-200/50 mt-1 inline-block hover:text-orange-100 transition-colors"
           >
             by EmbedLabs
           </a>

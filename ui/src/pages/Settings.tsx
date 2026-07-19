@@ -226,7 +226,7 @@ export default function Settings() {
         </div>
         <div className="p-5">
           <div className="flex items-center gap-4 mb-4">
-            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-teal-700 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-[#e85d04] flex items-center justify-center">
               <span className="text-white font-bold text-sm">B</span>
             </div>
             <div>
