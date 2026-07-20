@@ -16,7 +16,7 @@ import ResetPassword from './pages/ResetPassword'
 function NotFound() {
   return (
     <div className="flex flex-col items-center justify-center h-64 animate-fade-in">
-      <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary/10 to-orange-500/10 flex items-center justify-center mb-5">
+      <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary/10 to-lime-500/10 flex items-center justify-center mb-5">
         <span className="text-3xl font-bold text-primary/40">404</span>
       </div>
       <h2 className="text-xl font-bold text-foreground mb-2">Page Not Found</h2>

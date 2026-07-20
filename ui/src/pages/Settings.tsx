@@ -226,8 +226,8 @@ export default function Settings() {
         </div>
         <div className="p-5">
           <div className="flex items-center gap-4 mb-4">
-            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-[#e85d04] flex items-center justify-center">
-              <span className="text-white font-bold text-sm">B</span>
+            <div className="w-10 h-10 rounded-lg overflow-hidden flex items-center justify-center bg-muted">
+              <img src="/bud-mark.png" alt="Bud" className="w-full h-full object-contain" />
             </div>
             <div>
               <p className="text-sm font-semibold text-foreground">Bud TMP</p>

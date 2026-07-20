@@ -35,7 +35,7 @@ export default function Dashboard() {
           title="Total Test Runs"
           value={totalRuns}
           icon={PlayCircle}
-          gradient="from-primary to-[#e85d04]"
+          gradient="from-primary to-bud-orange"
         />
         <StatCard
           title="Passed"
@@ -53,7 +53,7 @@ export default function Dashboard() {
           title="Test Stations Online"
           value={`${onlineRunners}/${runners.length}`}
           icon={Server}
-          gradient="from-[#0064e6] to-[#e85d04]"
+          gradient="from-bud-forest to-bud-orange"
           subtitle={onlineRunners === runners.length && runners.length > 0 ? 'All stations online' : undefined}
         />
       </div>
@@ -196,8 +196,8 @@ function StatCard({ title, value, icon: Icon, gradient, subtitle }: {
 function StatusBadge({ status }: { status: string }) {
   const config: Record<string, string> = {
     Pending: 'bg-yellow-500/10 text-yellow-700 dark:text-yellow-400',
-    Running: 'bg-blue-500/10 text-blue-700 dark:text-blue-400',
-    Completed: 'bg-blue-500/10 text-blue-700 dark:text-blue-400',
+    Running: 'bg-amber-500/10 text-amber-800 dark:text-amber-300',
+    Completed: 'bg-amber-500/10 text-amber-800 dark:text-amber-300',
     Failed: 'bg-red-500/10 text-red-700 dark:text-red-400',
     Cancelled: 'bg-muted text-muted-foreground',
   }

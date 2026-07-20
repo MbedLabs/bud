@@ -66,7 +66,7 @@ export default function UsersPage() {
         </div>
         <button
           onClick={() => setShowInviteModal(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-primary to-[#e85d04] text-white text-sm font-medium rounded-lg hover:opacity-90 transition-opacity"
+          className="flex items-center gap-2 px-4 py-2 bg-gradient-button text-white text-sm font-medium rounded-lg hover:opacity-90 transition-opacity"
         >
           <UserPlus className="h-4 w-4" />
           Invite User
@@ -99,7 +99,7 @@ export default function UsersPage() {
                 <tr key={u.id} className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-[#e85d04] flex items-center justify-center text-white text-xs font-bold">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-bud-orange flex items-center justify-center text-white text-xs font-bold">
                         {u.full_name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)}
                       </div>
                       <div className="min-w-0">
@@ -302,7 +302,7 @@ function InviteUserModal({
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full py-2 bg-gradient-to-r from-primary to-[#e85d04] text-white text-sm font-medium rounded-lg hover:opacity-90 disabled:opacity-50"
+            className="w-full py-2 bg-gradient-button text-white text-sm font-medium rounded-lg hover:opacity-90 disabled:opacity-50"
           >
             {isLoading ? 'Sending Invite...' : 'Send Invite'}
           </button>

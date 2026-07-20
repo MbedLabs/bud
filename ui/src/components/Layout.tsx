@@ -95,12 +95,12 @@ export default function Layout() {
         <div className={`${sidebarCollapsed ? 'px-2 pt-4 pb-2.5' : 'px-3 pt-4 pb-2.5'}`}>
           <div className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-2.5'}`}>
             <div className="w-9 h-9 rounded-lg overflow-hidden flex items-center justify-center shrink-0 bg-white/10">
-              <img src="/favicon-96x96.png" alt="Bud" className="w-full h-full object-contain" />
+              <img src="/bud-mark.png" alt="Bud" className="w-full h-full object-contain" />
             </div>
             {!sidebarCollapsed && (
               <div className="min-w-0">
-                <h1 className="text-base font-bold text-blue-100 tracking-tight">Bud</h1>
-                <p className="text-[10px] text-blue-300/60 font-medium uppercase tracking-wider leading-snug">Test Management Platform</p>
+                <h1 className="text-base font-bold text-lime-50 tracking-tight">Bud</h1>
+                <p className="text-[10px] text-lime-200/60 font-medium uppercase tracking-wider leading-snug">Test Management Platform</p>
               </div>
             )}
           </div>
@@ -117,7 +117,7 @@ export default function Layout() {
                 className={`flex items-center ${sidebarCollapsed ? 'justify-center px-2' : 'gap-2.5 px-3'} py-2 rounded-lg text-sm font-medium transition-all duration-200 group ${
                   isActive
                     ? 'bg-sidebar-active text-white shadow-sm'
-                    : 'text-blue-100/70 hover:bg-sidebar-hover hover:text-white'
+                    : 'text-lime-100/70 hover:bg-sidebar-hover hover:text-white'
                 }`}
                 title={sidebarCollapsed ? item.name : undefined}
                 onClick={() => {
@@ -127,10 +127,10 @@ export default function Layout() {
                 }}
               >
                 <item.icon className={`h-[18px] w-[18px] shrink-0 transition-colors ${
-                  isActive ? 'text-blue-300' : 'text-blue-400/50 group-hover:text-blue-300'
+                  isActive ? 'text-lime-200' : 'text-lime-300/50 group-hover:text-lime-200'
                 }`} />
                 {!sidebarCollapsed && item.name}
-                {isActive && !sidebarCollapsed && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-400" />}
+                {isActive && !sidebarCollapsed && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-bud-orange" />}
               </Link>
             )
           })}
@@ -140,7 +140,7 @@ export default function Layout() {
               className={`flex items-center ${sidebarCollapsed ? 'justify-center px-2' : 'gap-2.5 px-3'} py-2 rounded-lg text-sm font-medium transition-all duration-200 group ${
                 location.pathname === '/users'
                   ? 'bg-sidebar-active text-white shadow-sm'
-                  : 'text-blue-100/70 hover:bg-sidebar-hover hover:text-white'
+                  : 'text-lime-100/70 hover:bg-sidebar-hover hover:text-white'
               }`}
               title={sidebarCollapsed ? 'Users' : undefined}
               onClick={() => {
@@ -149,7 +149,7 @@ export default function Layout() {
                 }
               }}
             >
-              <Users className="h-[18px] w-[18px] shrink-0 text-blue-400/50 group-hover:text-blue-300" />
+              <Users className="h-[18px] w-[18px] shrink-0 text-lime-300/50 group-hover:text-lime-200" />
               {!sidebarCollapsed && 'Users'}
             </Link>
           )}
@@ -161,10 +161,10 @@ export default function Layout() {
             href={BLOOM_ALM_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className={`flex items-center ${sidebarCollapsed ? 'justify-center px-2' : 'gap-2.5 px-3'} py-1.5 rounded-lg text-[13px] font-medium text-blue-100/70 hover:bg-sidebar-hover hover:text-white transition-all duration-200 group`}
+            className={`flex items-center ${sidebarCollapsed ? 'justify-center px-2' : 'gap-2.5 px-3'} py-1.5 rounded-lg text-[13px] font-medium text-lime-100/70 hover:bg-sidebar-hover hover:text-white transition-all duration-200 group`}
             title={sidebarCollapsed ? 'Bloom PLM' : undefined}
           >
-            <ExternalLink className="h-4 w-4 shrink-0 text-blue-400/50 group-hover:text-blue-300" />
+            <ExternalLink className="h-4 w-4 shrink-0 text-lime-300/50 group-hover:text-lime-200" />
             {!sidebarCollapsed && 'Bloom PLM'}
           </a>
           <Link
@@ -172,7 +172,7 @@ export default function Layout() {
             className={`flex items-center ${sidebarCollapsed ? 'justify-center px-2' : 'gap-2.5 px-3'} py-1.5 rounded-lg text-[13px] font-medium transition-all duration-200 group ${
               location.pathname === '/settings'
                 ? 'bg-sidebar-active text-white'
-                : 'text-blue-100/70 hover:bg-sidebar-hover hover:text-white'
+                : 'text-lime-100/70 hover:bg-sidebar-hover hover:text-white'
             }`}
             title={sidebarCollapsed ? 'Settings' : undefined}
             onClick={() => {
@@ -183,8 +183,8 @@ export default function Layout() {
           >
             <Settings className={`h-4 w-4 shrink-0 ${
               location.pathname === '/settings'
-                ? 'text-blue-300'
-                : 'text-blue-400/50 group-hover:text-blue-300'
+                ? 'text-lime-200'
+                : 'text-lime-300/50 group-hover:text-lime-200'
             }`} />
             {!sidebarCollapsed && 'Settings'}
           </Link>
@@ -194,11 +194,11 @@ export default function Layout() {
                 href="https://www.embedlabs.net"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-[10px] text-blue-300/50 hover:text-blue-200 transition-colors"
+                className="text-[10px] text-lime-200/50 hover:text-lime-50 transition-colors"
               >
                 by EmbedLabs
               </a>
-              <p className="text-[10px] text-blue-300/30 mt-1">v{APP_VERSION}</p>
+              <p className="text-[10px] text-lime-200/30 mt-1">v{APP_VERSION}</p>
             </div>
           )}
         </div>
@@ -244,7 +244,7 @@ export default function Layout() {
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
                   className="flex items-center gap-2 p-1 rounded-lg hover:bg-accent transition-colors"
                 >
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-blue-700 flex items-center justify-center text-white text-xs font-bold">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-bud-orange flex items-center justify-center text-white text-xs font-bold">
                     {userInitials}
                   </div>
                   <span className="text-sm text-foreground font-medium hidden sm:block max-w-[120px] truncate">

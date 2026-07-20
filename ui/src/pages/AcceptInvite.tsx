@@ -81,8 +81,15 @@ export default function AcceptInvite() {
   const canSubmit = !!inviteInfo?.valid && !submitting
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0a1628] via-[#0c2a5c] to-[#e85d04] p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-auth p-4">
       <div className="w-full max-w-md bg-card rounded-2xl shadow-2xl p-8 border border-border">
+        <div className="flex flex-col items-center mb-6">
+          <img
+            src="/bud-wordmark.png"
+            alt="Bud by EmbedLabs"
+            className="h-16 w-auto max-w-full object-contain mb-3"
+          />
+        </div>
         {!submitMessage && (
           <>
             <h1 className="text-2xl font-bold text-foreground mb-2">Accept Invitation</h1>
@@ -157,7 +164,7 @@ export default function AcceptInvite() {
             <button
               type="submit"
               disabled={!canSubmit}
-              className="w-full py-2.5 px-4 bg-gradient-to-r from-primary to-[#e85d04] text-white text-sm font-medium rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-2.5 px-4 bg-gradient-button text-white text-sm font-medium rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {submitting ? 'Accepting invitation...' : 'Accept Invitation'}
             </button>
@@ -171,13 +178,13 @@ export default function AcceptInvite() {
         </div>
 
         <div className="text-center mt-6">
-          <p className="text-sm text-blue-100/70">Bud TMP</p>
-          <p className="text-xs text-blue-200/50 mt-1">v{APP_VERSION}</p>
+          <p className="text-sm text-lime-100/70">Bud TMP</p>
+          <p className="text-xs text-lime-200/50 mt-1">v{APP_VERSION}</p>
           <a
             href="https://www.embedlabs.net"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-xs text-orange-200/50 mt-1 inline-block hover:text-orange-100 transition-colors"
+            className="text-xs text-lime-200/60 mt-1 inline-block hover:text-lime-100 transition-colors"
           >
             by EmbedLabs
           </a>

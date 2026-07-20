@@ -34,7 +34,7 @@ export default function TestStations() {
         </div>
       ) : runners.length === 0 ? (
         <div className="bg-card rounded-lg border border-border shadow-elegant p-16 text-center">
-          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary/10 to-orange-500/10 flex items-center justify-center mx-auto mb-5">
+          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary/10 to-lime-500/10 flex items-center justify-center mx-auto mb-5">
             <Server className="h-10 w-10 text-primary/40" />
           </div>
           <h3 className="text-lg font-semibold text-foreground mb-2">No Test Stations Registered</h3>
@@ -92,7 +92,7 @@ function TestStationCard({ runner }: { runner: TestStationInfo }) {
       {/* Top accent bar */}
       <div className={`h-1 ${
         runner.is_online
-          ? 'bg-gradient-to-r from-primary via-[#0064e6] to-[#e85d04]'
+          ? 'bg-gradient-to-r from-primary via-bud-forest to-bud-orange'
           : 'bg-muted'
       }`} />
 
@@ -146,8 +146,8 @@ function TestStationCard({ runner }: { runner: TestStationInfo }) {
 
           {runner.current_run && (
             <div className="flex items-center text-xs min-w-0">
-              <Monitor className="h-3.5 w-3.5 mr-2 text-blue-600 dark:text-blue-400 shrink-0" />
-              <span className="text-blue-700 dark:text-blue-400 font-medium truncate">
+              <Monitor className="h-3.5 w-3.5 mr-2 text-amber-700 dark:text-amber-300 shrink-0" />
+              <span className="text-amber-800 dark:text-amber-300 font-medium truncate">
                 Running: {runner.current_run.name}
               </span>
             </div>
@@ -166,10 +166,10 @@ function TestStationCard({ runner }: { runner: TestStationInfo }) {
 
         {runner.is_online && runner.current_run && (
           <div className="mt-4 pt-3 border-t border-border">
-            <div className="flex items-center justify-center py-2 bg-blue-500/10 rounded-md">
+            <div className="flex items-center justify-center py-2 bg-amber-500/10 rounded-md">
               <div className="flex items-center">
-                <div className="w-2 h-2 bg-blue-500 rounded-full mr-2 animate-pulse" />
-                <span className="text-xs text-blue-700 dark:text-blue-400 font-medium">Busy</span>
+                <div className="w-2 h-2 bg-amber-500 rounded-full mr-2 animate-pulse" />
+                <span className="text-xs text-amber-800 dark:text-amber-300 font-medium">Busy</span>
               </div>
             </div>
           </div>

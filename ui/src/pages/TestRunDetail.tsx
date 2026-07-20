@@ -95,7 +95,7 @@ export default function TestRunDetail() {
           label="Total Assertions"
           value={totalCount}
           icon={Activity}
-          gradient="from-primary/10 to-orange-500/10"
+          gradient="from-primary/10 to-lime-500/10"
           iconColor="text-primary"
         />
         <SummaryCard
@@ -343,9 +343,9 @@ function getEventTone(status: string) {
       badge: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',
     },
     running: {
-      surface: 'bg-blue-500/10',
-      icon: 'text-blue-600 dark:text-blue-400',
-      badge: 'bg-blue-500/10 text-blue-700 dark:text-blue-400',
+      surface: 'bg-amber-500/10',
+      icon: 'text-amber-700 dark:text-amber-300',
+      badge: 'bg-amber-500/10 text-amber-800 dark:text-amber-300',
     },
     warning: {
       surface: 'bg-amber-500/10',
@@ -667,8 +667,8 @@ function DetailItem({ label, value }: { label: string; value: string }) {
 function StatusBadge({ status }: { status: string }) {
   const config: Record<string, string> = {
     Pending: 'bg-yellow-500/10 text-yellow-700 dark:text-yellow-400',
-    Running: 'bg-blue-500/10 text-blue-700 dark:text-blue-400',
-    Completed: 'bg-blue-500/10 text-blue-700 dark:text-blue-400',
+    Running: 'bg-amber-500/10 text-amber-800 dark:text-amber-300',
+    Completed: 'bg-amber-500/10 text-amber-800 dark:text-amber-300',
     Failed: 'bg-red-500/10 text-red-700 dark:text-red-400',
     Cancelled: 'bg-muted text-muted-foreground',
   }
