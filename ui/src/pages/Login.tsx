@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { APP_VERSION } from '../api/client'
+import { BUD_LOGO_DARK, BUD_LOGO_LIGHT } from '../brandAssets'
 
 export default function Login() {
   const [email, setEmail] = useState('')
@@ -32,9 +33,14 @@ export default function Login() {
         <div className="bg-card rounded-2xl shadow-2xl p-8 border border-border">
           <div className="flex flex-col items-center mb-8">
             <img
-              src="/bud-wordmark.png"
+              src={BUD_LOGO_DARK}
               alt="Bud by EmbedLabs"
-              className="h-24 w-auto max-w-full object-contain mb-4"
+              className="h-24 w-auto max-w-full object-contain mb-4 hidden dark:block"
+            />
+            <img
+              src={BUD_LOGO_LIGHT}
+              alt="Bud by EmbedLabs"
+              className="h-24 w-auto max-w-full object-contain mb-4 dark:hidden"
             />
             <h1 className="text-2xl font-bold text-foreground">Welcome to Bud</h1>
             <p className="text-sm text-muted-foreground mt-1">Sign in to your account</p>
