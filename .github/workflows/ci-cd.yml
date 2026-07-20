@@ -123,6 +123,9 @@ jobs:
       contents: read
       packages: write
 
+    outputs:
+      image: ${{ steps.sha-image.outputs.image }}
+
     steps:
       - uses: actions/checkout@v7
 
@@ -184,6 +187,14 @@ jobs:
           cache-to: type=gha,mode=max
           platforms: linux/amd64,linux/arm64
 
+      - name: Resolve pushed image reference
+        id: sha-image
+        run: |
+          image="$(printf '%s\n' "$DOCKER_METADATA_OUTPUT_TAGS" | grep ':sha-' | head -n 1)"
+          if [ -z "$image" ]; then echo "no sha- tag in metadata output" >&2; exit 1; fi
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+          echo "Resolved sha image: $image"
+
       - name: Verify published image startup contract
         run: |
           image="$(printf '%s\n' "$DOCKER_METADATA_OUTPUT_TAGS" | grep ':sha-' | head -n 1)"
@@ -213,3 +224,37 @@ jobs:
           path: .
           format: spdx-json
           artifact-name: bud-sbom.spdx.json
+
+  e2e-image:
+    if: github.event_name == 'push'
+    name: End-to-end (published image)
+    runs-on: [self-hosted, hostinger, bud]
+    needs: build-image
+
+    permissions:
+      contents: read
+      packages: read
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull the published image
+        run: docker pull --platform linux/amd64 "${{ needs.build-image.outputs.image }}"
+
+      # Real end-to-end proof against the exact image that was just built and
+      # pushed: empty DB -> boot -> alembic upgrade head -> admin login ->
+      # DB-backed call -> >1 MB upload through nginx -> restart -> data persists.
+      - name: End-to-end smoke test
+        run: bash scripts/e2e_image_smoke.sh "${{ needs.build-image.outputs.image }}"

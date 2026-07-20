@@ -220,6 +220,14 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def populate_database_url(self):
         if not self.DATABASE_URL:
+            # About to build the connection URL from DB_* parts, so those parts
+            # must be safe. When a complete DATABASE_URL is supplied instead (the
+            # docker-compose path), DB_PASSWORD is unused and is not checked here.
+            if self.BUD_ENV.lower() == "production" and self.DB_PASSWORD in ("", "bud"):
+                raise ValueError(
+                    "DB_PASSWORD must be set to a strong, non-default value in "
+                    "production (or provide a complete DATABASE_URL)."
+                )
             self.DATABASE_URL = (
                 f"postgresql://{self.DB_USER}:{self.DB_PASSWORD}"
                 f"@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
@@ -247,6 +255,29 @@ class Settings(BaseSettings):
             raise ValueError("ADMIN_PASSWORD must be changed before production startup.")
         if len(self.ADMIN_PASSWORD) < 16:
             raise ValueError("ADMIN_PASSWORD must be at least 16 characters long in production.")
+        return self
+
+    @model_validator(mode="after")
+    def reject_unsafe_secrets_in_production(self):
+        """Fail closed: never boot production with .env.example placeholders or a
+        weak runner-registration key still in place. Development and CI, which run
+        with BUD_ENV=development, are unaffected."""
+        if self.BUD_ENV.lower() != "production":
+            return self
+
+        placeholder_prefix = "replace-with-"
+        for name in ("SECRET_KEY", "ADMIN_PASSWORD", "RUNNER_API_KEY", "DB_PASSWORD"):
+            if getattr(self, name).startswith(placeholder_prefix):
+                raise ValueError(
+                    f"{name} still uses the '{placeholder_prefix}...' placeholder from "
+                    ".env.example; set a real value before production startup."
+                )
+
+        if len(self.RUNNER_API_KEY) < 32:
+            raise ValueError(
+                "RUNNER_API_KEY must be set to a strong value of at least 32 characters "
+                "in production (it authenticates runner registration)."
+            )
         return self
 
     @field_validator("SECRET_KEY")

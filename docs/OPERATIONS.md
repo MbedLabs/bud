@@ -6,8 +6,13 @@ environment variables — see [`.env.example`](../.env.example) for the full lis
 
 ## Health checks
 
-- `GET /api/health` — liveness/readiness endpoint used by the container
-  `HEALTHCHECK` and suitable for load-balancer probes.
+- `GET /api/health` — **liveness**. Reports only that the API process is up; it
+  does not touch PostgreSQL, so it never claims a database connection it has not
+  verified. Use it for a cheap "is the process alive?" signal.
+- `GET /api/ready` — **readiness**. Runs `SELECT 1` against PostgreSQL and returns
+  `200` only when the database is reachable, `503` otherwise. This is what the
+  container `HEALTHCHECK` and `docker-compose` healthcheck probe, and it is the
+  right target for load-balancer / orchestrator readiness checks.
 
 ## Logs
 
@@ -75,8 +80,8 @@ pg_restore --clean --if-exists --no-owner --dbname "$DATABASE_URL" bud-YYYY-MM-D
 tar xzf bud-uploads-YYYY-MM-DD.tgz -C /path/to/uploads
 ```
 
-Verify after restore: `GET /api/health`, then log in and confirm recent runs
-and artifacts are visible.
+Verify after restore: `GET /api/ready` (confirms the database is reachable),
+then log in and confirm recent runs and artifacts are visible.
 
 ## Upgrades
 
@@ -84,7 +89,8 @@ and artifacts are visible.
 2. Pull the target image: `docker pull ghcr.io/mbedlabs/bud:<version>`.
 3. Run migrations before serving traffic: `alembic upgrade head`
    (run inside the new image against the production `DATABASE_URL`).
-4. Restart the container. Confirm `/api/health` and the version shown in the UI.
+4. Restart the container. Confirm `/api/ready` returns `200` and check the
+   version shown in the UI.
 
 Rollback: restore the pre-upgrade database dump and start the previous image
 tag. Never run a newer schema against an older application version.

@@ -73,6 +73,15 @@ def clear_config_env(monkeypatch):
         monkeypatch.delenv(key, raising=False)
 
 
+def set_prod_baseline(monkeypatch):
+    """Supply the secrets production now requires so each test can exercise a
+    single validator in isolation. A full DATABASE_URL is provided (so the
+    DB_PASSWORD-from-parts guard is not what fires) alongside a strong
+    RUNNER_API_KEY (>= 32 chars, no placeholder)."""
+    monkeypatch.setenv("BUD_DATABASE_URL", "postgresql://bud:strong-db-pass@db:5432/buddb")
+    monkeypatch.setenv("BUD_RUNNER_API_KEY", "r" * 32)
+
+
 def test_settings_reads_bud_prefixed_env(monkeypatch):
     clear_config_env(monkeypatch)
 
@@ -174,6 +183,7 @@ def test_production_rejects_default_admin_email(monkeypatch):
 
     monkeypatch.setenv("BUD_ENV", "production")
     monkeypatch.setenv("BUD_SECRET_KEY", "b" * 32)
+    set_prod_baseline(monkeypatch)
     monkeypatch.setenv("BUD_ADMIN_EMAIL", "admin@example.com")
     monkeypatch.setenv("BUD_ADMIN_PASSWORD", "this-is-a-long-password")
 
@@ -188,6 +198,7 @@ def test_production_rejects_default_admin_password(monkeypatch):
 
     monkeypatch.setenv("BUD_ENV", "production")
     monkeypatch.setenv("BUD_SECRET_KEY", "b" * 32)
+    set_prod_baseline(monkeypatch)
     monkeypatch.setenv("BUD_ADMIN_EMAIL", "ops@embedlabs.net")
     monkeypatch.setenv("BUD_ADMIN_PASSWORD", "changeme123")
 
@@ -202,6 +213,7 @@ def test_production_rejects_short_admin_password(monkeypatch):
 
     monkeypatch.setenv("BUD_ENV", "production")
     monkeypatch.setenv("BUD_SECRET_KEY", "b" * 32)
+    set_prod_baseline(monkeypatch)
     monkeypatch.setenv("BUD_ADMIN_EMAIL", "ops@embedlabs.net")
     monkeypatch.setenv("BUD_ADMIN_PASSWORD", "short-password")
 
@@ -252,6 +264,7 @@ def test_production_auto_seed_admin_defaults_off(monkeypatch):
 
     monkeypatch.setenv("BUD_ENV", "production")
     monkeypatch.setenv("BUD_SECRET_KEY", "b" * 32)
+    set_prod_baseline(monkeypatch)
     monkeypatch.setenv("BUD_ADMIN_EMAIL", "ops@embedlabs.net")
     monkeypatch.setenv("BUD_ADMIN_PASSWORD", "this-is-a-long-password")
 
@@ -265,6 +278,7 @@ def test_production_startup_data_repair_defaults_off(monkeypatch):
 
     monkeypatch.setenv("BUD_ENV", "production")
     monkeypatch.setenv("BUD_SECRET_KEY", "b" * 32)
+    set_prod_baseline(monkeypatch)
     monkeypatch.setenv("BUD_ADMIN_EMAIL", "ops@embedlabs.net")
     monkeypatch.setenv("BUD_ADMIN_PASSWORD", "this-is-a-long-password")
 
@@ -278,6 +292,7 @@ def test_production_auto_seed_admin_can_be_explicitly_enabled(monkeypatch):
 
     monkeypatch.setenv("BUD_ENV", "production")
     monkeypatch.setenv("BUD_SECRET_KEY", "b" * 32)
+    set_prod_baseline(monkeypatch)
     monkeypatch.setenv("BUD_ADMIN_EMAIL", "ops@embedlabs.net")
     monkeypatch.setenv("BUD_ADMIN_PASSWORD", "this-is-a-long-password")
     monkeypatch.setenv("BUD_AUTO_SEED_ADMIN", "true")
@@ -292,6 +307,7 @@ def test_production_startup_data_repair_can_be_explicitly_enabled(monkeypatch):
 
     monkeypatch.setenv("BUD_ENV", "production")
     monkeypatch.setenv("BUD_SECRET_KEY", "b" * 32)
+    set_prod_baseline(monkeypatch)
     monkeypatch.setenv("BUD_ADMIN_EMAIL", "ops@embedlabs.net")
     monkeypatch.setenv("BUD_ADMIN_PASSWORD", "this-is-a-long-password")
     monkeypatch.setenv("BUD_RUN_STARTUP_DATA_REPAIR", "true")
@@ -299,3 +315,111 @@ def test_production_startup_data_repair_can_be_explicitly_enabled(monkeypatch):
     settings = Settings(_env_file=None)
 
     assert settings.RUN_STARTUP_DATA_REPAIR is True
+
+
+def test_production_rejects_replace_with_secret_key_placeholder(monkeypatch):
+    clear_config_env(monkeypatch)
+
+    monkeypatch.setenv("BUD_ENV", "production")
+    # 35 chars — long enough to clear the length gate, but still the placeholder.
+    monkeypatch.setenv("BUD_SECRET_KEY", "replace-with-a-strong-random-secret")
+    set_prod_baseline(monkeypatch)
+    monkeypatch.setenv("BUD_ADMIN_EMAIL", "ops@embedlabs.net")
+    monkeypatch.setenv("BUD_ADMIN_PASSWORD", "this-is-a-long-password")
+
+    import pytest
+
+    with pytest.raises(ValueError, match="placeholder"):
+        Settings(_env_file=None)
+
+
+def test_production_rejects_short_runner_api_key(monkeypatch):
+    clear_config_env(monkeypatch)
+
+    monkeypatch.setenv("BUD_ENV", "production")
+    monkeypatch.setenv("BUD_SECRET_KEY", "b" * 32)
+    monkeypatch.setenv("BUD_DATABASE_URL", "postgresql://bud:strong-db-pass@db:5432/buddb")
+    monkeypatch.setenv("BUD_ADMIN_EMAIL", "ops@embedlabs.net")
+    monkeypatch.setenv("BUD_ADMIN_PASSWORD", "this-is-a-long-password")
+    monkeypatch.setenv("BUD_RUNNER_API_KEY", "too-short-runner-key")
+
+    import pytest
+
+    with pytest.raises(ValueError, match="RUNNER_API_KEY"):
+        Settings(_env_file=None)
+
+
+def test_production_rejects_replace_with_runner_api_key_even_if_long(monkeypatch):
+    clear_config_env(monkeypatch)
+
+    monkeypatch.setenv("BUD_ENV", "production")
+    monkeypatch.setenv("BUD_SECRET_KEY", "b" * 32)
+    monkeypatch.setenv("BUD_DATABASE_URL", "postgresql://bud:strong-db-pass@db:5432/buddb")
+    monkeypatch.setenv("BUD_ADMIN_EMAIL", "ops@embedlabs.net")
+    monkeypatch.setenv("BUD_ADMIN_PASSWORD", "this-is-a-long-password")
+    # 48 chars: clears the length gate but is still the .env.example placeholder.
+    monkeypatch.setenv(
+        "BUD_RUNNER_API_KEY", "replace-with-a-shared-runner-registration-secret"
+    )
+
+    import pytest
+
+    with pytest.raises(ValueError, match="placeholder"):
+        Settings(_env_file=None)
+
+
+def test_production_rejects_default_db_password_when_url_built_from_parts(monkeypatch):
+    clear_config_env(monkeypatch)
+
+    # No DATABASE_URL -> the URL is assembled from DB_* parts, so the default
+    # DB_PASSWORD ("bud") must be rejected.
+    monkeypatch.setenv("BUD_ENV", "production")
+    monkeypatch.setenv("BUD_SECRET_KEY", "b" * 32)
+    monkeypatch.setenv("BUD_ADMIN_EMAIL", "ops@embedlabs.net")
+    monkeypatch.setenv("BUD_ADMIN_PASSWORD", "this-is-a-long-password")
+    monkeypatch.setenv("BUD_RUNNER_API_KEY", "r" * 32)
+
+    import pytest
+
+    with pytest.raises(ValueError, match="DB_PASSWORD"):
+        Settings(_env_file=None)
+
+
+def test_production_allows_default_db_password_when_full_url_provided(monkeypatch):
+    clear_config_env(monkeypatch)
+
+    # The docker-compose path: a complete DATABASE_URL carries the real password,
+    # so an unset DB_PASSWORD (default "bud") must NOT be a false-positive boot
+    # failure. This guards the actual production deployment.
+    monkeypatch.setenv("BUD_ENV", "production")
+    monkeypatch.setenv("BUD_SECRET_KEY", "b" * 32)
+    monkeypatch.setenv(
+        "BUD_DATABASE_URL", "postgresql://bud:an-actually-strong-password@db:5432/buddb"
+    )
+    monkeypatch.setenv("BUD_ADMIN_EMAIL", "ops@embedlabs.net")
+    monkeypatch.setenv("BUD_ADMIN_PASSWORD", "this-is-a-long-password")
+    monkeypatch.setenv("BUD_RUNNER_API_KEY", "r" * 32)
+
+    settings = Settings(_env_file=None)
+
+    assert settings.DATABASE_URL == (
+        "postgresql://bud:an-actually-strong-password@db:5432/buddb"
+    )
+    assert settings.DB_PASSWORD == "bud"  # unused, and therefore not fatal
+
+
+def test_production_accepts_fully_valid_config(monkeypatch):
+    clear_config_env(monkeypatch)
+
+    monkeypatch.setenv("BUD_ENV", "production")
+    monkeypatch.setenv("BUD_SECRET_KEY", "b" * 32)
+    monkeypatch.setenv("BUD_ADMIN_EMAIL", "ops@embedlabs.net")
+    monkeypatch.setenv("BUD_ADMIN_PASSWORD", "this-is-a-long-password")
+    monkeypatch.setenv("BUD_DB_PASSWORD", "a-strong-non-default-db-password")
+    monkeypatch.setenv("BUD_RUNNER_API_KEY", "r" * 32)
+
+    settings = Settings(_env_file=None)
+
+    # URL assembled from parts using the strong password.
+    assert "a-strong-non-default-db-password" in settings.DATABASE_URL
+    assert settings.RUNNER_API_KEY == "r" * 32
