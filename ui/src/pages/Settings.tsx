@@ -227,7 +227,7 @@ export default function Settings() {
         <div className="p-5">
           <div className="flex items-center gap-4 mb-4">
             <div className="w-10 h-10 rounded-lg overflow-hidden flex items-center justify-center bg-muted">
-              <img src="/bud-mark.png" alt="Bud" className="w-full h-full object-contain" />
+              <img src="/favicon-96x96.png" alt="Bud" className="w-full h-full object-contain" />
             </div>
             <div>
               <p className="text-sm font-semibold text-foreground">Bud TMP</p>

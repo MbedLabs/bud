@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { APP_VERSION, InviteInfoResponse, authApi, extractApiErrorMessage } from '../api/client'
+import { BUD_LOGO_DARK, BUD_LOGO_LIGHT } from '../brandAssets'
 
 export default function AcceptInvite() {
   const [searchParams] = useSearchParams()
@@ -85,9 +86,14 @@ export default function AcceptInvite() {
       <div className="w-full max-w-md bg-card rounded-2xl shadow-2xl p-8 border border-border">
         <div className="flex flex-col items-center mb-6">
           <img
-            src="/bud-wordmark.png"
+            src={BUD_LOGO_DARK}
             alt="Bud by EmbedLabs"
-            className="h-16 w-auto max-w-full object-contain mb-3"
+            className="h-16 w-auto max-w-full object-contain mb-3 hidden dark:block"
+          />
+          <img
+            src={BUD_LOGO_LIGHT}
+            alt="Bud by EmbedLabs"
+            className="h-16 w-auto max-w-full object-contain mb-3 dark:hidden"
           />
         </div>
         {!submitMessage && (
