@@ -48,6 +48,14 @@ export default {
           hover: "hsl(var(--sidebar-hover))",
           border: "hsl(var(--sidebar-border))",
         },
+        bud: {
+          leaf: "#22c55e",
+          mint: "#dcfce7",
+          forest: "#166534",
+          deep: "#0f1a14",
+          orange: "#f97316",
+          gear: "#fb923c",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -56,8 +64,8 @@ export default {
       },
       keyframes: {
         "pulse-glow": {
-          "0%, 100%": { boxShadow: "0 0 5px rgba(0, 100, 230, 0.25)" },
-          "50%": { boxShadow: "0 0 20px rgba(232, 93, 4, 0.4)" },
+          "0%, 100%": { boxShadow: "0 0 5px rgba(34, 197, 94, 0.25)" },
+          "50%": { boxShadow: "0 0 20px rgba(249, 115, 22, 0.35)" },
         },
         "fade-in": {
           from: { opacity: "0", transform: "translateY(4px)" },
@@ -84,17 +92,19 @@ export default {
         "accordion-up": "accordion-up 0.2s ease-out",
       },
       backgroundImage: {
-        "gradient-primary": "linear-gradient(135deg, #0a1628, #0064e6, #e85d04)",
-        "gradient-hero": "linear-gradient(135deg, #0c2a5c, #0064e6, #e85d04)",
-        "gradient-sidebar": "linear-gradient(180deg, #060f1e 0%, #0a1f4a 55%, #1a2a40 100%)",
-        "gradient-card-hover": "linear-gradient(135deg, rgba(0,100,230,0.06), rgba(232,93,4,0.06))",
+        "gradient-primary": "linear-gradient(135deg, #0f1a14, #22c55e, #f97316)",
+        "gradient-hero": "linear-gradient(135deg, #166534, #4ade80, #fb923c)",
+        "gradient-auth": "linear-gradient(to bottom right, #0f1a14, #2d8a45, #f97316)",
+        "gradient-sidebar": "linear-gradient(180deg, #0f1a12 0%, #1a5c32 55%, #2a2418 100%)",
+        "gradient-button": "linear-gradient(to right, hsl(var(--primary)), #f97316)",
+        "gradient-card-hover": "linear-gradient(135deg, rgba(34,197,94,0.06), rgba(249,115,22,0.08))",
       },
       boxShadow: {
         elegant:
-          "0 4px 6px -1px rgba(0, 100, 230, 0.12), 0 2px 4px -1px rgba(232, 93, 4, 0.08)",
+          "0 4px 6px -1px rgba(34, 197, 94, 0.12), 0 2px 4px -1px rgba(249, 115, 22, 0.1)",
         glow:
-          "0 10px 25px -3px rgba(0, 100, 230, 0.3), 0 4px 6px -2px rgba(232, 93, 4, 0.15)",
-        "inner-glow": "inset 0 1px 2px rgba(0, 100, 230, 0.12)",
+          "0 10px 25px -3px rgba(34, 197, 94, 0.28), 0 4px 6px -2px rgba(249, 115, 22, 0.15)",
+        "inner-glow": "inset 0 1px 2px rgba(34, 197, 94, 0.12)",
       },
       transitionTimingFunction: {
         smooth: "cubic-bezier(0.4, 0, 0.2, 1)",

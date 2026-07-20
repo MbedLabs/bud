@@ -4,64 +4,64 @@
 
 @layer base {
   :root {
-    /* Bud brand: blue + orange */
-    --background: 0 0% 100%;
-    --foreground: 220 40% 10%;
+    /* Bud brand: logo green + gear orange on very light mint */
+    --background: 120 40% 97%;
+    --foreground: 140 30% 12%;
     --card: 0 0% 100%;
-    --card-foreground: 220 40% 10%;
+    --card-foreground: 140 30% 12%;
     --popover: 0 0% 100%;
-    --popover-foreground: 220 40% 10%;
-    --primary: 214 100% 45%;
+    --popover-foreground: 140 30% 12%;
+    --primary: 134 61% 41%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 214 40% 96%;
-    --secondary-foreground: 220 40% 10%;
-    --muted: 214 30% 96%;
-    --muted-foreground: 220 10% 45%;
-    --accent: 28 100% 52%;
-    --accent-foreground: 0 0% 100%;
+    --secondary: 120 35% 93%;
+    --secondary-foreground: 140 30% 12%;
+    --muted: 120 30% 94%;
+    --muted-foreground: 140 10% 42%;
+    --accent: 32 95% 55%;
+    --accent-foreground: 32 90% 12%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
-    --border: 214 25% 90%;
-    --input: 214 25% 90%;
-    --ring: 214 100% 45%;
+    --border: 120 25% 88%;
+    --input: 120 25% 88%;
+    --ring: 134 61% 41%;
     --radius: 0.5rem;
-    --chart-1: 214 100% 45%;
-    --chart-2: 28 100% 52%;
-    --chart-3: 140 60% 40%;
-    --chart-4: 45 90% 50%;
-    --chart-5: 260 60% 55%;
-    --sidebar-background: 220 55% 10%;
-    --sidebar-foreground: 214 40% 90%;
-    --sidebar-active: 214 100% 38%;
-    --sidebar-hover: 214 50% 18%;
-    --sidebar-border: 214 40% 22%;
+    --chart-1: 134 61% 41%;
+    --chart-2: 32 95% 55%;
+    --chart-3: 88 50% 48%;
+    --chart-4: 160 35% 42%;
+    --chart-5: 45 90% 52%;
+    --sidebar-background: 140 32% 10%;
+    --sidebar-foreground: 120 30% 92%;
+    --sidebar-active: 134 50% 34%;
+    --sidebar-hover: 140 24% 16%;
+    --sidebar-border: 140 20% 20%;
   }
 
   .dark {
-    --background: 220 40% 6%;
-    --foreground: 214 30% 96%;
-    --card: 220 40% 8%;
-    --card-foreground: 214 30% 96%;
-    --popover: 220 40% 8%;
-    --popover-foreground: 214 30% 96%;
-    --primary: 214 100% 55%;
+    --background: 140 24% 6%;
+    --foreground: 120 20% 96%;
+    --card: 140 24% 8%;
+    --card-foreground: 120 20% 96%;
+    --popover: 140 24% 8%;
+    --popover-foreground: 120 20% 96%;
+    --primary: 134 58% 48%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 220 30% 16%;
-    --secondary-foreground: 214 30% 96%;
-    --muted: 220 30% 16%;
-    --muted-foreground: 214 15% 65%;
-    --accent: 28 100% 52%;
-    --accent-foreground: 0 0% 100%;
+    --secondary: 140 18% 14%;
+    --secondary-foreground: 120 20% 96%;
+    --muted: 140 18% 14%;
+    --muted-foreground: 120 10% 65%;
+    --accent: 32 92% 52%;
+    --accent-foreground: 32 90% 96%;
     --destructive: 0 63% 35%;
-    --destructive-foreground: 214 30% 96%;
-    --border: 220 30% 18%;
-    --input: 220 30% 18%;
-    --ring: 214 100% 55%;
-    --chart-1: 214 100% 55%;
-    --chart-2: 28 100% 52%;
-    --chart-3: 140 60% 45%;
-    --chart-4: 45 90% 50%;
-    --chart-5: 260 60% 55%;
+    --destructive-foreground: 120 20% 96%;
+    --border: 140 14% 16%;
+    --input: 140 14% 16%;
+    --ring: 134 58% 48%;
+    --chart-1: 134 58% 48%;
+    --chart-2: 32 92% 52%;
+    --chart-3: 88 45% 50%;
+    --chart-4: 160 35% 45%;
+    --chart-5: 45 85% 55%;
   }
 }
 
@@ -112,6 +112,6 @@
   }
 
   .dark .glass {
-    background: rgba(10, 16, 32, 0.85);
+    background: rgba(12, 20, 14, 0.85);
   }
 }
