@@ -34,7 +34,7 @@ export default function TestStations() {
         </div>
       ) : runners.length === 0 ? (
         <div className="bg-card rounded-lg border border-border shadow-elegant p-16 text-center">
-          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary/10 to-cyan-500/10 flex items-center justify-center mx-auto mb-5">
+          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary/10 to-orange-500/10 flex items-center justify-center mx-auto mb-5">
             <Server className="h-10 w-10 text-primary/40" />
           </div>
           <h3 className="text-lg font-semibold text-foreground mb-2">No Test Stations Registered</h3>

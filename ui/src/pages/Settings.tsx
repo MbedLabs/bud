@@ -138,7 +138,7 @@ export default function Settings() {
       {/* Regional Settings */}
       <div className="bg-card rounded-lg border border-border shadow-elegant overflow-hidden">
         <div className="px-5 py-4 border-b border-border flex items-center gap-2 bg-muted/30">
-          <Globe className="h-4 w-4 text-emerald-500" />
+          <Globe className="h-4 w-4 text-primary" />
           <h3 className="text-sm font-semibold text-foreground">Regional Settings</h3>
         </div>
         <div className="p-5 space-y-4">

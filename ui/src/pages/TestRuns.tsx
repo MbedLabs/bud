@@ -350,7 +350,7 @@ function StatusBadge({ status }: { status: string }) {
   const config: Record<string, string> = {
     Pending: 'bg-yellow-500/10 text-yellow-700 dark:text-yellow-400',
     Running: 'bg-blue-500/10 text-blue-700 dark:text-blue-400',
-    Completed: 'bg-cyan-500/10 text-cyan-700 dark:text-cyan-400',
+    Completed: 'bg-blue-500/10 text-blue-700 dark:text-blue-400',
     Failed: 'bg-red-500/10 text-red-700 dark:text-red-400',
     Cancelled: 'bg-muted text-muted-foreground',
   }

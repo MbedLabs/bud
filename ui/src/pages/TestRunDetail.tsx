@@ -95,7 +95,7 @@ export default function TestRunDetail() {
           label="Total Assertions"
           value={totalCount}
           icon={Activity}
-          gradient="from-primary/10 to-cyan-500/10"
+          gradient="from-primary/10 to-orange-500/10"
           iconColor="text-primary"
         />
         <SummaryCard
@@ -123,7 +123,7 @@ export default function TestRunDetail() {
             <div
               className={`h-full rounded-full transition-all duration-700 ${
                 parseFloat(passRate) >= 80
-                  ? 'bg-gradient-to-r from-emerald-500 to-teal-400'
+                  ? 'bg-gradient-to-r from-emerald-500 to-emerald-400'
                   : 'bg-gradient-to-r from-amber-500 to-amber-400'
               }`}
               style={{ width: `${passRate}%` }}
@@ -668,7 +668,7 @@ function StatusBadge({ status }: { status: string }) {
   const config: Record<string, string> = {
     Pending: 'bg-yellow-500/10 text-yellow-700 dark:text-yellow-400',
     Running: 'bg-blue-500/10 text-blue-700 dark:text-blue-400',
-    Completed: 'bg-cyan-500/10 text-cyan-700 dark:text-cyan-400',
+    Completed: 'bg-blue-500/10 text-blue-700 dark:text-blue-400',
     Failed: 'bg-red-500/10 text-red-700 dark:text-red-400',
     Cancelled: 'bg-muted text-muted-foreground',
   }

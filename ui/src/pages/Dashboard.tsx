@@ -72,7 +72,7 @@ export default function Dashboard() {
         <div className="h-3 bg-muted rounded-full overflow-hidden">
           <div
             className={`h-full rounded-full transition-all duration-1000 ease-smooth ${
-              passRate >= 80 ? 'bg-gradient-to-r from-emerald-500 to-teal-400' : passRate >= 50 ? 'bg-gradient-to-r from-amber-500 to-amber-400' : 'bg-gradient-to-r from-red-500 to-red-400'
+              passRate >= 80 ? 'bg-gradient-to-r from-emerald-500 to-emerald-400' : passRate >= 50 ? 'bg-gradient-to-r from-amber-500 to-amber-400' : 'bg-gradient-to-r from-red-500 to-red-400'
             }`}
             style={{ width: `${passRate}%` }}
           />
@@ -197,7 +197,7 @@ function StatusBadge({ status }: { status: string }) {
   const config: Record<string, string> = {
     Pending: 'bg-yellow-500/10 text-yellow-700 dark:text-yellow-400',
     Running: 'bg-blue-500/10 text-blue-700 dark:text-blue-400',
-    Completed: 'bg-cyan-500/10 text-cyan-700 dark:text-cyan-400',
+    Completed: 'bg-blue-500/10 text-blue-700 dark:text-blue-400',
     Failed: 'bg-red-500/10 text-red-700 dark:text-red-400',
     Cancelled: 'bg-muted text-muted-foreground',
   }
