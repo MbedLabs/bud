@@ -71,11 +71,26 @@ class Settings(BaseSettings):
     SECRET_KEY: str = Field(
         default="", validation_alias=AliasChoices("BUD_SECRET_KEY", "SECRET_KEY")
     )
+    # Short-lived access token: kept small because a rotating refresh-token
+    # cookie (below) silently renews it. A leaked access token is now valid for
+    # minutes, not a week.
     ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(
-        default=60 * 24 * 7,
+        default=30,
         validation_alias=AliasChoices(
             "BUD_ACCESS_TOKEN_EXPIRE_MINUTES", "ACCESS_TOKEN_EXPIRE_MINUTES"
         ),
+    )
+    # Refresh token lifetime (delivered as an httpOnly cookie, rotated on every
+    # use, revocable via the user_tokens table).
+    REFRESH_TOKEN_EXPIRE_DAYS: int = Field(
+        default=30,
+        validation_alias=AliasChoices("BUD_REFRESH_TOKEN_EXPIRE_DAYS", "REFRESH_TOKEN_EXPIRE_DAYS"),
+    )
+    # Set the Secure flag on the refresh cookie. None -> on in production, off
+    # elsewhere so local HTTP dev still receives the cookie.
+    AUTH_COOKIE_SECURE: bool | None = Field(
+        default=None,
+        validation_alias=AliasChoices("BUD_AUTH_COOKIE_SECURE", "AUTH_COOKIE_SECURE"),
     )
     BUD_APP_NAME: str = "Bud TMP"
     BUD_APP_VERSION: str = "1.0.0"
@@ -242,6 +257,8 @@ class Settings(BaseSettings):
             self.AUTO_SEED_ADMIN = self.BUD_ENV.lower() != "production"
         if self.LOG_JSON is None:
             self.LOG_JSON = self.BUD_ENV.lower() == "production"
+        if self.AUTH_COOKIE_SECURE is None:
+            self.AUTH_COOKIE_SECURE = self.BUD_ENV.lower() == "production"
         return self
 
     @model_validator(mode="after")

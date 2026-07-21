@@ -5,9 +5,9 @@ Also provides shared auth dependencies used across the app.
 
 import logging
 from datetime import datetime
-from typing import Union
+from typing import Optional, Union
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -54,6 +54,44 @@ from app.services.token_service import (
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+# Refresh token is delivered as an httpOnly cookie scoped to the auth endpoints,
+# rotated on every use, and revocable via the user_tokens table.
+REFRESH_COOKIE_NAME = "bud_refresh_token"
+REFRESH_COOKIE_PATH = "/api/auth"
+
+
+def _set_refresh_cookie(response: Response, raw_token: str) -> None:
+    response.set_cookie(
+        key=REFRESH_COOKIE_NAME,
+        value=raw_token,
+        max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
+        httponly=True,
+        secure=bool(settings.AUTH_COOKIE_SECURE),
+        samesite="strict",
+        path=REFRESH_COOKIE_PATH,
+    )
+
+
+def _clear_refresh_cookie(response: Response) -> None:
+    response.delete_cookie(
+        key=REFRESH_COOKIE_NAME,
+        path=REFRESH_COOKIE_PATH,
+        httponly=True,
+        secure=bool(settings.AUTH_COOKIE_SECURE),
+        samesite="strict",
+    )
+
+
+async def _issue_refresh_cookie(db: AsyncSession, response: Response, user_id: int) -> None:
+    raw_token = await create_user_token(
+        db,
+        user_id=user_id,
+        purpose=UserTokenPurpose.refresh,
+        ttl_hours=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24,
+        invalidate_existing=False,  # allow concurrent sessions (multiple devices/tabs)
+    )
+    _set_refresh_cookie(response, raw_token)
 
 
 async def get_current_active_entity(
@@ -118,7 +156,12 @@ def require_role(*roles: UserRole):
 
 @router.post("/login", response_model=TokenResponse)
 @limiter.limit("10/minute")
-async def login(request: Request, data: LoginRequest, db: AsyncSession = Depends(get_db)):
+async def login(
+    request: Request,
+    data: LoginRequest,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+):
     result = await db.execute(select(User).where(User.email == data.email))
     user = result.scalar_one_or_none()
 
@@ -133,11 +176,66 @@ async def login(request: Request, data: LoginRequest, db: AsyncSession = Depends
         )
 
     access_token = create_access_token(data={"sub": str(user.id), "type": "user"})
+    await _issue_refresh_cookie(db, response, user.id)
 
     return TokenResponse(
         access_token=access_token,
         user=UserResponse.model_validate(user),
     )
+
+
+@router.post("/refresh", response_model=TokenResponse)
+@limiter.limit("30/minute")
+async def refresh(
+    request: Request,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+    refresh_token: Optional[str] = Cookie(default=None, alias=REFRESH_COOKIE_NAME),
+):
+    """Exchange a valid refresh cookie for a new access token, rotating the
+    refresh token (single-use). If a stolen token is replayed after the real
+    client has rotated, it is already marked used and is rejected."""
+    unauthorized = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Invalid or expired session",
+    )
+    if not refresh_token:
+        raise unauthorized
+    try:
+        token_row = await get_valid_token(db, token=refresh_token, purpose=UserTokenPurpose.refresh)
+    except TokenValidationError:
+        _clear_refresh_cookie(response)
+        raise unauthorized
+
+    user = await db.get(User, token_row.user_id)
+    if user is None or not user.is_active:
+        _clear_refresh_cookie(response)
+        raise unauthorized
+
+    # Rotate: burn the presented token, issue a fresh one.
+    await mark_token_used(db, token_row)
+    await _issue_refresh_cookie(db, response, user.id)
+    access_token = create_access_token(data={"sub": str(user.id), "type": "user"})
+
+    return TokenResponse(
+        access_token=access_token,
+        user=UserResponse.model_validate(user),
+    )
+
+
+@router.post("/logout", response_model=GenericMessageResponse)
+async def logout(
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+    refresh_token: Optional[str] = Cookie(default=None, alias=REFRESH_COOKIE_NAME),
+):
+    """Revoke the current refresh token server-side and clear the cookie."""
+    if refresh_token:
+        token_row = await find_token(db, token=refresh_token, purpose=UserTokenPurpose.refresh)
+        if token_row is not None and token_row.used_at is None:
+            await mark_token_used(db, token_row)
+    _clear_refresh_cookie(response)
+    return GenericMessageResponse(message="Logged out")
 
 
 @router.get("/me", response_model=UserResponse)
