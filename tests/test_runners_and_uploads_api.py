@@ -300,3 +300,27 @@ async def test_runner_upload_with_unknown_run_returns_404(client, db_session):
 
     assert response.status_code == 404
     assert "Test run not found" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_oversized_upload_streams_to_413_and_leaves_no_partial_file(
+    client, db_session, monkeypatch
+):
+    """The streamed upload path must reject past-cap bodies with 413 and clean up."""
+    import app.api.uploads as uploads_module
+    from app.core.config import settings as app_settings
+
+    monkeypatch.setattr(app_settings, "MAX_UPLOAD_SIZE", 10)  # tiny cap for the test
+
+    upload_root = uploads_module.get_upload_root()
+    before = set(upload_root.glob("*")) if upload_root.exists() else set()
+
+    response = client.post(
+        "/api/uploads",
+        files={"file": ("too-big.txt", b"x" * 64, "text/plain")},
+    )
+
+    assert response.status_code == 413
+    assert "File too large" in response.json()["detail"]
+    after = set(upload_root.glob("*")) if upload_root.exists() else set()
+    assert after == before  # no partial file left behind

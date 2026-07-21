@@ -14,6 +14,7 @@ class UserTokenPurpose(str, enum.Enum):
     invite = "invite"
     email_verification = "email_verification"
     password_reset = "password_reset"
+    refresh = "refresh"
 
 
 class UserToken(Base):

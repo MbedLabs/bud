@@ -9,7 +9,7 @@ from app.core.config import settings
 logger = logging.getLogger(__name__)
 
 TEMPLATE_DIR = Path(__file__).resolve().parent.parent / "templates" / "email"
-BUD_FROM_NAME = "Bud by EmbedLabs"
+BUD_FROM_NAME = "Bud TMP by EmbedLabs"
 
 
 class MailConfigurationError(Exception):

@@ -57,4 +57,5 @@ def test_send_email_uses_fixed_bud_sender_name(monkeypatch):
 
     smtp = captured["smtp"]
     assert len(smtp.messages) == 1
-    assert smtp.messages[0]["From"] == "Bud by EmbedLabs <noreply@example.com>"
+    # Matches Bloom's "<product> <suffix> by EmbedLabs" sender style ("Bloom PLM by EmbedLabs").
+    assert smtp.messages[0]["From"] == "Bud TMP by EmbedLabs <noreply@example.com>"
