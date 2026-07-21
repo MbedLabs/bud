@@ -1,6 +1,6 @@
 services:
   bud:
-    image: ghcr.io/mbedlabs/bud:${BUD_VERSION:-latest}
+    image: ghcr.io/mbedlabs/bud:${BUD_VERSION:-stable}
     env_file:
       - .env
     environment:
@@ -23,6 +23,13 @@ services:
         condition: service_healthy
     ports:
       - "8001:8080"
+    healthcheck:
+      # Readiness: passes only once the app can reach PostgreSQL (SELECT 1).
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/api/ready"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
     volumes:
       - bud-uploads:/app/uploads
 

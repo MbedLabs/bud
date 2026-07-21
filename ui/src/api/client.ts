@@ -1,5 +1,5 @@
-import axios from 'axios'
-import { clearAuthToken, getAuthToken } from '../lib/tokenStorage'
+import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios'
+import { clearAuthToken, getAuthToken, setAuthToken } from '../lib/tokenStorage'
 
 import packageJson from '../../package.json'
 
@@ -9,6 +9,8 @@ export const APP_VERSION = packageJson.version
 
 export const api = axios.create({
   baseURL: API_URL,
+  // Send the httpOnly refresh cookie on same-origin auth calls.
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -22,18 +24,60 @@ api.interceptors.request.use((config) => {
   return config
 })
 
+const PUBLIC_PATHS = ['/login', '/accept-invite', '/verify-email', '/forgot-password', '/reset-password']
+
+function redirectToLogin() {
+  clearAuthToken()
+  if (!PUBLIC_PATHS.includes(window.location.pathname)) {
+    window.location.href = '/login'
+  }
+}
+
+// De-duplicate concurrent refreshes: when the short access token expires, many
+// in-flight requests can 401 at once; they all await a single /auth/refresh.
+let refreshPromise: Promise<string | null> | null = null
+
+async function refreshAccessToken(): Promise<string | null> {
+  try {
+    // Bare axios (no interceptors) so a 401 here cannot recurse into itself.
+    const resp = await axios.post<{ access_token: string }>(
+      `${API_URL}/auth/refresh`,
+      {},
+      { withCredentials: true },
+    )
+    setAuthToken(resp.data.access_token)
+    return resp.data.access_token
+  } catch {
+    return null
+  }
+}
+
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      clearAuthToken()
-      const publicPaths = ['/login', '/accept-invite', '/verify-email', '/forgot-password', '/reset-password']
-      if (!publicPaths.includes(window.location.pathname)) {
-        window.location.href = '/login'
+  async (error: AxiosError) => {
+    const original = error.config as (InternalAxiosRequestConfig & { _retried?: boolean }) | undefined
+    const url = original?.url ?? ''
+    const isAuthCall =
+      url.includes('/auth/refresh') || url.includes('/auth/login') || url.includes('/auth/logout')
+
+    if (error.response?.status === 401 && original && !original._retried && !isAuthCall) {
+      original._retried = true
+      if (!refreshPromise) {
+        refreshPromise = refreshAccessToken().finally(() => {
+          refreshPromise = null
+        })
       }
+      const newToken = await refreshPromise
+      if (newToken) {
+        original.headers.Authorization = `Bearer ${newToken}`
+        return api(original)
+      }
+      redirectToLogin()
+    } else if (error.response?.status === 401 && !isAuthCall) {
+      redirectToLogin()
     }
     return Promise.reject(error)
-  }
+  },
 )
 
 export interface User {
@@ -97,6 +141,17 @@ export const authApi = {
   login: async (email: string, password: string): Promise<LoginResponse> => {
     const response = await api.post<LoginResponse>('/auth/login', { email, password })
     return response.data
+  },
+  refresh: async (): Promise<LoginResponse> => {
+    const response = await api.post<LoginResponse>('/auth/refresh')
+    return response.data
+  },
+  logout: async (): Promise<void> => {
+    try {
+      await api.post('/auth/logout')
+    } finally {
+      clearAuthToken()
+    }
   },
   getMe: async (): Promise<User> => {
     const response = await api.get<User>('/auth/me')

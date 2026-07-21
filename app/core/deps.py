@@ -5,6 +5,7 @@ C2: API key authentication for endpoints that create/mutate sensitive resources.
 H2: Rate limiting via slowapi.
 """
 
+import hmac
 from typing import Optional
 
 from fastapi import Depends, Header, HTTPException, Request, status
@@ -60,7 +61,8 @@ async def require_runner_api_key(x_api_key: str = Header(..., alias="X-API-Key")
             status_code=500,
             detail="Server misconfiguration: RUNNER_API_KEY is not set.",
         )
-    if x_api_key != expected:
+    # Constant-time comparison so the key can't be guessed via timing differences.
+    if not hmac.compare_digest(x_api_key.encode(), expected.encode()):
         raise HTTPException(status_code=403, detail="Invalid API key.")
 
 
@@ -74,5 +76,6 @@ async def require_teststation_api_key(x_api_key: str = Header(..., alias="X-API-
             status_code=500,
             detail="Server misconfiguration: RUNNER_API_KEY is not set.",
         )
-    if x_api_key != expected:
+    # Constant-time comparison so the key can't be guessed via timing differences.
+    if not hmac.compare_digest(x_api_key.encode(), expected.encode()):
         raise HTTPException(status_code=403, detail="Invalid API key.")

@@ -71,11 +71,26 @@ class Settings(BaseSettings):
     SECRET_KEY: str = Field(
         default="", validation_alias=AliasChoices("BUD_SECRET_KEY", "SECRET_KEY")
     )
+    # Short-lived access token: kept small because a rotating refresh-token
+    # cookie (below) silently renews it. A leaked access token is now valid for
+    # minutes, not a week.
     ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(
-        default=60 * 24 * 7,
+        default=30,
         validation_alias=AliasChoices(
             "BUD_ACCESS_TOKEN_EXPIRE_MINUTES", "ACCESS_TOKEN_EXPIRE_MINUTES"
         ),
+    )
+    # Refresh token lifetime (delivered as an httpOnly cookie, rotated on every
+    # use, revocable via the user_tokens table).
+    REFRESH_TOKEN_EXPIRE_DAYS: int = Field(
+        default=30,
+        validation_alias=AliasChoices("BUD_REFRESH_TOKEN_EXPIRE_DAYS", "REFRESH_TOKEN_EXPIRE_DAYS"),
+    )
+    # Set the Secure flag on the refresh cookie. None -> on in production, off
+    # elsewhere so local HTTP dev still receives the cookie.
+    AUTH_COOKIE_SECURE: bool | None = Field(
+        default=None,
+        validation_alias=AliasChoices("BUD_AUTH_COOKIE_SECURE", "AUTH_COOKIE_SECURE"),
     )
     BUD_APP_NAME: str = "Bud TMP"
     BUD_APP_VERSION: str = "1.0.0"
@@ -220,6 +235,14 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def populate_database_url(self):
         if not self.DATABASE_URL:
+            # About to build the connection URL from DB_* parts, so those parts
+            # must be safe. When a complete DATABASE_URL is supplied instead (the
+            # docker-compose path), DB_PASSWORD is unused and is not checked here.
+            if self.BUD_ENV.lower() == "production" and self.DB_PASSWORD in ("", "bud"):
+                raise ValueError(
+                    "DB_PASSWORD must be set to a strong, non-default value in "
+                    "production (or provide a complete DATABASE_URL)."
+                )
             self.DATABASE_URL = (
                 f"postgresql://{self.DB_USER}:{self.DB_PASSWORD}"
                 f"@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
@@ -234,6 +257,8 @@ class Settings(BaseSettings):
             self.AUTO_SEED_ADMIN = self.BUD_ENV.lower() != "production"
         if self.LOG_JSON is None:
             self.LOG_JSON = self.BUD_ENV.lower() == "production"
+        if self.AUTH_COOKIE_SECURE is None:
+            self.AUTH_COOKIE_SECURE = self.BUD_ENV.lower() == "production"
         return self
 
     @model_validator(mode="after")
@@ -247,6 +272,29 @@ class Settings(BaseSettings):
             raise ValueError("ADMIN_PASSWORD must be changed before production startup.")
         if len(self.ADMIN_PASSWORD) < 16:
             raise ValueError("ADMIN_PASSWORD must be at least 16 characters long in production.")
+        return self
+
+    @model_validator(mode="after")
+    def reject_unsafe_secrets_in_production(self):
+        """Fail closed: never boot production with .env.example placeholders or a
+        weak runner-registration key still in place. Development and CI, which run
+        with BUD_ENV=development, are unaffected."""
+        if self.BUD_ENV.lower() != "production":
+            return self
+
+        placeholder_prefix = "replace-with-"
+        for name in ("SECRET_KEY", "ADMIN_PASSWORD", "RUNNER_API_KEY", "DB_PASSWORD"):
+            if getattr(self, name).startswith(placeholder_prefix):
+                raise ValueError(
+                    f"{name} still uses the '{placeholder_prefix}...' placeholder from "
+                    ".env.example; set a real value before production startup."
+                )
+
+        if len(self.RUNNER_API_KEY) < 32:
+            raise ValueError(
+                "RUNNER_API_KEY must be set to a strong value of at least 32 characters "
+                "in production (it authenticates runner registration)."
+            )
         return self
 
     @field_validator("SECRET_KEY")

@@ -369,9 +369,19 @@ class TestStationHeartbeat(BaseModel):
 
 
 class HealthResponse(BaseModel):
-    """Schema for health check response."""
+    """Schema for the liveness probe response."""
 
     status: str = "healthy"
+    version: str
+    # Liveness never inspects the database, so it must not claim a connection it
+    # has not verified. The real dependency check lives at /api/ready.
+    database: str = "not_checked"
+
+
+class ReadinessResponse(BaseModel):
+    """Schema for the readiness probe response (database verified via SELECT 1)."""
+
+    status: str = "ready"
     version: str
     database: str = "connected"
 

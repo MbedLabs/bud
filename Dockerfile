@@ -47,7 +47,9 @@ USER appuser
 
 EXPOSE 8080
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=20s \
-    CMD curl -f http://localhost:8080/api/health || exit 1
+# Readiness (not liveness): reports healthy only once the database is reachable.
+# Generous start-period covers first-boot schema creation before probing begins.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s \
+    CMD curl -f http://localhost:8080/api/ready || exit 1
 
 CMD ["/bin/sh", "/usr/local/bin/start-product"]

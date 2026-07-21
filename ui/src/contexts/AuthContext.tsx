@@ -7,7 +7,7 @@ interface AuthContextType {
   isLoading: boolean
   isAuthenticated: boolean
   login: (email: string, password: string) => Promise<void>
-  logout: () => void
+  logout: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -43,9 +43,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(response.user)
   }
 
-  const logout = () => {
-    clearAuthToken()
-    setUser(null)
+  const logout = async () => {
+    try {
+      await authApi.logout() // revoke the refresh token server-side + clear the cookie
+    } finally {
+      clearAuthToken()
+      setUser(null)
+    }
   }
 
   return (

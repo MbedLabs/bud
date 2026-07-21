@@ -61,7 +61,7 @@ Open `.env` and replace every active `replace-with-...` placeholder. At minimum:
 - Set `APP_BASE_URL`, `FRONTEND_BASE_URL`, and `BUD_APP_URL` to the externally reachable Bud URL.
 - Keep the shipped `AUTO_SEED_ADMIN=false` setting. For a new instance with an empty database, explicitly change it to `true` immediately before the one-time first-administrator startup.
 
-The example keeps `SMTP_ENABLED=false`. Before enabling email, replace the SMTP host, username, password, sender address, and reply-to placeholders with real values. The sender display name is fixed to `Bud by EmbedLabs` and is not configurable.
+The example keeps `SMTP_ENABLED=false`. Before enabling email, replace the SMTP host, username, password, sender address, and reply-to placeholders with real values. The sender display name is fixed to `Bud TMP by EmbedLabs` and is not configurable.
 
 `BUD_VERSION=latest` selects the evaluation channel. Set it to a published version such as `1.0.0` for a production deployment, or to a prerelease such as `1.0.0-rc.1` when evaluating a release candidate.
 
@@ -82,10 +82,11 @@ The migration command must finish successfully before Bud serves production traf
 
 ```bash
 docker compose ps
-curl -fsS http://localhost:8001/api/health
+curl -fsS http://localhost:8001/api/ready
 ```
 
-The health response reports `"status":"healthy"`. Open [http://localhost:8001](http://localhost:8001) and sign in with `ADMIN_EMAIL` and `ADMIN_PASSWORD` from `.env`.
+`/api/ready` returns `{"status":"ready","database":"connected"}` once the app can
+reach PostgreSQL (`/api/health` is the process-only liveness probe). Open [http://localhost:8001](http://localhost:8001) and sign in with `ADMIN_EMAIL` and `ADMIN_PASSWORD` from `.env`.
 
 Immediately after the first successful login, restore the secure default in `.env`:
 
@@ -183,7 +184,8 @@ Back up both on the same schedule and test restores on a separate instance. The 
 
 ### Health, metrics, and logs
 
-- `GET /api/health` — container and load-balancer health probe
+- `GET /api/health` — liveness probe (process only; does not query PostgreSQL)
+- `GET /api/ready` — readiness probe (`SELECT 1`; `503` when the database is down). Used by the container and `docker-compose` healthchecks and load-balancer probes
 - `GET /api/metrics` — Prometheus metrics when `ENABLE_METRICS=true`
 - `docker compose logs -f bud` — application, nginx, and access logs
 - `docker compose logs -f postgres` — database logs
@@ -209,7 +211,7 @@ Before upgrading, back up PostgreSQL and uploads. Then set `BUD_VERSION` in `.en
 docker compose pull bud
 docker compose run --rm bud alembic upgrade head
 docker compose up -d bud
-curl -fsS http://localhost:8001/api/health
+curl -fsS http://localhost:8001/api/ready
 ```
 
 Confirm login, a recent Test Run, its results, and an uploaded artifact after the upgrade.
