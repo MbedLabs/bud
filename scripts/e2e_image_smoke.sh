@@ -40,19 +40,18 @@ ADMIN_EMAIL="e2e-admin@e2e.example.com"
 ADMIN_PASSWORD="E2eAdminPassword-1234567"   # >= 16 chars, non-default
 
 # Production-grade secrets so the fail-closed config accepts them.
-env_args() {
-  printf ' -e %s' \
-    "BUD_ENV=production" \
-    "DATABASE_URL=${DATABASE_URL}" \
-    "SECRET_KEY=e2e-secret-key-that-is-definitely-long-enough-0123456789" \
-    "RUNNER_API_KEY=e2e-runner-api-key-that-is-at-least-32-chars-0001" \
-    "ADMIN_EMAIL=${ADMIN_EMAIL}" \
-    "ADMIN_PASSWORD=${ADMIN_PASSWORD}" \
-    "ADMIN_FULL_NAME=E2E Admin" \
-    "AUTO_SEED_ADMIN=true" \
-    "RUN_STARTUP_DATA_REPAIR=true" \
-    "ENABLE_DOCS=false"
-}
+ENV_ARGS=(
+  -e "BUD_ENV=production"
+  -e "DATABASE_URL=${DATABASE_URL}"
+  -e "SECRET_KEY=e2e-secret-key-that-is-definitely-long-enough-0123456789"
+  -e "RUNNER_API_KEY=e2e-runner-api-key-that-is-at-least-32-chars-0001"
+  -e "ADMIN_EMAIL=${ADMIN_EMAIL}"
+  -e "ADMIN_PASSWORD=${ADMIN_PASSWORD}"
+  -e "ADMIN_FULL_NAME=E2E Admin"
+  -e "AUTO_SEED_ADMIN=true"
+  -e "RUN_STARTUP_DATA_REPAIR=true"
+  -e "ENABLE_DOCS=false"
+)
 
 log()  { printf '\n\033[1;34m==>\033[0m %s\n' "$*"; }
 fail() { printf '\n\033[1;31mFAIL:\033[0m %s\n' "$*" >&2; exit 1; }
@@ -93,18 +92,16 @@ docker exec "$PG" pg_isready -U "$DB_USER" -d "$DB_NAME" >/dev/null 2>&1 \
   || fail "postgres never became ready"
 
 log "Booting the application container (builds schema on an empty DB)"
-# shellcheck disable=SC2046
 docker run -d --name "$APP" --network "$NET" \
   -p "127.0.0.1:${APP_PORT}:8080" \
   --platform "$PLATFORM" \
-  $(env_args) \
+  "${ENV_ARGS[@]}" \
   "$IMAGE" >/dev/null
 wait_ready "on first boot"
 
 log "Applying alembic upgrade head against the published image"
-# shellcheck disable=SC2046
 docker run --rm --network "$NET" --platform "$PLATFORM" \
-  $(env_args) \
+  "${ENV_ARGS[@]}" \
   --entrypoint alembic "$IMAGE" upgrade head
 
 log "/api/health must be liveness-only (never claim database \"connected\")"
