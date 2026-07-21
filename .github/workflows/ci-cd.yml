@@ -186,7 +186,8 @@ jobs:
             type=semver,pattern={{major}}.{{minor}},enable=${{ steps.release.outputs.stable == 'true' }}
             type=semver,pattern={{major}},enable=${{ steps.release.outputs.stable == 'true' }}
             type=sha,prefix=sha-
-            type=raw,value=latest,enable=${{ steps.release.outputs.stable == 'true' }}
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=raw,value=stable,enable=${{ steps.release.outputs.stable == 'true' }}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v7
