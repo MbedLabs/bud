@@ -2,6 +2,7 @@
 Test results API endpoints.
 """
 
+import hmac
 import logging
 from datetime import datetime, timezone
 from typing import List, Optional, Union
@@ -63,7 +64,8 @@ async def get_uploader_entity(
     # 2. Fallback to Persistent Auth (API Key + Account Name)
     if x_api_key and data.runner_account:
         expected = getattr(settings, "RUNNER_API_KEY", "")
-        if expected and x_api_key == expected:
+        # Constant-time comparison so the key can't be guessed via timing differences.
+        if expected and hmac.compare_digest(x_api_key.encode(), expected.encode()):
             res = await db.execute(select(Runner).where(Runner.account == data.runner_account))
             runner = res.scalar_one_or_none()
             if runner and runner.is_active:

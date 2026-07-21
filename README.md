@@ -61,7 +61,7 @@ Open `.env` and replace every active `replace-with-...` placeholder. At minimum:
 - Set `APP_BASE_URL`, `FRONTEND_BASE_URL`, and `BUD_APP_URL` to the externally reachable Bud URL.
 - Keep the shipped `AUTO_SEED_ADMIN=false` setting. For a new instance with an empty database, explicitly change it to `true` immediately before the one-time first-administrator startup.
 
-The example keeps `SMTP_ENABLED=false`. Before enabling email, replace the SMTP host, username, password, sender address, and reply-to placeholders with real values. The sender display name is fixed to `Bud by EmbedLabs` and is not configurable.
+The example keeps `SMTP_ENABLED=false`. Before enabling email, replace the SMTP host, username, password, sender address, and reply-to placeholders with real values. The sender display name is fixed to `Bud TMP by EmbedLabs` and is not configurable.
 
 `BUD_VERSION=latest` selects the evaluation channel. Set it to a published version such as `1.0.0` for a production deployment, or to a prerelease such as `1.0.0-rc.1` when evaluating a release candidate.
 

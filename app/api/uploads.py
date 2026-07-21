@@ -2,6 +2,7 @@
 File uploads API endpoints.
 """
 
+import contextlib
 import os
 import uuid
 from pathlib import Path
@@ -22,6 +23,9 @@ from app.models.user import User, UserRole
 from app.schemas import ArtifactResponse
 
 router = APIRouter()
+
+# Streaming chunk size for uploads (1 MiB): bounds per-request memory use.
+_UPLOAD_CHUNK_SIZE = 1024 * 1024
 
 # Resolved absolute upload root — used for path-traversal checks (C3)
 _UPLOAD_ROOT: Optional[Path] = None
@@ -99,16 +103,6 @@ async def upload_file(
             ),
         )
 
-    # Check file size
-    content = await file.read()
-    file_size = len(content)
-
-    if file_size > settings.MAX_UPLOAD_SIZE:
-        raise HTTPException(
-            status_code=413,
-            detail=f"File too large. Maximum size is {settings.MAX_UPLOAD_SIZE} bytes",
-        )
-
     # Generate a UUID-only filename — never use the client-supplied filename
     # as part of the storage path (C3: prevents path traversal / directory injection)
     ext = ""
@@ -129,8 +123,25 @@ async def upload_file(
     if not str(resolved_storage).startswith(str(upload_dir)):
         raise HTTPException(status_code=400, detail="Invalid file path.")
 
-    async with aiofiles.open(resolved_storage, "wb") as f:
-        await f.write(content)
+    # Stream to disk in chunks with a running byte cap, so an oversized body is
+    # rejected as soon as the cap is crossed instead of being buffered fully in
+    # memory first (the old `await file.read()` pattern).
+    file_size = 0
+    try:
+        async with aiofiles.open(resolved_storage, "wb") as f:
+            while chunk := await file.read(_UPLOAD_CHUNK_SIZE):
+                file_size += len(chunk)
+                if file_size > settings.MAX_UPLOAD_SIZE:
+                    raise HTTPException(
+                        status_code=413,
+                        detail=f"File too large. Maximum size is {settings.MAX_UPLOAD_SIZE} bytes",
+                    )
+                await f.write(chunk)
+    except BaseException:
+        # Never leave a partial file behind on cap breach, client disconnect, or error.
+        with contextlib.suppress(OSError):
+            os.remove(resolved_storage)
+        raise
 
     # Create database record — store only the relative filename, not the full path
     artifact = Artifact(

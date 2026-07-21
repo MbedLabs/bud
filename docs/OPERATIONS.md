@@ -14,6 +14,20 @@ environment variables — see [`.env.example`](../.env.example) for the full lis
   container `HEALTHCHECK` and `docker-compose` healthcheck probe, and it is the
   right target for load-balancer / orchestrator readiness checks.
 
+## Sessions and tokens
+
+Two independent token lifetimes, tunable via environment variables (no code change):
+
+- **User sessions** — `ACCESS_TOKEN_EXPIRE_MINUTES` (default `10080`, i.e. 7 days).
+  The bearer token a browser receives at login. Seven days favours convenience
+  for an internal tool; if a leaked token's exposure window matters more than
+  staying signed in, shorten it (e.g. `1440` for 24h). Users are re-prompted to
+  log in once the token expires.
+- **Runner tokens** — `RUNNER_TOKEN_EXPIRE_HOURS` (default `2160`, i.e. 90 days).
+  Issued at runner registration and intentionally long-lived; a runner stays
+  usable for heartbeat/results while its `last_heartbeat` is within
+  `RUNNER_HEARTBEAT_TIMEOUT`. This is separate from user sessions above.
+
 ## Logs
 
 Bud writes logs to stdout so any container log driver or shipper picks them up.

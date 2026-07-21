@@ -68,34 +68,26 @@ jobs:
       - name: Run backend security scans
         run: |
           bandit -r app/ -ll
-          pip-audit || true
+          # Blocking: a vulnerable *pinned* dependency fails CI. We audit the
+          # locked closure (constraints.txt), not the ambient runner tooling.
+          # Reviewed ignore: PYSEC-2026-1325 is an ecdsa timing side-channel with
+          # no fix release, pulled in transitively by python-jose. Bud signs JWTs
+          # with HS256 (symmetric), so the affected ES* code path is never used.
+          pip-audit -r constraints.txt --ignore-vuln PYSEC-2026-1325
 
-      - name: Create tables (model-driven base schema)
-        env:
-          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_bud
-          PYTHONPATH: ${{ github.workspace }}
-          SECRET_KEY: test-secret-key-for-ci-at-least-32-characters-long
-          RUNNER_API_KEY: test-runner-api-key
-        run: |
-          python -c "
-          from app.db.database import engine, Base
-          import app.models  # noqa: F401
-          import asyncio
-          async def run():
-              async with engine.begin() as conn:
-                  await conn.run_sync(Base.metadata.create_all)
-          asyncio.run(run())
-          print('Base tables created from models.')
-          "
-
-      - name: Alembic upgrade (data migrations + indexes)
+      # The documented fresh-install path: alembic alone must build the full
+      # schema on a truly EMPTY database (001_initial_baseline runs create_all;
+      # later revisions are guarded). No create_all pre-step — that used to mask
+      # exactly this path.
+      - name: Alembic upgrade on an empty database
         env:
           DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_bud
           PYTHONPATH: ${{ github.workspace }}
           SECRET_KEY: test-secret-key-for-ci-at-least-32-characters-long
         run: |
-          pip install alembic
           alembic upgrade head
+          alembic current
+          alembic current | grep -q "(head)" || { echo "database is not at alembic head" >&2; exit 1; }
 
       - name: Run backend tests
         env:
@@ -106,6 +98,26 @@ jobs:
           ENABLE_DOCS: "false"
         run: |
           pytest --cov=app --cov-report=xml --cov-report=term-missing --cov-fail-under=60 -v
+
+      # Real-auth integration layer: runs against the alembic-built PostgreSQL
+      # schema with NO dependency overrides — real login, real JWT, real DB I/O.
+      # Also proves the empty-DB alembic schema fully serves the application
+      # (RUN_STARTUP_DATA_REPAIR=false, so the app never falls back to create_all).
+      - name: Postgres integration tests (real auth)
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_bud
+          PYTHONPATH: ${{ github.workspace }}
+          SECRET_KEY: test-secret-key-for-ci-at-least-32-characters-long
+          RUNNER_API_KEY: test-runner-api-key
+          BUD_DOTENV_DISABLED: "1"
+          RUN_STARTUP_DATA_REPAIR: "false"
+          AUTO_SEED_ADMIN: "true"
+          ADMIN_EMAIL: ci-admin@example.com
+          ADMIN_PASSWORD: ci-admin-password-123
+          ADMIN_FULL_NAME: CI Admin
+          ENABLE_DOCS: "false"
+        run: |
+          pytest tests_pg/ -v
 
       - name: Run UI checks
         run: |
