@@ -4,6 +4,22 @@ A practical guide for running Bud in production: monitoring, logs, backup and
 restore, upgrades, and disaster recovery. Runtime configuration lives in
 environment variables — see [`.env.example`](../.env.example) for the full list.
 
+## Image tags
+
+Images are published to `ghcr.io/mbedlabs/bud`:
+
+| Tag | Moves? | Use for |
+|---|---|---|
+| `sha-<commit>` | immutable | exact reproducibility / debugging |
+| `1.2.3` (full semver) | immutable | **production — pin this** |
+| `1.2`, `1` | moving (stable releases) | tracking a minor/major line |
+| `stable` | moving → newest stable release | low-maintenance production |
+| `latest` | moving → newest `main` build | **development / staging only** |
+
+Set `BUD_VERSION` in `.env` to a pinned version (e.g. `1.2.3`) or `stable`.
+Never run `latest` in production — it is the rolling development build. `stable`
+starts existing once you publish your first `vX.Y.Z` release tag.
+
 ## Health checks
 
 - `GET /api/health` — **liveness**. Reports only that the API process is up; it

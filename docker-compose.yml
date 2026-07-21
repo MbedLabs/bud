@@ -1,6 +1,6 @@
 services:
   bud:
-    image: ghcr.io/mbedlabs/bud:${BUD_VERSION:-latest}
+    image: ghcr.io/mbedlabs/bud:${BUD_VERSION:-stable}
     env_file:
       - .env
     environment:
