@@ -26,7 +26,7 @@ RUN pip install --no-cache-dir -c constraints.txt . "supervisor==4.3.0" \
 
 FROM debian:trixie-slim
 
-LABEL org.opencontainers.image.licenses="AGPL-3.0-only" \
+LABEL org.opencontainers.image.licenses="LicenseRef-EmbedLabs-Source-Available-1.0" \
       org.opencontainers.image.source="https://github.com/MbedLabs/bud"
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
