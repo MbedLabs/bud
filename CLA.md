@@ -1,6 +1,6 @@
 # Contributor License Agreement (CLA)
 
-Thank you for contributing to Bud by EmbedLabs.
+Thank you for contributing to Bud TMP by EmbedLabs.
 
 By submitting a contribution (including issues, pull requests, patches, documentation, or other material) you agree to the following terms.
 
@@ -29,7 +29,7 @@ You represent that:
 
 ## 5. Dual licensing
 
-You acknowledge that Bud and accepted Contributions may be distributed under the GNU Affero General Public License v3.0 only (AGPL-3.0-only) and that EmbedLabs may offer Bud or combined works under other license terms, including proprietary commercial licenses, without further permission from you beyond this agreement.
+You acknowledge that Bud TMP by EmbedLabs and accepted Contributions may be distributed under the GNU Affero General Public License v3.0 only (AGPL-3.0-only) and that EmbedLabs may offer Bud or combined works under other license terms, including proprietary commercial licenses, without further permission from you beyond this agreement.
 
 ## 6. No obligation
 
