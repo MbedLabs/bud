@@ -12,7 +12,7 @@ The required `Powered by EmbedLabs` attribution must remain visible as described
 
 The separate [`bud-runner`](https://github.com/MbedLabs/bud-runner) and `budtestlibrary` Python packages remain independent AGPL-3.0-only open-source projects.
 
-For professional licensing, deployment, integration, priority support, or custom development, contact `professional@embedlabs.de` or `dev@embedlabs.net`.
+For professional licensing, deployment, integration, priority support, or custom development, contact `sales@embedlabs.de`.
 
 ## Container image
 
