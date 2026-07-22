@@ -1,30 +1,45 @@
-# Contributing
+# Contributing to Bud by EmbedLabs
 
-Thank you for your interest in improving Bud TMP by EmbedLabs.
+Thank you for helping improve Bud.
 
-## License
+## License status
 
-The software in this repository is licensed under the **GNU Affero General Public License v3.0 only (AGPL-3.0-only)**. The complete license text is in [`LICENSE`](LICENSE).
+Bud is **source-available**, not Open Source under the Open Source Definition. Use of the software is governed by the [EmbedLabs Source Available License](LICENSE).
 
-By contributing, you agree that your contributions will be licensed under the same AGPL-3.0-only terms to the community and agree to the Contributor License Agreement so EmbedLabs can steward the project and offer commercial and professional licensing where appropriate.
+The separate `bud-runner` and `budtestlibrary` Python packages remain independent AGPL-3.0-only open-source projects. Their licences do not change the licence of the Bud application.
 
-## Contributor License Agreement (CLA)
+## Contributor License Agreement
 
-Before we can accept a pull request or similar contribution, you must agree to the [CLA.md](CLA.md) in this project.
+Contributions to the official Bud repository require acceptance of [CLA.md](CLA.md), version 1.0 or a later clearly identified version.
 
-- Read [CLA.md](CLA.md) carefully.
-- For GitHub contributions, sign the CLA when prompted (for example via a CLA assistant bot on the pull request), or otherwise provide written confirmation to dev@embedlabs.net that you accept the CLA for the specific contribution.
+By opening or updating a pull request and checking the CLA declaration in the pull-request template, you confirm that:
 
-If you are contributing on behalf of your employer, ensure your employer authorizes this agreement.
+- you have read and accept the identified CLA;
+- you have the right to submit the contribution;
+- any employer, client, or other rights holder has authorised the submission where necessary; and
+- you have disclosed third-party code and licence obligations.
 
-## How to contribute
+The repository records the GitHub identity, pull request, timestamp, commits, checkbox declaration, and CLA version as evidence of acceptance. Do not submit a contribution when you cannot make these confirmations.
 
-1. Open an issue to discuss larger changes when appropriate.
-2. Fork the repository (or use a branch if you have write access).
-3. Make focused commits with clear messages.
-4. Ensure tests and linters pass for the subproject you changed.
-5. Open a pull request and complete the CLA step.
+## Contribution process
+
+1. Discuss substantial changes in an issue before implementation.
+2. Fork the repository or use an authorised branch.
+3. Keep changes focused and use clear commit messages.
+4. Add or update tests and documentation.
+5. Run the checks defined in `.github/workflows/ci-cd.yml`.
+6. Open a pull request and complete every required declaration.
+
+A contribution is not accepted merely because it was submitted. EmbedLabs may reject, request changes to, or remove a contribution.
+
+## Branding
+
+Do not remove or weaken the required `Powered by EmbedLabs` attribution. Materially modified public forks must use a distinct product name and must not imply that they are official EmbedLabs releases. See `LICENSE` for the binding terms.
+
+## Security
+
+Do not disclose suspected vulnerabilities in a public issue. Follow `SECURITY.md`.
 
 ## Professional licensing and services
 
-For professional licensing, paid priority support, deployment assistance, integrations, or custom feature development, contact EmbedLabs at dev@embedlabs.net.
+For professional licensing, priority support, deployment assistance, integrations, or custom development, contact `professional@embedlabs.de` or `dev@embedlabs.net`.
