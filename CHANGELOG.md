@@ -4,7 +4,7 @@
 
 ### Added
 
-- User-first deployment and operations guidance for the published Bud by EmbedLabs container image.
+- User-first deployment and operations guidance for the published Bud TMP by EmbedLabs container image.
 - Configurable 25 MiB per-file upload limit, with an operator opt-in up to 100 MiB for trace-heavy runners.
 - A 250 MiB aggregate quota per run, upload rate and concurrency limits, free-space protection, retention, and orphan-file cleanup.
 
@@ -26,5 +26,5 @@
 
 ## 1.0.0
 
-- Initial beta release of Bud by EmbedLabs as a self-hosted test management and execution platform.
+- Initial beta release of Bud TMP by EmbedLabs as a self-hosted test management and execution platform.
 - Published a multi-architecture container image with PostgreSQL-backed deployment, migrations, health checks, and persistent artifact storage.

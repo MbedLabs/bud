@@ -1,8 +1,8 @@
-# Bud by EmbedLabs
+# Bud TMP by EmbedLabs
 
-Bud by EmbedLabs is an open source test management and execution platform for teams that run automated tests on CI workers, lab machines, and hardware test stations. It brings runner status, test runs, assertion results, execution events, and uploaded artifacts into one self-hosted workspace.
+Bud TMP by EmbedLabs is an open source test management and execution platform for teams that run automated tests on CI workers, lab machines, and hardware test stations. It brings runner status, test runs, assertion results, execution events, and uploaded artifacts into one self-hosted workspace.
 
-Bud is available under the **GNU Affero General Public License v3.0 only (AGPL-3.0-only)**. EmbedLabs also offers commercial licensing for use cases that cannot comply with the AGPL, plus paid **priority support** and **custom feature development**. Contact `dev@embedlabs.net`.
+Bud is available under the **GNU Affero General Public License v3.0 only (AGPL-3.0-only)**. EmbedLabs also offers professional licensing for use cases that cannot comply with the AGPL, plus paid **priority support** and **custom feature development**. Contact `dev@embedlabs.net`.
 
 ## Container image and GitHub Packages
 
@@ -263,4 +263,4 @@ Community bug reports and feature proposals belong in GitHub Issues. EmbedLabs a
 
 ## License
 
-Bud by EmbedLabs is licensed under the **GNU Affero General Public License v3.0 only (AGPL-3.0-only)**. Commercial licenses are available from EmbedLabs for use cases that cannot comply with the AGPL. See [`LICENSE`](LICENSE) or contact `dev@embedlabs.net`.
+Bud TMP by EmbedLabs is licensed under the **GNU Affero General Public License v3.0 only (AGPL-3.0-only)**. Commercial licenses are available from EmbedLabs for use cases that cannot comply with the AGPL. See [`LICENSE`](LICENSE) or contact `dev@embedlabs.net`.
