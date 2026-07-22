@@ -1,6 +1,6 @@
 # Contributor License Agreement (CLA)
 
-Thank you for contributing to EmbedLabs projects in this repository.
+Thank you for contributing to Bud.
 
 By submitting a contribution (including issues, pull requests, patches, documentation, or other material) you agree to the following terms.
 
@@ -27,9 +27,9 @@ You represent that:
 - The Contribution is your original creation (or you have the right to submit it on behalf of your employer, and your employer has authorized this agreement).
 - To the best of your knowledge, the Contribution does not violate any third party’s rights.
 
-## 5. Dual licensing
+## 5. Project license
 
-You acknowledge that the project may be distributed under the GNU Affero General Public License v3.0 (AGPL-3.0) and that EmbedLabs may offer the project or combined works under other license terms (including proprietary commercial licenses) without further permission from you beyond this agreement.
+You acknowledge that Bud and accepted Contributions are distributed under the GNU Affero General Public License v3.0 only (AGPL-3.0-only).
 
 ## 6. No obligation
 
@@ -37,4 +37,4 @@ Nothing in this agreement obligates EmbedLabs to accept or use your Contribution
 
 ## 7. Contact
 
-For questions about this CLA or commercial licensing: dev@embedlabs.net
+For questions about this CLA: dev@embedlabs.net

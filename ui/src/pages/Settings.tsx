@@ -67,6 +67,8 @@ export default function Settings() {
   // PLM Integration local state
   const [bloomUrl, setBloomUrl] = useState('')
   const [bloomToken, setBloomToken] = useState('')
+  const [hasBloomToken, setHasBloomToken] = useState(false)
+  const [bloomTokenPrefix, setBloomTokenPrefix] = useState<string | null>(null)
 
   const { data: almSettings, isLoading: almLoading } = useQuery({
     queryKey: ['almSettings'],
@@ -77,13 +79,18 @@ export default function Settings() {
   useEffect(() => {
     if (almSettings) {
       setBloomUrl(almSettings.bloom_url)
-      setBloomToken(almSettings.bloom_token)
+      setBloomToken('')
+      setHasBloomToken(almSettings.has_bloom_token)
+      setBloomTokenPrefix(almSettings.bloom_token_prefix)
     }
   }, [almSettings])
 
   const almMutation = useMutation({
     mutationFn: settingsApi.updateALM,
-    onSuccess: () => {
+    onSuccess: (updated) => {
+      setHasBloomToken(updated.has_bloom_token)
+      setBloomTokenPrefix(updated.bloom_token_prefix)
+      setBloomToken('')
       queryClient.invalidateQueries({ queryKey: ['almSettings'] })
       alert('PLM settings updated successfully')
     },
@@ -95,8 +102,13 @@ export default function Settings() {
   const handleSaveALM = () => {
     almMutation.mutate({
       bloom_url: bloomUrl,
-      bloom_token: bloomToken
+      ...(bloomToken ? { bloom_token: bloomToken } : {}),
     })
+  }
+
+  const handleClearToken = () => {
+    if (!window.confirm('Remove the Bloom result-sync credential from Bud?')) return
+    almMutation.mutate({ bloom_url: bloomUrl, clear_bloom_token: true })
   }
 
   const handleTimezoneChange = (newTz: string) => {
@@ -192,17 +204,32 @@ export default function Settings() {
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5">
-                    Bloom Access Token
+                    Bloom Result-Sync Credential
                   </label>
                   <input
                     type="password"
                     value={bloomToken}
                     onChange={(e) => setBloomToken(e.target.value)}
-                    placeholder="Enter Bloom API token..."
+                    placeholder={hasBloomToken ? `Configured (${bloomTokenPrefix ?? 'blm_sync_'}…); enter a new token to rotate` : 'Paste a blm_sync_ credential from Bloom'}
                     className="w-full px-3 py-2 bg-background border border-input rounded-md text-sm text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-ring focus:border-ring transition-colors font-mono"
                   />
                 </div>
+                <p className="text-[11px] text-muted-foreground">
+                  {hasBloomToken
+                    ? 'Configured and encrypted. The secret is never returned by the API.'
+                    : 'Not configured. Create a scoped test-results:write credential in Bloom first.'}
+                </p>
                 <div className="flex justify-end">
+                  {hasBloomToken && (
+                    <button
+                      type="button"
+                      onClick={handleClearToken}
+                      disabled={almMutation.isPending}
+                      className="mr-3 px-4 py-2 text-sm font-medium text-destructive hover:underline disabled:opacity-50"
+                    >
+                      Clear Credential
+                    </button>
+                  )}
                   <button
                     onClick={handleSaveALM}
                     disabled={almMutation.isPending}
@@ -244,6 +271,24 @@ export default function Settings() {
             >
               EmbedLabs
               <ExternalLink className="h-3 w-3" />
+            </a>
+          </div>
+          <div className="mt-3 flex items-center gap-3 text-xs">
+            <a
+              href="https://github.com/MbedLabs/bud"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary hover:text-primary/80 transition-colors font-medium"
+            >
+              Source code
+            </a>
+            <a
+              href="https://github.com/MbedLabs/bud/blob/main/LICENSE"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary hover:text-primary/80 transition-colors font-medium"
+            >
+              AGPL-3.0 license
             </a>
           </div>
         </div>

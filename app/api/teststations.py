@@ -5,20 +5,28 @@ H2: Rate-limited registration and heartbeat endpoints.
 C2: TestStation registration requires a server-side API key.
 """
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.deps import limiter, require_teststation_api_key
-from app.core.security import generate_teststation_token, get_password_hash
+from app.api.auth import get_current_user, require_role
+from app.core.config import settings
+from app.core.deps import get_current_teststation, limiter, require_teststation_api_key
+from app.core.security import (
+    generate_teststation_token,
+    get_password_hash,
+    verify_password,
+)
 from app.db import get_db
 from app.models import TestStation
+from app.models.user import User, UserRole
 from app.schemas import (
     TestStationHeartbeat,
     TestStationRegister,
     TestStationResponse,
+    TestStationStatusList,
     TestStationToken,
 )
 
@@ -48,25 +56,27 @@ async def register_teststation(
     result = await db.execute(select(TestStation).where(TestStation.account == data.username))
     existing = result.scalar_one_or_none()
 
-    if existing:
-        raise HTTPException(
-            status_code=400,
-            detail="TestStation with this account name already exists",
-        )
-
-    # Generate token
     token = generate_teststation_token(data.username)
-
-    # Create teststation
-    teststation = TestStation(
-        account=data.username,
-        password_hash=get_password_hash(data.password),
-        token=token,
-        socket_port=data.socket_port,
-        location=data.location,
-    )
-
-    db.add(teststation)
+    if existing:
+        if not verify_password(data.password, existing.password_hash):
+            raise HTTPException(
+                status_code=400,
+                detail="TestStation already exists and password does not match.",
+            )
+        teststation = existing
+        teststation.token = token
+        teststation.socket_port = data.socket_port
+        teststation.location = data.location
+        teststation.is_active = True
+    else:
+        teststation = TestStation(
+            account=data.username,
+            password_hash=get_password_hash(data.password),
+            token=token,
+            socket_port=data.socket_port,
+            location=data.location,
+        )
+        db.add(teststation)
     await db.flush()
     await db.refresh(teststation)
 
@@ -82,6 +92,7 @@ async def teststation_heartbeat(
     request: Request,
     data: TestStationHeartbeat,
     db: AsyncSession = Depends(get_db),
+    current_teststation: TestStation = Depends(get_current_teststation),
 ):
     """
     Receive a heartbeat from a test station.
@@ -89,42 +100,31 @@ async def teststation_heartbeat(
     Updates the last_heartbeat timestamp for the teststation.
     Rate-limited to 60 requests/minute per IP (H2).
     """
-    result = await db.execute(
-        select(TestStation).where(TestStation.account == data.teststation_account)
-    )
-    teststation = result.scalar_one_or_none()
+    if current_teststation.account != data.teststation_account:
+        raise HTTPException(
+            status_code=403,
+            detail="You can only send heartbeats for your own teststation account.",
+        )
 
-    if not teststation:
-        raise HTTPException(status_code=404, detail="TestStation not found")
-
-    teststation.last_heartbeat = datetime.utcnow()
-    teststation.is_active = True
-
-
-from app.schemas import (
-    TestStationHeartbeat,
-    TestStationRegister,
-    TestStationResponse,
-    TestStationStatusList,
-    TestStationToken,
-)
-
-...
+    current_teststation.last_heartbeat = datetime.utcnow()
+    current_teststation.is_active = True
+    return {
+        "status": "ok",
+        "timestamp": datetime.utcnow().isoformat(),
+        "account": current_teststation.account,
+    }
 
 
 @router.get("/status", response_model=TestStationStatusList)
 async def get_teststation_status(
     db: AsyncSession = Depends(get_db),
+    _current_user: User = Depends(get_current_user),
 ):
     """
     Get status of all teststations.
     """
     result = await db.execute(select(TestStation).order_by(TestStation.last_heartbeat.desc()))
     teststations = result.scalars().all()
-
-    from datetime import timedelta
-
-    from app.core.config import settings
 
     timeout = timedelta(seconds=settings.RUNNER_HEARTBEAT_TIMEOUT)
     now = datetime.utcnow()
@@ -155,6 +155,7 @@ async def get_teststation_status(
 async def get_teststation(
     account: str,
     db: AsyncSession = Depends(get_db),
+    _current_user: User = Depends(get_current_user),
 ):
     """
     Get a test station by account name.
@@ -168,14 +169,14 @@ async def get_teststation(
     return teststation
 
 
-@router.delete("/{account}", status_code=204, dependencies=[Depends(require_teststation_api_key)])
+@router.delete("/{account}", status_code=204)
 async def delete_teststation(
-    request: Request,
     account: str,
     db: AsyncSession = Depends(get_db),
+    _admin: User = Depends(require_role(UserRole.admin)),
 ):
     """
-    Delete a test station. Requires X-API-Key (C2).
+    Delete a test station. Requires an authenticated administrator.
     """
     result = await db.execute(select(TestStation).where(TestStation.account == account))
     teststation = result.scalar_one_or_none()

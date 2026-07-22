@@ -2,13 +2,10 @@
 File uploads API endpoints.
 """
 
-import contextlib
-import os
 import uuid
 from pathlib import Path
 from typing import Optional, Union
 
-import aiofiles
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from sqlalchemy import select
@@ -21,11 +18,15 @@ from app.db import get_db
 from app.models import Artifact, Runner, TestRun
 from app.models.user import User, UserRole
 from app.schemas import ArtifactResponse
+from app.services.artifact_cleanup import unlink_storage_key
+from app.services.artifact_storage import (
+    release_upload,
+    reserve_upload,
+    store_upload,
+    validate_display_metadata,
+)
 
 router = APIRouter()
-
-# Streaming chunk size for uploads (1 MiB): bounds per-request memory use.
-_UPLOAD_CHUNK_SIZE = 1024 * 1024
 
 # Resolved absolute upload root — used for path-traversal checks (C3)
 _UPLOAD_ROOT: Optional[Path] = None
@@ -59,17 +60,37 @@ def _can_user_delete_artifact(user: User) -> bool:
     return user.role == UserRole.admin
 
 
+async def _get_accessible_artifact(
+    db: AsyncSession,
+    artifact_id: int,
+    current_entity: Union[User, Runner],
+) -> Artifact:
+    result = await db.execute(
+        select(Artifact).options(selectinload(Artifact.test_run)).where(Artifact.id == artifact_id)
+    )
+    artifact = result.scalar_one_or_none()
+    if artifact is None:
+        raise HTTPException(status_code=404, detail="Artifact not found")
+    if isinstance(current_entity, Runner) and not _can_runner_access_artifact(
+        current_entity, artifact
+    ):
+        raise HTTPException(status_code=403, detail="Runner is not authorized for this artifact")
+    return artifact
+
+
 async def _validate_runner_upload_run(
     db: AsyncSession, current_entity: Union[User, Runner], run_id: Optional[int]
 ) -> None:
     """Prevent a runner from attaching an artifact to another runner's test run."""
-    if not isinstance(current_entity, Runner) or run_id is None:
+    if isinstance(current_entity, User) and current_entity.role != UserRole.admin:
+        raise HTTPException(status_code=403, detail="Only admins may upload artifacts")
+    if run_id is None:
         return
 
     test_run = await db.get(TestRun, run_id)
     if test_run is None:
         raise HTTPException(status_code=404, detail="Test run not found")
-    if test_run.runner_id != current_entity.id:
+    if isinstance(current_entity, Runner) and test_run.runner_id != current_entity.id:
         raise HTTPException(
             status_code=403,
             detail="Runner is not authorized to upload artifacts for this test run",
@@ -91,6 +112,7 @@ async def upload_file(
     a test case and/or test run.
     """
     await _validate_runner_upload_run(db, _current_entity, run_id)
+    display_filename = validate_display_metadata(file.filename, test_case)
 
     # H4: Validate MIME type against allowlist
     content_type = file.content_type or "application/octet-stream"
@@ -120,43 +142,36 @@ async def upload_file(
 
     # C3: Verify the resolved storage path is still inside the upload root
     resolved_storage = storage_path.resolve()
-    if not str(resolved_storage).startswith(str(upload_dir)):
+    if resolved_storage.parent != upload_dir:
         raise HTTPException(status_code=400, detail="Invalid file path.")
 
-    # Stream to disk in chunks with a running byte cap, so an oversized body is
-    # rejected as soon as the cap is crossed instead of being buffered fully in
-    # memory first (the old `await file.read()` pattern).
-    file_size = 0
+    lease = await reserve_upload(db, _current_entity, test_run_id=run_id)
+    lease_id = lease.id
     try:
-        async with aiofiles.open(resolved_storage, "wb") as f:
-            while chunk := await file.read(_UPLOAD_CHUNK_SIZE):
-                file_size += len(chunk)
-                if file_size > settings.MAX_UPLOAD_SIZE:
-                    raise HTTPException(
-                        status_code=413,
-                        detail=f"File too large. Maximum size is {settings.MAX_UPLOAD_SIZE} bytes",
-                    )
-                await f.write(chunk)
+        stored = await store_upload(file, resolved_storage, max_bytes=lease.reserved_bytes)
+
+        # Store only the relative UUID key. The display name is never a path.
+        artifact = Artifact(
+            filename=unique_filename,
+            original_filename=display_filename,
+            content_type=content_type,
+            size_bytes=stored.size_bytes,
+            sha256=stored.sha256,
+            storage_path=unique_filename,
+            test_case=test_case,
+            test_run_id=run_id,
+        )
+        db.add(artifact)
+        await db.flush()
+        await db.delete(lease)
+        await db.commit()
+        await db.refresh(artifact)
     except BaseException:
-        # Never leave a partial file behind on cap breach, client disconnect, or error.
-        with contextlib.suppress(OSError):
-            os.remove(resolved_storage)
+        await db.rollback()
+        if resolved_storage.exists():
+            resolved_storage.unlink()
+        await release_upload(db, lease_id)
         raise
-
-    # Create database record — store only the relative filename, not the full path
-    artifact = Artifact(
-        filename=unique_filename,
-        original_filename=file.filename or "unknown",
-        content_type=content_type,
-        size_bytes=file_size,
-        storage_path=unique_filename,  # relative to UPLOAD_DIR; never store full FS path
-        test_case=test_case,
-        test_run_id=run_id,
-    )
-
-    db.add(artifact)
-    await db.flush()
-    await db.refresh(artifact)
 
     return artifact
 
@@ -170,25 +185,14 @@ async def download_artifact(
     """
     Download an artifact by ID.
     """
-    result = await db.execute(
-        select(Artifact).options(selectinload(Artifact.test_run)).where(Artifact.id == artifact_id)
-    )
-    artifact = result.scalar_one_or_none()
-
-    if not artifact:
-        raise HTTPException(status_code=404, detail="Artifact not found")
-
-    if isinstance(_current_entity, Runner) and not _can_runner_access_artifact(
-        _current_entity, artifact
-    ):
-        raise HTTPException(status_code=403, detail="Runner is not authorized for this artifact")
+    artifact = await _get_accessible_artifact(db, artifact_id, _current_entity)
 
     # C3: Reconstruct the full path from the trusted upload root + relative filename
     upload_root = get_upload_root()
     storage_path = (upload_root / artifact.storage_path).resolve()
 
     # Double-check the resolved path is inside the upload root (defense-in-depth)
-    if not str(storage_path).startswith(str(upload_root)):
+    if storage_path.parent != upload_root:
         raise HTTPException(status_code=400, detail="Invalid artifact path.")
 
     if not storage_path.exists():
@@ -210,20 +214,7 @@ async def get_artifact_info(
     """
     Get artifact metadata without downloading.
     """
-    result = await db.execute(
-        select(Artifact).options(selectinload(Artifact.test_run)).where(Artifact.id == artifact_id)
-    )
-    artifact = result.scalar_one_or_none()
-
-    if not artifact:
-        raise HTTPException(status_code=404, detail="Artifact not found")
-
-    if isinstance(_current_entity, Runner) and not _can_runner_access_artifact(
-        _current_entity, artifact
-    ):
-        raise HTTPException(status_code=403, detail="Runner is not authorized for this artifact")
-
-    return artifact
+    return await _get_accessible_artifact(db, artifact_id, _current_entity)
 
 
 @router.delete("/{artifact_id}", status_code=204)
@@ -244,11 +235,7 @@ async def delete_artifact(
     if not _can_user_delete_artifact(_current_user):
         raise HTTPException(status_code=403, detail="Only admins may delete artifacts")
 
-    # C3: Resolve path safely before deletion
-    upload_root = get_upload_root()
-    storage_path = (upload_root / artifact.storage_path).resolve()
-
-    if str(storage_path).startswith(str(upload_root)) and storage_path.exists():
-        os.remove(storage_path)
-
+    storage_key = artifact.storage_path
     await db.delete(artifact)
+    await db.commit()
+    unlink_storage_key(storage_key)

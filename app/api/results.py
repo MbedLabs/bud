@@ -4,28 +4,27 @@ Test results API endpoints.
 
 import hmac
 import logging
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import List, Optional, Union
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy import Integer, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.auth import decode_access_token
+from app.api.auth import decode_access_token, get_current_active_entity
 from app.core.config import settings
+from app.core.run_access import require_mutating_user, require_run_access
 from app.core.runner_auth import authenticate_runner_token
 from app.db import get_db
 from app.models import Product, Runner, TestResult, TestRun
 from app.models.user import User
-from app.schemas import ResultsUpload, TestResultCreate, TestResultResponse
+from app.schemas import ResultsUpload, TestResultResponse
 from app.services.bloom_sync import sync_results_to_bloom
 from app.services.run_events import record_test_run_event
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
-
-# Optional OAuth2 scheme for identifying the uploader
-from fastapi.security import OAuth2PasswordBearer
 
 oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
 
@@ -50,8 +49,8 @@ async def get_uploader_entity(
         payload = decode_access_token(token)
         if payload:
             sub = payload.get("sub")
-            entity_type = payload.get("type", "user")
-            if sub and entity_type != "runner":
+            entity_type = payload.get("type")
+            if sub and entity_type == "user":
                 try:
                     entity_id = int(sub)
                     res = await db.execute(select(User).where(User.id == entity_id))
@@ -95,6 +94,15 @@ async def upload_results(
     """
     target_run_id = data.test_run_id
     target_product_id = data.product_id
+
+    if isinstance(_current_entity, User):
+        require_mutating_user(_current_entity)
+
+    if target_run_id is not None:
+        target_run = await db.get(TestRun, target_run_id)
+        if target_run is None:
+            raise HTTPException(status_code=404, detail="Test run not found")
+        require_run_access(_current_entity, target_run, mutate=True)
 
     # AUTO-ALIGNMENT: Create a TestRun if results are uploaded without one
     if not target_run_id:
@@ -212,14 +220,17 @@ async def upload_results(
 async def get_results_for_run(
     run_id: int,
     db: AsyncSession = Depends(get_db),
+    _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
 ):
     """
     Get all results for a test run.
     """
     # Verify test run exists
-    run_result = await db.execute(select(TestRun.id).where(TestRun.id == run_id))
-    if not run_result.scalar_one_or_none():
+    run_result = await db.execute(select(TestRun).where(TestRun.id == run_id))
+    test_run = run_result.scalar_one_or_none()
+    if test_run is None:
         raise HTTPException(status_code=404, detail="Test run not found")
+    require_run_access(_current_entity, test_run)
 
     # Get results
     result = await db.execute(
@@ -234,6 +245,7 @@ async def get_results_for_run(
 async def get_result(
     result_id: int,
     db: AsyncSession = Depends(get_db),
+    _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
 ):
     """
     Get a single test result by ID.
@@ -243,5 +255,14 @@ async def get_result(
 
     if not test_result:
         raise HTTPException(status_code=404, detail="Test result not found")
+
+    if test_result.test_run_id is None:
+        if isinstance(_current_entity, Runner):
+            raise HTTPException(status_code=404, detail="Test result not found")
+    else:
+        test_run = await db.get(TestRun, test_result.test_run_id)
+        if test_run is None:
+            raise HTTPException(status_code=404, detail="Test result not found")
+        require_run_access(_current_entity, test_run)
 
     return test_result

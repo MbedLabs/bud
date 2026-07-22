@@ -4,9 +4,12 @@ FastAPI application for the Bud test automation platform
 Main entry point for the backend API.
 """
 
+import asyncio
+import contextlib
+import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from slowapi import _rate_limit_exceeded_handler
@@ -35,8 +38,10 @@ from app.core.observability import (
 from app.core.security import get_password_hash
 from app.db import database as db
 from app.models.user import User, UserRole
+from app.services.artifact_cleanup import reconcile_artifacts
 
 setup_logging(level=app_settings.LOG_LEVEL, json_logs=bool(app_settings.LOG_JSON))
+logger = logging.getLogger(__name__)
 
 
 async def seed_admin_user():
@@ -141,7 +146,30 @@ async def lifespan(app: FastAPI):
         await migrate_execution_columns()
     if app_settings.AUTO_SEED_ADMIN:
         await seed_admin_user()
-    yield
+
+    async def cleanup_loop() -> None:
+        while True:
+            try:
+                async with db.async_session_maker() as session:
+                    report = await reconcile_artifacts(session)
+                    if report.leader_acquired:
+                        logger.info(
+                            "Artifact cleanup: expired=%s orphan=%s missing=%s",
+                            report.expired_artifacts,
+                            report.orphan_files,
+                            report.missing_files,
+                        )
+            except Exception:
+                logger.exception("Artifact cleanup pass failed")
+            await asyncio.sleep(24 * 60 * 60)
+
+    cleanup_task = asyncio.create_task(cleanup_loop())
+    try:
+        yield
+    finally:
+        cleanup_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await cleanup_task
 
 
 # L1: Hide docs endpoints in production; set ENABLE_DOCS=true for local dev

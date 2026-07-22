@@ -6,7 +6,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional  # noqa: F401
 
-from pydantic import BaseModel, Field, field_serializer, field_validator
+from pydantic import BaseModel, Field, field_serializer
 
 # ==================== Enums ====================
 
@@ -296,6 +296,7 @@ class ArtifactResponse(BaseModel):
     original_filename: str
     content_type: str
     size_bytes: int
+    sha256: Optional[str] = None
     test_case: Optional[str]
     created_at: datetime
     test_run_id: Optional[int]
@@ -428,4 +429,14 @@ class ALMIntegrationSettings(BaseModel):
     """Schema for PLM integration settings (Bloom)."""
 
     bloom_url: str
-    bloom_token: str
+    has_bloom_token: bool = False
+    bloom_token_prefix: Optional[str] = None
+    bloom_token_rotated_at: Optional[datetime] = None
+
+
+class ALMIntegrationSettingsUpdate(BaseModel):
+    """One-way update: secrets are accepted but never returned."""
+
+    bloom_url: str
+    bloom_token: Optional[str] = None
+    clear_bloom_token: bool = False

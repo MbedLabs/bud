@@ -113,6 +113,18 @@ tar xzf bud-uploads-YYYY-MM-DD.tgz -C /path/to/uploads
 Verify after restore: `GET /api/ready` (confirms the database is reachable),
 then log in and confirm recent runs and artifacts are visible.
 
+## Artifact upload controls
+
+`MAX_UPLOAD_SIZE_BYTES` defaults to 25 MiB and cannot exceed 100 MiB.
+`MAX_RUN_UPLOAD_BYTES` defaults to 250 MiB. Bud reserves capacity before an
+upload, permits one active upload per principal, rate-limits attempts, preserves
+`MIN_UPLOAD_FREE_BYTES`, writes through a temporary file, and atomically promotes
+only complete uploads. `ARTIFACT_RETENTION_DAYS` controls the daily retention
+pass, which also removes orphaned files and expired upload reservations.
+
+These are authorization and resource-exhaustion controls, not a malware scanner.
+Add a fail-closed ClamAV or YARA stage if your deployment needs that claim.
+
 ## Upgrades
 
 1. Back up first (see above).
@@ -131,15 +143,16 @@ tag. Never run a newer schema against an older application version.
   schedule to your tolerance and copy backups off the host.
 - **RTO** is dominated by Postgres restore time; rehearse the restore path
   against a scratch database at least once before you depend on it.
-- Keep `SECRET_KEY` and `RUNNER_API_KEY` in your secret store — a restored
-  database with a different `SECRET_KEY` invalidates all sessions and runner
-  tokens, and runners will need to re-register.
+- Keep `SECRET_KEY`, `RUNNER_API_KEY`, and `INTEGRATION_ENCRYPTION_KEY` in your
+  secret store. A different `SECRET_KEY` invalidates sessions and runner tokens,
+  so runners must re-register. A different `INTEGRATION_ENCRYPTION_KEY` makes the
+  stored Bloom result-sync credential unreadable, so it must be rotated.
 
 ## Supply chain
 
 Every release build publishes an SPDX SBOM as a CI artifact
-(`bud-sbom.spdx.json`) alongside the container image, and CI runs Bandit and
-pip-audit on every push.
+(`bud-sbom.spdx.json`) alongside the container image, and CI runs Bandit,
+`pip-audit`, and blocking `npm audit` checks on every push.
 
 Backend dependencies are pinned in [`constraints.txt`](../constraints.txt)
 (generated with `pip-compile`), and both the image build and CI install with

@@ -10,10 +10,11 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.api.auth import get_current_active_entity, get_current_user
+from app.api.auth import get_current_active_entity, require_role
+from app.core.run_access import require_mutating_user, require_run_access
 from app.db import get_db
-from app.models import Runner, TestRun, TestRunEvent
-from app.models.user import User
+from app.models import Artifact, Runner, TestRun, TestRunEvent
+from app.models.user import User, UserRole
 from app.schemas import (
     TestRunCreate,
     TestRunEventResponse,
@@ -21,6 +22,7 @@ from app.schemas import (
     TestRunResponse,
     TestRunUpdate,
 )
+from app.services.artifact_cleanup import unlink_storage_key
 from app.services.run_events import record_test_run_event
 
 router = APIRouter()
@@ -37,17 +39,22 @@ async def create_test_run(
 
     This endpoint is called by bud_runner when starting a test suite.
     """
-    # Find runner if specified
-    runner_id = None
-    if data.runner_account:
+    if isinstance(_current_entity, Runner):
+        if data.runner_account and data.runner_account != _current_entity.account:
+            raise HTTPException(
+                status_code=403, detail="Runner cannot create runs for another runner"
+            )
+        runner_id = _current_entity.id
+    else:
+        require_mutating_user(_current_entity)
+        runner_id = None
+
+    if isinstance(_current_entity, User) and data.runner_account:
         result = await db.execute(select(Runner).where(Runner.account == data.runner_account))
         runner = result.scalar_one_or_none()
-        if runner:
-            runner_id = runner.id
-
-    # Auto-associate if created by a runner and no account was explicitly provided
-    if isinstance(_current_entity, Runner) and not runner_id:
-        runner_id = _current_entity.id
+        if runner is None:
+            raise HTTPException(status_code=404, detail="Runner not found")
+        runner_id = runner.id
 
     test_run = TestRun(
         name=data.test_suite_name,
@@ -99,9 +106,11 @@ async def get_test_run_events(
     """
     Get system-reported execution and integration events for a test run.
     """
-    run_result = await db.execute(select(TestRun.id).where(TestRun.id == run_id))
-    if run_result.scalar_one_or_none() is None:
+    run_result = await db.execute(select(TestRun).where(TestRun.id == run_id))
+    test_run = run_result.scalar_one_or_none()
+    if test_run is None:
         raise HTTPException(status_code=404, detail="Test run not found")
+    require_run_access(_current_entity, test_run)
 
     result = await db.execute(
         select(TestRunEvent)
@@ -142,6 +151,12 @@ async def list_test_runs(
         .order_by(TestRun.created_at.desc(), TestRun.id.desc())
     )
     count_query = select(func.count(TestRun.id))
+
+    if isinstance(_current_entity, Runner):
+        if runner_account and runner_account != _current_entity.account:
+            raise HTTPException(status_code=403, detail="Runner cannot list another runner's runs")
+        query = query.where(TestRun.runner_id == _current_entity.id)
+        count_query = count_query.where(TestRun.runner_id == _current_entity.id)
 
     if status:
         query = query.where(TestRun.status == status)
@@ -206,6 +221,7 @@ async def get_test_run(
 
     if not test_run:
         raise HTTPException(status_code=404, detail="Test run not found")
+    require_run_access(_current_entity, test_run)
 
     return TestRunResponse.from_orm_with_runner(test_run)
 
@@ -225,6 +241,7 @@ async def update_test_run(
 
     if not test_run:
         raise HTTPException(status_code=404, detail="Test run not found")
+    require_run_access(_current_entity, test_run, mutate=True)
 
     # Update fields
     if data.status is not None:
@@ -270,7 +287,7 @@ async def update_test_run(
 async def delete_test_run(
     run_id: int,
     db: AsyncSession = Depends(get_db),
-    _current_user: User = Depends(get_current_user),
+    _admin: User = Depends(require_role(UserRole.admin)),
 ):
     """
     Delete a test run.
@@ -281,5 +298,12 @@ async def delete_test_run(
     if not test_run:
         raise HTTPException(status_code=404, detail="Test run not found")
 
+    storage_keys = list(
+        (
+            await db.scalars(select(Artifact.storage_path).where(Artifact.test_run_id == run_id))
+        ).all()
+    )
     await db.delete(test_run)
     await db.commit()
+    for storage_key in storage_keys:
+        unlink_storage_key(storage_key)

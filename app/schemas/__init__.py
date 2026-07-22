@@ -2,6 +2,7 @@
 
 from app.schemas.schemas import (
     ALMIntegrationSettings,
+    ALMIntegrationSettingsUpdate,
     ArtifactResponse,
     HealthResponse,
     ProductBase,
@@ -57,6 +58,7 @@ __all__ = [
     "SystemSettingResponse",
     "SystemSettingUpdate",
     "ALMIntegrationSettings",
+    "ALMIntegrationSettingsUpdate",
     "TestStationRegister",
     "TestStationResponse",
     "TestStationToken",

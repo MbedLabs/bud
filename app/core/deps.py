@@ -6,18 +6,20 @@ H2: Rate limiting via slowapi.
 """
 
 import hmac
-from typing import Optional
 
-from fastapi import Depends, Header, HTTPException, Request, status
+from fastapi import Depends, Header, HTTPException, status
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.core.runner_auth import authenticate_runner_token
+from app.core.runner_auth import (
+    authenticate_runner_token,
+    authenticate_teststation_token,
+)
 from app.core.security import oauth2_scheme
 from app.db import get_db
-from app.models import Runner
+from app.models import Runner, TestStation
 
 # ── Rate limiter (H2) ──────────────────────────────────────────────────────────
 limiter = Limiter(key_func=get_remote_address)
@@ -43,6 +45,20 @@ async def get_current_runner(
         )
 
     return runner
+
+
+async def get_current_teststation(
+    db: AsyncSession = Depends(get_db), token: str = Depends(oauth2_scheme)
+) -> TestStation:
+    """Authenticate the active test station named by a teststation JWT."""
+    teststation = await authenticate_teststation_token(token, db)
+    if teststation is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return teststation
 
 
 # ── API-key auth (C2) ─────────────────────────────────────────────────────────

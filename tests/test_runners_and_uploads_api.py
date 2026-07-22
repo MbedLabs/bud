@@ -324,3 +324,153 @@ async def test_oversized_upload_streams_to_413_and_leaves_no_partial_file(
     assert "File too large" in response.json()["detail"]
     after = set(upload_root.glob("*")) if upload_root.exists() else set()
     assert after == before  # no partial file left behind
+
+
+@pytest.mark.asyncio
+async def test_upload_at_exact_file_limit_is_accepted(client, monkeypatch):
+    from app.core.config import settings as app_settings
+
+    monkeypatch.setattr(app_settings, "MAX_UPLOAD_SIZE", 10)
+    monkeypatch.setattr(app_settings, "MIN_UPLOAD_FREE_BYTES", 0)
+
+    response = client.post(
+        "/api/uploads",
+        files={"file": ("at-limit.txt", b"x" * 10, "text/plain")},
+    )
+
+    assert response.status_code == 201
+    assert response.json()["size_bytes"] == 10
+
+
+@pytest.mark.asyncio
+async def test_upload_rejects_invalid_display_metadata_before_writing(client):
+    response = client.post(
+        "/api/uploads",
+        files={"file": (("x" * 256) + ".txt", b"safe", "text/plain")},
+    )
+
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_upload_rejects_when_free_space_reserve_cannot_be_preserved(
+    client, monkeypatch
+):
+    import app.services.artifact_storage as storage_module
+    from app.core.config import settings as app_settings
+
+    monkeypatch.setattr(app_settings, "MIN_UPLOAD_FREE_BYTES", 1024)
+    monkeypatch.setattr(
+        storage_module.shutil,
+        "disk_usage",
+        lambda _path: type("Usage", (), {"free": 1024})(),
+    )
+
+    response = client.post(
+        "/api/uploads",
+        files={"file": ("trace.txt", b"data", "text/plain")},
+    )
+
+    assert response.status_code == 507
+    assert "free space" in response.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_upload_endpoint_uses_remaining_per_run_capacity(
+    client, db_session, monkeypatch, tmp_path
+):
+    import app.api.uploads as uploads_module
+    from app.core.config import settings as app_settings
+
+    monkeypatch.setattr(uploads_module, "_UPLOAD_ROOT", tmp_path)
+    monkeypatch.setattr(app_settings, "MIN_UPLOAD_FREE_BYTES", 0)
+    monkeypatch.setattr(app_settings, "MAX_UPLOAD_SIZE", 25)
+    monkeypatch.setattr(app_settings, "MAX_RUN_UPLOAD_BYTES", 250)
+    run = TestRun(name="quota-run", test_case_list="[]", status="Running")
+    db_session.add(run)
+    await db_session.flush()
+    db_session.add(
+        Artifact(
+            filename="existing",
+            original_filename="existing",
+            content_type="text/plain",
+            size_bytes=249,
+            storage_path="existing",
+            test_run_id=run.id,
+        )
+    )
+    await db_session.commit()
+
+    response = client.post(
+        "/api/uploads",
+        files={"file": ("trace.txt", b"x", "text/plain")},
+        data={"run_id": str(run.id)},
+    )
+
+    assert response.status_code == 201, response.text
+    assert response.json()["size_bytes"] == 1
+
+
+@pytest.mark.asyncio
+async def test_upload_endpoint_rejects_bytes_beyond_remaining_run_capacity(
+    client, db_session, monkeypatch, tmp_path
+):
+    import app.api.uploads as uploads_module
+    from app.core.config import settings as app_settings
+
+    monkeypatch.setattr(uploads_module, "_UPLOAD_ROOT", tmp_path)
+    monkeypatch.setattr(app_settings, "MIN_UPLOAD_FREE_BYTES", 0)
+    monkeypatch.setattr(app_settings, "MAX_UPLOAD_SIZE", 25)
+    monkeypatch.setattr(app_settings, "MAX_RUN_UPLOAD_BYTES", 250)
+    run = TestRun(name="quota-overflow", test_case_list="[]", status="Running")
+    db_session.add(run)
+    await db_session.flush()
+    db_session.add(
+        Artifact(
+            filename="existing",
+            original_filename="existing",
+            content_type="text/plain",
+            size_bytes=249,
+            storage_path="existing",
+            test_run_id=run.id,
+        )
+    )
+    await db_session.commit()
+
+    response = client.post(
+        "/api/uploads",
+        files={"file": ("trace.txt", b"xx", "text/plain")},
+        data={"run_id": str(run.id)},
+    )
+
+    assert response.status_code == 413
+    assert list(tmp_path.iterdir()) == []
+
+
+@pytest.mark.asyncio
+async def test_viewer_cannot_upload_artifacts(client):
+    from app.api.auth import get_current_active_entity
+    from app.main import app
+
+    viewer = User(
+        id=88,
+        email="viewer-upload@example.com",
+        full_name="Viewer",
+        hashed_password="hash",
+        role=UserRole.viewer,
+        is_active=True,
+    )
+
+    async def override_viewer():
+        return viewer
+
+    app.dependency_overrides[get_current_active_entity] = override_viewer
+    try:
+        response = client.post(
+            "/api/uploads",
+            files={"file": ("trace.txt", b"x", "text/plain")},
+        )
+    finally:
+        app.dependency_overrides.pop(get_current_active_entity, None)
+
+    assert response.status_code == 403

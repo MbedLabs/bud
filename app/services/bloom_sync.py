@@ -4,7 +4,6 @@ from datetime import datetime
 
 import httpx
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 from tenacity import (
     retry,
     retry_if_exception_type,
@@ -12,8 +11,9 @@ from tenacity import (
     wait_exponential,
 )
 
-from app.db.database import async_session_maker
+from app.db import database as db
 from app.models import TestResult
+from app.services.integration_secrets import decrypt_integration_secret
 from app.services.run_events import record_test_run_event
 
 logger = logging.getLogger(__name__)
@@ -81,17 +81,18 @@ async def sync_results_to_bloom(test_run_id: int):
     """
     Background task to sync test results from Bud to Bloom PLM.
 
-    Matches results to Bloom campaign items by tc_id extracted from
-    test_metadata (populated by the runner from BloomMetaData on the
-    test class). No campaign_id is required on the TestRun.
+    Aggregates execution outcomes by Bloom ``tc_id`` extracted from result
+    metadata. Bud sends no campaign identity or campaign metadata. Bloom owns
+    the matching test cases and may update line items in campaigns that already
+    contain those test cases.
     """
-    async with async_session_maker() as db:
+    async with db.async_session_maker() as session:
         try:
             # 1. Get Bloom Configuration from SystemSettings
             from app.models import SystemSetting
 
-            url_setting = await db.get(SystemSetting, "bloom_url")
-            token_setting = await db.get(SystemSetting, "bloom_token")
+            url_setting = await session.get(SystemSetting, "bloom_url")
+            token_setting = await session.get(SystemSetting, "bloom_token_encrypted")
 
             if (
                 not url_setting
@@ -103,21 +104,21 @@ async def sync_results_to_bloom(test_run_id: int):
                     f"Bloom sync skipped for run {test_run_id}: Bloom URL or Token not configured in SystemSettings."
                 )
                 await record_test_run_event(
-                    db,
+                    session,
                     test_run_id=test_run_id,
                     stage="bloom_sync",
                     status="skipped",
                     title="Bloom sync skipped",
                     message="Bloom URL or access token is not configured in Bud settings.",
                 )
-                await db.commit()
+                await session.commit()
                 return
 
             bloom_url = url_setting.value.rstrip("/")
-            bloom_token = token_setting.value
+            bloom_token = decrypt_integration_secret(token_setting.value)
 
             # 2. Get all results for this run that carry a tc_id in their metadata
-            results_stream = await db.stream_scalars(
+            results_stream = await session.stream_scalars(
                 select(TestResult)
                 .where(TestResult.test_run_id == test_run_id)
                 .execution_options(yield_per=500)
@@ -130,19 +131,19 @@ async def sync_results_to_bloom(test_run_id: int):
                     f"Bloom sync skipped for run {test_run_id}: No results with valid tc_id found."
                 )
                 await record_test_run_event(
-                    db,
+                    session,
                     test_run_id=test_run_id,
                     stage="bloom_sync",
                     status="skipped",
                     title="Bloom sync skipped",
                     message="No result metadata included a Bloom tc_id to match.",
                 )
-                await db.commit()
+                await session.commit()
                 return
 
             # 3. Push to Bloom's campaign-agnostic sync endpoint
             await record_test_run_event(
-                db,
+                session,
                 test_run_id=test_run_id,
                 stage="bloom_sync",
                 status="running",
@@ -150,7 +151,7 @@ async def sync_results_to_bloom(test_run_id: int):
                 message=f"Sending {len(payload_results)} aggregated test case result row(s) to Bloom.",
                 event_metadata={"bloom_url": bloom_url, "result_count": len(payload_results)},
             )
-            await db.commit()
+            await session.commit()
 
             response = await _post_to_bloom_with_retry(bloom_url, bloom_token, payload_results)
 
@@ -161,7 +162,7 @@ async def sync_results_to_bloom(test_run_id: int):
                     + (f" Not found: {data.get('not_found')}" if data.get("not_found") else "")
                 )
                 await record_test_run_event(
-                    db,
+                    session,
                     test_run_id=test_run_id,
                     stage="bloom_sync",
                     status="completed" if not data.get("not_found") else "warning",
@@ -176,11 +177,11 @@ async def sync_results_to_bloom(test_run_id: int):
                     ),
                     event_metadata=data,
                 )
-                await db.commit()
+                await session.commit()
             else:
                 logger.error(f"Failed to sync to Bloom: {response.status_code} - {response.text}")
                 await record_test_run_event(
-                    db,
+                    session,
                     test_run_id=test_run_id,
                     stage="bloom_sync",
                     status="failed",
@@ -188,19 +189,19 @@ async def sync_results_to_bloom(test_run_id: int):
                     message=f"Bloom returned HTTP {response.status_code}.",
                     event_metadata={"response": response.text[:500]},
                 )
-                await db.commit()
+                await session.commit()
 
         except Exception as e:
             logger.exception(f"Error during Bloom sync for run {test_run_id}: {e}")
             try:
                 await record_test_run_event(
-                    db,
+                    session,
                     test_run_id=test_run_id,
                     stage="bloom_sync",
                     status="failed",
                     title="Bloom sync failed",
                     message=str(e),
                 )
-                await db.commit()
+                await session.commit()
             except Exception:
                 logger.exception("Failed to persist Bloom sync failure event.")

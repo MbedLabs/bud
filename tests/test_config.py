@@ -20,7 +20,15 @@ CONFIG_ENV_KEYS = [
     "BUD_ENABLE_DOCS",
     "BUD_FRONTEND_BASE_URL",
     "BUD_INVITE_TOKEN_TTL_HOURS",
+    "BUD_INTEGRATION_ENCRYPTION_KEY",
     "BUD_MAX_UPLOAD_SIZE",
+    "BUD_MAX_UPLOAD_SIZE_BYTES",
+    "BUD_MAX_RUN_UPLOAD_BYTES",
+    "BUD_MIN_UPLOAD_FREE_BYTES",
+    "BUD_UPLOADS_PER_15_MINUTES",
+    "BUD_MAX_CONCURRENT_UPLOADS_PER_PRINCIPAL",
+    "BUD_ARTIFACT_RETENTION_DAYS",
+    "BUD_UPLOAD_STREAM_CHUNK_BYTES",
     "BUD_PASSWORD_RESET_TOKEN_TTL_HOURS",
     "BUD_RUN_STARTUP_DATA_REPAIR",
     "BUD_RUNNER_API_KEY",
@@ -46,7 +54,15 @@ CONFIG_ENV_KEYS = [
     "ENABLE_DOCS",
     "FRONTEND_BASE_URL",
     "INVITE_TOKEN_TTL_HOURS",
+    "INTEGRATION_ENCRYPTION_KEY",
     "MAX_UPLOAD_SIZE",
+    "MAX_UPLOAD_SIZE_BYTES",
+    "MAX_RUN_UPLOAD_BYTES",
+    "MIN_UPLOAD_FREE_BYTES",
+    "UPLOADS_PER_15_MINUTES",
+    "MAX_CONCURRENT_UPLOADS_PER_PRINCIPAL",
+    "ARTIFACT_RETENTION_DAYS",
+    "UPLOAD_STREAM_CHUNK_BYTES",
     "PASSWORD_RESET_TOKEN_TTL_HOURS",
     "RUN_STARTUP_DATA_REPAIR",
     "RUNNER_API_KEY",
@@ -162,6 +178,43 @@ def test_settings_falls_back_to_unprefixed_env(monkeypatch):
     assert settings.SMTP_ENABLED is True
     assert settings.SMTP_HOST == "smtp.unprefixed.example.com"
     assert str(settings.SMTP_FROM_EMAIL) == "noreply@example.com"
+
+
+def test_upload_limits_have_safe_public_beta_defaults(monkeypatch):
+    clear_config_env(monkeypatch)
+    monkeypatch.setenv("BUD_SECRET_KEY", "b" * 32)
+
+    settings = Settings(_env_file=None)
+
+    assert settings.MAX_UPLOAD_SIZE == 25 * 1024 * 1024
+    assert settings.MAX_UPLOAD_SIZE_HARD_LIMIT_BYTES == 100 * 1024 * 1024
+    assert settings.MAX_RUN_UPLOAD_BYTES == 250 * 1024 * 1024
+    assert settings.MIN_UPLOAD_FREE_BYTES == 1024 * 1024 * 1024
+    assert settings.UPLOADS_PER_15_MINUTES == 10
+    assert settings.MAX_CONCURRENT_UPLOADS_PER_PRINCIPAL == 1
+    assert settings.ARTIFACT_RETENTION_DAYS == 30
+    assert settings.UPLOAD_STREAM_CHUNK_BYTES == 1024 * 1024
+
+
+def test_operator_can_raise_file_limit_to_100_mib(monkeypatch):
+    clear_config_env(monkeypatch)
+    monkeypatch.setenv("BUD_SECRET_KEY", "b" * 32)
+    monkeypatch.setenv("BUD_MAX_UPLOAD_SIZE_BYTES", str(100 * 1024 * 1024))
+
+    settings = Settings(_env_file=None)
+
+    assert settings.MAX_UPLOAD_SIZE == 100 * 1024 * 1024
+
+
+def test_upload_file_limit_above_100_mib_is_rejected(monkeypatch):
+    clear_config_env(monkeypatch)
+    monkeypatch.setenv("BUD_SECRET_KEY", "b" * 32)
+    monkeypatch.setenv("BUD_MAX_UPLOAD_SIZE_BYTES", str(100 * 1024 * 1024 + 1))
+
+    import pytest
+
+    with pytest.raises(ValueError, match="100 MiB"):
+        Settings(_env_file=None)
 
 
 def test_settings_prefers_bud_prefixed_env(monkeypatch):

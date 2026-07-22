@@ -1,9 +1,9 @@
 """
 Shared pytest fixtures for the bud-app-backend test suite.
 
-Uses an in-memory SQLite (aiosqlite) database so tests run without needing
-a local Postgres. Overrides the real ``get_db`` and ``get_current_user``
-dependencies so endpoints can be exercised via FastAPI's TestClient.
+Uses an isolated SQLite (aiosqlite) file per test so the async fixture,
+FastAPI TestClient, and lifespan/background tasks use independent database
+connections without sharing transaction state across threads.
 """
 
 from __future__ import annotations
@@ -60,8 +60,7 @@ import pytest  # noqa: E402
 import pytest_asyncio  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 from sqlalchemy.ext.asyncio import AsyncSession  # noqa: E402
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-from sqlalchemy.pool import StaticPool  # noqa: E402
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine  # noqa: E402
 
 from app.api.auth import get_current_active_entity, get_current_user  # noqa: E402
 from app.api.results import get_uploader_entity  # noqa: E402
@@ -70,19 +69,16 @@ from app.db.database import Base, get_db  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models.user import User, UserRole  # noqa: E402
 
-TEST_DB_URL = "sqlite+aiosqlite:///:memory:"
-
 
 @pytest_asyncio.fixture(scope="function")
-async def _engine():
-    """Fresh in-memory SQLite engine per test — isolated, deterministic."""
-    # StaticPool: ``:memory:`` must share one DB across connections (lifespan +
-    # TestClient use separate connections from the fixture's create_all).
+async def _engine(tmp_path_factory):
+    """Fresh file-backed SQLite engine per test — isolated and thread-safe."""
+    database_path = tmp_path_factory.mktemp("database") / "test.db"
+    test_db_url = f"sqlite+aiosqlite:///{database_path}"
     engine = create_async_engine(
-        TEST_DB_URL,
+        test_db_url,
         future=True,
         connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
     )
     # Rebind module-level engine so any app code that grabs
     # ``async_session_maker`` indirectly stays consistent with this engine.
@@ -123,7 +119,7 @@ async def client(_engine, test_user):
     """
     TestClient with DB + auth dependencies overridden.
 
-    Each request gets its own AsyncSession from the in-memory engine, and
+    Each request gets its own AsyncSession from the isolated test engine, and
     ``get_current_user`` returns the pre-built ``test_user`` so we don't
     have to issue a real JWT in tests that aren't specifically about auth.
     """
@@ -145,6 +141,28 @@ async def client(_engine, test_user):
     app.dependency_overrides[get_current_user] = override_get_current_entity
     app.dependency_overrides[get_current_active_entity] = override_get_current_entity
     app.dependency_overrides[get_uploader_entity] = override_get_current_entity
+    try:
+        with TestClient(app) as tc:
+            yield tc
+    finally:
+        app.dependency_overrides.clear()
+
+
+@pytest_asyncio.fixture(scope="function")
+async def unauthenticated_client(_engine):
+    """TestClient with the test database but no authentication overrides."""
+    session_maker = async_sessionmaker(_engine, class_=AsyncSession, expire_on_commit=False)
+
+    async def override_get_db() -> AsyncGenerator[AsyncSession, None]:
+        async with session_maker() as session:
+            try:
+                yield session
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                raise
+
+    app.dependency_overrides[get_db] = override_get_db
     try:
         with TestClient(app) as tc:
             yield tc

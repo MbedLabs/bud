@@ -2,7 +2,7 @@
 Database models for the bud TMP.
 """
 
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import List, Optional
 
 from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Integer, String, Text
@@ -165,6 +165,7 @@ class Artifact(Base):
     content_type: Mapped[str] = mapped_column(String(100))
     size_bytes: Mapped[int] = mapped_column(Integer)
     storage_path: Mapped[str] = mapped_column(String(500))
+    sha256: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
 
     test_case: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
@@ -175,6 +176,31 @@ class Artifact(Base):
 
     # Relationships
     test_run: Mapped[Optional["TestRun"]] = relationship(back_populates="artifacts")
+
+
+class UploadLease(Base):
+    """Persistent reservation used to serialize upload concurrency and quota."""
+
+    __tablename__ = "upload_leases"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    principal_key: Mapped[str] = mapped_column(String(128), unique=True, index=True)
+    test_run_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("test_runs.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    reserved_bytes: Mapped[int] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    expires_at: Mapped[datetime] = mapped_column(DateTime, index=True)
+
+
+class UploadAttempt(Base):
+    """Database-backed rolling upload-start rate-limit record."""
+
+    __tablename__ = "upload_attempts"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    principal_key: Mapped[str] = mapped_column(String(128), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
 
 
 class SystemSetting(Base):

@@ -7,7 +7,7 @@ name = "bud-app-backend"
 version = "1.0.0"
 description = "Backend API for Bud Test Management Platform by EmbedLabs"
 readme = "README.md"
-license = {text = "AGPL-3.0"}
+license = {text = "AGPL-3.0-only"}
 authors = [
     {name = "EmbedLabs", email = "dev@embedlabs.net"}
 ]
@@ -19,8 +19,10 @@ dependencies = [
     "pydantic-settings>=2.1.0",
     "pydantic[email]>=2.5.0",
     "sqlalchemy>=2.0.0",
+    "greenlet>=3.0.0",
     "asyncpg>=0.29.0",
     "python-jose[cryptography]>=3.3.0",
+    "cryptography>=49.0.0",
     "passlib[bcrypt]>=1.7.4",
     "bcrypt<4",
     "python-multipart>=0.0.6",
