@@ -112,9 +112,7 @@ async def test_runner_can_only_list_its_own_runs(client, db_session):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("operation", ["detail", "events", "patch", "results"])
-async def test_runner_cannot_access_another_runners_run(
-    client, db_session, operation
-):
+async def test_runner_cannot_access_another_runners_run(client, db_session, operation):
     runner_a, _, _, run_b, _ = await _seed_runner_runs(db_session)
     _override_entity(runner_a)
     try:
@@ -160,9 +158,7 @@ async def test_runner_cannot_upload_results_to_another_runners_run(client, db_se
 
 
 @pytest.mark.asyncio
-async def test_result_reads_require_authentication(
-    unauthenticated_client, db_session
-):
+async def test_result_reads_require_authentication(unauthenticated_client, db_session):
     _, _, _, run_b, result_b = await _seed_runner_runs(db_session)
 
     list_response = unauthenticated_client.get(f"/api/results/{run_b.id}")
@@ -173,7 +169,10 @@ async def test_result_reads_require_authentication(
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("operation", ["product-create", "run-create", "run-patch", "run-delete"])
+@pytest.mark.parametrize(
+    "operation",
+    ["product-create", "run-create", "run-patch", "run-delete", "results-upload"],
+)
 async def test_viewer_is_read_only(client, db_session, operation):
     _, _, run_a, _, _ = await _seed_runner_runs(db_session)
     viewer = User(
@@ -192,6 +191,7 @@ async def test_viewer_is_read_only(client, db_session, operation):
 
     app.dependency_overrides[get_current_active_entity] = override_viewer
     app.dependency_overrides[get_current_user] = override_viewer
+    app.dependency_overrides[get_uploader_entity] = override_viewer
     try:
         if operation == "product-create":
             response = client.post("/api/products", json={"name": "viewer-product"})
@@ -205,10 +205,25 @@ async def test_viewer_is_read_only(client, db_session, operation):
                 f"/api/test-runs/{run_a.id}",
                 json={"status": "Completed"},
             )
-        else:
+        elif operation == "run-delete":
             response = client.delete(f"/api/test-runs/{run_a.id}")
+        else:
+            response = client.post(
+                "/api/results",
+                json={
+                    "test_run_id": run_a.id,
+                    "results": [
+                        {
+                            "test_class": "ViewerUpload",
+                            "test_method": "must_be_denied",
+                            "passed": True,
+                        }
+                    ],
+                },
+            )
     finally:
         app.dependency_overrides.pop(get_current_active_entity, None)
         app.dependency_overrides.pop(get_current_user, None)
+        app.dependency_overrides.pop(get_uploader_entity, None)
 
     assert response.status_code == 403

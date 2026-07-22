@@ -1,6 +1,8 @@
-# Bud
+# Bud by EmbedLabs
 
-Bud is an open source test management and execution platform for teams that run automated tests on CI workers, lab machines, and hardware test stations. It brings runner status, test runs, assertion results, execution events, and uploaded artifacts into one self-hosted workspace.
+Bud by EmbedLabs is an open source test management and execution platform for teams that run automated tests on CI workers, lab machines, and hardware test stations. It brings runner status, test runs, assertion results, execution events, and uploaded artifacts into one self-hosted workspace.
+
+Bud is available under the **GNU Affero General Public License v3.0 only (AGPL-3.0-only)**. EmbedLabs also offers commercial licensing for use cases that cannot comply with the AGPL, plus paid **priority support** and **custom feature development**. Contact `dev@embedlabs.net`.
 
 ## Container image and GitHub Packages
 
@@ -155,15 +157,15 @@ API documentation is disabled by default. For a trusted development environment 
 
 ## Connect Bud to Bloom
 
-Bud can send test-case execution outcomes to Bloom after it accepts a run's results.
+Bud, `bud-runner`, and `budtestlibrary` work without Bloom. The two pip packages communicate only with Bud; they never call or require Bloom. If both applications are deployed, Bud can optionally send test-case execution outcomes to Bloom after accepting a run's results.
 
-1. Set `BLOOM_APP_URL` in `.env` to control the **Bloom PLM** link in Bud's sidebar.
+1. Set `BLOOM_APP_URL` in `.env` to Bloom's public origin. This also enables the **Bloom PLM** link in Bud's sidebar.
 2. Sign in to Bud as an administrator and open **Settings → PLM Integration (Bloom)**.
 3. In Bloom, create a **Bud Result-Sync Credential**. It is a revocable 90-day `blm_sync_` credential scoped only to `test-results:write`; copy it when it is shown.
 4. In Bud, enter the Bloom base URL and the scoped credential, then select **Save Integration**. Bud stores it encrypted and never displays it again.
-5. Ensure uploaded result metadata includes Bloom's `tc_id` value, such as `PRJ-TC-001`.
+5. Set `BLOOM_SYNC_ENABLED=true`, recreate the Bud service, and ensure uploaded result metadata includes Bloom's `tc_id` value, such as `PRJ-TC-001`.
 
-Bud sends one aggregated execution outcome per `tc_id` to Bloom. It does not create or synchronize Bloom campaigns, suites, or documents. The Test Run **System Report** records whether the Bloom synchronization completed, was skipped, or failed. Set `BLOOM_SYNC_ENABLED=false` to disable this behavior.
+Bud sends one aggregated execution outcome per `tc_id` to Bloom. It does not create or synchronize Bloom campaigns, suites, or documents. The Test Run **System Report** records whether the Bloom synchronization completed, was skipped, or failed. Result sync is disabled by default; leave `BLOOM_APP_URL` and the credential unset to run Bud standalone.
 
 ## Production hosting essentials
 
@@ -249,41 +251,9 @@ Bud requires SMTP for invitations, email verification, and password resets. Chec
 
 Open the Test Run's **System Report**. Confirm the Bloom URL and configured `blm_sync_` credential under **PLM Integration (Bloom)**, rotate it in Bloom if it expired or was revoked, and confirm result metadata contains a matching `tc_id`.
 
-## Local development and contributing
+## Contributing
 
-The hosting path above uses the published image. Source setup is for contributors.
-
-Backend:
-
-```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -e ".[dev]" -c constraints.txt
-python -m pip install black==25.1.0 isort==5.13.2
-uvicorn app.main:app --reload --port 8000
-```
-
-Frontend:
-
-```bash
-cd ui
-npm ci
-npm run dev
-```
-
-Before opening a pull request, run the same formatting and test commands used by CI:
-
-```bash
-black --check --diff app/
-isort --profile black --check-only --diff app/
-pytest --cov=app --cov-report=xml --cov-report=term-missing --cov-fail-under=60 -v
-
-npm --prefix ui run lint
-npx --prefix ui tsc --project ui/tsconfig.json --noEmit
-npm --prefix ui run test -- --coverage
-```
-
-The complete workflow also provisions PostgreSQL, applies the Alembic migration chain to an empty database, installs the pinned formatter and security-scan tools, and runs Bandit plus `pip-audit`. See [`.github/workflows/ci-cd.yml`](.github/workflows/ci-cd.yml) for that environment and [`CONTRIBUTING.md`](CONTRIBUTING.md) for the contribution process. Contributions require acceptance of [`CLA.md`](CLA.md).
+Bud users and operators should deploy the published image described above. Source development instructions belong in [`CONTRIBUTING.md`](CONTRIBUTING.md); the authoritative automated checks are in [`.github/workflows/ci-cd.yml`](.github/workflows/ci-cd.yml). Contributions require acceptance of [`CLA.md`](CLA.md).
 
 ## Security and support
 
@@ -293,4 +263,4 @@ Community bug reports and feature proposals belong in GitHub Issues. EmbedLabs a
 
 ## License
 
-Bud is licensed under the **GNU Affero General Public License v3.0 only (AGPL-3.0-only)**. See [`LICENSE`](LICENSE).
+Bud by EmbedLabs is licensed under the **GNU Affero General Public License v3.0 only (AGPL-3.0-only)**. Commercial licenses are available from EmbedLabs for use cases that cannot comply with the AGPL. See [`LICENSE`](LICENSE) or contact `dev@embedlabs.net`.

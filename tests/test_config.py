@@ -12,6 +12,7 @@ CONFIG_ENV_KEYS = [
     "BUD_ADMIN_FULL_NAME",
     "BUD_ADMIN_PASSWORD",
     "BUD_AUTO_SEED_ADMIN",
+    "BUD_BLOOM_SYNC_ENABLED",
     "BUD_APP_BASE_URL",
     "BUD_CORS_ORIGINS",
     "BUD_DATABASE_URL",
@@ -50,6 +51,7 @@ CONFIG_ENV_KEYS = [
     "CORS_ORIGINS",
     "DATABASE_URL",
     "APP_ENV",
+    "BLOOM_SYNC_ENABLED",
     "EMAIL_VERIFICATION_TOKEN_TTL_HOURS",
     "ENABLE_DOCS",
     "FRONTEND_BASE_URL",
@@ -194,6 +196,15 @@ def test_upload_limits_have_safe_public_beta_defaults(monkeypatch):
     assert settings.MAX_CONCURRENT_UPLOADS_PER_PRINCIPAL == 1
     assert settings.ARTIFACT_RETENTION_DAYS == 30
     assert settings.UPLOAD_STREAM_CHUNK_BYTES == 1024 * 1024
+
+
+def test_bloom_sync_is_opt_in(monkeypatch):
+    clear_config_env(monkeypatch)
+    monkeypatch.setenv("BUD_SECRET_KEY", "b" * 32)
+
+    settings = Settings(_env_file=None)
+
+    assert settings.BLOOM_SYNC_ENABLED is False
 
 
 def test_operator_can_raise_file_limit_to_100_mib(monkeypatch):

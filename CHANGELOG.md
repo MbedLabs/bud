@@ -2,20 +2,29 @@
 
 ## Unreleased
 
-### Security and reliability
+### Added
 
-- enforce user, runner, and Test Station authorization boundaries across API routes
-- stream artifact uploads with per-file, per-run, rate, concurrency, and free-space limits
-- add artifact retention and orphan-file cleanup
-- store Bloom result-sync credentials encrypted and never return them through settings APIs
-- run blocking Python and npm dependency vulnerability checks in CI
+- User-first deployment and operations guidance for the published Bud by EmbedLabs container image.
+- Configurable 25 MiB per-file upload limit, with an operator opt-in up to 100 MiB for trace-heavy runners.
+- A 250 MiB aggregate quota per run, upload rate and concurrency limits, free-space protection, retention, and orphan-file cleanup.
 
-### Integration
+### Changed
 
-- use Bloom's short-lived, narrowly scoped `test-results:write` service credential
-- clarify that Bud sends test-case outcomes by Bloom `tc_id` and never synchronizes campaigns
+- Bloom integration now uses a revocable, time-limited `test-results:write` credential instead of an administrator token.
+- Bud sends test-case execution outcomes by Bloom `tc_id`; it does not create or synchronize campaigns.
+
+### Fixed
+
+- Login failures now show the useful API error detail instead of a generic HTTP status message.
+- Runner, user, and Test Station authorization boundaries are consistently enforced.
+
+### Security
+
+- Artifact uploads are validated and written while streaming.
+- Bloom integration credentials are encrypted at rest and are never returned through settings APIs.
+- Python and npm dependency vulnerability scans block CI on actionable findings.
 
 ## 1.0.0
 
-- Combined the Bud backend and web interface into one product repository and image.
-- Added PostgreSQL-backed deployment, migrations, health checks, and product CI.
+- Initial beta release of Bud by EmbedLabs as a self-hosted test management and execution platform.
+- Published a multi-architecture container image with PostgreSQL-backed deployment, migrations, health checks, and persistent artifact storage.

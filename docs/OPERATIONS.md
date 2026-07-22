@@ -35,10 +35,10 @@ starts existing once you publish your first `vX.Y.Z` release tag.
 Two independent token lifetimes, tunable via environment variables (no code change):
 
 - **User sessions** — `ACCESS_TOKEN_EXPIRE_MINUTES` (default `10080`, i.e. 7 days).
-  The bearer token a browser receives at login. Seven days favours convenience
-  for an internal tool; if a leaked token's exposure window matters more than
-  staying signed in, shorten it (e.g. `1440` for 24h). Users are re-prompted to
-  log in once the token expires.
+  The bearer token a browser receives at login. Seven days favours convenience;
+  if a leaked token's exposure window matters more than staying signed in,
+  shorten it (e.g. `1440` for 24h). Users are re-prompted to log in once both the
+  access and refresh sessions expire.
 - **Runner tokens** — `RUNNER_TOKEN_EXPIRE_HOURS` (default `2160`, i.e. 90 days).
   Issued at runner registration and intentionally long-lived; a runner stays
   usable for heartbeat/results while its `last_heartbeat` is within

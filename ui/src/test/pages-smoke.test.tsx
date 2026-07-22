@@ -1,11 +1,13 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import type { ReactNode } from 'react'
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router-dom'
 
 import App from '../App'
 import { testRunsApi } from '../api/client'
+
+const loginMock = vi.hoisted(() => vi.fn())
 
 vi.mock('../contexts/AuthContext', () => ({
   useAuth: () => ({
@@ -20,7 +22,7 @@ vi.mock('../contexts/AuthContext', () => ({
     },
     isAuthenticated: true,
     isLoading: false,
-    login: vi.fn(),
+    login: loginMock,
     logout: vi.fn(),
   }),
 }))
@@ -106,6 +108,23 @@ describe('route smoke (Bud)', () => {
     expect(screen.getByRole('button', { name: /Reset Password/i })).toBeDisabled()
   })
 
+  it('shows the API detail when login fails', async () => {
+    loginMock.mockRejectedValueOnce(Object.assign(
+      new Error('Request failed with status code 401'),
+      {
+        isAxiosError: true,
+        response: { data: { detail: 'Incorrect email or password' } },
+      },
+    ))
+
+    renderAt('/login')
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'user@example.com' } })
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'wrong-password' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
+
+    expect(await screen.findByText('Incorrect email or password')).toBeInTheDocument()
+  })
+
   it('shows Settings PLM Integration at /settings', async () => {
     renderAt('/settings')
     await waitFor(() => {
@@ -122,6 +141,15 @@ describe('route smoke (Bud)', () => {
     expect(testRunsApi.list).toHaveBeenCalledWith(
       expect.objectContaining({ latest_per_suite: true }),
     )
+  })
+
+  it('does not show a Bloom link when Bud is standalone', async () => {
+    renderAt('/runs')
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText(/search test runs/i)).toBeInTheDocument()
+    })
+
+    expect(screen.queryByRole('link', { name: /Bloom PLM/i })).not.toBeInTheDocument()
   })
 
   it('shows not-found state with Back link for bogus run detail', async () => {
