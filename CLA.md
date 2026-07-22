@@ -26,6 +26,8 @@ Withdrawal does not affect rights already granted for earlier Contributions.
 - "Contribution" means original source code, object code, documentation, tests,
   designs, configuration, fixes, modifications, additions, or other material
   that You intentionally submit for inclusion in the official Project.
+- "Accepted Contribution" means a Contribution merged or otherwise expressly
+  accepted into the official Project repository by the Project Steward.
 - "Project Steward" means Mohamed Amine El Omari Alaoui, operating under the
   name EmbedLabs, and any legal successor or entity to which the Project and the
   rights under this Agreement are validly transferred.
@@ -138,20 +140,46 @@ You understand and agree that the Project Steward may:
 No additional permission, notice, accounting, royalty, or payment to You is
 required for those activities, except where mandatory law provides otherwise.
 
-## 10. No obligation to accept
+## 10. Contributor continuity pledge
+
+For every Accepted Contribution, the Project Steward makes the following binding
+pledge to You:
+
+1. the Accepted Contribution, in the form accepted or in a version containing
+   substantially the same contributed work, will remain publicly accessible in
+   source form without charge under the then-current EmbedLabs source-available
+   terms or terms granting at least the same public source-access rights;
+2. use of the Accepted Contribution in a commercial, enterprise, hosted,
+   proprietary, or privately distributed version will not remove or cancel that
+   public source-available version;
+3. the Project Steward may modify, refactor, supersede, deprecate, or remove the
+   Accepted Contribution from later active releases for technical, security,
+   maintenance, legal, or product reasons, but the accepted source will remain
+   available through public repository history, a public release, tag, archive,
+   or another durable public source location; and
+4. any successor receiving the Project and rights under this Agreement must take
+   them subject to this pledge.
+
+This pledge guarantees continued no-charge source availability of Accepted
+Contributions. It does not convert the Project into Open Source under the Open
+Source Definition, require inclusion in every future release, require free
+hosting or support, or prevent separate commercial licensing.
+
+## 11. No obligation to accept
 
 This Agreement does not require the Project Steward to review, accept, use,
-retain, publish, or maintain any Contribution. A submitted Contribution may be
-rejected or removed at any time.
+retain, publish, or maintain any submitted Contribution. A submitted
+Contribution may be rejected or withdrawn before acceptance. Once a Contribution
+becomes an Accepted Contribution, Section 10 applies.
 
-## 11. Records and electronic form
+## 12. Records and electronic form
 
 You agree that electronic records associated with the submission—including Your
 GitHub identity, pull-request number, timestamp, commit identifiers, checked CLA
 statement, and the version or commit of this Agreement—may be retained as proof
 of acceptance.
 
-## 12. Governing law and jurisdiction
+## 13. Governing law and jurisdiction
 
 This Agreement is governed by the laws of the Federal Republic of Germany,
 excluding its conflict-of-law rules and the United Nations Convention on
@@ -161,14 +189,15 @@ Where legally permitted, the competent courts at the Project Steward's place of
 business have exclusive jurisdiction. Mandatory consumer and employment-law
 jurisdiction rules remain unaffected.
 
-## 13. Severability and entire agreement
+## 14. Severability and entire agreement
 
 If a provision is unenforceable, it will be applied to the maximum extent
 permitted and the remaining provisions remain effective. This Agreement is the
 entire agreement concerning rights in Contributions unless the Project Steward
 and You sign a separate written agreement.
 
-## 14. Contact
+## 15. Contact
 
-Questions about this Agreement or commercial licensing may be sent to
-`dev@embedlabs.net`.
+Questions about this Agreement may be sent to `dev@embedlabs.net`.
+Professional and commercial licensing enquiries may be sent to
+`sales@embedlabs.de`.
