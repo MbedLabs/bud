@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Sun, Moon, Monitor, Info, ExternalLink, Link as LinkIcon, Save, Loader2, Globe } from 'lucide-react'
+import { Sun, Moon, Monitor, Info, ExternalLink, Link as LinkIcon, Save, Loader2, Globe, HelpCircle } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { APP_VERSION, settingsApi, extractApiErrorMessage } from '../api/client'
 import { useAuth } from '../contexts/AuthContext'
@@ -203,21 +203,32 @@ export default function Settings() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5">
-                    Bloom Result-Sync Credential
-                  </label>
+                  <div className="mb-1.5 flex items-center gap-1.5">
+                    <label htmlFor="bloom-credential" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      Bloom Result-Sync Credential
+                    </label>
+                    <span
+                      role="img"
+                      aria-label="About the Bloom result-sync credential"
+                      title={hasBloomToken
+                        ? `A Bloom credential (${bloomTokenPrefix ?? 'blm_sync_'}…) is configured. Enter a new one only to rotate it; Bud never displays the saved secret.`
+                        : 'Create a scoped test-results:write credential in Bloom, then paste it here. It cannot access Bloom user, project, or admin APIs.'}
+                      className="inline-flex cursor-help text-muted-foreground"
+                    >
+                      <HelpCircle className="h-3.5 w-3.5" />
+                    </span>
+                  </div>
                   <input
+                    id="bloom-credential"
                     type="password"
                     value={bloomToken}
                     onChange={(e) => setBloomToken(e.target.value)}
-                    placeholder={hasBloomToken ? `Configured (${bloomTokenPrefix ?? 'blm_sync_'}…); enter a new token to rotate` : 'Paste a blm_sync_ credential from Bloom'}
+                    placeholder="Enter Bloom credential..."
                     className="w-full px-3 py-2 bg-background border border-input rounded-md text-sm text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-ring focus:border-ring transition-colors font-mono"
                   />
                 </div>
                 <p className="text-[11px] text-muted-foreground">
-                  {hasBloomToken
-                    ? 'Configured and encrypted. The secret is never returned by the API.'
-                    : 'Not configured. Create a scoped test-results:write credential in Bloom first.'}
+                  {hasBloomToken ? 'Configured' : 'Not configured'}
                 </p>
                 <div className="flex justify-end">
                   {hasBloomToken && (

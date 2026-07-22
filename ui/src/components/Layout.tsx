@@ -7,10 +7,11 @@ import {
 import { useAuth } from '../contexts/AuthContext'
 import { APP_VERSION } from '../api/client'
 
-const getBloomUrl = () => {
+const getBloomUrl = (): string | null => {
   const runtimeUrl = window.runtimeConfig?.BLOOM_APP_URL
   const buildTimeUrl = import.meta.env.VITE_BLOOM_ALM_URL
-  const rawUrl = runtimeUrl || buildTimeUrl || 'http://localhost:3001'
+  const rawUrl = runtimeUrl || buildTimeUrl
+  if (!rawUrl?.trim()) return null
   return rawUrl.replace(/\/api\/?$/, '')
 }
 
@@ -157,16 +158,18 @@ export default function Layout() {
 
         <div className={`mt-auto ${sidebarCollapsed ? 'px-2' : 'px-3'} pb-4 pt-2 space-y-1`} style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
           <div className="h-px bg-white/10 mx-2 mb-2" />
-          <a
-            href={BLOOM_ALM_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={`flex items-center ${sidebarCollapsed ? 'justify-center px-2' : 'gap-2.5 px-3'} py-1.5 rounded-lg text-[13px] font-medium text-lime-100/70 hover:bg-sidebar-hover hover:text-white transition-all duration-200 group`}
-            title={sidebarCollapsed ? 'Bloom PLM' : undefined}
-          >
-            <ExternalLink className="h-4 w-4 shrink-0 text-lime-300/50 group-hover:text-lime-200" />
-            {!sidebarCollapsed && 'Bloom PLM'}
-          </a>
+          {BLOOM_ALM_URL && (
+            <a
+              href={BLOOM_ALM_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`flex items-center ${sidebarCollapsed ? 'justify-center px-2' : 'gap-2.5 px-3'} py-1.5 rounded-lg text-[13px] font-medium text-lime-100/70 hover:bg-sidebar-hover hover:text-white transition-all duration-200 group`}
+              title={sidebarCollapsed ? 'Bloom PLM' : undefined}
+            >
+              <ExternalLink className="h-4 w-4 shrink-0 text-lime-300/50 group-hover:text-lime-200" />
+              {!sidebarCollapsed && 'Bloom PLM'}
+            </a>
+          )}
           <Link
             to="/settings"
             className={`flex items-center ${sidebarCollapsed ? 'justify-center px-2' : 'gap-2.5 px-3'} py-1.5 rounded-lg text-[13px] font-medium transition-all duration-200 group ${

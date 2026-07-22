@@ -19,7 +19,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const loadUser = useCallback(async () => {
     const token = getAuthToken()
     if (!token) {
-      setIsLoading(false)
+      try {
+        const session = await authApi.refresh()
+        setAuthToken(session.access_token)
+        setUser(session.user)
+      } catch {
+        clearAuthToken()
+        setUser(null)
+      } finally {
+        setIsLoading(false)
+      }
       return
     }
     try {

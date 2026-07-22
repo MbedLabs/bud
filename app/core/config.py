@@ -270,7 +270,8 @@ class Settings(BaseSettings):
 
     # Bloom Sync
     BLOOM_SYNC_ENABLED: bool = Field(
-        default=True, validation_alias=AliasChoices("BUD_BLOOM_SYNC_ENABLED", "BLOOM_SYNC_ENABLED")
+        default=False,
+        validation_alias=AliasChoices("BUD_BLOOM_SYNC_ENABLED", "BLOOM_SYNC_ENABLED"),
     )
     INTEGRATION_ENCRYPTION_KEY: str = Field(
         default="",

@@ -78,10 +78,11 @@ def decode_access_token(token: str) -> Optional[dict]:
 
 def generate_runner_token(runner_account: str) -> str:
     """
-    Generate a short-lived token for a runner.
+    Generate a revocable token for a runner.
 
-    H1: Tokens expire after RUNNER_TOKEN_EXPIRE_HOURS (default 24h) instead of
-    the previous 365-day lifetime.
+    Tokens expire after RUNNER_TOKEN_EXPIRE_HOURS (default 90 days). A continuously
+    heartbeating runner remains authenticated after the JWT expiry; a stale runner
+    must re-register before reconnecting.
 
     Args:
         runner_account: Runner account name.
