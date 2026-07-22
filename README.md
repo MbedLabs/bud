@@ -57,6 +57,7 @@ Open `.env` and replace every active `replace-with-...` placeholder. At minimum:
 - Set `DB_PASSWORD` to the generated database password.
 - Set `SECRET_KEY` to the 64-character signing key. Keep it stable across upgrades and restores.
 - Set `RUNNER_API_KEY` to a separate 64-character registration secret.
+- Generate `INTEGRATION_ENCRYPTION_KEY` with the command documented in `.env.example` and keep it in the same secret store as `SECRET_KEY`.
 - Set `ADMIN_EMAIL`, `ADMIN_PASSWORD`, and `ADMIN_FULL_NAME` for the first administrator. Production admin passwords must contain at least 16 characters.
 - Set `APP_BASE_URL`, `FRONTEND_BASE_URL`, and `BUD_APP_URL` to the externally reachable Bud URL.
 - Keep the shipped `AUTO_SEED_ADMIN=false` setting. For a new instance with an empty database, explicitly change it to `true` immediately before the one-time first-administrator startup.
@@ -147,6 +148,8 @@ The station should appear as **Online** under **Test Stations**. See the [Bud Ru
 - **Test Runs** searches run and suite names and filters by status, Test Station, or station location. Select a row to open its detail page.
 - **Test Run detail** shows run timing, station assignment, assertion totals, pass rate, filterable Test Results, and the **System Report** event timeline.
 - Compatible runners and API clients upload logs, traces, reports, and other allowed artifacts through `/api/uploads`. Files are stored under `/app/uploads`, which the reference Compose deployment persists in the `bud-uploads` volume.
+- The default per-file limit is **25 MiB**. An operator can raise it to at most **100 MiB** for trace-heavy runners. Bud also enforces a **250 MiB aggregate limit per run**, upload rate and concurrency limits, reserved free-space protection, retention cleanup, and orphan-file reconciliation.
+- Bud validates upload ownership, size, storage quota, and content metadata while streaming. It does **not** claim to malware-scan uploaded artifacts; deploy ClamAV or YARA in the upload path before advertising that capability.
 
 API documentation is disabled by default. For a trusted development environment only, set `ENABLE_DOCS=true` and open `/api/docs` to inspect the result and artifact endpoints.
 
@@ -156,8 +159,9 @@ Bud can send test-case execution outcomes to Bloom after it accepts a run's resu
 
 1. Set `BLOOM_APP_URL` in `.env` to control the **Bloom PLM** link in Bud's sidebar.
 2. Sign in to Bud as an administrator and open **Settings → PLM Integration (Bloom)**.
-3. Enter the Bloom base URL and a valid Bloom access token for an Admin or Maintainer account, then select **Save Integration**.
-4. Ensure uploaded result metadata includes Bloom's `tc_id` value, such as `PRJ-TC-001`.
+3. In Bloom, create a **Bud Result-Sync Credential**. It is a revocable 90-day `blm_sync_` credential scoped only to `test-results:write`; copy it when it is shown.
+4. In Bud, enter the Bloom base URL and the scoped credential, then select **Save Integration**. Bud stores it encrypted and never displays it again.
+5. Ensure uploaded result metadata includes Bloom's `tc_id` value, such as `PRJ-TC-001`.
 
 Bud sends one aggregated execution outcome per `tc_id` to Bloom. It does not create or synchronize Bloom campaigns, suites, or documents. The Test Run **System Report** records whether the Bloom synchronization completed, was skipped, or failed. Set `BLOOM_SYNC_ENABLED=false` to disable this behavior.
 
@@ -243,7 +247,7 @@ Bud requires SMTP for invitations, email verification, and password resets. Chec
 
 ### Bloom results do not synchronize
 
-Open the Test Run's **System Report**. Confirm the Bloom URL and token under **PLM Integration (Bloom)**, the token's Bloom role, and that result metadata contains a matching `tc_id`.
+Open the Test Run's **System Report**. Confirm the Bloom URL and configured `blm_sync_` credential under **PLM Integration (Bloom)**, rotate it in Bloom if it expired or was revoked, and confirm result metadata contains a matching `tc_id`.
 
 ## Local development and contributing
 
@@ -279,12 +283,14 @@ npx --prefix ui tsc --project ui/tsconfig.json --noEmit
 npm --prefix ui run test -- --coverage
 ```
 
-The complete workflow also provisions PostgreSQL, applies the model-driven base schema and Alembic migrations, installs the pinned formatter and security-scan tools, and runs Bandit plus `pip-audit`. See [`.github/workflows/ci-cd.yml`](.github/workflows/ci-cd.yml) for that environment and [`CONTRIBUTING.md`](CONTRIBUTING.md) for the contribution process. Contributions require acceptance of [`CLA.md`](CLA.md).
+The complete workflow also provisions PostgreSQL, applies the Alembic migration chain to an empty database, installs the pinned formatter and security-scan tools, and runs Bandit plus `pip-audit`. See [`.github/workflows/ci-cd.yml`](.github/workflows/ci-cd.yml) for that environment and [`CONTRIBUTING.md`](CONTRIBUTING.md) for the contribution process. Contributions require acceptance of [`CLA.md`](CLA.md).
 
 ## Security and support
 
 Report vulnerabilities according to [`SECURITY.md`](SECURITY.md). For release history, see [`CHANGELOG.md`](CHANGELOG.md).
 
+Community bug reports and feature proposals belong in GitHub Issues. EmbedLabs also offers paid **priority support** and **custom feature development** for teams that need response commitments, integration work, deployment assistance, or product extensions; contact `dev@embedlabs.net`.
+
 ## License
 
-Bud is licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)**. See [`LICENSE`](LICENSE).
+Bud is licensed under the **GNU Affero General Public License v3.0 only (AGPL-3.0-only)**. See [`LICENSE`](LICENSE).

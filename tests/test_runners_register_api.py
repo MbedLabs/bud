@@ -10,7 +10,12 @@ These tests pin the contract the ``bud_runner`` CLI relies on:
 
 from __future__ import annotations
 
-import pytest
+
+from app.api.auth import get_current_user
+from app.main import app
+from app.models.user import User, UserRole
+
+API_KEY_HEADERS = {"X-API-Key": "test-runner-api-key"}
 
 VALID_PAYLOAD = {
     "username": "runner-test-01",
@@ -68,3 +73,60 @@ def test_register_existing_username_wrong_password_fails(client):
     second = client.post("/api/runners/register", json=bad_payload, headers=headers)
     assert second.status_code == 400
     assert "does not match" in second.json()["detail"].lower()
+
+
+def test_shared_registration_key_cannot_delete_runner(unauthenticated_client):
+    registered = unauthenticated_client.post(
+        "/api/runners/register",
+        json=VALID_PAYLOAD,
+        headers=API_KEY_HEADERS,
+    )
+    assert registered.status_code == 201, registered.text
+
+    response = unauthenticated_client.delete(
+        f"/api/runners/{VALID_PAYLOAD['username']}",
+        headers=API_KEY_HEADERS,
+    )
+
+    assert response.status_code == 401
+
+
+def test_viewer_cannot_delete_runner(client):
+    registered = client.post(
+        "/api/runners/register",
+        json=VALID_PAYLOAD,
+        headers=API_KEY_HEADERS,
+    )
+    assert registered.status_code == 201, registered.text
+    viewer = User(
+        id=55,
+        email="runner-viewer@example.com",
+        full_name="Viewer",
+        hashed_password="x",
+        role=UserRole.viewer,
+        is_active=True,
+    )
+
+    async def override_viewer():
+        return viewer
+
+    app.dependency_overrides[get_current_user] = override_viewer
+    try:
+        response = client.delete(f"/api/runners/{VALID_PAYLOAD['username']}")
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)
+
+    assert response.status_code == 403
+
+
+def test_admin_can_delete_runner(client):
+    registered = client.post(
+        "/api/runners/register",
+        json=VALID_PAYLOAD,
+        headers=API_KEY_HEADERS,
+    )
+    assert registered.status_code == 201, registered.text
+
+    response = client.delete(f"/api/runners/{VALID_PAYLOAD['username']}")
+
+    assert response.status_code == 204, response.text

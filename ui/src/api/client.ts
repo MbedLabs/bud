@@ -333,16 +333,17 @@ export const testStationsApi = {
   },
 }
 
-export const healthApi = {
-  check: async () => {
-    const response = await api.get<{ status: string; version: string }>('/health')
-    return response.data
-  },
-}
-
 export interface ALMIntegrationSettings {
   bloom_url: string
-  bloom_token: string
+  has_bloom_token: boolean
+  bloom_token_prefix: string | null
+  bloom_token_rotated_at: string | null
+}
+
+export interface ALMIntegrationSettingsUpdate {
+  bloom_url: string
+  bloom_token?: string
+  clear_bloom_token?: boolean
 }
 
 export const settingsApi = {
@@ -350,7 +351,7 @@ export const settingsApi = {
     const response = await api.get<ALMIntegrationSettings>('/settings/integrations/PLM')
     return response.data
   },
-  updateALM: async (data: ALMIntegrationSettings) => {
+  updateALM: async (data: ALMIntegrationSettingsUpdate) => {
     const response = await api.post<ALMIntegrationSettings>('/settings/integrations/PLM', data)
     return response.data
   },

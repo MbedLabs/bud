@@ -2,7 +2,7 @@
 
 ## Supported Versions
 
-Security fixes are applied to the latest published image/package version and the current `main` branch of `bud-app-backend`.
+Security fixes are applied to the latest supported release and the current `main` branch of this repository.
 
 ## Reporting a Vulnerability
 
@@ -19,7 +19,7 @@ Please include:
 - impact assessment
 - any suggested mitigation
 
-We will acknowledge receipt as soon as practical and coordinate next steps over email.
+We will acknowledge receipt as soon as practical and coordinate next steps over email. Paid priority-support customers should also use their contracted support channel.
 
 ## Disclosure
 

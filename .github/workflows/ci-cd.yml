@@ -2,10 +2,10 @@ name: Bud Product CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
     tags: ['v*']
   pull_request:
-    branches: [main]
+    branches: [main, dev]
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -58,6 +58,9 @@ jobs:
 
       - name: Install UI dependencies
         run: npm --prefix ui ci
+
+      - name: Audit UI dependencies
+        run: npm --prefix ui audit --audit-level=low
 
       - name: Check backend formatting with Black
         run: black --check --diff app/

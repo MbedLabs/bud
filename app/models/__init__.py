@@ -9,6 +9,8 @@ from app.models.models import (
     TestRun,
     TestRunEvent,
     TestStation,
+    UploadAttempt,
+    UploadLease,
 )
 from app.models.user import User, UserRole
 from app.models.user_token import UserToken, UserTokenPurpose
@@ -26,4 +28,6 @@ __all__ = [
     "UserTokenPurpose",
     "SystemSetting",
     "TestStation",
+    "UploadAttempt",
+    "UploadLease",
 ]

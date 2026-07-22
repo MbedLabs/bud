@@ -8,7 +8,6 @@ from datetime import datetime
 from typing import Optional, Union
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
-from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -106,7 +105,7 @@ async def get_current_active_entity(
             headers={"WWW-Authenticate": "Bearer"},
         )
     sub = payload.get("sub")
-    entity_type = payload.get("type", "user")
+    entity_type = payload.get("type")
 
     if sub is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
@@ -114,13 +113,19 @@ async def get_current_active_entity(
     if entity_type == "runner":
         result = await db.execute(select(Runner).where(Runner.account == sub))
         entity = result.scalar_one_or_none()
-    else:
+    elif entity_type == "user":
         try:
             entity_id = int(sub)
         except ValueError:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user ID")
         result = await db.execute(select(User).where(User.id == entity_id))
         entity = result.scalar_one_or_none()
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token type",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
     if entity is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Entity not found")

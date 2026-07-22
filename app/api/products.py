@@ -8,10 +8,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.auth import get_current_active_entity, get_current_user
+from app.api.auth import get_current_active_entity, require_role
 from app.db import get_db
 from app.models import Product, Runner
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.schemas import ProductCreate, ProductResponse
 
 router = APIRouter()
@@ -21,7 +21,7 @@ router = APIRouter()
 async def create_product(
     data: ProductCreate,
     db: AsyncSession = Depends(get_db),
-    _current_user: User = Depends(get_current_user),
+    _admin: User = Depends(require_role(UserRole.admin)),
 ):
     """
     Create a new product.
@@ -73,7 +73,7 @@ async def get_product(
 async def delete_product(
     product_id: int,
     db: AsyncSession = Depends(get_db),
-    _current_user: User = Depends(get_current_user),
+    _admin: User = Depends(require_role(UserRole.admin)),
 ):
     """
     Delete a product.

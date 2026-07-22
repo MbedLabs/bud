@@ -1,12 +1,12 @@
 # Contributing
 
-Thank you for your interest in improving EmbedLabs Bud and Bloom related projects in this repository.
+Thank you for your interest in improving Bud.
 
 ## License
 
-The software in this repository is licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)**. A copy of the license text is included as `LICENSE` in each project directory.
+The software in this repository is licensed under the **GNU Affero General Public License v3.0 only (AGPL-3.0-only)**. The complete license text is in [`LICENSE`](LICENSE).
 
-By contributing, you agree that your contributions will be licensed under the same terms as the project (AGPL-3.0) to the community, and you agree to the **Contributor License Agreement** below so EmbedLabs can steward the project and offer commercial licensing where appropriate.
+By contributing, you agree that your contributions will be licensed under the same AGPL-3.0-only terms and agree to the Contributor License Agreement so EmbedLabs can steward the project.
 
 ## Contributor License Agreement (CLA)
 
@@ -25,6 +25,6 @@ If you are contributing on behalf of your employer, ensure your employer authori
 4. Ensure tests and linters pass for the subproject you changed.
 5. Open a pull request and complete the CLA step.
 
-## Commercial licensing
+## Professional services
 
-For use cases that cannot comply with AGPL-3.0, contact EmbedLabs at dev@embedlabs.net.
+For priority support, deployment assistance, integrations, or custom feature development, contact EmbedLabs at dev@embedlabs.net.

@@ -5,19 +5,19 @@ H2: Rate-limited registration and heartbeat endpoints.
 C2: Runner registration requires a server-side API key.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.auth import get_current_user
+from app.api.auth import get_current_user, require_role
 from app.core.config import settings
 from app.core.deps import get_current_runner, limiter, require_runner_api_key
 from app.core.security import generate_runner_token, get_password_hash, verify_password
 from app.db import get_db
 from app.models import Runner, TestRun
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.schemas import (
     RunnerHeartbeat,
     RunnerRegister,
@@ -188,14 +188,14 @@ async def get_runner(
     return runner
 
 
-@router.delete("/{account}", status_code=204, dependencies=[Depends(require_runner_api_key)])
+@router.delete("/{account}", status_code=204)
 async def delete_runner(
-    request: Request,
     account: str,
     db: AsyncSession = Depends(get_db),
+    _admin: User = Depends(require_role(UserRole.admin)),
 ):
     """
-    Delete a runner. Requires X-API-Key (C2).
+    Delete a runner. Requires an authenticated administrator.
     """
     result = await db.execute(select(Runner).where(Runner.account == account))
     runner = result.scalar_one_or_none()

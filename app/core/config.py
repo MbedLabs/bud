@@ -5,7 +5,6 @@ Loads settings from environment variables with sensible defaults.
 """
 
 import os
-import secrets
 from functools import lru_cache
 from pathlib import Path
 from typing import List, Optional
@@ -127,8 +126,50 @@ class Settings(BaseSettings):
         default="./uploads", validation_alias=AliasChoices("BUD_UPLOAD_DIR", "UPLOAD_DIR")
     )
     MAX_UPLOAD_SIZE: int = Field(
-        default=100 * 1024 * 1024,
-        validation_alias=AliasChoices("BUD_MAX_UPLOAD_SIZE", "MAX_UPLOAD_SIZE"),
+        default=25 * 1024 * 1024,
+        ge=1,
+        validation_alias=AliasChoices(
+            "BUD_MAX_UPLOAD_SIZE_BYTES",
+            "MAX_UPLOAD_SIZE_BYTES",
+            "BUD_MAX_UPLOAD_SIZE",
+            "MAX_UPLOAD_SIZE",
+        ),
+    )
+    MAX_UPLOAD_SIZE_HARD_LIMIT_BYTES: int = 100 * 1024 * 1024
+    MAX_RUN_UPLOAD_BYTES: int = Field(
+        default=250 * 1024 * 1024,
+        ge=1,
+        validation_alias=AliasChoices("BUD_MAX_RUN_UPLOAD_BYTES", "MAX_RUN_UPLOAD_BYTES"),
+    )
+    MIN_UPLOAD_FREE_BYTES: int = Field(
+        default=1024 * 1024 * 1024,
+        ge=0,
+        validation_alias=AliasChoices("BUD_MIN_UPLOAD_FREE_BYTES", "MIN_UPLOAD_FREE_BYTES"),
+    )
+    UPLOADS_PER_15_MINUTES: int = Field(
+        default=10,
+        ge=1,
+        validation_alias=AliasChoices("BUD_UPLOADS_PER_15_MINUTES", "UPLOADS_PER_15_MINUTES"),
+    )
+    MAX_CONCURRENT_UPLOADS_PER_PRINCIPAL: int = Field(
+        default=1,
+        ge=1,
+        le=1,
+        validation_alias=AliasChoices(
+            "BUD_MAX_CONCURRENT_UPLOADS_PER_PRINCIPAL",
+            "MAX_CONCURRENT_UPLOADS_PER_PRINCIPAL",
+        ),
+    )
+    ARTIFACT_RETENTION_DAYS: int = Field(
+        default=30,
+        ge=1,
+        validation_alias=AliasChoices("BUD_ARTIFACT_RETENTION_DAYS", "ARTIFACT_RETENTION_DAYS"),
+    )
+    UPLOAD_STREAM_CHUNK_BYTES: int = Field(
+        default=1024 * 1024,
+        ge=64 * 1024,
+        le=4 * 1024 * 1024,
+        validation_alias=AliasChoices("BUD_UPLOAD_STREAM_CHUNK_BYTES", "UPLOAD_STREAM_CHUNK_BYTES"),
     )
 
     # H4: Allowlist of accepted MIME types for uploads
@@ -231,6 +272,12 @@ class Settings(BaseSettings):
     BLOOM_SYNC_ENABLED: bool = Field(
         default=True, validation_alias=AliasChoices("BUD_BLOOM_SYNC_ENABLED", "BLOOM_SYNC_ENABLED")
     )
+    INTEGRATION_ENCRYPTION_KEY: str = Field(
+        default="",
+        validation_alias=AliasChoices(
+            "BUD_INTEGRATION_ENCRYPTION_KEY", "INTEGRATION_ENCRYPTION_KEY"
+        ),
+    )
 
     @model_validator(mode="after")
     def populate_database_url(self):
@@ -259,6 +306,14 @@ class Settings(BaseSettings):
             self.LOG_JSON = self.BUD_ENV.lower() == "production"
         if self.AUTH_COOKIE_SECURE is None:
             self.AUTH_COOKIE_SECURE = self.BUD_ENV.lower() == "production"
+        return self
+
+    @model_validator(mode="after")
+    def validate_upload_limits(self):
+        if self.MAX_UPLOAD_SIZE > self.MAX_UPLOAD_SIZE_HARD_LIMIT_BYTES:
+            raise ValueError("MAX_UPLOAD_SIZE_BYTES must not exceed the 100 MiB hard limit.")
+        if self.MAX_RUN_UPLOAD_BYTES < self.MAX_UPLOAD_SIZE:
+            raise ValueError("MAX_RUN_UPLOAD_BYTES must be at least MAX_UPLOAD_SIZE_BYTES.")
         return self
 
     @model_validator(mode="after")

@@ -31,7 +31,7 @@ async def test_delete_user_success(client: TestClient, db_session: AsyncSession)
         expires_at=datetime.utcnow() + timedelta(hours=1),
     )
     db_session.add(token)
-    await db_session.flush()
+    await db_session.commit()
 
     # 3. Delete the user (using /api/users prefix)
     response = client.delete(f"/api/users/{user_id}")
@@ -66,7 +66,7 @@ async def test_delete_user_with_invites(client: TestClient, db_session: AsyncSes
         invited_by_user_id=inviter_id,
     )
     db_session.add(invitee)
-    await db_session.flush()
+    await db_session.commit()
 
     # 2. Delete the inviter
     response = client.delete(f"/api/users/{inviter_id}")

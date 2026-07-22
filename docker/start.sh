@@ -8,4 +8,4 @@ window.runtimeConfig = {
 };
 EOF
 
-exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf
+exec /usr/local/bin/supervisord -c /etc/supervisord.conf
