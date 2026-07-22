@@ -1,39 +1,49 @@
 # Bud TMP by EmbedLabs
 
-Bud TMP by EmbedLabs is an open source test management and execution platform for teams that run automated tests on CI workers, lab machines, and hardware test stations. It brings runner status, test runs, assertion results, execution events, and uploaded artifacts into one self-hosted workspace.
+Bud TMP by EmbedLabs is a source-available test management and execution platform for teams running automated tests on CI workers, lab machines, and hardware test stations. It brings runner status, test runs, assertion results, execution events, and uploaded artifacts into one self-hosted workspace.
 
-Bud is available under the **GNU Affero General Public License v3.0 only (AGPL-3.0-only)**. EmbedLabs also offers professional licensing for use cases that cannot comply with the AGPL, plus paid **priority support** and **custom feature development**. Contact `dev@embedlabs.net`.
+## Licence status
 
-## Container image and GitHub Packages
+Bud is distributed under the [EmbedLabs Source Available License 1.0](LICENSE). It is **source-available**, not Open Source under the Open Source Definition.
+
+The licence permits personal, educational, evaluation, research, and internal business use, including modification for those permitted uses. A separate professional licence is required for resale, third-party hosting, managed services, commercial redistribution, white-labelling, or embedding Bud in a third-party commercial offering.
+
+The required `Powered by EmbedLabs` attribution must remain visible as described in the licence. Product names and logos are not licensed for modified forks.
+
+The separate [`bud-runner`](https://github.com/MbedLabs/bud-runner) and `budtestlibrary` Python packages remain independent AGPL-3.0-only open-source projects.
+
+For professional licensing, deployment, integration, priority support, or custom development, contact `professional@embedlabs.de` or `dev@embedlabs.net`.
+
+## Container image
 
 - **Image:** `ghcr.io/mbedlabs/bud`
 - **Package:** [Bud on GitHub Packages](https://github.com/orgs/MbedLabs/packages/container/package/bud)
 - **Platforms:** `linux/amd64` and `linux/arm64`
+- **Container port:** `8080`
+- **Reference host port:** `8001`
 
-The published image contains the Bud web application and API. You do not need to compile the frontend or install Python dependencies to host Bud.
-
-For evaluation, use `latest`. For production, pin a semantic version such as `1.0.0` so an explicit upgrade controls every change.
+The published image contains the Bud web application and API. You do not need to build the frontend or install Python dependencies to host it.
 
 ## What Bud provides
 
-- A dashboard for recent test activity and connected Test Stations
+- Dashboard for recent test activity and connected Test Stations
 - Searchable Test Runs with status, station, and location filters
-- Per-run assertion summaries, detailed results, and a System Report of execution and integration events
-- Registration and heartbeat monitoring for `bud_runner` execution agents
-- Artifact upload and download APIs backed by persistent storage
-- Admin-managed users, invitations, and viewer access
-- Optional test-case execution synchronization to [Bloom](https://github.com/MbedLabs/bloom)
+- Per-run assertion summaries, detailed results, and execution events
+- Registration and heartbeat monitoring for `bud-runner` agents
+- Artifact upload and download backed by persistent storage
+- Administrator-managed users, invitations, and viewer access
+- Optional test-case execution result synchronisation to Bloom
 
-## Self-host in a few minutes
+Bud, `bud-runner`, and `budtestlibrary` work without Bloom. Bloom integration is optional.
 
-The checked-in [`docker-compose.yml`](docker-compose.yml) runs the published Bud image with PostgreSQL. It exposes Bud at `http://localhost:8001`, stores the database and uploads in named volumes, and does not build application source.
+## Quick start
 
 ### Prerequisites
 
-- Docker Engine with Docker Compose v2 (`docker compose`)
-- Git, to obtain the Compose and environment files
-- `openssl`, to generate secrets
-- Available host port `8001` for Bud
+- Docker Engine with Docker Compose v2
+- Git
+- `openssl`
+- Available host port `8001`
 
 ### 1. Get the deployment files
 
@@ -43,9 +53,9 @@ cd bud
 cp .env.example .env
 ```
 
-### 2. Configure secrets and public URLs
+### 2. Configure secrets
 
-Generate independent values for the database password, application signing key, runner registration key, and initial admin password:
+Generate separate values for the database password, application signing key, runner registration key, and initial administrator password:
 
 ```bash
 openssl rand -hex 24
@@ -54,23 +64,22 @@ openssl rand -hex 32
 openssl rand -hex 24
 ```
 
-Open `.env` and replace every active `replace-with-...` placeholder. At minimum:
+Replace every active `replace-with-...` placeholder in `.env`. At minimum configure:
 
-- Set `DB_PASSWORD` to the generated database password.
-- Set `SECRET_KEY` to the 64-character signing key. Keep it stable across upgrades and restores.
-- Set `RUNNER_API_KEY` to a separate 64-character registration secret.
-- Generate `INTEGRATION_ENCRYPTION_KEY` with the command documented in `.env.example` and keep it in the same secret store as `SECRET_KEY`.
-- Set `ADMIN_EMAIL`, `ADMIN_PASSWORD`, and `ADMIN_FULL_NAME` for the first administrator. Production admin passwords must contain at least 16 characters.
-- Set `APP_BASE_URL`, `FRONTEND_BASE_URL`, and `BUD_APP_URL` to the externally reachable Bud URL.
-- Keep the shipped `AUTO_SEED_ADMIN=false` setting. For a new instance with an empty database, explicitly change it to `true` immediately before the one-time first-administrator startup.
+- `DB_PASSWORD`
+- `SECRET_KEY`
+- `RUNNER_API_KEY`
+- `INTEGRATION_ENCRYPTION_KEY`
+- `ADMIN_EMAIL`
+- `ADMIN_PASSWORD`
+- `ADMIN_FULL_NAME`
+- `APP_BASE_URL`
+- `FRONTEND_BASE_URL`
+- `BUD_APP_URL`
 
-The example keeps `SMTP_ENABLED=false`. Before enabling email, replace the SMTP host, username, password, sender address, and reply-to placeholders with real values. The sender display name is fixed to `Bud TMP by EmbedLabs` and is not configurable.
-
-`BUD_VERSION=latest` selects the evaluation channel. Set it to a published version such as `1.0.0` for a production deployment, or to a prerelease such as `1.0.0-rc.1` when evaluating a release candidate.
+Keep `RUN_STARTUP_DATA_REPAIR=false` in production. Set `AUTO_SEED_ADMIN=true` only for the one-time first-administrator bootstrap on a new empty database, then restore it to `false` immediately.
 
 ### 3. Pull, migrate, and start
-
-For the initial startup of a new instance only, opt in to administrator creation by setting `AUTO_SEED_ADMIN=true` in `.env`. Do not enable it for an existing instance.
 
 ```bash
 docker compose pull
@@ -79,44 +88,18 @@ docker compose run --rm bud alembic upgrade head
 docker compose up -d bud
 ```
 
-The migration command must finish successfully before Bud serves production traffic.
+The migration must finish successfully before Bud serves production traffic.
 
-### 4. Verify and sign in
+### 4. Verify
 
 ```bash
 docker compose ps
 curl -fsS http://localhost:8001/api/ready
 ```
 
-`/api/ready` returns `{"status":"ready","database":"connected"}` once the app can
-reach PostgreSQL (`/api/health` is the process-only liveness probe). Open [http://localhost:8001](http://localhost:8001) and sign in with `ADMIN_EMAIL` and `ADMIN_PASSWORD` from `.env`.
-
-Immediately after the first successful login, restore the secure default in `.env`:
-
-```dotenv
-AUTO_SEED_ADMIN=false
-```
-
-Then recreate the Bud service so future starts cannot bootstrap an administrator:
-
-```bash
-docker compose up -d --force-recreate bud
-```
-
-Keep `RUN_STARTUP_DATA_REPAIR=false` in production. Schema changes are handled explicitly with Alembic.
-
-## Set up the instance
-
-Once signed in:
-
-1. Configure SMTP, then open **Users** as an administrator to invite teammates and assign the Admin or Viewer role.
-2. Open **Settings** to choose appearance and display timezone preferences.
-3. If you use Bloom, configure **Settings → PLM Integration (Bloom)** as described in [Connect Bud to Bloom](#connect-bud-to-bloom).
-4. Register at least one execution agent. It will appear under **Test Stations** after registration and heartbeats begin.
+`/api/health` is process liveness. `/api/ready` verifies PostgreSQL connectivity.
 
 ## Register a Test Station
-
-A Test Station is a host where tests execute. The `bud_runner` process is the execution agent on that host. Install and run it only on machines where the test code is trusted.
 
 ```bash
 python -m pip install bud-runner budtestlibrary
@@ -134,133 +117,45 @@ python -m bud_runner daemon \
   --location "Hardware Lab"
 ```
 
-`BUD_BACKEND_URL` is the Bud base URL, without `/api`. `RUNNER_API_KEY` must exactly match the server value and is needed only for registration. The runner stores its machine token in `~/.bud/config.json`; do not commit that file or registration secrets to a repository.
+The runner stores its machine token in `~/.bud/config.json`. Do not commit that file or registration secrets.
 
-Verify the connection with:
+## Persistence and backups
 
-```bash
-python -m bud_runner status
-```
-
-The station should appear as **Online** under **Test Stations**. See the [Bud Runner documentation](https://github.com/MbedLabs/bud-runner) for executing suites, uploading results, CI integration, and service installation.
-
-## Work with runs, results, and artifacts
-
-- **Dashboard** shows recent Test Runs and Test Station availability.
-- **Test Runs** searches run and suite names and filters by status, Test Station, or station location. Select a row to open its detail page.
-- **Test Run detail** shows run timing, station assignment, assertion totals, pass rate, filterable Test Results, and the **System Report** event timeline.
-- Compatible runners and API clients upload logs, traces, reports, and other allowed artifacts through `/api/uploads`. Files are stored under `/app/uploads`, which the reference Compose deployment persists in the `bud-uploads` volume.
-- The default per-file limit is **25 MiB**. An operator can raise it to at most **100 MiB** for trace-heavy runners. Bud also enforces a **250 MiB aggregate limit per run**, upload rate and concurrency limits, reserved free-space protection, retention cleanup, and orphan-file reconciliation.
-- Bud validates upload ownership, size, storage quota, and content metadata while streaming. It does **not** claim to malware-scan uploaded artifacts; deploy ClamAV or YARA in the upload path before advertising that capability.
-
-API documentation is disabled by default. For a trusted development environment only, set `ENABLE_DOCS=true` and open `/api/docs` to inspect the result and artifact endpoints.
-
-## Connect Bud to Bloom
-
-Bud, `bud-runner`, and `budtestlibrary` work without Bloom. The two pip packages communicate only with Bud; they never call or require Bloom. If both applications are deployed, Bud can optionally send test-case execution outcomes to Bloom after accepting a run's results.
-
-1. Set `BLOOM_APP_URL` in `.env` to Bloom's public origin. This also enables the **Bloom PLM** link in Bud's sidebar.
-2. Sign in to Bud as an administrator and open **Settings → PLM Integration (Bloom)**.
-3. In Bloom, create a **Bud Result-Sync Credential**. It is a revocable 90-day `blm_sync_` credential scoped only to `test-results:write`; copy it when it is shown.
-4. In Bud, enter the Bloom base URL and the scoped credential, then select **Save Integration**. Bud stores it encrypted and never displays it again.
-5. Set `BLOOM_SYNC_ENABLED=true`, recreate the Bud service, and ensure uploaded result metadata includes Bloom's `tc_id` value, such as `PRJ-TC-001`.
-
-Bud sends one aggregated execution outcome per `tc_id` to Bloom. It does not create or synchronize Bloom campaigns, suites, or documents. The Test Run **System Report** records whether the Bloom synchronization completed, was skipped, or failed. Result sync is disabled by default; leave `BLOOM_APP_URL` and the credential unset to run Bud standalone.
-
-## Production hosting essentials
-
-### HTTPS and network exposure
-
-Terminate TLS at a reverse proxy or load balancer and proxy to Bud's port `8001`. Set `APP_BASE_URL`, `FRONTEND_BASE_URL`, and `BUD_APP_URL` to the final `https://` URL so links and redirects use the public origin.
-
-The reference Compose file keeps PostgreSQL private to the Compose network; only the Bud service connects to it. Do not add a public database port. Keep `/api/metrics` limited to your monitoring network.
-
-### Email
-
-Set `SMTP_ENABLED=true` only after configuring `SMTP_HOST`, `SMTP_PORT`, credentials, sender addresses, and the appropriate `SMTP_STARTTLS` or `SMTP_SSL` mode. Verify invitation, email-verification, and password-reset delivery before onboarding users.
-
-### Persistent data and backups
-
-Bud has two durable data stores:
+Bud has two durable stores:
 
 - `bud-postgres-data` for PostgreSQL
-- `bud-uploads` mounted at `/app/uploads` for uploaded artifacts and attachments
+- `bud-uploads` mounted at `/app/uploads` for artifacts
 
-Back up both on the same schedule and test restores on a separate instance. The full procedures are in [`docs/OPERATIONS.md`](docs/OPERATIONS.md).
+Back up both and test restoration on a separate instance. See [`docs/OPERATIONS.md`](docs/OPERATIONS.md).
 
-### Health, metrics, and logs
+## Image tags
 
-- `GET /api/health` — liveness probe (process only; does not query PostgreSQL)
-- `GET /api/ready` — readiness probe (`SELECT 1`; `503` when the database is down). Used by the container and `docker-compose` healthchecks and load-balancer probes
-- `GET /api/metrics` — Prometheus metrics when `ENABLE_METRICS=true`
-- `docker compose logs -f bud` — application, nginx, and access logs
-- `docker compose logs -f postgres` — database logs
+| Container tag | Meaning |
+|---|---|
+| `dev` | Rolling image from the `dev` branch |
+| `latest` | Rolling image from `main`; not guaranteed to be a stable release |
+| `stable` | Newest stable semantic-version release |
+| `1.2.3` | Exact production version |
+| `1.2` / `1` | Moving stable channels |
+| `sha-...` | Exact source/image traceability |
 
-Production logging is JSON by default. Use `LOG_LEVEL` and `LOG_JSON` to integrate with your log collector. Every HTTP response includes `X-Request-ID` for request correlation.
+Pin a full semantic version for production.
 
-## Image tags and releases
+## Security and documentation
 
-Release images are built from Git tags. Available tag types are:
+- [Operating Bud](docs/OPERATIONS.md)
+- [Security policy](SECURITY.md)
+- [Changelog](CHANGELOG.md)
+- [Contributing guide](CONTRIBUTING.md)
+- [Contributor License Agreement](CLA.md)
+- [EmbedLabs Source Available License](LICENSE)
 
-| Git tag | Container tags | Intended use |
-|---|---|---|
-| `v1.0.0-rc.1` | `v1.0.0-rc.1`, `1.0.0-rc.1`, `sha-...` | Release-candidate evaluation; does not update `latest`, `1`, or `1.0` |
-| `v1.0.0` | `v1.0.0`, `1.0.0`, `1.0`, `1`, `latest`, `sha-...` | Stable release |
-
-Pin the full semantic version in `BUD_VERSION` for production. Major, minor, and `latest` tags move when later stable releases are published.
-
-## Upgrade and rollback
-
-Before upgrading, back up PostgreSQL and uploads. Then set `BUD_VERSION` in `.env` to the target version and run:
-
-```bash
-docker compose pull bud
-docker compose run --rm bud alembic upgrade head
-docker compose up -d bud
-curl -fsS http://localhost:8001/api/ready
-```
-
-Confirm login, a recent Test Run, its results, and an uploaded artifact after the upgrade.
-
-For rollback, restore the pre-upgrade database and uploads backup, set `BUD_VERSION` to the previous image, and start Bud again. Do not run an older application against a database already migrated to an incompatible newer schema. See [`docs/OPERATIONS.md`](docs/OPERATIONS.md) for the complete backup, restore, upgrade, and disaster-recovery procedures.
-
-## Troubleshooting
-
-### Bud does not become healthy
-
-```bash
-docker compose ps
-docker compose logs --tail=200 bud postgres
-```
-
-Confirm PostgreSQL is healthy, `DB_USER`, `DB_PASSWORD`, and `DB_NAME` are set, and `alembic upgrade head` completed. A missing or short `SECRET_KEY`, an unchanged production admin default, or a production admin password shorter than 16 characters prevents startup.
-
-### Runner registration returns `401` or `403`
-
-Confirm the runner's `RUNNER_API_KEY` exactly matches `.env`, its `BUD_BACKEND_URL` uses the Bud base URL, and the URL is reachable from the station. Recreate the Bud container after changing server environment values.
-
-### A Test Station is offline
-
-Run `python -m bud_runner status` on the station, check that its daemon is running, and verify it can reach `/api/health`. Bud marks a station offline when heartbeats stop beyond `RUNNER_HEARTBEAT_TIMEOUT`.
-
-### Invitations or password resets are not delivered
-
-Bud requires SMTP for invitations, email verification, and password resets. Check `SMTP_ENABLED` and every SMTP setting, then inspect `docker compose logs bud`.
-
-### Bloom results do not synchronize
-
-Open the Test Run's **System Report**. Confirm the Bloom URL and configured `blm_sync_` credential under **PLM Integration (Bloom)**, rotate it in Bloom if it expired or was revoked, and confirm result metadata contains a matching `tc_id`.
+API documentation is disabled by default. Enable it only in a trusted development environment.
 
 ## Contributing
 
-Bud users and operators should deploy the published image described above. Source development instructions belong in [`CONTRIBUTING.md`](CONTRIBUTING.md); the authoritative automated checks are in [`.github/workflows/ci-cd.yml`](.github/workflows/ci-cd.yml). Contributions require acceptance of [`CLA.md`](CLA.md).
+Contributions require explicit acceptance of [`CLA.md`](CLA.md) through the pull-request declaration. See [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
-## Security and support
+## Professional services
 
-Report vulnerabilities according to [`SECURITY.md`](SECURITY.md). For release history, see [`CHANGELOG.md`](CHANGELOG.md).
-
-Community bug reports and feature proposals belong in GitHub Issues. EmbedLabs also offers paid **priority support** and **custom feature development** for teams that need response commitments, integration work, deployment assistance, or product extensions; contact `dev@embedlabs.net`.
-
-## License
-
-Bud TMP by EmbedLabs is licensed under the **GNU Affero General Public License v3.0 only (AGPL-3.0-only)**. Commercial licenses are available from EmbedLabs for use cases that cannot comply with the AGPL. See [`LICENSE`](LICENSE) or contact `dev@embedlabs.net`.
+Professional licensing, deployment assistance, integrations, priority support, and custom engineering are available through [EmbedLabs Professional Services](https://embedlabs.de).
