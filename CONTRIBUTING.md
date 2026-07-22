@@ -42,4 +42,4 @@ Do not disclose suspected vulnerabilities in a public issue. Follow `SECURITY.md
 
 ## Professional licensing and services
 
-For professional licensing, priority support, deployment assistance, integrations, or custom development, contact `professional@embedlabs.de` or `dev@embedlabs.net`.
+For professional licensing, priority support, deployment assistance, integrations, or custom development, contact `sales@embedlabs.de`.
