@@ -7,7 +7,7 @@ name = "bud-app-backend"
 version = "1.0.0"
 description = "Backend API for Bud Test Management Platform by EmbedLabs"
 readme = "README.md"
-license = {text = "AGPL-3.0-only"}
+license = {text = "LicenseRef-EmbedLabs-Source-Available-1.0"}
 authors = [
     {name = "EmbedLabs", email = "dev@embedlabs.net"}
 ]
@@ -47,6 +47,8 @@ dev = [
 [project.urls]
 Homepage = "https://www.embedlabs.net"
 Repository = "https://github.com/MbedLabs/bud"
+License = "https://github.com/MbedLabs/bud/blob/main/LICENSE"
+Professional-Services = "https://www.embedlabs.de"
 
 [tool.setuptools.packages.find]
 where = ["."]
