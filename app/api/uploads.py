@@ -81,10 +81,24 @@ async def _get_accessible_artifact(
 async def _validate_runner_upload_run(
     db: AsyncSession, current_entity: Union[User, Runner], run_id: Optional[int]
 ) -> None:
-    """Prevent a runner from attaching an artifact to another runner's test run."""
+    """Prevent a runner from attaching an artifact to another runner's test run.
+
+    Runners must always target one of their own test runs; only admins may upload
+    unassociated (run_id-less) artifacts. Requiring run_id for runners also closes
+    a quota-bypass: reserve_upload only charges the per-run aggregate quota when a
+    run is targeted, so a run_id-less runner upload would otherwise escape it.
+    """
     if isinstance(current_entity, User) and current_entity.role != UserRole.admin:
         raise HTTPException(status_code=403, detail="Only admins may upload artifacts")
     if run_id is None:
+        if isinstance(current_entity, Runner):
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "run_id is required: runner uploads must target one of the "
+                    "runner's own test runs."
+                ),
+            )
         return
 
     test_run = await db.get(TestRun, run_id)
