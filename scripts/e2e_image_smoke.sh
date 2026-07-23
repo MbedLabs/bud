@@ -49,7 +49,11 @@ ENV_ARGS=(
   -e "ADMIN_PASSWORD=${ADMIN_PASSWORD}"
   -e "ADMIN_FULL_NAME=E2E Admin"
   -e "AUTO_SEED_ADMIN=true"
-  -e "RUN_STARTUP_DATA_REPAIR=true"
+  # Production-path migration test: the app must NOT build or repair the schema.
+  # alembic (run explicitly below, before the app boots) is the only schema
+  # builder, so a missing/incomplete migration fails instead of being rescued by
+  # create_all().
+  -e "RUN_STARTUP_DATA_REPAIR=false"
   -e "ENABLE_DOCS=false"
 )
 
@@ -99,7 +103,20 @@ done
 docker exec "$PG" pg_isready -U "$DB_USER" -d "$DB_NAME" >/dev/null 2>&1 \
   || fail "postgres never became ready"
 
-log "Booting the application container (builds schema on an empty DB)"
+log "Applying alembic upgrade head against the published image (before the app boots)"
+docker run --rm --network "$NET" --platform "$PLATFORM" \
+  "${ENV_ARGS[@]}" \
+  --entrypoint alembic "$IMAGE" upgrade head
+
+log "Verifying the database is at alembic head (migrations are complete on their own)"
+current="$(docker run --rm --network "$NET" --platform "$PLATFORM" \
+  "${ENV_ARGS[@]}" \
+  --entrypoint alembic "$IMAGE" current 2>&1)"
+echo "    ${current}"
+printf '%s' "$current" | grep -q '(head)' \
+  || fail "database is not at alembic head after upgrade (migration incomplete)"
+
+log "Booting the application container (schema already built by alembic; no create_all)"
 PUBLISH_ADDR="127.0.0.1::8080"
 if [ -n "$APP_PORT" ]; then PUBLISH_ADDR="127.0.0.1:${APP_PORT}:8080"; fi
 docker run -d --name "$APP" --network "$NET" \
@@ -109,11 +126,6 @@ docker run -d --name "$APP" --network "$NET" \
   "$IMAGE" >/dev/null
 refresh_base
 wait_ready "on first boot"
-
-log "Applying alembic upgrade head against the published image"
-docker run --rm --network "$NET" --platform "$PLATFORM" \
-  "${ENV_ARGS[@]}" \
-  --entrypoint alembic "$IMAGE" upgrade head
 
 log "/api/health must be liveness-only (never claim database \"connected\")"
 health="$(curl -fsS "${BASE}/api/health")"
