@@ -187,7 +187,7 @@ export const authApi = {
     return response.data
   },
   getInviteInfo: async (token: string): Promise<InviteInfoResponse> => {
-    const response = await api.get<InviteInfoResponse>('/auth/invite-info', { params: { token } })
+    const response = await api.post<InviteInfoResponse>('/auth/invite-info', { token })
     return response.data
   },
   acceptInvite: async (token: string, password: string): Promise<AcceptInviteResponse> => {

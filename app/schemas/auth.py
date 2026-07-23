@@ -76,6 +76,10 @@ class PasswordChange(BaseModel):
     new_password: PasswordStr
 
 
+class InviteInfoRequest(BaseModel):
+    token: str
+
+
 class InviteInfoResponse(BaseModel):
     email: EmailStr
     full_name: str
