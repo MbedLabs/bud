@@ -163,6 +163,30 @@ jobs:
             echo "stable=true" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Version consistency gate
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          # The tag's MAJOR.MINOR.PATCH must match every source of truth for the
+          # version, so a release can never ship mismatched numbers.
+          base="${RELEASE_TAG#v}"; base="${base%%-*}"; base="${base%%+*}"
+          gate_fail() { echo "::error::version gate: $*"; exit 1; }
+          check() { [ "$2" = "$base" ] || gate_fail "$1 is '$2' but the tag is '$base'"; }
+          check "pyproject.toml version" \
+            "$(sed -nE 's/^version = "([^"]+)".*/\1/p' pyproject.toml | head -1)"
+          check "ui/package.json version" \
+            "$(sed -nE 's/.*"version": *"([^"]+)".*/\1/p' ui/package.json | head -1)"
+          check "app/__init__.py __version__" \
+            "$(sed -nE 's/^__version__ = "([^"]+)".*/\1/p' app/__init__.py | head -1)"
+          # BUD_APP_VERSION is what /api/version reports at runtime.
+          check "BUD_APP_VERSION (/api/version)" \
+            "$(sed -nE 's/.*BUD_APP_VERSION[^"]*"([^"]+)".*/\1/p' app/core/config.py | head -1)"
+          esc="${base//./\\.}"
+          grep -Eq "(^|[^0-9.])${esc}([^0-9]|\$)" CHANGELOG.md \
+            || gate_fail "CHANGELOG.md has no release entry for ${base}"
+          echo "Version consistency OK for ${base}"
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v4
 
