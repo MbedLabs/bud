@@ -2,23 +2,25 @@
 #
 # End-to-end smoke test against a *published* Bud image.
 #
-# Proves the release-blocking path the unit suite cannot:
-#   empty database
-#     -> container boots and builds its schema
-#     -> `alembic upgrade head` applies cleanly on the real image
-#     -> admin can log in
-#     -> a database-backed API call works
-#     -> a >1 MB artifact upload succeeds THROUGH nginx
-#        (i.e. client_max_body_size is configured; nginx's 1 MB default would 413)
-#     -> after a container restart the uploaded artifact still exists
-#     -> /api/health is liveness-only (never falsely reports database "connected")
-#     -> /api/ready reports the database connected
+# Proves the release-blocking path the unit suite cannot, using real named
+# volumes and a full container teardown/recreate (not just a restart):
+#   empty named-volume PostgreSQL
+#     -> `alembic upgrade head` builds the schema on the real image (before the
+#        app boots; RUN_STARTUP_DATA_REPAIR=false, so no create_all rescue)
+#     -> `alembic current` is at head (migrations are complete on their own)
+#     -> app boots against the migrated schema
+#     -> admin can log in; a database-backed API call works
+#     -> a >1 MB artifact upload succeeds THROUGH nginx (client_max_body_size)
+#     -> BOTH containers are removed and recreated with the SAME named volumes
+#     -> the database records still exist and the artifact's bytes + SHA-256
+#        survive (the uploads volume persisted)
+#     -> /api/health is liveness-only; /api/ready confirms the database
 #
 # Usage:
 #   scripts/e2e_image_smoke.sh <image-ref>
 #
-# Requires: docker, curl, python3. No repo checkout of the app is needed — the
-# published image supplies the application and alembic.
+# Requires: docker, curl, python3, sha256sum. No repo checkout of the app is
+# needed — the published image supplies the application and alembic.
 set -euo pipefail
 
 IMAGE="${1:?usage: e2e_image_smoke.sh <image-ref>}"
@@ -30,6 +32,8 @@ SUFFIX="$$"
 NET="bud-e2e-net-${SUFFIX}"
 PG="bud-e2e-pg-${SUFFIX}"
 APP="bud-e2e-app-${SUFFIX}"
+PGVOL="bud-e2e-pgdata-${SUFFIX}"
+UPVOL="bud-e2e-uploads-${SUFFIX}"
 
 DB_USER="e2e_user"
 DB_PASSWORD="e2e-strong-db-password-not-a-default"
@@ -64,6 +68,7 @@ cleanup() {
   local code=$?
   [ "$code" = 0 ] || { log "Dumping app logs (exit ${code})"; docker logs "$APP" 2>&1 | tail -80 || true; }
   docker rm -f "$APP" "$PG" >/dev/null 2>&1 || true
+  docker volume rm "$PGVOL" "$UPVOL" >/dev/null 2>&1 || true
   docker network rm "$NET" >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
@@ -87,21 +92,46 @@ wait_ready() {
   fail "app never became ready ${what}"
 }
 
+start_pg() {
+  # Reuses the named PGVOL so data survives a container recreate.
+  docker run -d --name "$PG" --network "$NET" \
+    -v "${PGVOL}:/var/lib/postgresql/data" \
+    -e "POSTGRES_USER=${DB_USER}" \
+    -e "POSTGRES_PASSWORD=${DB_PASSWORD}" \
+    -e "POSTGRES_DB=${DB_NAME}" \
+    postgres:16 >/dev/null
+  for _ in $(seq 1 30); do
+    docker exec "$PG" pg_isready -U "$DB_USER" -d "$DB_NAME" >/dev/null 2>&1 && break
+    sleep 2
+  done
+  docker exec "$PG" pg_isready -U "$DB_USER" -d "$DB_NAME" >/dev/null 2>&1 \
+    || fail "postgres never became ready"
+}
+
+start_app() {
+  # Reuses the named UPVOL so uploaded artifacts survive a container recreate.
+  local publish="127.0.0.1::8080"
+  if [ -n "$APP_PORT" ]; then publish="127.0.0.1:${APP_PORT}:8080"; fi
+  docker run -d --name "$APP" --network "$NET" \
+    -p "$publish" \
+    -v "${UPVOL}:/app/uploads" \
+    --platform "$PLATFORM" \
+    "${ENV_ARGS[@]}" \
+    "$IMAGE" >/dev/null
+  refresh_base
+}
+
+login_token() {
+  curl -fsS -X POST "${BASE}/api/auth/login" \
+    -H 'Content-Type: application/json' \
+    -d "{\"email\":\"${ADMIN_EMAIL}\",\"password\":\"${ADMIN_PASSWORD}\"}" | json_field access_token
+}
+
 log "Using image: ${IMAGE}"
 docker network create "$NET" >/dev/null
 
-log "Starting an empty PostgreSQL"
-docker run -d --name "$PG" --network "$NET" \
-  -e "POSTGRES_USER=${DB_USER}" \
-  -e "POSTGRES_PASSWORD=${DB_PASSWORD}" \
-  -e "POSTGRES_DB=${DB_NAME}" \
-  postgres:16 >/dev/null
-for _ in $(seq 1 30); do
-  docker exec "$PG" pg_isready -U "$DB_USER" -d "$DB_NAME" >/dev/null 2>&1 && break
-  sleep 2
-done
-docker exec "$PG" pg_isready -U "$DB_USER" -d "$DB_NAME" >/dev/null 2>&1 \
-  || fail "postgres never became ready"
+log "Starting an empty named-volume PostgreSQL"
+start_pg
 
 log "Applying alembic upgrade head against the published image (before the app boots)"
 docker run --rm --network "$NET" --platform "$PLATFORM" \
@@ -117,14 +147,7 @@ printf '%s' "$current" | grep -q '(head)' \
   || fail "database is not at alembic head after upgrade (migration incomplete)"
 
 log "Booting the application container (schema already built by alembic; no create_all)"
-PUBLISH_ADDR="127.0.0.1::8080"
-if [ -n "$APP_PORT" ]; then PUBLISH_ADDR="127.0.0.1:${APP_PORT}:8080"; fi
-docker run -d --name "$APP" --network "$NET" \
-  -p "$PUBLISH_ADDR" \
-  --platform "$PLATFORM" \
-  "${ENV_ARGS[@]}" \
-  "$IMAGE" >/dev/null
-refresh_base
+start_app
 wait_ready "on first boot"
 
 log "/api/health must be liveness-only (never claim database \"connected\")"
@@ -142,9 +165,7 @@ printf '%s' "$ready" | grep -q '"database":"connected"' \
   || fail "/api/ready did not confirm the database"
 
 log "Admin login"
-token="$(curl -fsS -X POST "${BASE}/api/auth/login" \
-  -H 'Content-Type: application/json' \
-  -d "{\"email\":\"${ADMIN_EMAIL}\",\"password\":\"${ADMIN_PASSWORD}\"}" | json_field access_token)"
+token="$(login_token)"
 [ -n "$token" ] || fail "login returned no access_token"
 
 log "Database-backed API call (list products)"
@@ -154,23 +175,35 @@ curl -fsS "${BASE}/api/products" -H "Authorization: Bearer ${token}" >/dev/null 
 log "Uploading a >1 MB artifact through nginx (exercises client_max_body_size)"
 upload_file="$(mktemp)"
 head -c 2097152 /dev/zero | tr '\0' 'A' > "$upload_file"   # 2 MiB, well over nginx's 1 MB default
+upload_sha="$(sha256sum "$upload_file" | awk '{print $1}')"
 artifact_id="$(curl -fsS -X POST "${BASE}/api/uploads" \
   -H "Authorization: Bearer ${token}" \
   -F "file=@${upload_file};type=text/plain;filename=e2e.txt" | json_field id)"
 rm -f "$upload_file"
 [ -n "$artifact_id" ] || fail "upload did not return an artifact id"
-echo "    uploaded artifact id = ${artifact_id}"
+echo "    uploaded artifact id = ${artifact_id}, sha256 = ${upload_sha}"
 
-log "Restarting the container to prove persistence"
-docker restart "$APP" >/dev/null
-refresh_base
-wait_ready "after restart"
+log "Removing BOTH containers and recreating them with the SAME named volumes"
+docker rm -f "$APP" "$PG" >/dev/null
+start_pg
+# No alembic re-run: the schema and data live in the persistent PGVOL.
+start_app
+wait_ready "after container recreation"
 
-log "Re-login and confirm the artifact survived the restart"
-token="$(curl -fsS -X POST "${BASE}/api/auth/login" \
-  -H 'Content-Type: application/json' \
-  -d "{\"email\":\"${ADMIN_EMAIL}\",\"password\":\"${ADMIN_PASSWORD}\"}" | json_field access_token)"
+log "Database records must still exist (re-login uses the persisted admin row)"
+token="$(login_token)"
+[ -n "$token" ] || fail "admin login failed after recreation (database did not persist)"
 curl -fsS "${BASE}/api/uploads/info/${artifact_id}" -H "Authorization: Bearer ${token}" >/dev/null \
-  || fail "artifact ${artifact_id} did not persist across restart"
+  || fail "artifact ${artifact_id} row did not persist across recreation"
 
-log "PASS: Bud published image is end-to-end healthy"
+log "Downloading the artifact and verifying its bytes + SHA-256"
+downloaded="$(mktemp)"
+curl -fsS "${BASE}/api/uploads/${artifact_id}" -H "Authorization: Bearer ${token}" -o "$downloaded" \
+  || fail "artifact ${artifact_id} bytes did not persist across recreation"
+download_sha="$(sha256sum "$downloaded" | awk '{print $1}')"
+rm -f "$downloaded"
+[ "$download_sha" = "$upload_sha" ] \
+  || fail "artifact SHA-256 mismatch after recreation: uploaded ${upload_sha}, got ${download_sha}"
+echo "    verified sha256 = ${download_sha}"
+
+log "PASS: Bud published image survives full container recreation with named volumes"
