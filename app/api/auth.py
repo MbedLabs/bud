@@ -45,9 +45,9 @@ from app.services.mail_service import (
 )
 from app.services.token_service import (
     TokenValidationError,
+    claim_token,
     create_user_token,
     find_token,
-    get_valid_token,
     invalidate_all_refresh_tokens,
     mark_token_used,
 )
@@ -218,19 +218,20 @@ async def refresh(
     )
     if not refresh_token:
         raise unauthorized
+    # Atomically consume the presented token. Two requests racing on the same
+    # cookie can only produce one winner here, so only one replacement is issued.
     try:
-        token_row = await get_valid_token(db, token=refresh_token, purpose=UserTokenPurpose.refresh)
+        claimed = await claim_token(db, token=refresh_token, purpose=UserTokenPurpose.refresh)
     except TokenValidationError:
         _clear_refresh_cookie(response)
         raise unauthorized
 
-    user = await db.get(User, token_row.user_id)
+    user = await db.get(User, claimed.user_id)
     if user is None or not user.is_active:
         _clear_refresh_cookie(response)
         raise unauthorized
 
-    # Rotate: burn the presented token, issue a fresh one.
-    await mark_token_used(db, token_row)
+    # Consumed above; issue the replacement in the same transaction.
     await _issue_refresh_cookie(db, response, user.id)
     access_token = create_access_token(
         data={"sub": str(user.id), "type": "user", "ver": user.session_version}
@@ -328,11 +329,11 @@ async def get_invite_info(token: str, db: AsyncSession = Depends(get_db)):
 @router.post("/accept-invite", response_model=AcceptInviteResponse)
 async def accept_invite(data: AcceptInviteRequest, db: AsyncSession = Depends(get_db)):
     try:
-        user_token = await get_valid_token(db, token=data.token, purpose=UserTokenPurpose.invite)
+        claimed = await claim_token(db, token=data.token, purpose=UserTokenPurpose.invite)
     except TokenValidationError as exc:
         raise HTTPException(status_code=400, detail=exc.detail) from exc
 
-    user = await db.get(User, user_token.user_id)
+    user = await db.get(User, claimed.user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     if user.invite_accepted_at is not None:
@@ -342,7 +343,6 @@ async def accept_invite(data: AcceptInviteRequest, db: AsyncSession = Depends(ge
     now = datetime.utcnow()
     user.invite_accepted_at = now
     user.password_set_at = now
-    await mark_token_used(db, user_token)
 
     verification_token = await create_user_token(
         db,
@@ -373,7 +373,7 @@ async def accept_invite(data: AcceptInviteRequest, db: AsyncSession = Depends(ge
 @router.post("/verify-email", response_model=GenericMessageResponse)
 async def verify_email(data: VerifyEmailRequest, db: AsyncSession = Depends(get_db)):
     try:
-        user_token = await get_valid_token(
+        claimed = await claim_token(
             db,
             token=data.token,
             purpose=UserTokenPurpose.email_verification,
@@ -381,14 +381,13 @@ async def verify_email(data: VerifyEmailRequest, db: AsyncSession = Depends(get_
     except TokenValidationError as exc:
         raise HTTPException(status_code=400, detail=exc.detail) from exc
 
-    user = await db.get(User, user_token.user_id)
+    user = await db.get(User, claimed.user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     if user.email_verified_at is not None:
         raise HTTPException(status_code=400, detail="Email already verified")
 
     user.email_verified_at = datetime.utcnow()
-    await mark_token_used(db, user_token)
     await db.flush()
     return GenericMessageResponse(message="Email verified successfully")
 
@@ -470,7 +469,7 @@ async def reset_password(
     db: AsyncSession = Depends(get_db),
 ):
     try:
-        user_token = await get_valid_token(
+        claimed = await claim_token(
             db,
             token=data.token,
             purpose=UserTokenPurpose.password_reset,
@@ -478,7 +477,7 @@ async def reset_password(
     except TokenValidationError as exc:
         raise HTTPException(status_code=400, detail=exc.detail) from exc
 
-    user = await db.get(User, user_token.user_id)
+    user = await db.get(User, claimed.user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
@@ -486,7 +485,6 @@ async def reset_password(
     user.password_set_at = datetime.utcnow()
     # End every existing session, exactly as on password change.
     user.session_version += 1
-    await mark_token_used(db, user_token)
     await invalidate_all_refresh_tokens(db, user.id)
     _clear_refresh_cookie(response)
     await db.flush()

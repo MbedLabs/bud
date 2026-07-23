@@ -1,6 +1,7 @@
 import hashlib
 import secrets
 from datetime import datetime, timedelta
+from typing import NamedTuple
 
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,6 +13,11 @@ class TokenValidationError(Exception):
     def __init__(self, detail: str):
         self.detail = detail
         super().__init__(detail)
+
+
+class ClaimedToken(NamedTuple):
+    id: int
+    user_id: int
 
 
 def generate_raw_token() -> str:
@@ -85,6 +91,50 @@ async def get_valid_token(
     if result.expires_at < datetime.utcnow():
         raise TokenValidationError("Token has expired")
     return result
+
+
+async def claim_token(
+    db: AsyncSession,
+    *,
+    token: str,
+    purpose: UserTokenPurpose,
+) -> ClaimedToken:
+    """Atomically consume a one-time token.
+
+    A single conditional ``UPDATE ... RETURNING`` marks the token used only if it
+    exists, matches the purpose, is unused, and is unexpired. At most one
+    concurrent caller can claim it; the losers get no row and are rejected. This
+    replaces read-then-update validation, which let two racing requests both pass
+    the check and both act on the same token.
+
+    Raises ``TokenValidationError`` with a specific reason when nothing is
+    claimed (an advisory follow-up read — the claim itself already failed
+    authoritatively).
+    """
+    now = datetime.utcnow()
+    result = await db.execute(
+        update(UserToken)
+        .where(
+            UserToken.token_hash == hash_token(token),
+            UserToken.purpose == purpose,
+            UserToken.used_at.is_(None),
+            UserToken.expires_at > now,
+        )
+        .values(used_at=now)
+        .returning(UserToken.id, UserToken.user_id)
+    )
+    row = result.first()
+    if row is not None:
+        return ClaimedToken(id=row[0], user_id=row[1])
+
+    existing = await find_token(db, token=token, purpose=purpose)
+    if existing is None:
+        raise TokenValidationError("Invalid token")
+    if existing.used_at is not None:
+        raise TokenValidationError("Token has already been used")
+    if existing.expires_at < now:
+        raise TokenValidationError("Token has expired")
+    raise TokenValidationError("Invalid token")
 
 
 async def mark_token_used(db: AsyncSession, user_token: UserToken) -> None:
