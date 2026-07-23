@@ -8,7 +8,7 @@ from typing import Optional
 
 from sqlalchemy import Boolean, DateTime
 from sqlalchemy import Enum as SaEnum
-from sqlalchemy import ForeignKey, String
+from sqlalchemy import ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.database import Base
@@ -30,6 +30,13 @@ class User(Base):
         SaEnum(UserRole), default=UserRole.viewer, nullable=False
     )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    # Bumped on password change/reset and confirmed email change. Every access
+    # token carries the value it was minted with; a mismatch means the token
+    # predates a credential change and is rejected, so those events log the user
+    # out everywhere.
+    session_version: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=1, server_default="1"
+    )
     invited_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     invited_by_user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
     last_invite_sent_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)

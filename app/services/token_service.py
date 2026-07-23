@@ -90,3 +90,21 @@ async def get_valid_token(
 async def mark_token_used(db: AsyncSession, user_token: UserToken) -> None:
     user_token.used_at = datetime.utcnow()
     await db.flush()
+
+
+async def invalidate_all_refresh_tokens(db: AsyncSession, user_id: int) -> None:
+    """Revoke every unused refresh token for a user (all active sessions).
+
+    Used on password change/reset and confirmed email change so a credential
+    change ends existing sessions everywhere, not just on the current device.
+    """
+    await db.execute(
+        update(UserToken)
+        .where(
+            UserToken.user_id == user_id,
+            UserToken.purpose == UserTokenPurpose.refresh,
+            UserToken.used_at.is_(None),
+        )
+        .values(used_at=datetime.utcnow())
+    )
+    await db.flush()
