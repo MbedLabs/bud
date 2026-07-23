@@ -3,11 +3,16 @@ Auth and user schemas.
 """
 
 from datetime import datetime
-from typing import Optional
+from typing import Annotated, Optional
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import AfterValidator, BaseModel, EmailStr, Field
 
+from app.core.passwords import validate_password_strength
 from app.models.user import UserRole
+
+# Every place a user chooses a password shares this policy (>= 12 chars, within
+# the hashing backend's safe byte limit) so the rules cannot drift per endpoint.
+PasswordStr = Annotated[str, AfterValidator(validate_password_strength)]
 
 
 class LoginRequest(BaseModel):
@@ -24,7 +29,7 @@ class TokenResponse(BaseModel):
 class UserCreate(BaseModel):
     email: EmailStr
     full_name: str = Field(..., min_length=1, max_length=255)
-    password: str = Field(..., min_length=6)
+    password: PasswordStr
     role: UserRole = UserRole.viewer
 
 
@@ -67,7 +72,7 @@ class UserResponse(BaseModel):
 
 class PasswordChange(BaseModel):
     current_password: str
-    new_password: str = Field(..., min_length=6)
+    new_password: PasswordStr
 
 
 class InviteInfoResponse(BaseModel):
@@ -79,7 +84,7 @@ class InviteInfoResponse(BaseModel):
 
 class AcceptInviteRequest(BaseModel):
     token: str
-    password: str = Field(..., min_length=6)
+    password: PasswordStr
 
 
 class AcceptInviteResponse(BaseModel):
@@ -98,7 +103,7 @@ class ForgotPasswordRequest(BaseModel):
 
 class ResetPasswordRequest(BaseModel):
     token: str
-    new_password: str = Field(..., min_length=6)
+    new_password: PasswordStr
 
 
 class GenericMessageResponse(BaseModel):
