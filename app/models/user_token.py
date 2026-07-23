@@ -15,6 +15,7 @@ class UserTokenPurpose(str, enum.Enum):
     email_verification = "email_verification"
     password_reset = "password_reset"
     refresh = "refresh"
+    email_change = "email_change"
 
 
 class UserToken(Base):

@@ -5,7 +5,6 @@ from fastapi.routing import APIRoute
 
 from app.main import app
 
-
 PUBLIC_ENDPOINTS = {
     "root",
     "health_check",
@@ -20,6 +19,7 @@ PUBLIC_ENDPOINTS = {
     "verify_email",
     "forgot_password",
     "reset_password",
+    "confirm_email_change",
     "register_runner",
     "register_teststation",
 }
@@ -78,9 +78,7 @@ def test_every_non_public_api_route_has_an_authentication_boundary():
             methods = ",".join(sorted(route.methods or set()))
             unprotected.append(f"{methods} {path} ({route.endpoint.__name__})")
 
-    assert not unprotected, "Routes without an authentication boundary:\n" + "\n".join(
-        unprotected
-    )
+    assert not unprotected, "Routes without an authentication boundary:\n" + "\n".join(unprotected)
 
 
 def test_route_guard_detects_an_unprotected_dependency_tree():
