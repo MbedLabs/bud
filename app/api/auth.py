@@ -343,30 +343,16 @@ async def accept_invite(data: AcceptInviteRequest, db: AsyncSession = Depends(ge
     now = datetime.utcnow()
     user.invite_accepted_at = now
     user.password_set_at = now
-
-    verification_token = await create_user_token(
-        db,
-        user_id=user.id,
-        purpose=UserTokenPurpose.email_verification,
-        ttl_hours=settings.EMAIL_VERIFICATION_TOKEN_TTL_HOURS,
-    )
-    verification_link = (
-        f"{settings.FRONTEND_BASE_URL.rstrip('/')}/verify-email?token={verification_token}"
-    )
-
-    try:
-        send_verification_email(
-            to_email=user.email,
-            full_name=user.full_name,
-            verification_link=verification_link,
-        )
-    except MailConfigurationError as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    # Accepting an invitation proves control of the invited address, so treat it
+    # as verification. No separate verification email is sent (which also means
+    # this flow no longer depends on SMTP being configured).
+    user.email_verified_at = now
 
     await db.flush()
     return AcceptInviteResponse(
+        requires_email_verification=False,
         email=user.email,
-        message="Invite accepted. Verification email sent.",
+        message="Invitation accepted.",
     )
 
 
