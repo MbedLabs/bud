@@ -157,8 +157,26 @@ export const authApi = {
     const response = await api.get<User>('/auth/me')
     return response.data
   },
-  updateMe: async (data: { full_name?: string; email?: string }): Promise<User> => {
+  updateMe: async (data: { full_name?: string }): Promise<User> => {
     const response = await api.put<User>('/auth/me', data)
+    return response.data
+  },
+  requestEmailChange: async (
+    currentPassword: string,
+    newEmail: string,
+  ): Promise<GenericMessageResponse> => {
+    const response = await api.post<GenericMessageResponse>('/auth/me/email', {
+      current_password: currentPassword,
+      new_email: newEmail,
+    })
+    return response.data
+  },
+  cancelEmailChange: async (): Promise<GenericMessageResponse> => {
+    const response = await api.delete<GenericMessageResponse>('/auth/me/email')
+    return response.data
+  },
+  confirmEmailChange: async (token: string): Promise<GenericMessageResponse> => {
+    const response = await api.post<GenericMessageResponse>('/auth/confirm-email-change', { token })
     return response.data
   },
   changePassword: async (currentPassword: string, newPassword: string): Promise<User> => {

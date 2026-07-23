@@ -12,6 +12,7 @@ import AcceptInvite from './pages/AcceptInvite'
 import VerifyEmail from './pages/VerifyEmail'
 import ForgotPassword from './pages/ForgotPassword'
 import ResetPassword from './pages/ResetPassword'
+import ConfirmEmailChange from './pages/ConfirmEmailChange'
 
 function NotFound() {
   return (
@@ -36,6 +37,7 @@ function App() {
       <Route path="/verify-email" element={<VerifyEmail />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/confirm-email-change" element={<ConfirmEmailChange />} />
       <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         <Route index element={<Dashboard />} />
         <Route path="runs" element={<TestRuns />} />

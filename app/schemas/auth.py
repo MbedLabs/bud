@@ -63,6 +63,7 @@ class UserResponse(BaseModel):
     invite_accepted_at: datetime | None = None
     password_set_at: datetime | None = None
     email_verified_at: datetime | None = None
+    pending_email: str | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -104,6 +105,15 @@ class ForgotPasswordRequest(BaseModel):
 class ResetPasswordRequest(BaseModel):
     token: str
     new_password: PasswordStr
+
+
+class EmailChangeRequest(BaseModel):
+    current_password: str
+    new_email: EmailStr
+
+
+class ConfirmEmailChangeRequest(BaseModel):
+    token: str
 
 
 class GenericMessageResponse(BaseModel):

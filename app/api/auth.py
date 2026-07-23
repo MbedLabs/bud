@@ -27,6 +27,8 @@ from app.models.user_token import UserTokenPurpose
 from app.schemas.auth import (
     AcceptInviteRequest,
     AcceptInviteResponse,
+    ConfirmEmailChangeRequest,
+    EmailChangeRequest,
     ForgotPasswordRequest,
     GenericMessageResponse,
     InviteInfoResponse,
@@ -40,6 +42,7 @@ from app.schemas.auth import (
 )
 from app.services.mail_service import (
     MailConfigurationError,
+    send_email_change_email,
     send_password_reset_email,
     send_verification_email,
 )
@@ -49,6 +52,7 @@ from app.services.token_service import (
     create_user_token,
     find_token,
     invalidate_all_refresh_tokens,
+    invalidate_tokens,
     mark_token_used,
 )
 
@@ -271,17 +275,114 @@ async def update_me(
 ):
     if data.full_name is not None:
         current_user.full_name = data.full_name
-    if data.email is not None:
-        existing = await db.execute(
-            select(User).where(User.email == data.email, User.id != current_user.id)
-        )
-        if existing.scalar_one_or_none():
-            raise HTTPException(status_code=400, detail="Email already in use")
-        current_user.email = data.email
+    # Email changes are not applied here: they require the current password and a
+    # confirmation of the new address via POST /me/email. Any email in this
+    # payload is ignored so an unconfirmed address can never become the login.
 
     await db.flush()
     await db.refresh(current_user)
     return UserResponse.model_validate(current_user)
+
+
+@router.post("/me/email", response_model=GenericMessageResponse)
+async def request_email_change(
+    data: EmailChangeRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Start a verified email change.
+
+    Requires the current password, stores the requested address as pending (the
+    login email is untouched), and emails a one-time confirmation link to the new
+    address. The change only takes effect once that link is confirmed.
+    """
+    if not verify_password(data.current_password, current_user.hashed_password):
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
+
+    new_email = data.new_email
+    if new_email == current_user.email:
+        raise HTTPException(status_code=400, detail="New email matches the current email")
+
+    existing = await db.execute(
+        select(User).where(User.email == new_email, User.id != current_user.id)
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Email already in use")
+
+    current_user.pending_email = new_email
+    token = await create_user_token(
+        db,
+        user_id=current_user.id,
+        purpose=UserTokenPurpose.email_change,
+        ttl_hours=settings.EMAIL_VERIFICATION_TOKEN_TTL_HOURS,
+    )
+    confirm_link = f"{settings.FRONTEND_BASE_URL.rstrip('/')}/confirm-email-change?token={token}"
+    try:
+        send_email_change_email(
+            to_email=new_email,
+            full_name=current_user.full_name,
+            confirm_link=confirm_link,
+        )
+    except MailConfigurationError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+    await db.flush()
+    return GenericMessageResponse(
+        message="Confirmation email sent to the new address. The change takes effect once confirmed."
+    )
+
+
+@router.delete("/me/email", response_model=GenericMessageResponse)
+async def cancel_email_change(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Cancel a pending email change: clear the pending address and burn any
+    outstanding confirmation tokens."""
+    current_user.pending_email = None
+    await invalidate_tokens(db, current_user.id, purpose=UserTokenPurpose.email_change)
+    await db.flush()
+    return GenericMessageResponse(message="Pending email change cancelled")
+
+
+@router.post("/confirm-email-change", response_model=GenericMessageResponse)
+async def confirm_email_change(
+    data: ConfirmEmailChangeRequest,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+):
+    """Confirm a verified email change with the one-time token sent to the new
+    address. Switches the login email, marks it verified, and ends every existing
+    session so a fresh login with the new address is required."""
+    try:
+        claimed = await claim_token(db, token=data.token, purpose=UserTokenPurpose.email_change)
+    except TokenValidationError as exc:
+        raise HTTPException(status_code=400, detail=exc.detail) from exc
+
+    user = await db.get(User, claimed.user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if not user.pending_email:
+        raise HTTPException(status_code=400, detail="No pending email change")
+
+    # Guard against the address being taken between request and confirmation.
+    existing = await db.execute(
+        select(User).where(User.email == user.pending_email, User.id != user.id)
+    )
+    if existing.scalar_one_or_none():
+        user.pending_email = None
+        await db.flush()
+        raise HTTPException(status_code=400, detail="Email already in use")
+
+    user.email = user.pending_email
+    user.pending_email = None
+    user.email_verified_at = datetime.utcnow()
+    # Confirmed identity change ends every existing session.
+    user.session_version += 1
+    await invalidate_all_refresh_tokens(db, user.id)
+    _clear_refresh_cookie(response)
+    await db.flush()
+    return GenericMessageResponse(message="Email address updated. Please log in again.")
 
 
 @router.put("/me/password", response_model=UserResponse)
