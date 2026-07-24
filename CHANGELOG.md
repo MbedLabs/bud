@@ -23,6 +23,7 @@
 - Artifact uploads are validated and written while streaming.
 - Bloom integration credentials are encrypted at rest and are never returned through settings APIs.
 - Python and npm dependency vulnerability scans block CI on actionable findings.
+- Upgraded react-router to 7.18.1, closing moderate advisories including an open redirect via `<Link>`/`useNavigate` (GHSA-wrjc-x8rr-h8h6).
 
 ## 1.0.0
 
