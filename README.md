@@ -2,6 +2,8 @@
 
 Bud TMP by EmbedLabs is a source-available test management and execution platform for teams running automated tests on CI workers, lab machines, and hardware test stations. It brings runner status, test runs, assertion results, execution events, and uploaded artifacts into one self-hosted workspace.
 
+> **Release status:** 1.0.0 public beta. See the [changelog](CHANGELOG.md) for what this release includes.
+
 ## Licence status
 
 Bud is distributed under the [EmbedLabs Source Available License 1.0](LICENSE). It is **source-available**, not Open Source under the Open Source Definition.
@@ -69,17 +71,20 @@ Replace every active `replace-with-...` placeholder in `.env`. At minimum config
 - `DB_PASSWORD`
 - `SECRET_KEY`
 - `RUNNER_API_KEY`
-- `INTEGRATION_ENCRYPTION_KEY`
 - `ADMIN_EMAIL`
-- `ADMIN_PASSWORD`
+- `ADMIN_PASSWORD` (at least 16 characters in production)
 - `ADMIN_FULL_NAME`
 - `APP_BASE_URL`
 - `FRONTEND_BASE_URL`
 - `BUD_APP_URL`
 
+In production (`BUD_ENV=production`) Bud fails closed at startup: it refuses to boot while `SECRET_KEY`, `RUNNER_API_KEY`, `DB_PASSWORD`, or `ADMIN_PASSWORD` still holds an `.env.example` placeholder, and it requires `ADMIN_PASSWORD` to be at least 16 characters.
+
 Keep `RUN_STARTUP_DATA_REPAIR=false` in production. Set `AUTO_SEED_ADMIN=true` only for the one-time first-administrator bootstrap on a new empty database, then restore it to `false` immediately.
 
 ### 3. Pull, migrate, and start
+
+Pin the image by setting `BUD_VERSION` in `.env` (for example `BUD_VERSION=1.0.0`; the default is `stable`). `docker compose` pulls `ghcr.io/mbedlabs/bud:${BUD_VERSION}`.
 
 ```bash
 docker compose pull
@@ -88,7 +93,7 @@ docker compose run --rm bud alembic upgrade head
 docker compose up -d bud
 ```
 
-The migration must finish successfully before Bud serves production traffic.
+The migration must finish successfully before Bud serves production traffic. The application container never builds or repairs the schema on its own (`RUN_STARTUP_DATA_REPAIR=false`); Alembic is the only schema builder.
 
 ### 4. Verify
 
@@ -130,16 +135,39 @@ Back up both and test restoration on a separate instance. See [`docs/OPERATIONS.
 
 ## Image tags
 
+Set `BUD_VERSION` in `.env` to the tag `docker compose` should pull.
+
 | Container tag | Meaning |
 |---|---|
-| `dev` | Rolling image from the `dev` branch |
-| `latest` | Rolling image from `main`; not guaranteed to be a stable release |
+| `1.0.0` | Exact production version — pin this for production |
+| `1.0` / `1` | Moving stable channels tracking the newest `1.0.x` / `1.x` |
 | `stable` | Newest stable semantic-version release |
-| `1.2.3` | Exact production version |
-| `1.2` / `1` | Moving stable channels |
-| `sha-...` | Exact source/image traceability |
+| `latest` | Rolling image from `main`; not guaranteed to be a stable release |
+| `dev` | Rolling image from the `dev` branch |
+| `sha-<commit>` | Immutable image for exact source/image traceability |
 
-Pin a full semantic version for production.
+Every moving tag (`stable`, `latest`, `1.0`, `1`, a branch name) is promoted to an image only after that exact image passes the published-image end-to-end tests, so a tag never resolves to an untested build. Pin a full semantic version (`BUD_VERSION=1.0.0`) for production.
+
+## Upgrading
+
+1. Read the [changelog](CHANGELOG.md) for the target release, and back up both volumes first (see [Persistence and backups](#persistence-and-backups)).
+2. Set the new version in `.env`, for example `BUD_VERSION=1.0.0`.
+3. Pull, migrate, then restart. Migrations must complete before the application serves traffic:
+
+```bash
+docker compose pull
+docker compose run --rm bud alembic upgrade head
+docker compose up -d bud
+```
+
+4. Confirm the running image and database:
+
+```bash
+curl -fsS http://localhost:8001/api/version
+curl -fsS http://localhost:8001/api/ready
+```
+
+To roll back, restore the pre-upgrade volume backups and set `BUD_VERSION` to the previous release. Downgrades that require reversing a migration are not supported — restore from backup instead.
 
 ## Security and documentation
 
