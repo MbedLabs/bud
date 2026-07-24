@@ -188,6 +188,25 @@ jobs:
             || gate_fail "CHANGELOG.md has no release entry for ${base}"
           echo "Version consistency OK for ${base}"
 
+      - name: Verify the tagged commit is contained in main history
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          # A release tag must be cut from the reviewed release commit on main:
+          # nothing is ever built or promoted from a commit that never landed on
+          # main. The checkout is shallow, so fetch main's full history and prove
+          # the tagged commit is contained in it before anything else runs.
+          if [ -f "$(git rev-parse --git-dir)/shallow" ]; then
+            git fetch --no-tags --unshallow origin main
+          else
+            git fetch --no-tags origin main
+          fi
+          if git merge-base --is-ancestor "$GITHUB_SHA" FETCH_HEAD; then
+            echo "Tagged commit $GITHUB_SHA is contained in main history."
+          else
+            echo "::error::release tag ${GITHUB_REF_NAME} ($GITHUB_SHA) is not contained in main history" >&2
+            exit 1
+          fi
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v4
 
