@@ -140,6 +140,7 @@ jobs:
 
     outputs:
       image: ${{ steps.sha-image.outputs.image }}
+      aliases: ${{ steps.aliases.outputs.list }}
 
     steps:
       - uses: actions/checkout@v7
@@ -216,12 +217,23 @@ jobs:
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
             type=raw,value=stable,enable=${{ steps.release.outputs.stable == 'true' }}
 
-      - name: Build and push Docker image
+      - name: Extract the immutable sha-only tag
+        id: metasha
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository }}
+          flavor: latest=false
+          tags: type=sha,prefix=sha-
+
+      - name: Build and push the immutable sha image
         uses: docker/build-push-action@v7
         with:
           context: .
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
+          # Only the immutable sha-<commit> tag is pushed here. Moving aliases
+          # (branch/latest/stable/semver) are promoted to this same manifest by
+          # the promote-image job, and only after e2e-image passes.
+          tags: ${{ steps.metasha.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -229,17 +241,38 @@ jobs:
 
       - name: Resolve pushed image reference
         id: sha-image
+        env:
+          SHA_TAGS: ${{ steps.metasha.outputs.tags }}
         run: |
-          image="$(printf '%s\n' "$DOCKER_METADATA_OUTPUT_TAGS" | grep ':sha-' | head -n 1)"
+          image="$(printf '%s\n' "$SHA_TAGS" | grep ':sha-' | head -n 1)"
           if [ -z "$image" ]; then echo "no sha- tag in metadata output" >&2; exit 1; fi
           echo "image=$image" >> "$GITHUB_OUTPUT"
           echo "Resolved sha image: $image"
 
-      - name: Verify published image startup contract
+      - name: Compute moving alias tags
+        id: aliases
+        env:
+          ALL_TAGS: ${{ steps.meta.outputs.tags }}
         run: |
-          image="$(printf '%s\n' "$DOCKER_METADATA_OUTPUT_TAGS" | grep ':sha-' | head -n 1)"
-          docker pull --platform linux/amd64 "$image"
-          docker run --rm --platform linux/amd64 --entrypoint /bin/sh "$image" -c '
+          # Every tag EXCEPT the immutable sha-<commit> one. These are the moving
+          # deploy aliases (branch / latest / stable / semver). They are NOT pushed
+          # by the build; the promote-image job attaches them to the tested manifest
+          # only after e2e-image passes, so a failing build never moves a deploy tag.
+          aliases="$(printf '%s\n' "$ALL_TAGS" | grep -v ':sha-' || true)"
+          {
+            echo "list<<ALIAS_EOF"
+            printf '%s\n' "$aliases"
+            echo "ALIAS_EOF"
+          } >> "$GITHUB_OUTPUT"
+          echo "Moving aliases to promote after e2e:"
+          printf '%s\n' "$aliases"
+
+      - name: Verify published image startup contract
+        env:
+          IMAGE: ${{ steps.sha-image.outputs.image }}
+        run: |
+          docker pull --platform linux/amd64 "$IMAGE"
+          docker run --rm --platform linux/amd64 --entrypoint /bin/sh "$IMAGE" -c '
             set -eu
             test "$(stat -c %a /usr/local/bin/start-product)" = "755"
             test "$(stat -c %a /etc/supervisord.conf)" = "644"
@@ -298,3 +331,45 @@ jobs:
       # DB-backed call -> >1 MB upload through nginx -> restart -> data persists.
       - name: End-to-end smoke test
         run: bash scripts/e2e_image_smoke.sh "${{ needs.build-image.outputs.image }}"
+
+  promote-image:
+    if: github.event_name == 'push'
+    name: Promote moving tags
+    runs-on: [self-hosted, hostinger, bud]
+    needs: [build-image, e2e-image]
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # The build published ONLY the immutable sha-<commit> manifest, and
+      # e2e-image has now proven that exact manifest boots and serves. Point every
+      # moving alias (branch / latest / stable / semver) at it via a registry-side
+      # manifest copy (no rebuild, both platforms preserved). Until this job runs,
+      # the aliases still reference the previous image that passed e2e, so a broken
+      # build can never become what `latest`/`stable`/a branch tag resolves to.
+      - name: Promote the tested image to its moving aliases
+        env:
+          SHA_IMAGE: ${{ needs.build-image.outputs.image }}
+          ALIASES: ${{ needs.build-image.outputs.aliases }}
+        run: |
+          if [ -z "${ALIASES//[[:space:]]/}" ]; then
+            echo "No moving aliases for this ref; nothing to promote."
+            exit 0
+          fi
+          printf '%s\n' "$ALIASES" | while IFS= read -r alias; do
+            [ -n "$alias" ] || continue
+            echo "Promoting $alias -> $SHA_IMAGE"
+            docker buildx imagetools create --tag "$alias" "$SHA_IMAGE"
+          done
