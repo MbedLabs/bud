@@ -1,5 +1,6 @@
 import { Routes, Route, Link } from 'react-router-dom'
 import Layout from './components/Layout'
+import PoweredByEmbedLabs from './components/PoweredByEmbedLabs'
 import ProtectedRoute from './components/ProtectedRoute'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
@@ -31,23 +32,26 @@ function NotFound() {
 
 function App() {
   return (
-    <Routes>
-      <Route path="/login" element={<Login />} />
-      <Route path="/accept-invite" element={<AcceptInvite />} />
-      <Route path="/verify-email" element={<VerifyEmail />} />
-      <Route path="/forgot-password" element={<ForgotPassword />} />
-      <Route path="/reset-password" element={<ResetPassword />} />
-      <Route path="/confirm-email-change" element={<ConfirmEmailChange />} />
-      <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
-        <Route index element={<Dashboard />} />
-        <Route path="runs" element={<TestRuns />} />
-        <Route path="runs/:id" element={<TestRunDetail />} />
-        <Route path="test-stations" element={<TestStations />} />
-        <Route path="settings" element={<Settings />} />
-        <Route path="users" element={<Users />} />
-        <Route path="*" element={<NotFound />} />
-      </Route>
-    </Routes>
+    <>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/accept-invite" element={<AcceptInvite />} />
+        <Route path="/verify-email" element={<VerifyEmail />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/confirm-email-change" element={<ConfirmEmailChange />} />
+        <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+          <Route index element={<Dashboard />} />
+          <Route path="runs" element={<TestRuns />} />
+          <Route path="runs/:id" element={<TestRunDetail />} />
+          <Route path="test-stations" element={<TestStations />} />
+          <Route path="settings" element={<Settings />} />
+          <Route path="users" element={<Users />} />
+          <Route path="*" element={<NotFound />} />
+        </Route>
+      </Routes>
+      <PoweredByEmbedLabs />
+    </>
   )
 }
 

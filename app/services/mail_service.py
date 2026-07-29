@@ -81,22 +81,27 @@ def send_verification_email(*, to_email: str, full_name: str, verification_link:
     )
 
 
-def send_email_change_email(*, to_email: str, full_name: str, confirm_link: str) -> None:
-    """Send a confirmation link to a requested new address for an email change.
-
-    Reuses the verification template (the recipient must prove control of the new
-    address) but with a subject that reflects it is an address change.
-    """
+def send_email_change_email(
+    *,
+    to_email: str,
+    full_name: str,
+    old_email: str,
+    new_email: str,
+    confirm_link: str,
+) -> None:
+    """Ask the approved new mailbox to confirm an administrator-controlled change."""
     context = {
         "full_name": full_name,
-        "verification_link": confirm_link,
+        "old_email": old_email,
+        "new_email": new_email,
+        "confirm_link": confirm_link,
         "app_name": settings.BUD_APP_NAME,
     }
     send_email(
         to_email=to_email,
-        subject=f"Confirm your new email address for {settings.BUD_APP_NAME}",
-        text_body=render_template("verify_email.txt", context),
-        html_body=render_template("verify_email.html", context),
+        subject=f"Confirm your approved email change for {settings.BUD_APP_NAME}",
+        text_body=render_template("email_change.txt", context),
+        html_body=render_template("email_change.html", context),
     )
 
 

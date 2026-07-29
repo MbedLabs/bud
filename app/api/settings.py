@@ -30,6 +30,16 @@ PROTECTED_SETTING_KEYS = {
 }
 
 
+def _origin(url: str) -> tuple[str, str, int | None]:
+    parsed = urlparse(url)
+    default_port = 443 if parsed.scheme.lower() == "https" else 80
+    try:
+        port = parsed.port
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail="Bloom URL has an invalid port.") from exc
+    return parsed.scheme.lower(), (parsed.hostname or "").lower(), port or default_port
+
+
 @router.get("", response_model=List[SystemSettingResponse])
 async def get_settings(
     db: AsyncSession = Depends(get_db),
@@ -125,11 +135,38 @@ async def update_alm_integration(
     Update PLM integration settings.
     """
     parsed = urlparse(data.bloom_url)
-    if parsed.scheme not in {"http", "https"} or not parsed.netloc or parsed.username:
+    if (
+        parsed.scheme not in {"http", "https"}
+        or not parsed.netloc
+        or not parsed.hostname
+        or parsed.username is not None
+        or parsed.password is not None
+    ):
         raise HTTPException(status_code=422, detail="Bloom URL must be an absolute HTTP(S) URL.")
+    new_origin = _origin(data.bloom_url)
 
     updates = [("bloom_url", data.bloom_url.rstrip("/"))]
     masked = data.bloom_token is not None and set(data.bloom_token) == {"*"}
+    current_url = await db.get(SystemSetting, "bloom_url")
+    current_token = await db.get(SystemSetting, "bloom_token_encrypted")
+    origin_changed = bool(
+        current_url and current_url.value and _origin(current_url.value) != new_origin
+    )
+    supplies_new_token = bool(data.bloom_token and not masked)
+    if (
+        origin_changed
+        and current_token
+        and current_token.value
+        and not supplies_new_token
+        and not data.clear_bloom_token
+    ):
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "Changing the Bloom destination requires re-entering a Bloom "
+                "result-sync credential or clearing the saved credential."
+            ),
+        )
     if data.clear_bloom_token:
         for key in (
             "bloom_token_encrypted",

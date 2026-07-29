@@ -19,20 +19,78 @@ from app.db.database import get_db
 from app.models.user import User, UserRole
 from app.models.user_token import UserToken, UserTokenPurpose
 from app.schemas.auth import (
+    AdminEmailChangeRequest,
     InviteCreateRequest,
     InviteResponse,
     UserCreate,
     UserResponse,
     UserUpdate,
 )
-from app.services.mail_service import MailConfigurationError, send_invite_email
-from app.services.token_service import create_user_token
+from app.services.mail_service import (
+    MailConfigurationError,
+    send_email_change_email,
+    send_invite_email,
+)
+from app.services.token_service import create_user_token, invalidate_tokens
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
 require_admin = require_role(UserRole.admin)
+
+
+async def _get_user_or_404(db: AsyncSession, user_id: int) -> User:
+    user = await db.get(User, user_id, populate_existing=True, with_for_update=True)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
+
+
+async def _validate_new_email(db: AsyncSession, user: User, new_email: str) -> None:
+    if new_email == user.email:
+        raise HTTPException(status_code=400, detail="New email matches the current email")
+    existing = await db.execute(select(User).where(User.email == new_email, User.id != user.id))
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Email already in use")
+
+
+async def _send_email_change_confirmation(
+    db: AsyncSession,
+    *,
+    user: User,
+    new_email: str,
+    admin: User,
+) -> UserResponse:
+    await _validate_new_email(db, user, new_email)
+    await invalidate_tokens(db, user.id, purpose=UserTokenPurpose.email_change)
+
+    user.pending_email = new_email
+    user.email_change_status = "awaiting_confirmation"
+    user.email_change_requested_at = user.email_change_requested_at or datetime.utcnow()
+    token = await create_user_token(
+        db,
+        user_id=user.id,
+        purpose=UserTokenPurpose.email_change,
+        ttl_hours=settings.EMAIL_VERIFICATION_TOKEN_TTL_HOURS,
+        created_by_user_id=admin.id,
+        target_email=new_email,
+    )
+    confirm_link = f"{settings.FRONTEND_BASE_URL.rstrip('/')}/confirm-email-change#token={token}"
+    try:
+        send_email_change_email(
+            to_email=new_email,
+            full_name=user.full_name,
+            old_email=user.email,
+            new_email=new_email,
+            confirm_link=confirm_link,
+        )
+    except MailConfigurationError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+    await db.flush()
+    await db.refresh(user)
+    return UserResponse.model_validate(user)
 
 
 @router.get("", response_model=list[UserResponse])
@@ -192,6 +250,60 @@ async def revoke_invite(
     return InviteResponse(message="Invitation revoked", user=UserResponse.model_validate(user))
 
 
+@router.post("/{user_id}/email", response_model=UserResponse)
+async def start_email_change(
+    user_id: int,
+    data: AdminEmailChangeRequest,
+    admin: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Let an administrator propose a new login email.
+
+    The address is not applied directly. A confirmation link is sent to the new
+    mailbox and the login changes only after that link is used.
+    """
+    user = await _get_user_or_404(db, user_id)
+    user.email_change_requested_at = datetime.utcnow()
+    return await _send_email_change_confirmation(
+        db, user=user, new_email=str(data.new_email), admin=admin
+    )
+
+
+@router.post("/{user_id}/email/approve", response_model=UserResponse)
+async def approve_email_change(
+    user_id: int,
+    admin: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    user = await _get_user_or_404(db, user_id)
+    if not user.pending_email or user.email_change_status != "requested":
+        raise HTTPException(
+            status_code=400,
+            detail="No email change request is waiting for administrator approval",
+        )
+    return await _send_email_change_confirmation(
+        db, user=user, new_email=user.pending_email, admin=admin
+    )
+
+
+@router.delete("/{user_id}/email", response_model=UserResponse)
+async def reject_email_change(
+    user_id: int,
+    _admin: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    user = await _get_user_or_404(db, user_id)
+    if not user.pending_email:
+        raise HTTPException(status_code=400, detail="No pending email change")
+    user.pending_email = None
+    user.email_change_status = None
+    user.email_change_requested_at = None
+    await invalidate_tokens(db, user.id, purpose=UserTokenPurpose.email_change)
+    await db.flush()
+    await db.refresh(user)
+    return UserResponse.model_validate(user)
+
+
 @router.patch("/{user_id}", response_model=UserResponse)
 async def update_user(
     user_id: int,
@@ -204,13 +316,6 @@ async def update_user(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    if data.email is not None:
-        existing = await db.execute(
-            select(User).where(User.email == data.email, User.id != user_id)
-        )
-        if existing.scalar_one_or_none():
-            raise HTTPException(status_code=400, detail="Email already in use")
-        user.email = data.email
     if data.full_name is not None:
         user.full_name = data.full_name
     if data.role is not None:

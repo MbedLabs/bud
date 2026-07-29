@@ -43,7 +43,6 @@ from app.schemas.auth import (
 )
 from app.services.mail_service import (
     MailConfigurationError,
-    send_email_change_email,
     send_password_reset_email,
     send_verification_email,
 )
@@ -52,6 +51,7 @@ from app.services.token_service import (
     claim_token,
     create_user_token,
     find_token,
+    get_valid_token,
     invalidate_all_refresh_tokens,
     invalidate_tokens,
     mark_token_used,
@@ -291,12 +291,19 @@ async def request_email_change(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Start a verified email change.
+    """Request an administrator-controlled email change.
 
-    Requires the current password, stores the requested address as pending (the
-    login email is untouched), and emails a one-time confirmation link to the new
-    address. The change only takes effect once that link is confirmed.
+    The current password proves that the request came from the account holder.
+    No token or email is issued until an administrator approves the request.
     """
+    current_user = await db.get(
+        User,
+        current_user.id,
+        populate_existing=True,
+        with_for_update=True,
+    )
+    if current_user is None:
+        raise HTTPException(status_code=404, detail="User not found")
     if not verify_password(data.current_password, current_user.hashed_password):
         raise HTTPException(status_code=400, detail="Current password is incorrect")
 
@@ -310,26 +317,13 @@ async def request_email_change(
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Email already in use")
 
+    await invalidate_tokens(db, current_user.id, purpose=UserTokenPurpose.email_change)
     current_user.pending_email = new_email
-    token = await create_user_token(
-        db,
-        user_id=current_user.id,
-        purpose=UserTokenPurpose.email_change,
-        ttl_hours=settings.EMAIL_VERIFICATION_TOKEN_TTL_HOURS,
-    )
-    confirm_link = f"{settings.FRONTEND_BASE_URL.rstrip('/')}/confirm-email-change#token={token}"
-    try:
-        send_email_change_email(
-            to_email=new_email,
-            full_name=current_user.full_name,
-            confirm_link=confirm_link,
-        )
-    except MailConfigurationError as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
-
+    current_user.email_change_status = "requested"
+    current_user.email_change_requested_at = datetime.utcnow()
     await db.flush()
     return GenericMessageResponse(
-        message="Confirmation email sent to the new address. The change takes effect once confirmed."
+        message="Email change requested. An administrator must approve it before a confirmation email is sent."
     )
 
 
@@ -340,7 +334,17 @@ async def cancel_email_change(
 ):
     """Cancel a pending email change: clear the pending address and burn any
     outstanding confirmation tokens."""
+    current_user = await db.get(
+        User,
+        current_user.id,
+        populate_existing=True,
+        with_for_update=True,
+    )
+    if current_user is None:
+        raise HTTPException(status_code=404, detail="User not found")
     current_user.pending_email = None
+    current_user.email_change_status = None
+    current_user.email_change_requested_at = None
     await invalidate_tokens(db, current_user.id, purpose=UserTokenPurpose.email_change)
     await db.flush()
     return GenericMessageResponse(message="Pending email change cancelled")
@@ -356,27 +360,52 @@ async def confirm_email_change(
     address. Switches the login email, marks it verified, and ends every existing
     session so a fresh login with the new address is required."""
     try:
-        claimed = await claim_token(db, token=data.token, purpose=UserTokenPurpose.email_change)
+        candidate = await get_valid_token(
+            db,
+            token=data.token,
+            purpose=UserTokenPurpose.email_change,
+        )
     except TokenValidationError as exc:
         raise HTTPException(status_code=400, detail=exc.detail) from exc
 
-    user = await db.get(User, claimed.user_id)
+    user = await db.get(
+        User,
+        candidate.user_id,
+        populate_existing=True,
+        with_for_update=True,
+    )
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    if not user.pending_email:
+    if not user.pending_email or user.email_change_status != "awaiting_confirmation":
         raise HTTPException(status_code=400, detail="No pending email change")
+    if not candidate.target_email or user.pending_email != candidate.target_email:
+        raise HTTPException(
+            status_code=400,
+            detail="Email change token no longer matches the pending address",
+        )
+
+    try:
+        claimed = await claim_token(db, token=data.token, purpose=UserTokenPurpose.email_change)
+    except TokenValidationError as exc:
+        raise HTTPException(status_code=400, detail=exc.detail) from exc
+    if claimed.target_email != candidate.target_email:
+        raise HTTPException(status_code=400, detail="Invalid token")
 
     # Guard against the address being taken between request and confirmation.
     existing = await db.execute(
-        select(User).where(User.email == user.pending_email, User.id != user.id)
+        select(User).where(User.email == candidate.target_email, User.id != user.id)
     )
     if existing.scalar_one_or_none():
         user.pending_email = None
+        user.email_change_status = None
+        user.email_change_requested_at = None
         await db.flush()
         raise HTTPException(status_code=400, detail="Email already in use")
 
-    user.email = user.pending_email
+    user.email = candidate.target_email
     user.pending_email = None
+    user.email_change_status = None
+    user.email_change_requested_at = None
     user.email_verified_at = datetime.utcnow()
     # Confirmed identity change ends every existing session.
     user.session_version += 1
