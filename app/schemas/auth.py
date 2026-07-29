@@ -3,9 +3,9 @@ Auth and user schemas.
 """
 
 from datetime import datetime
-from typing import Annotated, Optional
+from typing import Annotated, Literal, Optional
 
-from pydantic import AfterValidator, BaseModel, EmailStr, Field
+from pydantic import AfterValidator, BaseModel, ConfigDict, EmailStr, Field
 
 from app.core.passwords import validate_password_strength
 from app.models.user import UserRole
@@ -46,8 +46,9 @@ class InviteResponse(BaseModel):
 
 
 class UserUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     full_name: Optional[str] = Field(None, min_length=1, max_length=255)
-    email: Optional[EmailStr] = None
     role: Optional[UserRole] = None
     is_active: Optional[bool] = None
 
@@ -64,6 +65,8 @@ class UserResponse(BaseModel):
     password_set_at: datetime | None = None
     email_verified_at: datetime | None = None
     pending_email: str | None = None
+    email_change_status: Literal["requested", "awaiting_confirmation"] | None = None
+    email_change_requested_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -113,6 +116,10 @@ class ResetPasswordRequest(BaseModel):
 
 class EmailChangeRequest(BaseModel):
     current_password: str
+    new_email: EmailStr
+
+
+class AdminEmailChangeRequest(BaseModel):
     new_email: EmailStr
 
 

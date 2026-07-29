@@ -80,7 +80,7 @@ Every deployed graphical user interface must preserve the exact textual notice
 "Powered by EmbedLabs" in a persistent, visible, and legible location in the
 standard application navigation or footer and on the sign-in interface. The
 notice must not be hidden, obscured, replaced, made misleading, or rendered
-illegible. It must link to https://embedlabs.net when the interface supports
+illegible. It must link to https://www.embedlabs.net when the interface supports
 links.
 
 Modified versions must also provide an accessible Legal or About view that:

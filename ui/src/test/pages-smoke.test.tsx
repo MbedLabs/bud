@@ -85,6 +85,12 @@ describe('route smoke (Bud)', () => {
   it('shows public auth screens without redirect loops', async () => {
     renderAt('/login')
     expect(screen.getByRole('heading', { name: /Welcome to Bud/i })).toBeInTheDocument()
+    const attribution = screen.getByRole('link', { name: 'Powered by EmbedLabs' })
+    expect(attribution).toHaveAttribute(
+      'href',
+      'https://www.embedlabs.net',
+    )
+    expect(attribution).toHaveClass('fixed', 'bottom-3', 'left-3', 'text-gray-500', 'dark:text-white')
     expect(screen.getByRole('link', { name: /Forgot password\?/i })).toHaveAttribute('href', '/forgot-password')
 
     cleanup()

@@ -91,6 +91,9 @@ export interface User {
   invite_accepted_at?: string | null
   password_set_at?: string | null
   email_verified_at?: string | null
+  pending_email?: string | null
+  email_change_status?: 'requested' | 'awaiting_confirmation' | null
+  email_change_requested_at?: string | null
   created_at: string
   updated_at: string
 }
@@ -221,8 +224,20 @@ export const usersApi = {
     const response = await api.post<InviteUserResponse>('/users/invite', data)
     return response.data
   },
-  update: async (id: number, data: { full_name?: string; email?: string; role?: 'admin' | 'viewer'; is_active?: boolean }): Promise<User> => {
+  update: async (id: number, data: { full_name?: string; role?: 'admin' | 'viewer'; is_active?: boolean }): Promise<User> => {
     const response = await api.patch<User>(`/users/${id}`, data)
+    return response.data
+  },
+  startEmailChange: async (id: number, newEmail: string): Promise<User> => {
+    const response = await api.post<User>(`/users/${id}/email`, { new_email: newEmail })
+    return response.data
+  },
+  approveEmailChange: async (id: number): Promise<User> => {
+    const response = await api.post<User>(`/users/${id}/email/approve`)
+    return response.data
+  },
+  rejectEmailChange: async (id: number): Promise<User> => {
+    const response = await api.delete<User>(`/users/${id}/email`)
     return response.data
   },
   delete: async (id: number): Promise<void> => {

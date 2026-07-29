@@ -107,6 +107,28 @@ async def test_get_uploader_entity_accepts_expired_runner_jwt(db_session):
 
 
 @pytest.mark.asyncio
+async def test_get_uploader_entity_accepts_api_key_and_runner_account(db_session):
+    runner = Runner(
+        account="api-key-runner",
+        password_hash="x",
+        token="stored-runner-token",
+        is_active=True,
+    )
+    db_session.add(runner)
+    await db_session.commit()
+
+    entity = await get_uploader_entity(
+        ResultsUpload(results=[], runner_account=runner.account),
+        db=db_session,
+        token=None,
+        x_api_key="test-runner-api-key",
+    )
+
+    assert isinstance(entity, Runner)
+    assert entity.account == runner.account
+
+
+@pytest.mark.asyncio
 async def test_runner_token_rotation_invalidates_previous_token(db_session):
     old_token = create_access_token({"sub": "runner-rotated", "type": "runner"})
     current_token = create_access_token({"sub": "runner-rotated", "type": "runner", "jti": "new"})
@@ -210,3 +232,28 @@ async def test_token_without_explicit_type_is_rejected(db_session):
     with pytest.raises(HTTPException) as error:
         await get_current_active_entity(token=token, db=db_session)
     assert error.value.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_stale_user_token_cannot_upload_results(unauthenticated_client, db_session):
+    user = User(
+        email="stale-uploader@example.com",
+        full_name="Stale Uploader",
+        hashed_password="x",
+        role=UserRole.admin,
+        is_active=True,
+        session_version=2,
+    )
+    db_session.add(user)
+    await db_session.commit()
+    await db_session.refresh(user)
+
+    stale_token = create_access_token({"sub": str(user.id), "type": "user", "ver": 1})
+    response = unauthenticated_client.post(
+        "/api/results",
+        json={"results": []},
+        headers={"Authorization": f"Bearer {stale_token}"},
+    )
+
+    assert response.status_code == 401
+    assert "Authentication required" in response.json()["detail"]

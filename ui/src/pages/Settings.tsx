@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
-import { Sun, Moon, Monitor, Info, ExternalLink, Link as LinkIcon, Save, Loader2, Globe, HelpCircle } from 'lucide-react'
+import { Sun, Moon, Monitor, Info, ExternalLink, Link as LinkIcon, Save, Loader2, Globe, HelpCircle, Mail } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { APP_VERSION, settingsApi, extractApiErrorMessage } from '../api/client'
+import { APP_VERSION, authApi, settingsApi, extractApiErrorMessage } from '../api/client'
 import { useAuth } from '../contexts/AuthContext'
 
 const COMMON_TIMEZONES = [
@@ -55,11 +55,14 @@ function useDarkMode() {
 }
 
 export default function Settings() {
-  const { user } = useAuth()
+  const { user, refreshUser } = useAuth()
   const isAdmin = user?.role === 'admin'
   const queryClient = useQueryClient()
   
   const [dark, setDark] = useDarkMode()
+  const [newEmail, setNewEmail] = useState('')
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [emailMessage, setEmailMessage] = useState<string | null>(null)
 
   // Timezone state
   const [timezone, setTimezone] = useState(() => localStorage.getItem('bud-timezone') || 'auto')
@@ -99,6 +102,30 @@ export default function Settings() {
     },
   })
 
+  const requestEmailMutation = useMutation({
+    mutationFn: () => authApi.requestEmailChange(currentPassword, newEmail),
+    onSuccess: async (response) => {
+      setEmailMessage(response.message)
+      setNewEmail('')
+      setCurrentPassword('')
+      await refreshUser()
+    },
+    onError: (error) => {
+      setEmailMessage(extractApiErrorMessage(error, 'Failed to request email change'))
+    },
+  })
+
+  const cancelEmailMutation = useMutation({
+    mutationFn: authApi.cancelEmailChange,
+    onSuccess: async (response) => {
+      setEmailMessage(response.message)
+      await refreshUser()
+    },
+    onError: (error) => {
+      setEmailMessage(extractApiErrorMessage(error, 'Failed to cancel email change'))
+    },
+  })
+
   const handleSaveALM = () => {
     almMutation.mutate({
       bloom_url: bloomUrl,
@@ -119,6 +146,102 @@ export default function Settings() {
 
   return (
     <div className="max-w-2xl space-y-6 animate-fade-in pb-20">
+      {/* Account */}
+      <div className="bg-card rounded-lg border border-border shadow-elegant overflow-hidden">
+        <div className="px-5 py-4 border-b border-border flex items-center gap-2 bg-muted/30">
+          <Mail className="h-4 w-4 text-primary" />
+          <h3 className="text-sm font-semibold text-foreground">Account</h3>
+        </div>
+        <div className="p-5 space-y-4">
+          <div>
+            <label htmlFor="current-email" className="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5">
+              Current email
+            </label>
+            <input
+              id="current-email"
+              type="email"
+              value={user?.email ?? ''}
+              readOnly
+              className="w-full px-3 py-2 bg-muted/50 border border-input rounded-md text-sm text-foreground"
+            />
+          </div>
+
+          {user?.pending_email ? (
+            <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-4 space-y-3">
+              <div>
+                <p className="text-sm font-medium text-foreground">Requested email: {user.pending_email}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {user.email_change_status === 'requested'
+                    ? 'Waiting for an administrator to approve or reject this request.'
+                    : 'Approved. Use the confirmation link sent to the new address to finish the change.'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => cancelEmailMutation.mutate()}
+                disabled={cancelEmailMutation.isPending}
+                className="text-sm font-medium text-destructive hover:underline disabled:opacity-50"
+              >
+                {cancelEmailMutation.isPending ? 'Cancelling…' : 'Cancel email change'}
+              </button>
+            </div>
+          ) : (
+            <form
+              className="space-y-4"
+              onSubmit={(event) => {
+                event.preventDefault()
+                setEmailMessage(null)
+                requestEmailMutation.mutate()
+              }}
+            >
+              <p className="text-xs text-muted-foreground">
+                Request a new login email. An administrator must approve it before Bud sends a confirmation link to the new address.
+              </p>
+              <div>
+                <label htmlFor="new-email" className="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5">
+                  New email
+                </label>
+                <input
+                  id="new-email"
+                  type="email"
+                  value={newEmail}
+                  onChange={(event) => setNewEmail(event.target.value)}
+                  required
+                  className="w-full px-3 py-2 bg-background border border-input rounded-md text-sm text-foreground"
+                />
+              </div>
+              <div>
+                <label htmlFor="current-password" className="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5">
+                  Current password
+                </label>
+                <input
+                  id="current-password"
+                  type="password"
+                  value={currentPassword}
+                  onChange={(event) => setCurrentPassword(event.target.value)}
+                  required
+                  className="w-full px-3 py-2 bg-background border border-input rounded-md text-sm text-foreground"
+                />
+              </div>
+              <div className="flex justify-end">
+                <button
+                  type="submit"
+                  disabled={requestEmailMutation.isPending}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 disabled:opacity-50"
+                >
+                  {requestEmailMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+                  Request email change
+                </button>
+              </div>
+            </form>
+          )}
+
+          {emailMessage && (
+            <p className="text-sm text-muted-foreground" role="status">{emailMessage}</p>
+          )}
+        </div>
+      </div>
+
       {/* Appearance */}
       <div className="bg-card rounded-lg border border-border shadow-elegant overflow-hidden">
         <div className="px-5 py-4 border-b border-border flex items-center gap-2 bg-muted/30">
@@ -273,7 +396,7 @@ export default function Settings() {
             </div>
           </div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <span>by</span>
+            <span>Powered by</span>
             <a
               href="https://www.embedlabs.net"
               target="_blank"
@@ -299,7 +422,7 @@ export default function Settings() {
               rel="noopener noreferrer"
               className="text-primary hover:text-primary/80 transition-colors font-medium"
             >
-              AGPL-3.0 license
+              Source-available license
             </a>
           </div>
         </div>

@@ -134,6 +134,11 @@ Add a fail-closed ClamAV or YARA stage if your deployment needs that claim.
 4. Restart the container. Confirm `/api/ready` returns `200` and check the
    version shown in the UI.
 
+When upgrading to `1.0.0`, migration `006_encrypt_bloom_service_token` removes
+the legacy Bloom token because it cannot be safely converted into the new scoped
+encrypted credential. Create a new `test-results:write` credential in Bloom and
+save it again in Bud.
+
 Rollback: restore the pre-upgrade database dump and start the previous image
 tag. Never run a newer schema against an older application version.
 
@@ -143,9 +148,9 @@ tag. Never run a newer schema against an older application version.
   schedule to your tolerance and copy backups off the host.
 - **RTO** is dominated by Postgres restore time; rehearse the restore path
   against a scratch database at least once before you depend on it.
-- Keep `SECRET_KEY`, `RUNNER_API_KEY`, and `INTEGRATION_ENCRYPTION_KEY` in your
+- Keep `SECRET_KEY`, `RUNNER_API_KEY`, and `BUD_INTEGRATION_ENCRYPTION_KEY` in your
   secret store. A different `SECRET_KEY` invalidates sessions and runner tokens,
-  so runners must re-register. A different `INTEGRATION_ENCRYPTION_KEY` makes the
+  so runners must re-register. A different `BUD_INTEGRATION_ENCRYPTION_KEY` makes the
   stored Bloom result-sync credential unreadable, so it must be rotated.
 
 ## Supply chain

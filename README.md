@@ -6,7 +6,7 @@ Bud TMP by EmbedLabs is a source-available test management and execution platfor
 
 ## Licence status
 
-Bud is distributed under the [EmbedLabs Source Available License 1.0](LICENSE). It is **source-available**, not Open Source under the Open Source Definition.
+Bud is distributed under the [EmbedLabs Source Available License 1.0](LICENSE).
 
 The licence permits personal, educational, evaluation, research, and internal business use, including modification for those permitted uses. A separate professional licence is required for resale, third-party hosting, managed services, commercial redistribution, white-labelling, or embedding Bud in a third-party commercial offering.
 
@@ -104,6 +104,10 @@ curl -fsS http://localhost:8001/api/ready
 
 `/api/health` is process liveness. `/api/ready` verifies PostgreSQL connectivity.
 
+## Email delivery
+
+SMTP is optional when evaluating Bud with only the pre-seeded administrator. It is required for user invitations, password resets, and approved email changes. Configure `SMTP_ENABLED=true` together with `SMTP_HOST`, `SMTP_FROM_EMAIL`, and the authentication/TLS values required by your mail server before using those workflows.
+
 ## Register a Test Station
 
 ```bash
@@ -123,6 +127,24 @@ python -m bud_runner daemon \
 ```
 
 The runner stores its machine token in `~/.bud/config.json`. Do not commit that file or registration secrets.
+
+## Connect Bud to Bloom
+
+Bud and Bloom remain independently deployable. Saving a Bloom URL and scoped credential in Bud enables result synchronisation; clearing the credential disables it. There is no separate hidden enable flag.
+
+1. In Bloom, set `SERVICE_TOKEN_PEPPER` to an independent random value of at least 32 characters and restart Bloom.
+2. In Bloom, sign in as an administrator, open **Settings → Bud Result-Sync Credentials**, and create a credential. Copy it immediately; Bloom displays the raw `blm_sync_…` value only once.
+3. In Bud, generate and configure `BUD_INTEGRATION_ENCRYPTION_KEY`:
+
+```bash
+python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+```
+
+4. Restart Bud, sign in as an administrator, open **Settings → PLM Integration (Bloom)**, and save Bloom's reachable base URL plus the copied credential.
+5. Optionally set Bud's deployment-time `BLOOM_APP_URL` to show a Bloom navigation link in the Bud sidebar. This variable does not configure result synchronisation.
+6. Optionally set Bloom's `BUD_APP_URL` to show links back to Bud.
+
+Bud accepts HTTP URLs for localhost and deliberately trusted internal networks. Use the HTTPS URL exposed by your reverse proxy whenever traffic crosses a host or network boundary. Changing the saved destination origin requires re-entering or clearing the credential so it cannot be forwarded to a different server.
 
 ## Persistence and backups
 
@@ -151,6 +173,7 @@ Every moving tag (`stable`, `latest`, `1.0`, `1`, a branch name) is promoted to 
 ## Upgrading
 
 1. Read the [changelog](CHANGELOG.md) for the target release, and back up both volumes first (see [Persistence and backups](#persistence-and-backups)).
+   When upgrading to `1.0.0`, migration `006_encrypt_bloom_service_token` removes any legacy Bloom administrator/plaintext token. Create a new scoped credential in Bloom and save it again in Bud after the migration.
 2. Set the new version in `.env`, for example `BUD_VERSION=1.0.0`.
 3. Pull, migrate, then restart. Migrations must complete before the application serves traffic:
 

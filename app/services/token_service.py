@@ -18,6 +18,7 @@ class TokenValidationError(Exception):
 class ClaimedToken(NamedTuple):
     id: int
     user_id: int
+    target_email: str | None
 
 
 def generate_raw_token() -> str:
@@ -35,6 +36,7 @@ async def create_user_token(
     purpose: UserTokenPurpose,
     ttl_hours: int,
     created_by_user_id: int | None = None,
+    target_email: str | None = None,
     invalidate_existing: bool = True,
 ) -> str:
     if invalidate_existing:
@@ -56,6 +58,7 @@ async def create_user_token(
             token_hash=hash_token(raw_token),
             expires_at=datetime.utcnow() + timedelta(hours=ttl_hours),
             created_by_user_id=created_by_user_id,
+            target_email=target_email,
         )
     )
     await db.flush()
@@ -121,11 +124,11 @@ async def claim_token(
             UserToken.expires_at > now,
         )
         .values(used_at=now)
-        .returning(UserToken.id, UserToken.user_id)
+        .returning(UserToken.id, UserToken.user_id, UserToken.target_email)
     )
     row = result.first()
     if row is not None:
-        return ClaimedToken(id=row[0], user_id=row[1])
+        return ClaimedToken(id=row[0], user_id=row[1], target_email=row[2])
 
     existing = await find_token(db, token=token, purpose=purpose)
     if existing is None:
