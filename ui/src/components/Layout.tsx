@@ -92,7 +92,7 @@ export default function Layout() {
     : 'U'
 
   return (
-    <div className="min-h-screen flex">
+    <div className="h-screen flex overflow-hidden">
       <aside className={`${sidebarCollapsed ? 'w-14' : 'w-60'} sidebar-scrollbar bg-gradient-sidebar text-white flex flex-col fixed inset-y-0 left-0 z-30 overflow-x-hidden overflow-y-auto transition-all duration-200`}>
         <div className={`${sidebarCollapsed ? 'px-2 pt-4 pb-2.5' : 'px-3 pt-4 pb-2.5'}`}>
           <div className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-2.5'}`}>
@@ -198,10 +198,6 @@ export default function Layout() {
         </div>
       </aside>
 
-      {sidebarCollapsed && (
-        <PoweredByEmbedLabs collapsed version={APP_VERSION} />
-      )}
-
       <button
         type="button"
         onClick={() => setSidebarCollapsed((c) => !c)}
@@ -213,7 +209,7 @@ export default function Layout() {
         {sidebarCollapsed ? <ChevronRight className="h-4 w-4" strokeWidth={2.25} /> : <ChevronLeft className="h-4 w-4" strokeWidth={2.25} />}
       </button>
 
-      <div className={`flex-1 flex flex-col min-w-0 ${sidebarCollapsed ? 'ml-14' : 'ml-60'} transition-all duration-200`}>
+      <div className={`flex-1 flex flex-col min-w-0 min-h-0 ${sidebarCollapsed ? 'ml-14' : 'ml-60'} transition-all duration-200`}>
         <header className="glass border-b border-border sticky top-0 z-20">
           <div className="px-6 py-4 flex items-center justify-between">
             <div className="pl-6">
@@ -275,9 +271,14 @@ export default function Layout() {
           </div>
         </header>
 
-        <main className="flex-1 p-6 bg-background overflow-auto">
+        <main className="flex-1 min-h-0 p-6 bg-background overflow-auto">
           <Outlet />
         </main>
+        {sidebarCollapsed && (
+          <footer className="flex shrink-0 justify-center bg-background px-6 pb-3 pt-2">
+            <PoweredByEmbedLabs collapsed version={APP_VERSION} />
+          </footer>
+        )}
       </div>
     </div>
   )

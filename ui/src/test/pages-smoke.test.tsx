@@ -142,11 +142,16 @@ describe('route smoke (Bud)', () => {
     expect(screen.getByRole('heading', { name: /^PLM Integration \(Bloom\)$/ })).toBeInTheDocument()
   })
 
-  it('moves collapsed attribution outside the sidebar', () => {
-    renderAt('/')
+  it('moves collapsed attribution to a dedicated footer below main content', () => {
+    const { container } = renderAt('/')
 
     const sidebar = document.querySelector('aside')
+    const main = document.querySelector('main')
+    const layout = container.firstElementChild
     expect(sidebar).not.toBeNull()
+    expect(main).not.toBeNull()
+    expect(layout).toHaveClass('h-screen', 'overflow-hidden')
+    expect(main).toHaveClass('min-h-0', 'overflow-auto')
     expect(sidebar).toHaveClass('overflow-x-hidden')
     expect(
       screen.getByRole('link', { name: 'Powered by EmbedLabs' }).closest('aside'),
@@ -155,15 +160,18 @@ describe('route smoke (Bud)', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Collapse sidebar' }))
 
-    expect(
-      screen.getByRole('link', { name: 'Powered by EmbedLabs © 2026' }).closest('aside'),
-    ).toBeNull()
-    expect(
-      screen.getByRole('link', { name: 'Powered by EmbedLabs © 2026' }),
-    ).toHaveClass('left-[4.25rem]', 'whitespace-nowrap')
-    expect(
-      screen.getByRole('link', { name: 'Powered by EmbedLabs © 2026' }),
-    ).toHaveTextContent('Powered by EmbedLabs © 2026')
+    const collapsedAttribution = screen.getByRole('link', {
+      name: 'Powered by EmbedLabs © 2026',
+    })
+    expect(collapsedAttribution.closest('aside')).toBeNull()
+    expect(collapsedAttribution.closest('main')).toBeNull()
+    const footer = collapsedAttribution.closest('footer')
+    expect(footer).not.toBeNull()
+    expect(footer).toHaveClass('shrink-0', 'justify-center')
+    expect(main?.nextElementSibling).toBe(footer)
+    expect(collapsedAttribution).toHaveClass('whitespace-nowrap')
+    expect(collapsedAttribution).not.toHaveClass('fixed', 'absolute')
+    expect(collapsedAttribution).toHaveTextContent('Powered by EmbedLabs © 2026')
   })
 
   it('shows test runs placeholder copy at /runs', async () => {
