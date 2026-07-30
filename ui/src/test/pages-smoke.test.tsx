@@ -79,12 +79,21 @@ function renderAt(path: string) {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  localStorage.clear()
 })
 
 describe('route smoke (Bud)', () => {
   it('shows public auth screens without redirect loops', async () => {
     renderAt('/login')
     expect(screen.getByRole('heading', { name: /Welcome to Bud/i })).toBeInTheDocument()
+    const attribution = screen.getByRole('link', { name: 'Powered by EmbedLabs' })
+    expect(attribution).toHaveAttribute(
+      'href',
+      'https://www.embedlabs.net',
+    )
+    expect(attribution).toHaveClass('text-lime-200/60')
+    expect(attribution).not.toHaveClass('fixed', 'bottom-3', 'left-3')
+    expect(screen.queryByRole('link', { name: 'by EmbedLabs' })).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: /Forgot password\?/i })).toHaveAttribute('href', '/forgot-password')
 
     cleanup()
@@ -131,6 +140,38 @@ describe('route smoke (Bud)', () => {
       expect(screen.getByRole('heading', { name: /^Appearance$/ })).toBeInTheDocument()
     })
     expect(screen.getByRole('heading', { name: /^PLM Integration \(Bloom\)$/ })).toBeInTheDocument()
+  })
+
+  it('moves collapsed attribution to a dedicated footer below main content', () => {
+    const { container } = renderAt('/')
+
+    const sidebar = document.querySelector('aside')
+    const main = document.querySelector('main')
+    const layout = container.firstElementChild
+    expect(sidebar).not.toBeNull()
+    expect(main).not.toBeNull()
+    expect(layout).toHaveClass('h-screen', 'overflow-hidden')
+    expect(main).toHaveClass('min-h-0', 'overflow-auto')
+    expect(sidebar).toHaveClass('overflow-x-hidden')
+    expect(
+      screen.getByRole('link', { name: 'Powered by EmbedLabs' }).closest('aside'),
+    ).toBe(sidebar)
+    expect(screen.getByText('v1.0.0')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse sidebar' }))
+
+    const collapsedAttribution = screen.getByRole('link', {
+      name: 'Powered by EmbedLabs © 2026',
+    })
+    expect(collapsedAttribution.closest('aside')).toBeNull()
+    expect(collapsedAttribution.closest('main')).toBeNull()
+    const footer = collapsedAttribution.closest('footer')
+    expect(footer).not.toBeNull()
+    expect(footer).toHaveClass('shrink-0', 'justify-center')
+    expect(main?.nextElementSibling).toBe(footer)
+    expect(collapsedAttribution).toHaveClass('whitespace-nowrap')
+    expect(collapsedAttribution).not.toHaveClass('fixed', 'absolute')
+    expect(collapsedAttribution).toHaveTextContent('Powered by EmbedLabs © 2026')
   })
 
   it('shows test runs placeholder copy at /runs', async () => {

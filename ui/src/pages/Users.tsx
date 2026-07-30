@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Check, Copy, Eye, Shield, Trash2, UserPlus, X } from 'lucide-react'
-import { extractApiErrorMessage, InviteUserResponse, usersApi } from '../api/client'
+import { Check, Copy, Eye, Mail, Shield, Trash2, UserPlus, X } from 'lucide-react'
+import { extractApiErrorMessage, InviteUserResponse, User, usersApi } from '../api/client'
 import { useAuth } from '../contexts/AuthContext'
 
 const ROLE_CONFIG = {
@@ -13,7 +13,9 @@ export default function UsersPage() {
   const { user: currentUser } = useAuth()
   const queryClient = useQueryClient()
   const [showInviteModal, setShowInviteModal] = useState(false)
+  const [emailChangeUser, setEmailChangeUser] = useState<User | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [emailActionError, setEmailActionError] = useState<string | null>(null)
   const [pendingDeleteUserId, setPendingDeleteUserId] = useState<number | null>(null)
 
   const { data: users, isLoading } = useQuery({
@@ -49,6 +51,41 @@ export default function UsersPage() {
     },
   })
 
+  const emailChangeMutation = useMutation({
+    mutationFn: ({ id, newEmail }: { id: number; newEmail: string }) =>
+      usersApi.startEmailChange(id, newEmail),
+    onSuccess: () => {
+      setEmailChangeUser(null)
+      setEmailActionError(null)
+      queryClient.invalidateQueries({ queryKey: ['users'] })
+    },
+    onError: (error) => {
+      setEmailActionError(extractApiErrorMessage(error, 'Failed to start email change'))
+    },
+  })
+
+  const approveEmailMutation = useMutation({
+    mutationFn: usersApi.approveEmailChange,
+    onSuccess: () => {
+      setEmailActionError(null)
+      queryClient.invalidateQueries({ queryKey: ['users'] })
+    },
+    onError: (error) => {
+      setEmailActionError(extractApiErrorMessage(error, 'Failed to approve email change'))
+    },
+  })
+
+  const rejectEmailMutation = useMutation({
+    mutationFn: usersApi.rejectEmailChange,
+    onSuccess: () => {
+      setEmailActionError(null)
+      queryClient.invalidateQueries({ queryKey: ['users'] })
+    },
+    onError: (error) => {
+      setEmailActionError(extractApiErrorMessage(error, 'Failed to reject email change'))
+    },
+  })
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -78,6 +115,11 @@ export default function UsersPage() {
           {deleteError}
         </div>
       )}
+      {emailActionError && (
+        <div className="mb-4 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
+          {emailActionError}
+        </div>
+      )}
 
       <div className="bg-card border border-border rounded-xl overflow-hidden">
         <div className="overflow-x-auto">
@@ -105,6 +147,21 @@ export default function UsersPage() {
                       <div className="min-w-0">
                         <p className="text-sm font-medium text-foreground truncate">{u.full_name}</p>
                         <p className="text-xs text-muted-foreground truncate">{u.email}</p>
+                        {u.pending_email && (
+                          <div className="mt-1">
+                            <p className="text-xs text-amber-600 dark:text-amber-400">
+                              Requested: {u.pending_email}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground">
+                              {u.email_change_status === 'requested'
+                                ? 'Waiting for admin approval'
+                                : 'Waiting for mailbox confirmation'}
+                              {u.email_change_requested_at
+                                ? ` · ${new Date(u.email_change_requested_at).toLocaleString()}`
+                                : ''}
+                            </p>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </td>
@@ -129,31 +186,65 @@ export default function UsersPage() {
                     {new Date(u.created_at).toLocaleDateString()}
                   </td>
                   <td className="px-4 py-3">
-                    {!isSelf && currentUser?.role === 'admin' && (
+                    {currentUser?.role === 'admin' && (
                       <div className="flex items-center justify-end gap-1">
-                        <button
-                          onClick={() => updateMutation.mutate({ id: u.id, data: { is_active: !u.is_active } })}
-                          className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-                          title={u.is_active ? 'Deactivate' : 'Activate'}
-                        >
-                          <Eye className="h-3.5 w-3.5" />
-                        </button>
+                        {u.email_change_status === 'requested' && (
+                          <button
+                            onClick={() => approveEmailMutation.mutate(u.id)}
+                            disabled={approveEmailMutation.isPending}
+                            className="p-1.5 rounded text-muted-foreground hover:text-green-600 hover:bg-green-500/10 transition-colors"
+                            title="Approve email change"
+                          >
+                            <Check className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                        {u.pending_email && (
+                          <button
+                            onClick={() => rejectEmailMutation.mutate(u.id)}
+                            disabled={rejectEmailMutation.isPending}
+                            className="p-1.5 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                            title={u.email_change_status === 'requested' ? 'Reject email change' : 'Cancel email change'}
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        )}
                         <button
                           onClick={() => {
-                            if (pendingDeleteUserId !== u.id && confirm('Delete this user?')) {
-                              deleteMutation.mutate(u.id)
-                            }
+                            setEmailActionError(null)
+                            setEmailChangeUser(u)
                           }}
-                          disabled={pendingDeleteUserId === u.id}
-                          className="p-1.5 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                          title="Delete user"
+                          className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                          title="Change email"
                         >
-                          {pendingDeleteUserId === u.id ? (
-                            <span className="inline-block h-3.5 w-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                          ) : (
-                            <Trash2 className="h-3.5 w-3.5" />
-                          )}
+                          <Mail className="h-3.5 w-3.5" />
                         </button>
+                        {!isSelf && (
+                          <>
+                            <button
+                              onClick={() => updateMutation.mutate({ id: u.id, data: { is_active: !u.is_active } })}
+                              className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                              title={u.is_active ? 'Deactivate' : 'Activate'}
+                            >
+                              <Eye className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (pendingDeleteUserId !== u.id && confirm('Delete this user?')) {
+                                  deleteMutation.mutate(u.id)
+                                }
+                              }}
+                              disabled={pendingDeleteUserId === u.id}
+                              className="p-1.5 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                              title="Delete user"
+                            >
+                              {pendingDeleteUserId === u.id ? (
+                                <span className="inline-block h-3.5 w-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                              ) : (
+                                <Trash2 className="h-3.5 w-3.5" />
+                              )}
+                            </button>
+                          </>
+                        )}
                       </div>
                     )}
                   </td>
@@ -176,6 +267,92 @@ export default function UsersPage() {
           error={inviteMutation.error ? extractApiErrorMessage(inviteMutation.error, 'Failed to send invitation') : null}
         />
       )}
+      {emailChangeUser && (
+        <EmailChangeModal
+          user={emailChangeUser}
+          onClose={() => {
+            setEmailChangeUser(null)
+            emailChangeMutation.reset()
+          }}
+          onSubmit={(newEmail) =>
+            emailChangeMutation.mutateAsync({ id: emailChangeUser.id, newEmail })
+          }
+          isLoading={emailChangeMutation.isPending}
+          error={
+            emailChangeMutation.error
+              ? extractApiErrorMessage(emailChangeMutation.error, 'Failed to start email change')
+              : null
+          }
+        />
+      )}
+    </div>
+  )
+}
+
+function EmailChangeModal({
+  user,
+  onClose,
+  onSubmit,
+  isLoading,
+  error,
+}: {
+  user: User
+  onClose: () => void
+  onSubmit: (newEmail: string) => Promise<User>
+  isLoading: boolean
+  error: string | null
+}) {
+  const [newEmail, setNewEmail] = useState(user.pending_email ?? '')
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
+      <div
+        className="bg-card border border-border rounded-xl shadow-elegant p-6 w-full max-w-md"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-foreground">Change user email</h2>
+          <button onClick={onClose} title="Close email change modal" className="p-1 rounded text-muted-foreground hover:text-foreground">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <p className="text-sm text-muted-foreground mb-4">
+          Bud will send a confirmation link to the new address. The login email remains {user.email} until the recipient confirms it.
+        </p>
+        {error && (
+          <div className="mb-4 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
+            {error}
+          </div>
+        )}
+        <form
+          className="space-y-4"
+          onSubmit={async (event) => {
+            event.preventDefault()
+            await onSubmit(newEmail)
+          }}
+        >
+          <div>
+            <label htmlFor="admin-new-email" className="block text-sm font-medium text-foreground mb-1">
+              New email
+            </label>
+            <input
+              id="admin-new-email"
+              type="email"
+              value={newEmail}
+              onChange={(event) => setNewEmail(event.target.value)}
+              required
+              className="w-full px-3 py-2 bg-background border border-input rounded-lg text-sm text-foreground"
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="w-full py-2 bg-gradient-button text-white text-sm font-medium rounded-lg hover:opacity-90 disabled:opacity-50"
+          >
+            {isLoading ? 'Sending confirmation…' : 'Send confirmation email'}
+          </button>
+        </form>
+      </div>
     </div>
   )
 }

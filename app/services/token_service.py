@@ -1,6 +1,7 @@
 import hashlib
 import secrets
 from datetime import datetime, timedelta
+from typing import NamedTuple
 
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,6 +13,12 @@ class TokenValidationError(Exception):
     def __init__(self, detail: str):
         self.detail = detail
         super().__init__(detail)
+
+
+class ClaimedToken(NamedTuple):
+    id: int
+    user_id: int
+    target_email: str | None
 
 
 def generate_raw_token() -> str:
@@ -29,6 +36,7 @@ async def create_user_token(
     purpose: UserTokenPurpose,
     ttl_hours: int,
     created_by_user_id: int | None = None,
+    target_email: str | None = None,
     invalidate_existing: bool = True,
 ) -> str:
     if invalidate_existing:
@@ -50,6 +58,7 @@ async def create_user_token(
             token_hash=hash_token(raw_token),
             expires_at=datetime.utcnow() + timedelta(hours=ttl_hours),
             created_by_user_id=created_by_user_id,
+            target_email=target_email,
         )
     )
     await db.flush()
@@ -87,6 +96,73 @@ async def get_valid_token(
     return result
 
 
+async def claim_token(
+    db: AsyncSession,
+    *,
+    token: str,
+    purpose: UserTokenPurpose,
+) -> ClaimedToken:
+    """Atomically consume a one-time token.
+
+    A single conditional ``UPDATE ... RETURNING`` marks the token used only if it
+    exists, matches the purpose, is unused, and is unexpired. At most one
+    concurrent caller can claim it; the losers get no row and are rejected. This
+    replaces read-then-update validation, which let two racing requests both pass
+    the check and both act on the same token.
+
+    Raises ``TokenValidationError`` with a specific reason when nothing is
+    claimed (an advisory follow-up read — the claim itself already failed
+    authoritatively).
+    """
+    now = datetime.utcnow()
+    result = await db.execute(
+        update(UserToken)
+        .where(
+            UserToken.token_hash == hash_token(token),
+            UserToken.purpose == purpose,
+            UserToken.used_at.is_(None),
+            UserToken.expires_at > now,
+        )
+        .values(used_at=now)
+        .returning(UserToken.id, UserToken.user_id, UserToken.target_email)
+    )
+    row = result.first()
+    if row is not None:
+        return ClaimedToken(id=row[0], user_id=row[1], target_email=row[2])
+
+    existing = await find_token(db, token=token, purpose=purpose)
+    if existing is None:
+        raise TokenValidationError("Invalid token")
+    if existing.used_at is not None:
+        raise TokenValidationError("Token has already been used")
+    if existing.expires_at < now:
+        raise TokenValidationError("Token has expired")
+    raise TokenValidationError("Invalid token")
+
+
 async def mark_token_used(db: AsyncSession, user_token: UserToken) -> None:
     user_token.used_at = datetime.utcnow()
     await db.flush()
+
+
+async def invalidate_tokens(db: AsyncSession, user_id: int, *, purpose: UserTokenPurpose) -> None:
+    """Revoke every unused token of a given purpose for a user."""
+    await db.execute(
+        update(UserToken)
+        .where(
+            UserToken.user_id == user_id,
+            UserToken.purpose == purpose,
+            UserToken.used_at.is_(None),
+        )
+        .values(used_at=datetime.utcnow())
+    )
+    await db.flush()
+
+
+async def invalidate_all_refresh_tokens(db: AsyncSession, user_id: int) -> None:
+    """Revoke every unused refresh token for a user (all active sessions).
+
+    Used on password change/reset and confirmed email change so a credential
+    change ends existing sessions everywhere, not just on the current device.
+    """
+    await invalidate_tokens(db, user_id, purpose=UserTokenPurpose.refresh)

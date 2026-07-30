@@ -12,7 +12,7 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy import Integer, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.auth import decode_access_token, get_current_active_entity
+from app.api.auth import get_current_active_entity
 from app.core.config import settings
 from app.core.run_access import require_mutating_user, require_run_access
 from app.core.runner_auth import authenticate_runner_token
@@ -46,19 +46,15 @@ async def get_uploader_entity(
         if runner:
             return runner
 
-        payload = decode_access_token(token)
-        if payload:
-            sub = payload.get("sub")
-            entity_type = payload.get("type")
-            if sub and entity_type == "user":
-                try:
-                    entity_id = int(sub)
-                    res = await db.execute(select(User).where(User.id == entity_id))
-                    entity = res.scalar_one_or_none()
-                    if entity and entity.is_active:
-                        return entity
-                except ValueError:
-                    pass
+        try:
+            entity = await get_current_active_entity(token=token, db=db)
+            if isinstance(entity, User):
+                return entity
+        except HTTPException:
+            # A valid machine API key below may still authenticate a runner. If
+            # no fallback credential is supplied, the request ends in the
+            # endpoint's standard 401 response.
+            pass
 
     # 2. Fallback to Persistent Auth (API Key + Account Name)
     if x_api_key and data.runner_account:
@@ -205,9 +201,11 @@ async def upload_results(
 
     await db.commit()
 
-    # Trigger Bloom Sync in background
-    if settings.BLOOM_SYNC_ENABLED:
-        background_tasks.add_task(sync_results_to_bloom, target_run_id)
+    # Saving both the Bloom URL and scoped credential enables synchronization.
+    # The background task records a skipped event when either value is absent,
+    # so there is no separate hidden environment flag that can silently disable
+    # an otherwise complete UI configuration.
+    background_tasks.add_task(sync_results_to_bloom, target_run_id)
 
     return {
         "message": f"Uploaded {len(created_results)} results to run {target_run_id}",

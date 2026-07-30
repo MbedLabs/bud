@@ -20,6 +20,12 @@ args = sys.argv[1:]
 with open(os.environ["DOCKER_ARGV_LOG"], "a", encoding="utf-8") as log:
     log.write(json.dumps(args) + "\\n")
 
+# `alembic current` is run before the app boots; emit a head marker so the
+# migration-completeness check passes and the script proceeds to the app run.
+if "current" in args:
+    print("0123456789ab (head)")
+    sys.exit(0)
+
 if args and args[0] == "run" and "--name" in args:
     name = args[args.index("--name") + 1]
     if name.startswith("bud-e2e-app-"):

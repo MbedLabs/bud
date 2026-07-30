@@ -1,11 +1,11 @@
-import { useMemo, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { useState } from 'react'
+import { Link } from 'react-router-dom'
+import { useOneTimeToken } from '../hooks/useOneTimeToken'
 import { APP_VERSION, authApi, extractApiErrorMessage } from '../api/client'
 import { BUD_LOGO_DARK, BUD_LOGO_LIGHT } from '../brandAssets'
 
 export default function ResetPassword() {
-  const [searchParams] = useSearchParams()
-  const token = useMemo(() => searchParams.get('token') || '', [searchParams])
+  const token = useOneTimeToken()
 
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -22,8 +22,8 @@ export default function ResetPassword() {
       setError('Missing password reset token')
       return
     }
-    if (newPassword.length < 6) {
-      setError('Password must be at least 6 characters long')
+    if (newPassword.length < 12) {
+      setError('Password must be at least 12 characters long')
       return
     }
     if (newPassword !== confirmPassword) {
@@ -92,7 +92,7 @@ export default function ResetPassword() {
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 required
-                minLength={6}
+                minLength={12}
                 className="w-full px-3 py-2.5 bg-background border border-input rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-ring focus:border-ring transition-colors"
                 placeholder="Enter your new password"
               />
@@ -105,7 +105,7 @@ export default function ResetPassword() {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
-                minLength={6}
+                minLength={12}
                 className="w-full px-3 py-2.5 bg-background border border-input rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-ring focus:border-ring transition-colors"
                 placeholder="Repeat your new password"
               />
@@ -136,7 +136,7 @@ export default function ResetPassword() {
             rel="noopener noreferrer"
             className="text-xs text-lime-200/60 mt-1 inline-block hover:text-lime-100 transition-colors"
           >
-            by EmbedLabs
+            Powered by EmbedLabs
           </a>
         </div>
       </div>
