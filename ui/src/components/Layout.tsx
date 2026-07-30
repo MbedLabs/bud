@@ -192,9 +192,17 @@ export default function Layout() {
             {!sidebarCollapsed && 'Settings'}
           </Link>
           {!sidebarCollapsed && (
-            <p className="pt-2 pb-1 px-3 text-center text-[10px] text-lime-200/30">
-              v{APP_VERSION}
-            </p>
+            <div className="pt-2 pb-1 px-3 text-center">
+              <a
+                href="https://www.embedlabs.net"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[10px] text-lime-200/50 hover:text-lime-50 transition-colors"
+              >
+                by EmbedLabs
+              </a>
+              <p className="text-[10px] text-lime-200/30 mt-1">v{APP_VERSION}</p>
+            </div>
           )}
         </div>
       </aside>
