@@ -212,12 +212,18 @@ Restore the pre-upgrade backups to roll back a release that changed the database
 
 API documentation is disabled by default. Enable it only in a trusted development environment.
 
+## Branding
+
+Do not remove, hide, obscure, replace, or render illegible the required **“Powered by EmbedLabs”** attribution.
+
+Materially modified public forks or distributions must use a distinct product name, must not use the official product logo without written permission, and must not imply that they are official, supported, certified, or endorsed EmbedLabs releases.
+
+See Sections 5 and 6 of the LICENSE for the binding terms.
+
 ## Licensing
 
 Bud TMP is distributed under the [EmbedLabs Source Available License 1.0](LICENSE).
 
 The license permits personal, educational, evaluation, research, and internal business use, including modification for those uses. A separate professional license is required for resale, third-party hosting, managed services, commercial redistribution, white-labelling, or embedding Bud in a third-party commercial product.
-
-The required `Powered by EmbedLabs` attribution must remain visible. Product names and logos are not licensed for modified forks.
 
 For professional licensing, deployment, integration, priority support, or custom development, contact `sales@embedlabs.de` or visit [EmbedLabs](https://www.embedlabs.net).

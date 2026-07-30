@@ -15,7 +15,7 @@ export default function PoweredByEmbedLabs({
         href="https://www.embedlabs.net"
         target="_blank"
         rel="noopener noreferrer"
-        className="fixed bottom-3 left-[4.25rem] z-20 whitespace-nowrap text-xs font-medium text-gray-500 transition-colors hover:text-gray-700 dark:text-white dark:hover:text-gray-200"
+        className="shrink-0 whitespace-nowrap text-xs font-medium text-gray-500 transition-colors hover:text-gray-700 dark:text-white dark:hover:text-gray-200"
       >
         Powered by EmbedLabs © 2026
       </a>

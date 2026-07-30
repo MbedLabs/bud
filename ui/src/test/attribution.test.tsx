@@ -23,20 +23,17 @@ describe('sidebar attribution', () => {
     expect(screen.queryByText('© 2026')).not.toBeInTheDocument()
   })
 
-  it('places the collapsed copyright attribution outside the sidebar rail', () => {
+  it('places the collapsed copyright attribution in normal content flow', () => {
     render(<PoweredByEmbedLabs collapsed version="1.0.0" />)
 
     const container = screen.getByTestId('sidebar-attribution')
     expect(container).toHaveAttribute('data-state', 'collapsed')
     expect(container).toHaveClass(
-      'fixed',
-      'bottom-3',
-      'left-[4.25rem]',
       'whitespace-nowrap',
       'text-gray-500',
       'dark:text-white',
     )
-    expect(container).not.toHaveClass('w-14')
+    expect(container).not.toHaveClass('fixed', 'absolute')
     expect(
       screen.getByRole('link', { name: 'Powered by EmbedLabs © 2026' }),
     ).toBeInTheDocument()
