@@ -395,15 +395,14 @@ export default function Settings() {
               <p className="text-xs text-muted-foreground">v{APP_VERSION}</p>
             </div>
           </div>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <span>by</span>
+          <div className="flex items-center text-xs text-muted-foreground">
             <a
               href="https://www.embedlabs.net"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1 text-primary hover:text-primary/80 transition-colors font-medium"
             >
-              EmbedLabs
+              Powered by EmbedLabs
               <ExternalLink className="h-3 w-3" />
             </a>
           </div>
