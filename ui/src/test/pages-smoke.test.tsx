@@ -91,6 +91,10 @@ describe('route smoke (Bud)', () => {
       'https://www.embedlabs.net',
     )
     expect(attribution).toHaveClass('fixed', 'bottom-3', 'left-3', 'text-gray-500', 'dark:text-white')
+    expect(screen.getByRole('link', { name: 'by EmbedLabs' })).toHaveAttribute(
+      'href',
+      'https://www.embedlabs.net',
+    )
     expect(screen.getByRole('link', { name: /Forgot password\?/i })).toHaveAttribute('href', '/forgot-password')
 
     cleanup()

@@ -396,7 +396,7 @@ export default function Settings() {
             </div>
           </div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <span>Powered by</span>
+            <span>by</span>
             <a
               href="https://www.embedlabs.net"
               target="_blank"
