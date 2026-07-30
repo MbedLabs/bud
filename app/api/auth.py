@@ -27,8 +27,11 @@ from app.models.user_token import UserTokenPurpose
 from app.schemas.auth import (
     AcceptInviteRequest,
     AcceptInviteResponse,
+    ConfirmEmailChangeRequest,
+    EmailChangeRequest,
     ForgotPasswordRequest,
     GenericMessageResponse,
+    InviteInfoRequest,
     InviteInfoResponse,
     LoginRequest,
     PasswordChange,
@@ -45,9 +48,12 @@ from app.services.mail_service import (
 )
 from app.services.token_service import (
     TokenValidationError,
+    claim_token,
     create_user_token,
     find_token,
     get_valid_token,
+    invalidate_all_refresh_tokens,
+    invalidate_tokens,
     mark_token_used,
 )
 
@@ -120,6 +126,15 @@ async def get_current_active_entity(
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user ID")
         result = await db.execute(select(User).where(User.id == entity_id))
         entity = result.scalar_one_or_none()
+        # Reject tokens minted before a password/reset/email-change bumped the
+        # user's session_version. Missing "ver" (a token predating this feature)
+        # never matches, so those tokens are also retired on first use.
+        if entity is not None and payload.get("ver") != entity.session_version:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Session expired, please log in again",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
     else:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -180,7 +195,9 @@ async def login(
             status_code=status.HTTP_403_FORBIDDEN, detail="User account is deactivated"
         )
 
-    access_token = create_access_token(data={"sub": str(user.id), "type": "user"})
+    access_token = create_access_token(
+        data={"sub": str(user.id), "type": "user", "ver": user.session_version}
+    )
     await _issue_refresh_cookie(db, response, user.id)
 
     return TokenResponse(
@@ -206,21 +223,24 @@ async def refresh(
     )
     if not refresh_token:
         raise unauthorized
+    # Atomically consume the presented token. Two requests racing on the same
+    # cookie can only produce one winner here, so only one replacement is issued.
     try:
-        token_row = await get_valid_token(db, token=refresh_token, purpose=UserTokenPurpose.refresh)
+        claimed = await claim_token(db, token=refresh_token, purpose=UserTokenPurpose.refresh)
     except TokenValidationError:
         _clear_refresh_cookie(response)
         raise unauthorized
 
-    user = await db.get(User, token_row.user_id)
+    user = await db.get(User, claimed.user_id)
     if user is None or not user.is_active:
         _clear_refresh_cookie(response)
         raise unauthorized
 
-    # Rotate: burn the presented token, issue a fresh one.
-    await mark_token_used(db, token_row)
+    # Consumed above; issue the replacement in the same transaction.
     await _issue_refresh_cookie(db, response, user.id)
-    access_token = create_access_token(data={"sub": str(user.id), "type": "user"})
+    access_token = create_access_token(
+        data={"sub": str(user.id), "type": "user", "ver": user.session_version}
+    )
 
     return TokenResponse(
         access_token=access_token,
@@ -256,22 +276,149 @@ async def update_me(
 ):
     if data.full_name is not None:
         current_user.full_name = data.full_name
-    if data.email is not None:
-        existing = await db.execute(
-            select(User).where(User.email == data.email, User.id != current_user.id)
-        )
-        if existing.scalar_one_or_none():
-            raise HTTPException(status_code=400, detail="Email already in use")
-        current_user.email = data.email
+    # Email changes are not applied here: they require the current password and a
+    # confirmation of the new address via POST /me/email. Any email in this
+    # payload is ignored so an unconfirmed address can never become the login.
 
     await db.flush()
     await db.refresh(current_user)
     return UserResponse.model_validate(current_user)
 
 
+@router.post("/me/email", response_model=GenericMessageResponse)
+async def request_email_change(
+    data: EmailChangeRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Request an administrator-controlled email change.
+
+    The current password proves that the request came from the account holder.
+    No token or email is issued until an administrator approves the request.
+    """
+    current_user = await db.get(
+        User,
+        current_user.id,
+        populate_existing=True,
+        with_for_update=True,
+    )
+    if current_user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    if not verify_password(data.current_password, current_user.hashed_password):
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
+
+    new_email = data.new_email
+    if new_email == current_user.email:
+        raise HTTPException(status_code=400, detail="New email matches the current email")
+
+    existing = await db.execute(
+        select(User).where(User.email == new_email, User.id != current_user.id)
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Email already in use")
+
+    await invalidate_tokens(db, current_user.id, purpose=UserTokenPurpose.email_change)
+    current_user.pending_email = new_email
+    current_user.email_change_status = "requested"
+    current_user.email_change_requested_at = datetime.utcnow()
+    await db.flush()
+    return GenericMessageResponse(
+        message="Email change requested. An administrator must approve it before a confirmation email is sent."
+    )
+
+
+@router.delete("/me/email", response_model=GenericMessageResponse)
+async def cancel_email_change(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Cancel a pending email change: clear the pending address and burn any
+    outstanding confirmation tokens."""
+    current_user = await db.get(
+        User,
+        current_user.id,
+        populate_existing=True,
+        with_for_update=True,
+    )
+    if current_user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    current_user.pending_email = None
+    current_user.email_change_status = None
+    current_user.email_change_requested_at = None
+    await invalidate_tokens(db, current_user.id, purpose=UserTokenPurpose.email_change)
+    await db.flush()
+    return GenericMessageResponse(message="Pending email change cancelled")
+
+
+@router.post("/confirm-email-change", response_model=GenericMessageResponse)
+async def confirm_email_change(
+    data: ConfirmEmailChangeRequest,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+):
+    """Confirm a verified email change with the one-time token sent to the new
+    address. Switches the login email, marks it verified, and ends every existing
+    session so a fresh login with the new address is required."""
+    try:
+        candidate = await get_valid_token(
+            db,
+            token=data.token,
+            purpose=UserTokenPurpose.email_change,
+        )
+    except TokenValidationError as exc:
+        raise HTTPException(status_code=400, detail=exc.detail) from exc
+
+    user = await db.get(
+        User,
+        candidate.user_id,
+        populate_existing=True,
+        with_for_update=True,
+    )
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if not user.pending_email or user.email_change_status != "awaiting_confirmation":
+        raise HTTPException(status_code=400, detail="No pending email change")
+    if not candidate.target_email or user.pending_email != candidate.target_email:
+        raise HTTPException(
+            status_code=400,
+            detail="Email change token no longer matches the pending address",
+        )
+
+    try:
+        claimed = await claim_token(db, token=data.token, purpose=UserTokenPurpose.email_change)
+    except TokenValidationError as exc:
+        raise HTTPException(status_code=400, detail=exc.detail) from exc
+    if claimed.target_email != candidate.target_email:
+        raise HTTPException(status_code=400, detail="Invalid token")
+
+    # Guard against the address being taken between request and confirmation.
+    existing = await db.execute(
+        select(User).where(User.email == candidate.target_email, User.id != user.id)
+    )
+    if existing.scalar_one_or_none():
+        user.pending_email = None
+        user.email_change_status = None
+        user.email_change_requested_at = None
+        await db.flush()
+        raise HTTPException(status_code=400, detail="Email already in use")
+
+    user.email = candidate.target_email
+    user.pending_email = None
+    user.email_change_status = None
+    user.email_change_requested_at = None
+    user.email_verified_at = datetime.utcnow()
+    # Confirmed identity change ends every existing session.
+    user.session_version += 1
+    await invalidate_all_refresh_tokens(db, user.id)
+    _clear_refresh_cookie(response)
+    await db.flush()
+    return GenericMessageResponse(message="Email address updated. Please log in again.")
+
+
 @router.put("/me/password", response_model=UserResponse)
 async def change_password(
     data: PasswordChange,
+    response: Response,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -279,14 +426,20 @@ async def change_password(
         raise HTTPException(status_code=400, detail="Current password is incorrect")
     current_user.hashed_password = get_password_hash(data.new_password)
     current_user.password_set_at = datetime.utcnow()
+    # End every existing session: retire outstanding access tokens (version bump)
+    # and refresh tokens, and drop this device's refresh cookie. A fresh login is
+    # required afterward.
+    current_user.session_version += 1
+    await invalidate_all_refresh_tokens(db, current_user.id)
+    _clear_refresh_cookie(response)
     await db.flush()
     await db.refresh(current_user)
     return UserResponse.model_validate(current_user)
 
 
-@router.get("/invite-info", response_model=InviteInfoResponse)
-async def get_invite_info(token: str, db: AsyncSession = Depends(get_db)):
-    user_token = await find_token(db, token=token, purpose=UserTokenPurpose.invite)
+@router.post("/invite-info", response_model=InviteInfoResponse)
+async def get_invite_info(data: InviteInfoRequest, db: AsyncSession = Depends(get_db)):
+    user_token = await find_token(db, token=data.token, purpose=UserTokenPurpose.invite)
     if user_token is None:
         raise HTTPException(status_code=400, detail="Invalid token")
 
@@ -307,11 +460,11 @@ async def get_invite_info(token: str, db: AsyncSession = Depends(get_db)):
 @router.post("/accept-invite", response_model=AcceptInviteResponse)
 async def accept_invite(data: AcceptInviteRequest, db: AsyncSession = Depends(get_db)):
     try:
-        user_token = await get_valid_token(db, token=data.token, purpose=UserTokenPurpose.invite)
+        claimed = await claim_token(db, token=data.token, purpose=UserTokenPurpose.invite)
     except TokenValidationError as exc:
         raise HTTPException(status_code=400, detail=exc.detail) from exc
 
-    user = await db.get(User, user_token.user_id)
+    user = await db.get(User, claimed.user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     if user.invite_accepted_at is not None:
@@ -321,38 +474,23 @@ async def accept_invite(data: AcceptInviteRequest, db: AsyncSession = Depends(ge
     now = datetime.utcnow()
     user.invite_accepted_at = now
     user.password_set_at = now
-    await mark_token_used(db, user_token)
-
-    verification_token = await create_user_token(
-        db,
-        user_id=user.id,
-        purpose=UserTokenPurpose.email_verification,
-        ttl_hours=settings.EMAIL_VERIFICATION_TOKEN_TTL_HOURS,
-    )
-    verification_link = (
-        f"{settings.FRONTEND_BASE_URL.rstrip('/')}/verify-email?token={verification_token}"
-    )
-
-    try:
-        send_verification_email(
-            to_email=user.email,
-            full_name=user.full_name,
-            verification_link=verification_link,
-        )
-    except MailConfigurationError as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    # Accepting an invitation proves control of the invited address, so treat it
+    # as verification. No separate verification email is sent (which also means
+    # this flow no longer depends on SMTP being configured).
+    user.email_verified_at = now
 
     await db.flush()
     return AcceptInviteResponse(
+        requires_email_verification=False,
         email=user.email,
-        message="Invite accepted. Verification email sent.",
+        message="Invitation accepted.",
     )
 
 
 @router.post("/verify-email", response_model=GenericMessageResponse)
 async def verify_email(data: VerifyEmailRequest, db: AsyncSession = Depends(get_db)):
     try:
-        user_token = await get_valid_token(
+        claimed = await claim_token(
             db,
             token=data.token,
             purpose=UserTokenPurpose.email_verification,
@@ -360,14 +498,13 @@ async def verify_email(data: VerifyEmailRequest, db: AsyncSession = Depends(get_
     except TokenValidationError as exc:
         raise HTTPException(status_code=400, detail=exc.detail) from exc
 
-    user = await db.get(User, user_token.user_id)
+    user = await db.get(User, claimed.user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     if user.email_verified_at is not None:
         raise HTTPException(status_code=400, detail="Email already verified")
 
     user.email_verified_at = datetime.utcnow()
-    await mark_token_used(db, user_token)
     await db.flush()
     return GenericMessageResponse(message="Email verified successfully")
 
@@ -389,7 +526,7 @@ async def resend_verification(
         ttl_hours=settings.EMAIL_VERIFICATION_TOKEN_TTL_HOURS,
     )
     verification_link = (
-        f"{settings.FRONTEND_BASE_URL.rstrip('/')}/verify-email?token={verification_token}"
+        f"{settings.FRONTEND_BASE_URL.rstrip('/')}/verify-email#token={verification_token}"
     )
 
     try:
@@ -427,7 +564,7 @@ async def forgot_password(
         purpose=UserTokenPurpose.password_reset,
         ttl_hours=settings.PASSWORD_RESET_TOKEN_TTL_HOURS,
     )
-    reset_link = f"{settings.FRONTEND_BASE_URL.rstrip('/')}/reset-password?token={reset_token}"
+    reset_link = f"{settings.FRONTEND_BASE_URL.rstrip('/')}/reset-password#token={reset_token}"
 
     try:
         send_password_reset_email(
@@ -443,9 +580,13 @@ async def forgot_password(
 
 
 @router.post("/reset-password", response_model=GenericMessageResponse)
-async def reset_password(data: ResetPasswordRequest, db: AsyncSession = Depends(get_db)):
+async def reset_password(
+    data: ResetPasswordRequest,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+):
     try:
-        user_token = await get_valid_token(
+        claimed = await claim_token(
             db,
             token=data.token,
             purpose=UserTokenPurpose.password_reset,
@@ -453,12 +594,15 @@ async def reset_password(data: ResetPasswordRequest, db: AsyncSession = Depends(
     except TokenValidationError as exc:
         raise HTTPException(status_code=400, detail=exc.detail) from exc
 
-    user = await db.get(User, user_token.user_id)
+    user = await db.get(User, claimed.user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
     user.hashed_password = get_password_hash(data.new_password)
     user.password_set_at = datetime.utcnow()
-    await mark_token_used(db, user_token)
+    # End every existing session, exactly as on password change.
+    user.session_version += 1
+    await invalidate_all_refresh_tokens(db, user.id)
+    _clear_refresh_cookie(response)
     await db.flush()
     return GenericMessageResponse(message="Password reset successfully")

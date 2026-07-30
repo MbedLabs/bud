@@ -1,0 +1,10 @@
+Hello ${full_name},
+
+An administrator approved a request to change your ${app_name} login email from ${old_email} to ${new_email}.
+
+Confirm that you control this email address to complete the change:
+${confirm_link}
+
+Your login email will not change until you use this link. If you did not expect this request, contact your administrator and do not use the link.
+
+© 2026 EmbedLabs Team. All rights reserved.

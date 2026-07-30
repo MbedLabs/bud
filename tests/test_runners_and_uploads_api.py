@@ -353,9 +353,7 @@ async def test_upload_rejects_invalid_display_metadata_before_writing(client):
 
 
 @pytest.mark.asyncio
-async def test_upload_rejects_when_free_space_reserve_cannot_be_preserved(
-    client, monkeypatch
-):
+async def test_upload_rejects_when_free_space_reserve_cannot_be_preserved(client, monkeypatch):
     import app.services.artifact_storage as storage_module
     from app.core.config import settings as app_settings
 
@@ -474,3 +472,129 @@ async def test_viewer_cannot_upload_artifacts(client):
         app.dependency_overrides.pop(get_current_active_entity, None)
 
     assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_runner_upload_without_run_id_is_rejected(client, db_session):
+    """A runner must always target one of its own runs; a run_id-less upload
+    would escape the per-run aggregate quota, so it is rejected."""
+    runner = Runner(
+        account="no-run-id-runner",
+        password_hash="hash",
+        token="no-run-id-token",
+        socket_port=53040,
+    )
+    db_session.add(runner)
+    await db_session.commit()
+
+    from app.api.auth import get_current_active_entity
+    from app.main import app
+
+    async def override_entity():
+        return runner
+
+    app.dependency_overrides[get_current_active_entity] = override_entity
+    try:
+        response = client.post(
+            "/api/uploads",
+            files={"file": ("artifact.txt", b"data", "text/plain")},
+        )
+    finally:
+        app.dependency_overrides.pop(get_current_active_entity, None)
+
+    assert response.status_code == 400
+    assert "run_id is required" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_admin_may_upload_unassociated_artifact(client, db_session):
+    """Only admins may upload artifacts without a run_id (the contrast to the
+    runner restriction above)."""
+    admin = User(
+        id=4242,
+        email="upload-admin@example.com",
+        full_name="Upload Admin",
+        hashed_password="not-used",
+        role=UserRole.admin,
+        is_active=True,
+        session_version=1,
+    )
+
+    from app.api.auth import get_current_active_entity
+    from app.main import app
+
+    async def override_entity():
+        return admin
+
+    app.dependency_overrides[get_current_active_entity] = override_entity
+    try:
+        response = client.post(
+            "/api/uploads",
+            files={"file": ("artifact.txt", b"data", "text/plain")},
+        )
+    finally:
+        app.dependency_overrides.pop(get_current_active_entity, None)
+
+    assert response.status_code == 201
+    assert response.json()["test_run_id"] is None
+
+
+@pytest.mark.asyncio
+async def test_runner_upload_charged_against_per_run_quota(client, db_session, monkeypatch):
+    """Every runner upload is counted against the run's aggregate quota: once the
+    run is full, further uploads to it are rejected (they cannot be bypassed)."""
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "MAX_RUN_UPLOAD_BYTES", 1000)
+
+    runner = Runner(
+        account="quota-runner",
+        password_hash="hash",
+        token="quota-token",
+        socket_port=53041,
+    )
+    db_session.add(runner)
+    await db_session.flush()
+
+    test_run = TestRun(
+        name="quota-run",
+        test_case_list="[]",
+        status="Running",
+        started_at=datetime.utcnow(),
+        runner_id=runner.id,
+    )
+    db_session.add(test_run)
+    await db_session.flush()
+
+    # Pre-fill the run's aggregate usage right up to the cap.
+    db_session.add(
+        Artifact(
+            filename="prefill",
+            original_filename="prefill.txt",
+            content_type="text/plain",
+            size_bytes=1000,
+            sha256="0" * 64,
+            storage_path="prefill",
+            test_run_id=test_run.id,
+        )
+    )
+    await db_session.commit()
+
+    from app.api.auth import get_current_active_entity
+    from app.main import app
+
+    async def override_entity():
+        return runner
+
+    app.dependency_overrides[get_current_active_entity] = override_entity
+    try:
+        response = client.post(
+            "/api/uploads",
+            files={"file": ("artifact.txt", b"data", "text/plain")},
+            data={"run_id": str(test_run.id)},
+        )
+    finally:
+        app.dependency_overrides.pop(get_current_active_entity, None)
+
+    assert response.status_code == 413
+    assert "quota" in response.json()["detail"].lower()

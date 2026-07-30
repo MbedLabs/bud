@@ -81,6 +81,30 @@ def send_verification_email(*, to_email: str, full_name: str, verification_link:
     )
 
 
+def send_email_change_email(
+    *,
+    to_email: str,
+    full_name: str,
+    old_email: str,
+    new_email: str,
+    confirm_link: str,
+) -> None:
+    """Ask the approved new mailbox to confirm an administrator-controlled change."""
+    context = {
+        "full_name": full_name,
+        "old_email": old_email,
+        "new_email": new_email,
+        "confirm_link": confirm_link,
+        "app_name": settings.BUD_APP_NAME,
+    }
+    send_email(
+        to_email=to_email,
+        subject=f"Confirm your approved email change for {settings.BUD_APP_NAME}",
+        text_body=render_template("email_change.txt", context),
+        html_body=render_template("email_change.html", context),
+    )
+
+
 def send_password_reset_email(*, to_email: str, full_name: str, reset_link: str) -> None:
     context = {
         "full_name": full_name,

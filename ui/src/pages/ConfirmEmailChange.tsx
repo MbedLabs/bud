@@ -4,7 +4,7 @@ import { useOneTimeToken } from '../hooks/useOneTimeToken'
 import { APP_VERSION, authApi, extractApiErrorMessage } from '../api/client'
 import { BUD_LOGO_DARK, BUD_LOGO_LIGHT } from '../brandAssets'
 
-export default function VerifyEmail() {
+export default function ConfirmEmailChange() {
   const token = useOneTimeToken()
 
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
@@ -16,12 +16,12 @@ export default function VerifyEmail() {
     const run = async () => {
       if (!token) {
         setStatus('error')
-        setMessage('Missing verification token')
+        setMessage('Missing confirmation token')
         return
       }
       setStatus('loading')
       try {
-        const response = await authApi.verifyEmail(token)
+        const response = await authApi.confirmEmailChange(token)
         if (!cancelled) {
           setStatus('success')
           setMessage(response.message)
@@ -29,7 +29,7 @@ export default function VerifyEmail() {
       } catch (err: unknown) {
         if (!cancelled) {
           setStatus('error')
-          setMessage(extractApiErrorMessage(err, 'Email verification failed'))
+          setMessage(extractApiErrorMessage(err, 'Email change confirmation failed'))
         }
       }
     }
@@ -55,12 +55,12 @@ export default function VerifyEmail() {
             className="h-16 w-auto max-w-full object-contain mb-3 dark:hidden"
           />
         </div>
-        <h1 className="text-2xl font-bold text-foreground mb-2">Verify Email</h1>
-        <p className="text-sm text-muted-foreground mb-6">Confirming your email address for Bud.</p>
+        <h1 className="text-2xl font-bold text-foreground mb-2">Confirm Email Change</h1>
+        <p className="text-sm text-muted-foreground mb-6">Confirming your new email address for Bud.</p>
 
         {status === 'loading' && (
           <div className="mb-4 p-3 rounded-lg bg-muted text-muted-foreground text-sm">
-            Verifying your email address...
+            Confirming your new email address...
           </div>
         )}
 

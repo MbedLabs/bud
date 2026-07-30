@@ -111,6 +111,7 @@ def test_user() -> User:
         hashed_password="not-used",
         role=UserRole.admin,
         is_active=True,
+        session_version=1,
     )
 
 

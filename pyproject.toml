@@ -11,7 +11,7 @@ license = {text = "LicenseRef-EmbedLabs-Source-Available-1.0"}
 authors = [
     {name = "EmbedLabs", email = "dev@embedlabs.net"}
 ]
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = [
     "fastapi>=0.104.0",
     "uvicorn[standard]>=0.24.0",
@@ -56,10 +56,10 @@ include = ["app*"]
 
 [tool.black]
 line-length = 100
-target-version = ["py39", "py310", "py311", "py312"]
+target-version = ["py310", "py311", "py312"]
 
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.10"
 warn_return_any = true
 ignore_missing_imports = true
 

@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { APP_VERSION } from '../api/client'
+import PoweredByEmbedLabs from './PoweredByEmbedLabs'
 
 const getBloomUrl = (): string | null => {
   const runtimeUrl = window.runtimeConfig?.BLOOM_APP_URL
@@ -91,8 +92,8 @@ export default function Layout() {
     : 'U'
 
   return (
-    <div className="min-h-screen flex">
-      <aside className={`${sidebarCollapsed ? 'w-14' : 'w-60'} sidebar-scrollbar bg-gradient-sidebar text-white flex flex-col fixed inset-y-0 left-0 z-30 overflow-y-auto transition-all duration-200`}>
+    <div className="h-screen flex overflow-hidden">
+      <aside className={`${sidebarCollapsed ? 'w-14' : 'w-60'} sidebar-scrollbar bg-gradient-sidebar text-white flex flex-col fixed inset-y-0 left-0 z-30 overflow-x-hidden overflow-y-auto transition-all duration-200`}>
         <div className={`${sidebarCollapsed ? 'px-2 pt-4 pb-2.5' : 'px-3 pt-4 pb-2.5'}`}>
           <div className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-2.5'}`}>
             <div className="w-9 h-9 rounded-lg overflow-hidden flex items-center justify-center shrink-0 bg-white/10">
@@ -192,17 +193,7 @@ export default function Layout() {
             {!sidebarCollapsed && 'Settings'}
           </Link>
           {!sidebarCollapsed && (
-            <div className="pt-2 pb-1 px-3 text-center">
-              <a
-                href="https://www.embedlabs.net"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[10px] text-lime-200/50 hover:text-lime-50 transition-colors"
-              >
-                by EmbedLabs
-              </a>
-              <p className="text-[10px] text-lime-200/30 mt-1">v{APP_VERSION}</p>
-            </div>
+            <PoweredByEmbedLabs collapsed={false} version={APP_VERSION} />
           )}
         </div>
       </aside>
@@ -218,7 +209,7 @@ export default function Layout() {
         {sidebarCollapsed ? <ChevronRight className="h-4 w-4" strokeWidth={2.25} /> : <ChevronLeft className="h-4 w-4" strokeWidth={2.25} />}
       </button>
 
-      <div className={`flex-1 flex flex-col min-w-0 ${sidebarCollapsed ? 'ml-14' : 'ml-60'} transition-all duration-200`}>
+      <div className={`flex-1 flex flex-col min-w-0 min-h-0 ${sidebarCollapsed ? 'ml-14' : 'ml-60'} transition-all duration-200`}>
         <header className="glass border-b border-border sticky top-0 z-20">
           <div className="px-6 py-4 flex items-center justify-between">
             <div className="pl-6">
@@ -226,7 +217,7 @@ export default function Layout() {
                 {activeNav?.name || (location.pathname === '/settings' ? 'Settings' : location.pathname === '/users' ? 'Users' : 'Dashboard')}
               </h2>
               <p className="text-xs text-muted-foreground mt-0.5">
-                {location.pathname === '/' && 'Overview of your test activity'}
+                {location.pathname === '/' && 'Overview of test activities'}
                 {location.pathname === '/runs' && 'View and filter all test runs'}
                 {location.pathname === '/test-stations' && 'Monitor connected test stations'}
                 {location.pathname === '/settings' && 'Manage your preferences'}
@@ -280,9 +271,14 @@ export default function Layout() {
           </div>
         </header>
 
-        <main className="flex-1 p-6 bg-background overflow-auto">
+        <main className="flex-1 min-h-0 p-6 bg-background overflow-auto">
           <Outlet />
         </main>
+        {sidebarCollapsed && (
+          <footer className="flex shrink-0 justify-center bg-background px-6 pb-3 pt-2">
+            <PoweredByEmbedLabs collapsed version={APP_VERSION} />
+          </footer>
+        )}
       </div>
     </div>
   )

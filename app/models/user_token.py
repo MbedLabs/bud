@@ -15,6 +15,7 @@ class UserTokenPurpose(str, enum.Enum):
     email_verification = "email_verification"
     password_reset = "password_reset"
     refresh = "refresh"
+    email_change = "email_change"
 
 
 class UserToken(Base):
@@ -28,3 +29,4 @@ class UserToken(Base):
     used_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
     created_by_user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
+    target_email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)

@@ -90,7 +90,7 @@ export default function ForgotPassword() {
         </div>
 
         <div className="text-center mt-6">
-          <p className="text-sm text-lime-100/70">Bud Test Management Platform</p>
+          <p className="text-sm text-lime-100/70">Bud TMP</p>
           <p className="text-xs text-lime-200/50 mt-1">v{APP_VERSION}</p>
           <a
             href="https://www.embedlabs.net"
@@ -98,7 +98,7 @@ export default function ForgotPassword() {
             rel="noopener noreferrer"
             className="text-xs text-lime-200/60 mt-1 inline-block hover:text-lime-100 transition-colors"
           >
-            by EmbedLabs
+            Powered by EmbedLabs
           </a>
         </div>
       </div>

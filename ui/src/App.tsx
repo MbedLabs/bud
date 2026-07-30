@@ -12,6 +12,7 @@ import AcceptInvite from './pages/AcceptInvite'
 import VerifyEmail from './pages/VerifyEmail'
 import ForgotPassword from './pages/ForgotPassword'
 import ResetPassword from './pages/ResetPassword'
+import ConfirmEmailChange from './pages/ConfirmEmailChange'
 
 function NotFound() {
   return (
@@ -31,20 +32,21 @@ function NotFound() {
 function App() {
   return (
     <Routes>
-      <Route path="/login" element={<Login />} />
-      <Route path="/accept-invite" element={<AcceptInvite />} />
-      <Route path="/verify-email" element={<VerifyEmail />} />
-      <Route path="/forgot-password" element={<ForgotPassword />} />
-      <Route path="/reset-password" element={<ResetPassword />} />
-      <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
-        <Route index element={<Dashboard />} />
-        <Route path="runs" element={<TestRuns />} />
-        <Route path="runs/:id" element={<TestRunDetail />} />
-        <Route path="test-stations" element={<TestStations />} />
-        <Route path="settings" element={<Settings />} />
-        <Route path="users" element={<Users />} />
-        <Route path="*" element={<NotFound />} />
-      </Route>
+        <Route path="/login" element={<Login />} />
+        <Route path="/accept-invite" element={<AcceptInvite />} />
+        <Route path="/verify-email" element={<VerifyEmail />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/confirm-email-change" element={<ConfirmEmailChange />} />
+        <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+          <Route index element={<Dashboard />} />
+          <Route path="runs" element={<TestRuns />} />
+          <Route path="runs/:id" element={<TestRunDetail />} />
+          <Route path="test-stations" element={<TestStations />} />
+          <Route path="settings" element={<Settings />} />
+          <Route path="users" element={<Users />} />
+          <Route path="*" element={<NotFound />} />
+        </Route>
     </Routes>
   )
 }
