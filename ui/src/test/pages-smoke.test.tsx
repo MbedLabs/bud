@@ -79,6 +79,7 @@ function renderAt(path: string) {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  localStorage.clear()
 })
 
 describe('route smoke (Bud)', () => {
@@ -90,11 +91,9 @@ describe('route smoke (Bud)', () => {
       'href',
       'https://www.embedlabs.net',
     )
-    expect(attribution).toHaveClass('fixed', 'bottom-3', 'left-3', 'text-gray-500', 'dark:text-white')
-    expect(screen.getByRole('link', { name: 'by EmbedLabs' })).toHaveAttribute(
-      'href',
-      'https://www.embedlabs.net',
-    )
+    expect(attribution).toHaveClass('text-lime-200/60')
+    expect(attribution).not.toHaveClass('fixed', 'bottom-3', 'left-3')
+    expect(screen.queryByRole('link', { name: 'by EmbedLabs' })).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: /Forgot password\?/i })).toHaveAttribute('href', '/forgot-password')
 
     cleanup()
@@ -141,6 +140,30 @@ describe('route smoke (Bud)', () => {
       expect(screen.getByRole('heading', { name: /^Appearance$/ })).toBeInTheDocument()
     })
     expect(screen.getByRole('heading', { name: /^PLM Integration \(Bloom\)$/ })).toBeInTheDocument()
+  })
+
+  it('moves collapsed attribution outside the sidebar', () => {
+    renderAt('/')
+
+    const sidebar = document.querySelector('aside')
+    expect(sidebar).not.toBeNull()
+    expect(sidebar).toHaveClass('overflow-x-hidden')
+    expect(
+      screen.getByRole('link', { name: 'Powered by EmbedLabs' }).closest('aside'),
+    ).toBe(sidebar)
+    expect(screen.getByText('v1.0.0')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse sidebar' }))
+
+    expect(
+      screen.getByRole('link', { name: 'Powered by EmbedLabs © 2026' }).closest('aside'),
+    ).toBeNull()
+    expect(
+      screen.getByRole('link', { name: 'Powered by EmbedLabs © 2026' }),
+    ).toHaveClass('left-[4.25rem]', 'whitespace-nowrap')
+    expect(
+      screen.getByRole('link', { name: 'Powered by EmbedLabs © 2026' }),
+    ).toHaveTextContent('Powered by EmbedLabs © 2026')
   })
 
   it('shows test runs placeholder copy at /runs', async () => {

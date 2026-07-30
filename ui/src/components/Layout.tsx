@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { APP_VERSION } from '../api/client'
+import PoweredByEmbedLabs from './PoweredByEmbedLabs'
 
 const getBloomUrl = (): string | null => {
   const runtimeUrl = window.runtimeConfig?.BLOOM_APP_URL
@@ -92,7 +93,7 @@ export default function Layout() {
 
   return (
     <div className="min-h-screen flex">
-      <aside className={`${sidebarCollapsed ? 'w-14' : 'w-60'} sidebar-scrollbar bg-gradient-sidebar text-white flex flex-col fixed inset-y-0 left-0 z-30 overflow-y-auto transition-all duration-200`}>
+      <aside className={`${sidebarCollapsed ? 'w-14' : 'w-60'} sidebar-scrollbar bg-gradient-sidebar text-white flex flex-col fixed inset-y-0 left-0 z-30 overflow-x-hidden overflow-y-auto transition-all duration-200`}>
         <div className={`${sidebarCollapsed ? 'px-2 pt-4 pb-2.5' : 'px-3 pt-4 pb-2.5'}`}>
           <div className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-2.5'}`}>
             <div className="w-9 h-9 rounded-lg overflow-hidden flex items-center justify-center shrink-0 bg-white/10">
@@ -192,20 +193,14 @@ export default function Layout() {
             {!sidebarCollapsed && 'Settings'}
           </Link>
           {!sidebarCollapsed && (
-            <div className="pt-2 pb-1 px-3 text-center">
-              <a
-                href="https://www.embedlabs.net"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[10px] text-lime-200/50 hover:text-lime-50 transition-colors"
-              >
-                by EmbedLabs
-              </a>
-              <p className="text-[10px] text-lime-200/30 mt-1">v{APP_VERSION}</p>
-            </div>
+            <PoweredByEmbedLabs collapsed={false} version={APP_VERSION} />
           )}
         </div>
       </aside>
+
+      {sidebarCollapsed && (
+        <PoweredByEmbedLabs collapsed version={APP_VERSION} />
+      )}
 
       <button
         type="button"
@@ -226,7 +221,7 @@ export default function Layout() {
                 {activeNav?.name || (location.pathname === '/settings' ? 'Settings' : location.pathname === '/users' ? 'Users' : 'Dashboard')}
               </h2>
               <p className="text-xs text-muted-foreground mt-0.5">
-                {location.pathname === '/' && 'Overview of your test activity'}
+                {location.pathname === '/' && 'Overview of test activities'}
                 {location.pathname === '/runs' && 'View and filter all test runs'}
                 {location.pathname === '/test-stations' && 'Monitor connected test stations'}
                 {location.pathname === '/settings' && 'Manage your preferences'}
