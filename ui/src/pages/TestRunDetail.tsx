@@ -92,7 +92,7 @@ export default function TestRunDetail() {
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <SummaryCard
-          label="Total Assertions"
+          label="Total Tests"
           value={totalCount}
           icon={Activity}
           gradient="from-primary/10 to-lime-500/10"
