@@ -82,9 +82,8 @@ jobs:
           pip-audit -r constraints.txt --ignore-vuln PYSEC-2026-1325
 
       # The documented fresh-install path: alembic alone must build the full
-      # schema on a truly EMPTY database (001_initial_baseline runs create_all;
-      # later revisions are guarded). No create_all pre-step — that used to mask
-      # exactly this path.
+      # schema on a truly EMPTY database, from explicit DDL. No create_all
+      # pre-step — that used to mask exactly this path.
       - name: Alembic upgrade on an empty database
         env:
           DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_bud
@@ -93,6 +92,19 @@ jobs:
         run: |
           alembic upgrade head
           alembic current
+          alembic current | grep -q "(head)" || { echo "database is not at alembic head" >&2; exit 1; }
+
+      # A fresh install only proves the newest revision can build a schema from
+      # nothing. A deployed database instead runs that revision's downgrade/upgrade
+      # DDL against existing objects, so exercise that path too.
+      - name: Alembic downgrade and re-upgrade (deployed-database path)
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_bud
+          PYTHONPATH: ${{ github.workspace }}
+          SECRET_KEY: test-secret-key-for-ci-at-least-32-characters-long
+        run: |
+          alembic downgrade -1
+          alembic upgrade head
           alembic current | grep -q "(head)" || { echo "database is not at alembic head" >&2; exit 1; }
 
       - name: Run backend tests

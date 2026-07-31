@@ -18,6 +18,9 @@ services:
       ADMIN_EMAIL: ${ADMIN_EMAIL}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
       ADMIN_FULL_NAME: ${ADMIN_FULL_NAME}
+    # Migrations run to completion before the application serves traffic, so a
+    # deployment can never start against an unmigrated database.
+    command: ["/bin/sh", "-c", "alembic upgrade head && exec /usr/local/bin/start-product"]
     depends_on:
       postgres:
         condition: service_healthy
