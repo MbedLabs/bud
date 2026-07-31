@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
 import { testRunsApi, resultsApi, TestResult, type TestRunEvent } from '../api/client'
 import { summarizeAssertions, summarizeTestCases } from '../lib/testRunAssertions'

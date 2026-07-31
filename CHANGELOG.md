@@ -13,6 +13,11 @@
 - Test run summary tiles reported assertion counts under a "Total Tests" label. Test cases and assertions are now counted separately and shown together on the Total, Passed, and Failed tiles.
 - Dashboard counters were derived from only the first page of test runs, so the pass rate depended on the page size. They are now aggregated in the database across the whole filtered set, and runs still in progress no longer count against the pass rate.
 
+### Changed
+
+- Upgraded to React 19 and React Router 8, which resolves GHSA-qwww-vcr4-c8h2 (React Router RSC-mode CSRF). The frontend now imports from `react-router` instead of the retired `react-router-dom` package. Frontend builds and CI run on Node 24; Node 22.22 is the supported minimum.
+- The dependency audit no longer carries any reviewed-advisory exception; every advisory now fails the build.
+
 ### Removed
 
 - The stale `ui/dist/index.html` build artifact is no longer tracked in the repository.
