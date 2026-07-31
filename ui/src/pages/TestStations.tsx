@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 import { testStationsApi } from '../api/client'
 import { Server, Wifi, WifiOff, Clock, MapPin, Monitor, Radio } from 'lucide-react'
 

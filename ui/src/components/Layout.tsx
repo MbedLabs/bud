@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
+import { Outlet, Link, useLocation, useNavigate } from 'react-router'
 import {
   LayoutDashboard, PlayCircle, Server, Settings, Sun, Moon,
   LogOut, ChevronDown, ChevronLeft, ChevronRight, Users, ExternalLink,

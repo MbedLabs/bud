@@ -267,6 +267,33 @@ export interface TestRun {
   runner_account: string | null
 }
 
+export interface TestRunStatsFilters {
+  /** Only count runs created within the last N days. Omit for all time. */
+  days?: number
+  /** Only count runs executed by this Test Station account. */
+  runner_account?: string
+  /** Only count runs for this test suite name. */
+  suite?: string
+}
+
+export interface TestRunStats {
+  total_runs: number
+  passed_runs: number
+  failed_runs: number
+  in_progress_runs: number
+  run_pass_rate: number
+  total_tests: number
+  passed_tests: number
+  failed_tests: number
+  skipped_tests: number
+  test_pass_rate: number
+}
+
+export interface TestRunFilterOptions {
+  suites: string[]
+  runner_accounts: string[]
+}
+
 export interface TestResult {
   id: number
   test_class: string
@@ -339,6 +366,18 @@ export const testRunsApi = {
 
   getEvents: async (id: number) => {
     const response = await api.get<TestRunEvent[]>(`/test-runs/${id}/events`)
+    return response.data
+  },
+
+  /** Dashboard counters aggregated server-side over every matching run. */
+  stats: async (params?: TestRunStatsFilters) => {
+    const response = await api.get<TestRunStats>('/test-runs/stats', { params })
+    return response.data
+  },
+
+  /** Suite names and Test Stations that actually appear in test runs. */
+  filterOptions: async (params?: { days?: number }) => {
+    const response = await api.get<TestRunFilterOptions>('/test-runs/filter-options', { params })
     return response.data
   },
 }

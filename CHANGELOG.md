@@ -1,5 +1,31 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Dashboard statistics can be filtered by time range, Test Station, and test suite.
+- `GET /api/test-runs/stats` and `GET /api/test-runs/filter-options` expose those aggregates.
+- `GET /api/test-runs` accepts a `suite` filter.
+
+### Fixed
+
+- Test run summary tiles reported assertion counts under a "Total Tests" label. Test cases and assertions are now counted separately and shown together on the Total, Passed, and Failed tiles.
+- Dashboard counters were derived from only the first page of test runs, so the pass rate depended on the page size. They are now aggregated in the database across the whole filtered set, and runs still in progress no longer count against the pass rate.
+
+### Changed
+
+- Upgraded to React 19 and React Router 8, which resolves GHSA-qwww-vcr4-c8h2 (React Router RSC-mode CSRF). The frontend now imports from `react-router` instead of the retired `react-router-dom` package. Frontend builds and CI run on Node 24; Node 22.22 is the supported minimum.
+- Upgraded `lucide-react`, whose pinned release declared support only up to React 18.
+- The dependency audit no longer carries any reviewed-advisory exception; every advisory now fails the build.
+- The migration history is collapsed into a single locked baseline of explicit DDL. The base revision previously called `Base.metadata.create_all()`, which meant it always produced whatever the models currently described, so every later revision had to be written with inspect-then-add guards and the real `ALTER` path was never exercised by the fresh-install CI check. The baseline keeps the identifier of the previously deployed head, so an existing database is recognised as up to date and is not re-migrated; no stamp or manual step is required.
+- The container now runs `alembic upgrade head` before serving traffic, matching Bloom. A separate `docker compose run --rm bud alembic upgrade head` step is no longer needed.
+
+### Removed
+
+- The stale `ui/dist/index.html` build artifact is no longer tracked in the repository.
+- The stale duplicate CI workflow and pull request template under `ui/.github/`, neither of which GitHub ever read.
+
 ## 1.0.0 - 2026-07-24
 
 Initial public beta release of Bud TMP by EmbedLabs — a self-hosted test

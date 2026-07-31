@@ -1,13 +1,50 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Link } from 'react-router-dom'
-import { testRunsApi, testStationsApi } from '../api/client'
+import { Link } from 'react-router'
+import { testRunsApi, testStationsApi, type TestRunStatsFilters } from '../api/client'
 import { formatDateTime } from '../test/date-utils'
-import { CheckCircle, XCircle, PlayCircle, Server, TrendingUp, Activity } from 'lucide-react'
+import { CheckCircle, XCircle, PlayCircle, Server, TrendingUp, Activity, Filter, X } from 'lucide-react'
+
+const DEFAULT_DAYS = 30
+
+const TIME_RANGES: { label: string; days?: number }[] = [
+  { label: 'Last 7 days', days: 7 },
+  { label: 'Last 30 days', days: 30 },
+  { label: 'Last 90 days', days: 90 },
+  { label: 'Last year', days: 365 },
+  { label: 'All time', days: undefined },
+]
 
 export default function Dashboard() {
+  const [days, setDays] = useState<number | undefined>(DEFAULT_DAYS)
+  const [station, setStation] = useState('')
+  const [suite, setSuite] = useState('')
+
+  const filters: TestRunStatsFilters = {
+    ...(days !== undefined && { days }),
+    ...(station && { runner_account: station }),
+    ...(suite && { suite }),
+  }
+  const filtersAreDefault = days === DEFAULT_DAYS && !station && !suite
+
+  const { data: stats, isLoading: statsLoading } = useQuery({
+    queryKey: ['testRunStats', filters],
+    queryFn: () => testRunsApi.stats(filters),
+  })
+
+  const { data: filterOptions } = useQuery({
+    queryKey: ['testRunFilterOptions', days],
+    queryFn: () => testRunsApi.filterOptions(days !== undefined ? { days } : undefined),
+  })
+
   const { data: testRunsData, isLoading: runsLoading } = useQuery({
-    queryKey: ['testRuns', { limit: 5 }],
-    queryFn: () => testRunsApi.list({ limit: 5 }),
+    queryKey: ['testRuns', { limit: 5, station, suite }],
+    queryFn: () =>
+      testRunsApi.list({
+        limit: 5,
+        ...(station && { runner_account: station }),
+        ...(suite && { suite }),
+      }),
   })
 
   const { data: runnersData, isLoading: runnersLoading } = useQuery({
@@ -17,37 +54,89 @@ export default function Dashboard() {
 
   const runs = testRunsData?.runs || []
   const runners = runnersData?.runners || []
-
-  const totalRuns = testRunsData?.total || 0
-  const passedRuns = runs.filter(r => r.status === 'Completed' && r.failed_tests === 0).length
-  const failedRuns = runs.filter(r => r.status === 'Failed' || r.failed_tests > 0).length
   const onlineRunners = runners.filter(r => r.is_online).length
 
-  const passRate = totalRuns > 0
-    ? Math.round((passedRuns / Math.max(totalRuns, 1)) * 100)
-    : 0
+  // Every counter below is aggregated server-side across the whole filtered set,
+  // so it no longer depends on how many runs the listing happens to load.
+  const totalRuns = stats?.total_runs ?? 0
+  const passedRuns = stats?.passed_runs ?? 0
+  const failedRuns = stats?.failed_runs ?? 0
+  const passRate = stats?.run_pass_rate ?? 0
+
+  const stationOptions = filterOptions?.runner_accounts ?? []
+  const suiteOptions = filterOptions?.suites ?? []
 
   return (
     <div className="space-y-6 animate-fade-in">
+      {/* Filters */}
+      <div className="bg-card rounded-lg border border-border shadow-elegant p-4">
+        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 md:flex-1">
+            <FilterSelect
+              label="Time range"
+              value={days === undefined ? 'all' : String(days)}
+              onChange={(value) => setDays(value === 'all' ? undefined : Number(value))}
+              options={TIME_RANGES.map(range => ({
+                value: range.days === undefined ? 'all' : String(range.days),
+                label: range.label,
+              }))}
+            />
+            <FilterSelect
+              label="Test Station"
+              value={station}
+              onChange={setStation}
+              placeholder="All stations"
+              options={stationOptions.map(account => ({ value: account, label: account }))}
+            />
+            <FilterSelect
+              label="Suite"
+              value={suite}
+              onChange={setSuite}
+              placeholder="All suites"
+              options={suiteOptions.map(name => ({ value: name, label: name }))}
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <Filter className="h-4 w-4 text-muted-foreground" />
+            <button
+              type="button"
+              onClick={() => {
+                setDays(DEFAULT_DAYS)
+                setStation('')
+                setSuite('')
+              }}
+              disabled={filtersAreDefault}
+              className="inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-2.5 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <X className="h-3.5 w-3.5" />
+              Reset
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Total Test Runs"
-          value={totalRuns}
+          value={statsLoading ? '—' : totalRuns}
           icon={PlayCircle}
           gradient="from-primary to-bud-orange"
+          subtitle={stats ? `${stats.total_tests} tests` : undefined}
         />
         <StatCard
           title="Passed"
-          value={passedRuns}
+          value={statsLoading ? '—' : passedRuns}
           icon={CheckCircle}
           gradient="from-emerald-500 to-emerald-700"
+          subtitle={stats ? `${stats.passed_tests} tests passed` : undefined}
         />
         <StatCard
           title="Failed"
-          value={failedRuns}
+          value={statsLoading ? '—' : failedRuns}
           icon={XCircle}
           gradient="from-red-500 to-red-700"
+          subtitle={stats ? `${stats.failed_tests} tests failed` : undefined}
         />
         <StatCard
           title="Test Stations Online"
@@ -55,6 +144,7 @@ export default function Dashboard() {
           icon={Server}
           gradient="from-bud-forest to-bud-orange"
           subtitle={onlineRunners === runners.length && runners.length > 0 ? 'All stations online' : undefined}
+          subtitleTone={onlineRunners === runners.length && runners.length > 0 ? 'positive' : 'muted'}
         />
       </div>
 
@@ -63,7 +153,14 @@ export default function Dashboard() {
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <TrendingUp className="h-4 w-4 text-primary" />
-            <span className="text-sm font-medium text-foreground">Overall Pass Rate</span>
+            <div>
+              <span className="text-sm font-medium text-foreground">Overall Pass Rate</span>
+              <p className="text-xs text-muted-foreground">
+                {stats && stats.in_progress_runs > 0
+                  ? `${stats.in_progress_runs} run(s) still in progress are excluded`
+                  : 'Share of decided runs that passed'}
+              </p>
+            </div>
           </div>
           <span className={`text-2xl font-bold ${
             passRate >= 80 ? 'text-emerald-600 dark:text-emerald-400' : passRate >= 50 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'
@@ -170,12 +267,39 @@ export default function Dashboard() {
   )
 }
 
-function StatCard({ title, value, icon: Icon, gradient, subtitle }: {
+/** Labelled dropdown used by the dashboard filter bar. An empty value means "no
+ *  filter", which is why the placeholder option carries an empty string. */
+function FilterSelect({ label, value, onChange, options, placeholder }: {
+  label: string
+  value: string
+  onChange: (value: string) => void
+  options: { value: string; label: string }[]
+  placeholder?: string
+}) {
+  return (
+    <label className="flex flex-col gap-1">
+      <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">{label}</span>
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="rounded-md border border-input bg-background px-2.5 py-1.5 text-sm text-foreground transition-colors hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring"
+      >
+        {placeholder && <option value="">{placeholder}</option>}
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>{option.label}</option>
+        ))}
+      </select>
+    </label>
+  )
+}
+
+function StatCard({ title, value, icon: Icon, gradient, subtitle, subtitleTone = 'muted' }: {
   title: string
   value: number | string
   icon: React.ComponentType<{ className?: string }>
   gradient: string
   subtitle?: string
+  subtitleTone?: 'muted' | 'positive'
 }) {
   return (
     <div className="bg-card rounded-lg border border-border shadow-elegant hover:shadow-glow transition-shadow duration-300 p-5">
@@ -183,7 +307,13 @@ function StatCard({ title, value, icon: Icon, gradient, subtitle }: {
         <div>
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{title}</p>
           <p className="text-3xl font-bold text-foreground mt-2">{value}</p>
-          {subtitle && <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1">{subtitle}</p>}
+          {subtitle && (
+            <p className={`text-xs mt-1 ${
+              subtitleTone === 'positive'
+                ? 'text-emerald-600 dark:text-emerald-400'
+                : 'text-muted-foreground'
+            }`}>{subtitle}</p>
+          )}
         </div>
         <div className={`p-2.5 rounded-lg bg-gradient-to-br ${gradient}`}>
           <Icon className="h-5 w-5 text-white" />
