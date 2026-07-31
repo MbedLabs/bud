@@ -16,6 +16,7 @@
 ### Changed
 
 - Upgraded to React 19 and React Router 8, which resolves GHSA-qwww-vcr4-c8h2 (React Router RSC-mode CSRF). The frontend now imports from `react-router` instead of the retired `react-router-dom` package. Frontend builds and CI run on Node 24; Node 22.22 is the supported minimum.
+- Upgraded `lucide-react`, whose pinned release declared support only up to React 18.
 - The dependency audit no longer carries any reviewed-advisory exception; every advisory now fails the build.
 
 ### Removed
