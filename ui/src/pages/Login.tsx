@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router'
 import { useAuth } from '../contexts/AuthContext'
 import { APP_VERSION, extractApiErrorMessage } from '../api/client'
 import { BUD_LOGO_DARK, BUD_LOGO_LIGHT } from '../brandAssets'

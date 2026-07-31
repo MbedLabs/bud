@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 import { testRunsApi, testStationsApi, type TestRunStatsFilters } from '../api/client'
 import { formatDateTime } from '../test/date-utils'
 import { CheckCircle, XCircle, PlayCircle, Server, TrendingUp, Activity, Filter, X } from 'lucide-react'
