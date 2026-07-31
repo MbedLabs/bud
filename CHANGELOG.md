@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Dashboard statistics can be filtered by time range, Test Station, and test suite.
+- `GET /api/test-runs/stats` and `GET /api/test-runs/filter-options` expose those aggregates.
+- `GET /api/test-runs` accepts a `suite` filter.
+
+### Fixed
+
+- Test run summary tiles reported assertion counts under a "Total Tests" label. Test cases and assertions are now counted separately and shown together on the Total, Passed, and Failed tiles.
+- Dashboard counters were derived from only the first page of test runs, so the pass rate depended on the page size. They are now aggregated in the database across the whole filtered set, and runs still in progress no longer count against the pass rate.
+
+### Removed
+
+- The stale `ui/dist/index.html` build artifact is no longer tracked in the repository.
+
 ## 1.0.0 - 2026-07-24
 
 Initial public beta release of Bud TMP by EmbedLabs — a self-hosted test
