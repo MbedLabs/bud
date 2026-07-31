@@ -77,11 +77,17 @@ Keep `RUN_STARTUP_DATA_REPAIR=false`. Database schema changes are applied only t
 
 ### 3. Pull, migrate, and start
 
+The Bud container applies Alembic migrations (`alembic upgrade head`) before it serves traffic, so no separate migration step is required.
+
 ```bash
 docker compose -f compose.yaml pull
-docker compose -f compose.yaml up -d postgres
-docker compose -f compose.yaml run --rm bud alembic upgrade head
-docker compose -f compose.yaml up -d bud
+docker compose -f compose.yaml up -d
+```
+
+Follow the migration and startup logs:
+
+```bash
+docker compose -f compose.yaml logs -f bud
 ```
 
 After the first administrator has been created, set `AUTO_SEED_ADMIN=false` in `.env` and apply the configuration:
@@ -190,12 +196,11 @@ Pin a complete version such as `1.0.0` for production.
 1. Read [`CHANGELOG.md`](CHANGELOG.md).
 2. Back up `bud-postgres-data`, `bud-uploads`, and `.env`.
 3. Set the target `BUD_VERSION`.
-4. Pull the image, run migrations, and restart:
+4. Pull and restart. The container runs `alembic upgrade head` before serving traffic:
 
    ```bash
    docker compose -f compose.yaml pull
-   docker compose -f compose.yaml run --rm bud alembic upgrade head
-   docker compose -f compose.yaml up -d bud
+   docker compose -f compose.yaml up -d
    ```
 
 5. Verify `/api/version` and `/api/ready`.

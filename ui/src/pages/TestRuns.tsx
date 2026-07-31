@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router'
 import { testRunsApi, testStationsApi, type TestRun } from '../api/client'
 import { formatDateTime } from '../test/date-utils'
 import { Search, Filter, ChevronLeft, ChevronRight, PlayCircle, Server, X } from 'lucide-react'

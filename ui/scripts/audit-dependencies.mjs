@@ -1,13 +1,13 @@
 import { spawnSync } from 'node:child_process'
 
-// GHSA-qwww-vcr4-c8h2 affects React Router's RSC Action/Server Action request
-// processing. Bud is a browser-only Vite SPA: it does not enable RSC or expose
-// server actions. React Router 8.3 fixes the advisory but currently requires
-// React >=19.2.7 and Node >=22.22. Keep this one narrow exception until a
-// patched 7.x is published or the application completes that major migration.
-const reviewedAdvisories = new Map([
-  ['react-router', new Set(['https://github.com/advisories/GHSA-qwww-vcr4-c8h2'])],
-])
+// Advisories reviewed and judged not to apply to this application, as
+// `package name -> set of advisory URLs`. Anything not listed here fails the
+// audit. Keep entries narrow (a specific advisory, never a whole package) and
+// record why the advisory cannot affect Bud.
+//
+// Currently empty: GHSA-qwww-vcr4-c8h2 (React Router RSC) was the last entry and
+// is fixed by React Router 8.
+const reviewedAdvisories = new Map()
 
 const result = spawnSync('npm', ['audit', '--json'], {
   encoding: 'utf8',

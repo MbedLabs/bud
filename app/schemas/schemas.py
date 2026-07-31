@@ -230,6 +230,30 @@ class TestRunList(BaseModel):
     offset: int
 
 
+class TestRunStats(BaseModel):
+    """Aggregate run and test-case counters behind the dashboard tiles."""
+
+    total_runs: int
+    passed_runs: int
+    failed_runs: int
+    in_progress_runs: int
+    # Share of decided (passed or failed) runs that passed; pending runs are excluded
+    # so a queued backlog cannot drag the reported rate down.
+    run_pass_rate: float
+    total_tests: int
+    passed_tests: int
+    failed_tests: int
+    skipped_tests: int
+    test_pass_rate: float
+
+
+class TestRunFilterOptions(BaseModel):
+    """Values offered by the dashboard filter controls."""
+
+    suites: List[str]
+    runner_accounts: List[str]
+
+
 # ==================== Test Result Schemas ====================
 
 

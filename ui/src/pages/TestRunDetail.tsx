@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
 import { testRunsApi, resultsApi, TestResult, type TestRunEvent } from '../api/client'
-import { summarizeAssertions } from '../lib/testRunAssertions'
+import { summarizeAssertions, summarizeTestCases } from '../lib/testRunAssertions'
 import {
   EMPTY_OUTCOME_FILTERS,
   filterAssertionsForDisplay,
@@ -65,13 +65,16 @@ export default function TestRunDetail() {
     )
   }
 
+  // Test cases and assertions are counted separately: a single test case normally
+  // carries several assertions, so the two totals are not interchangeable.
   const assertionSummary = summarizeAssertions(results || [])
-  const totalCount = assertionSummary.total || run.total_tests
-  const passedCount = assertionSummary.total > 0 ? assertionSummary.passed : run.passed_tests
-  const failedCount = assertionSummary.total > 0 ? assertionSummary.failed : run.failed_tests
-  const passRate = totalCount > 0
-    ? ((passedCount / totalCount) * 100).toFixed(1)
+  const testSummary = summarizeTestCases(run, results || [])
+  const passRate = testSummary.total > 0
+    ? ((testSummary.passed / testSummary.total) * 100).toFixed(1)
     : '0'
+  const assertionPassRate = assertionSummary.total > 0
+    ? ((assertionSummary.passed / assertionSummary.total) * 100).toFixed(1)
+    : null
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -92,29 +95,37 @@ export default function TestRunDetail() {
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <SummaryCard
-          label="Total Tests"
-          value={totalCount}
+          label="Total"
+          tests={testSummary.total}
+          assertions={assertionSummary.total}
           icon={Activity}
           gradient="from-primary/10 to-lime-500/10"
           iconColor="text-primary"
         />
         <SummaryCard
           label="Passed"
-          value={passedCount}
+          tests={testSummary.passed}
+          assertions={assertionSummary.passed}
           icon={CheckCircle}
           gradient="from-emerald-500/10 to-emerald-500/5"
           iconColor="text-emerald-600 dark:text-emerald-400"
         />
         <SummaryCard
           label="Failed"
-          value={failedCount}
+          tests={testSummary.failed}
+          assertions={assertionSummary.failed}
           icon={XCircle}
           gradient="from-red-500/10 to-red-500/5"
           iconColor="text-red-600 dark:text-red-400"
         />
         <div className="bg-card rounded-lg border border-border shadow-elegant p-4">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Pass Rate</p>
+            <div>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Pass Rate</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                {assertionPassRate !== null ? `${assertionPassRate}% of assertions` : 'No assertions recorded'}
+              </p>
+            </div>
             <span className={`text-lg font-bold ${
               parseFloat(passRate) >= 80 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'
             }`}>{passRate}%</span>
@@ -680,9 +691,12 @@ function StatusBadge({ status }: { status: string }) {
   )
 }
 
-function SummaryCard({ label, value, icon: Icon, gradient, iconColor }: {
+/** Reports the test-case count and the assertion count side by side, because a run
+ *  summarised by only one of the two is ambiguous. */
+function SummaryCard({ label, tests, assertions, icon: Icon, gradient, iconColor }: {
   label: string
-  value: number
+  tests: number
+  assertions: number
   icon: React.ComponentType<{ className?: string }>
   gradient: string
   iconColor: string
@@ -690,9 +704,20 @@ function SummaryCard({ label, value, icon: Icon, gradient, iconColor }: {
   return (
     <div className="bg-card rounded-lg border border-border shadow-elegant p-4">
       <div className="flex items-center justify-between">
-        <div>
+        <div className="min-w-0">
           <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">{label}</p>
-          <p className="text-2xl font-bold text-foreground mt-1">{value}</p>
+          <div className="mt-1 flex items-baseline gap-1.5">
+            <span className="text-2xl font-bold text-foreground leading-none">{tests}</span>
+            <span className="text-[11px] font-medium text-muted-foreground">
+              {tests === 1 ? 'test' : 'tests'}
+            </span>
+          </div>
+          <div className="mt-1 flex items-baseline gap-1.5">
+            <span className="text-sm font-semibold text-muted-foreground leading-none">{assertions}</span>
+            <span className="text-[11px] font-medium text-muted-foreground">
+              {assertions === 1 ? 'assertion' : 'assertions'}
+            </span>
+          </div>
         </div>
         <div className={`p-2.5 rounded-lg bg-gradient-to-br ${gradient}`}>
           <Icon className={`h-5 w-5 ${iconColor}`} />

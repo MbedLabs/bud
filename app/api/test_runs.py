@@ -2,11 +2,11 @@
 Test runs API endpoints.
 """
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional, Union
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, select
+from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -18,8 +18,10 @@ from app.models.user import User, UserRole
 from app.schemas import (
     TestRunCreate,
     TestRunEventResponse,
+    TestRunFilterOptions,
     TestRunList,
     TestRunResponse,
+    TestRunStats,
     TestRunUpdate,
 )
 from app.services.artifact_cleanup import unlink_storage_key
@@ -129,6 +131,7 @@ async def list_test_runs(
             "Filter to test runs executed by the given Bud runner account " "(a.k.a. Test Station)."
         ),
     ),
+    suite: Optional[str] = Query(None, description="Filter to runs for this test suite name."),
     latest_per_suite: bool = Query(
         False,
         description="When true, return only the latest run for each test suite name.",
@@ -161,6 +164,10 @@ async def list_test_runs(
     if status:
         query = query.where(TestRun.status == status)
         count_query = count_query.where(TestRun.status == status)
+
+    if suite:
+        query = query.where(TestRun.name == suite)
+        count_query = count_query.where(TestRun.name == suite)
 
     if runner_account:
         # Resolve the account → id once; avoids a join per row.
@@ -202,6 +209,153 @@ async def list_test_runs(
         total=total,
         limit=limit,
         offset=offset,
+    )
+
+
+async def _scope_conditions(
+    db: AsyncSession,
+    current_entity: Union[User, Runner],
+    *,
+    days: Optional[int],
+    runner_account: Optional[str],
+    suite: Optional[str],
+) -> Optional[list]:
+    """Build the WHERE terms shared by the dashboard aggregate endpoints.
+
+    Returns ``None`` when the requested Test Station does not exist, which the
+    callers translate into an empty result rather than an error.
+    """
+    conditions: list = []
+
+    if isinstance(current_entity, Runner):
+        if runner_account and runner_account != current_entity.account:
+            raise HTTPException(
+                status_code=403, detail="Runner cannot read another runner's statistics"
+            )
+        conditions.append(TestRun.runner_id == current_entity.id)
+    elif runner_account:
+        runner_result = await db.execute(select(Runner.id).where(Runner.account == runner_account))
+        runner_id = runner_result.scalar_one_or_none()
+        if runner_id is None:
+            return None
+        conditions.append(TestRun.runner_id == runner_id)
+
+    if suite:
+        conditions.append(TestRun.name == suite)
+
+    if days is not None:
+        conditions.append(TestRun.created_at >= datetime.utcnow() - timedelta(days=days))
+
+    return conditions
+
+
+@router.get("/stats", response_model=TestRunStats)
+async def get_test_run_stats(
+    days: Optional[int] = Query(
+        None, ge=1, le=3650, description="Only count runs created within the last N days."
+    ),
+    runner_account: Optional[str] = Query(
+        None, description="Only count runs executed by this Bud runner account (Test Station)."
+    ),
+    suite: Optional[str] = Query(None, description="Only count runs for this test suite name."),
+    db: AsyncSession = Depends(get_db),
+    _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
+):
+    """Aggregate the dashboard counters over every run matching the filters.
+
+    The dashboard used to derive these from the handful of runs on the first page,
+    so the pass rate silently depended on the page size. Counting in the database
+    keeps the tiles consistent with the full filtered set.
+    """
+    conditions = await _scope_conditions(
+        db, _current_entity, days=days, runner_account=runner_account, suite=suite
+    )
+    if conditions is None:
+        return TestRunStats(
+            total_runs=0,
+            passed_runs=0,
+            failed_runs=0,
+            in_progress_runs=0,
+            run_pass_rate=0.0,
+            total_tests=0,
+            passed_tests=0,
+            failed_tests=0,
+            skipped_tests=0,
+            test_pass_rate=0.0,
+        )
+
+    passed_run = and_(TestRun.status == "Completed", TestRun.failed_tests == 0)
+    failed_run = or_(TestRun.status == "Failed", TestRun.failed_tests > 0)
+
+    query = select(
+        func.count(TestRun.id),
+        func.count(case((passed_run, 1))),
+        func.count(case((failed_run, 1))),
+        func.coalesce(func.sum(TestRun.total_tests), 0),
+        func.coalesce(func.sum(TestRun.passed_tests), 0),
+        func.coalesce(func.sum(TestRun.failed_tests), 0),
+        func.coalesce(func.sum(TestRun.skipped_tests), 0),
+    )
+    if conditions:
+        query = query.where(*conditions)
+
+    (
+        total_runs,
+        passed_runs,
+        failed_runs,
+        total_tests,
+        passed_tests,
+        failed_tests,
+        skipped_tests,
+    ) = (await db.execute(query)).one()
+
+    decided_runs = passed_runs + failed_runs
+    return TestRunStats(
+        total_runs=total_runs,
+        passed_runs=passed_runs,
+        failed_runs=failed_runs,
+        in_progress_runs=max(total_runs - decided_runs, 0),
+        run_pass_rate=round(passed_runs / decided_runs * 100, 1) if decided_runs else 0.0,
+        total_tests=total_tests,
+        passed_tests=passed_tests,
+        failed_tests=failed_tests,
+        skipped_tests=skipped_tests,
+        test_pass_rate=round(passed_tests / total_tests * 100, 1) if total_tests else 0.0,
+    )
+
+
+@router.get("/filter-options", response_model=TestRunFilterOptions)
+async def get_test_run_filter_options(
+    days: Optional[int] = Query(
+        None, ge=1, le=3650, description="Only consider runs created within the last N days."
+    ),
+    db: AsyncSession = Depends(get_db),
+    _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
+):
+    """List the suite names and Test Stations that actually appear in test runs."""
+    conditions = await _scope_conditions(
+        db, _current_entity, days=days, runner_account=None, suite=None
+    )
+    conditions = conditions or []
+
+    suite_query = select(TestRun.name).distinct().order_by(TestRun.name).limit(500)
+    account_query = (
+        select(Runner.account)
+        .join(TestRun, TestRun.runner_id == Runner.id)
+        .distinct()
+        .order_by(Runner.account)
+        .limit(500)
+    )
+    if conditions:
+        suite_query = suite_query.where(*conditions)
+        account_query = account_query.where(*conditions)
+
+    suites = (await db.execute(suite_query)).scalars().all()
+    accounts = (await db.execute(account_query)).scalars().all()
+
+    return TestRunFilterOptions(
+        suites=[s for s in suites if s],
+        runner_accounts=[a for a in accounts if a],
     )
 
 
