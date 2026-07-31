@@ -134,10 +134,14 @@ Add a fail-closed ClamAV or YARA stage if your deployment needs that claim.
 4. Restart the container. Confirm `/api/ready` returns `200` and check the
    version shown in the UI.
 
-When upgrading to `1.0.0`, migration `006_encrypt_bloom_service_token` removes
-the legacy Bloom token because it cannot be safely converted into the new scoped
-encrypted credential. Create a new `test-results:write` credential in Bloom and
-save it again in Bud.
+When upgrading to `1.0.0`, any legacy Bloom token is removed because it cannot be
+safely converted into the new scoped encrypted credential. Create a new
+`test-results:write` credential in Bloom and save it again in Bud.
+
+The migration history was collapsed into a single locked baseline at `1.0.0`.
+Databases already at `1.0.0` are recognised as up to date and are not
+re-migrated. Upgrading a database created before `1.0.0` is not supported:
+restore it into a `1.0.0` deployment from a dump instead.
 
 Rollback: restore the pre-upgrade database dump and start the previous image
 tag. Never run a newer schema against an older application version.
