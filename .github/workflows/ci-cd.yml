@@ -115,7 +115,7 @@ jobs:
           RUNNER_API_KEY: test-runner-api-key
           ENABLE_DOCS: "false"
         run: |
-          pytest --cov=app --cov-report=xml --cov-report=term-missing --cov-fail-under=60 -v
+          pytest --cov=app --cov-report=xml --cov-report=term-missing --cov-fail-under=85 -v
 
       # Real-auth integration layer: runs against the alembic-built PostgreSQL
       # schema with NO dependency overrides — real login, real JWT, real DB I/O.

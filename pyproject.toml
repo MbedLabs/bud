@@ -66,6 +66,14 @@ python_version = "3.10"
 warn_return_any = true
 ignore_missing_imports = true
 
+[tool.coverage.run]
+# SQLAlchemy's async bridge runs endpoint bodies inside greenlets, and the
+# TestClient drives the ASGI app from a worker thread. Without both concurrency
+# modes coverage simply does not see that code: an endpoint could be exercised
+# by a passing HTTP test and still be reported as entirely unhit.
+concurrency = ["thread", "greenlet"]
+source = ["app"]
+
 [tool.pytest.ini_options]
 minversion = "7.0"
 addopts = "-ra -q"
