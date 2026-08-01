@@ -121,6 +121,31 @@ class TestRenderedContent:
         assert "Powered by EmbedLabs" in doc[0].get_text()
         doc.close()
 
+    def test_both_logos_are_embedded(self, fitz):
+        """The Bud mark in the header and the EmbedLabs mark in the footer."""
+        from app.services.report_pdf import BUD_LOGO, EMBEDLABS_LOGO
+
+        assert BUD_LOGO.exists(), "the Bud logo ships with the backend"
+        assert EMBEDLABS_LOGO.exists(), "the EmbedLabs footer mark ships with the backend"
+
+        doc = self._open(fitz, render_report(_summary_request()))
+        images = doc[0].get_images(full=True)
+        doc.close()
+        assert len(images) >= 2, f"expected a header and a footer image, found {len(images)}"
+
+    def test_the_footer_mark_appears_on_every_page(self, fitz):
+        pdf = render_report(
+            _summary_request(
+                run=RunDetail(run_id=3, name="smoke", status="Completed"),
+                results=[("A", "b", True, 0.1)],
+            )
+        )
+        doc = self._open(fitz, pdf)
+        assert doc.page_count >= 2
+        for page in doc:
+            assert page.get_images(), f"page {page.number + 1} has no footer mark"
+        doc.close()
+
     def test_run_report_shows_the_run_id_and_links_out(self, fitz):
         pdf = render_report(
             _summary_request(

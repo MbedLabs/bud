@@ -312,19 +312,20 @@ def _draw_footer(canvas, doc) -> None:
 
     x = PAGE_MARGIN
     if EMBEDLABS_LOGO.exists():
-        logo_height = 5 * mm
+        logo_height = 6.5 * mm
         logo = ImageReader(str(EMBEDLABS_LOGO))
         iw, ih = logo.getSize()
         logo_width = logo_height * (iw / ih)
+        # Sit the mark on the text's optical centre rather than its baseline.
         canvas.drawImage(
             logo,
             x,
-            baseline - 1.2 * mm,
+            baseline - (logo_height - 8 * 0.72) / 2,
             width=logo_width,
             height=logo_height,
             mask="auto",
         )
-        x += logo_width + 2 * mm
+        x += logo_width + 2.5 * mm
 
     canvas.drawString(x, baseline, text)
     text_width = canvas.stringWidth(text, "Helvetica", 8)
