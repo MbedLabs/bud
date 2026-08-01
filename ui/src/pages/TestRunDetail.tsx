@@ -1,7 +1,15 @@
 import { useMemo, useState } from 'react'
 import { useParams, Link } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
-import { testRunsApi, resultsApi, TestResult, type TestRunEvent } from '../api/client'
+import {
+  extractApiErrorMessage,
+  reportsApi,
+  resultsApi,
+  saveBlob,
+  testRunsApi,
+  TestResult,
+  type TestRunEvent,
+} from '../api/client'
 import { summarizeAssertions, summarizeTestCases } from '../lib/testRunAssertions'
 import {
   EMPTY_OUTCOME_FILTERS,
@@ -15,13 +23,15 @@ import { formatDateTime } from '../test/date-utils'
 import {
   ArrowLeft, CheckCircle, XCircle, Clock, AlertCircle, Activity,
   ChevronDown, ChevronRight, UploadCloud, RefreshCw, Radio, GitBranch,
-  Filter, X,
+  Filter, X, FileDown,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
 export default function TestRunDetail() {
   const { id } = useParams<{ id: string }>()
   const runId = parseInt(id || '0')
+  const [reportError, setReportError] = useState<string | null>(null)
+  const [reportPending, setReportPending] = useState(false)
   const [systemReportOpen, setSystemReportOpen] = useState(false)
   const [resultsFiltersOpen, setResultsFiltersOpen] = useState(false)
   const [outcomeFilters, setOutcomeFilters] = useState<OutcomeFilters>(EMPTY_OUTCOME_FILTERS)
@@ -89,8 +99,37 @@ export default function TestRunDetail() {
             <p className="text-sm text-muted-foreground truncate">{run.test_case_list}</p>
           </div>
         </div>
-        <StatusBadge status={run.status} />
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={async () => {
+              setReportError(null)
+              setReportPending(true)
+              try {
+                const { blob, filename } = await reportsApi.testRun(runId)
+                saveBlob(blob, filename)
+              } catch (error) {
+                setReportError(extractApiErrorMessage(error, 'Could not generate the report'))
+              } finally {
+                setReportPending(false)
+              }
+            }}
+            disabled={reportPending}
+            title="Download this run as a PDF report"
+            className="inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-2.5 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <FileDown className="h-4 w-4" />
+            {reportPending ? 'Preparing…' : 'PDF report'}
+          </button>
+          <StatusBadge status={run.status} />
+        </div>
       </div>
+
+      {reportError && (
+        <p className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-200">
+          {reportError}
+        </p>
+      )}
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

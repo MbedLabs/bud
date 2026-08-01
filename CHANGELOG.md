@@ -7,6 +7,7 @@
 - Dashboard statistics can be filtered by time range, Test Station, and test suite.
 - `GET /api/test-runs/stats` and `GET /api/test-runs/filter-options` expose those aggregates.
 - `GET /api/test-runs` accepts a `suite` filter.
+- PDF reports. `GET /api/reports/test-runs.pdf` renders the current dashboard selection - time range, Test Station and suite - as a document with a passed/failed/skipped pie chart and breakdown tables per suite, per Test Station and per day. `GET /api/reports/test-runs/{run_id}.pdf` reports a single run, carrying its run id, station, product, timings and every recorded result. Both carry the Bud logo, a "Powered by EmbedLabs" footer on every page, and real PDF link annotations: the run's repositories, the run's page in Bud, and the EmbedLabs site are all clickable. The Dashboard and the run detail page each have a download button.
 
 ### Fixed
 

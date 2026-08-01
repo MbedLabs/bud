@@ -20,6 +20,7 @@ from app.api import auth as auth_api
 from app.api import (
     health,
     products,
+    reports,
     results,
     runners,
     settings,
@@ -94,9 +95,7 @@ async def migrate_user_columns() -> None:
 async def migrate_user_roles_to_viewer() -> None:
     async with db.engine.begin() as conn:
         if conn.dialect.name == "postgresql":
-            await conn.execute(
-                text(
-                    """
+            await conn.execute(text("""
                     DO $$
                     BEGIN
                         IF EXISTS (SELECT 1 FROM pg_type WHERE typname = 'userrole') THEN
@@ -108,9 +107,7 @@ async def migrate_user_roles_to_viewer() -> None:
                         END IF;
                     END
                     $$;
-                    """
-                )
-            )
+                    """))
 
     async with db.engine.begin() as conn:
         if conn.dialect.name == "postgresql":
@@ -213,6 +210,7 @@ app.include_router(uploads.router, prefix="/api/uploads", tags=["Uploads"])
 app.include_router(runners.router, prefix="/api/runners", tags=["Runners"])
 app.include_router(teststations.router, prefix="/api/teststations", tags=["TestStations"])
 app.include_router(settings.router, prefix="/api/settings", tags=["Settings"])
+app.include_router(reports.router, prefix="/api/reports", tags=["Reports"])
 
 
 @app.get("/")

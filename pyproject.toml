@@ -32,6 +32,7 @@ dependencies = [
     "prometheus-client>=0.19.0",
     "tenacity>=8.0.0",
     "alembic>=1.18.0",
+    "reportlab>=4.0.0",
 ]
 
 [project.optional-dependencies]
@@ -41,6 +42,8 @@ dev = [
     "pytest-cov>=4.0.0",
     "aiosqlite>=0.19.0",
     "black>=23.0.0",
+    # Parses generated PDFs so the report assertions are real, not skipped.
+    "pymupdf>=1.24.0",
     "mypy>=1.0.0",
 ]
 
