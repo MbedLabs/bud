@@ -20,7 +20,7 @@ permissions:
 jobs:
   validate:
     name: Validate
-    runs-on: [self-hosted, hostinger, bud]
+    runs-on: ubuntu-latest
 
     services:
       postgres:
@@ -146,7 +146,7 @@ jobs:
   build-image:
     if: github.event_name == 'push'
     name: Build Product Image
-    runs-on: [self-hosted, hostinger, bud]
+    runs-on: ubuntu-latest
     needs: validate
 
     permissions:
@@ -335,7 +335,7 @@ jobs:
   e2e-image:
     if: github.event_name == 'push'
     name: End-to-end (published image)
-    runs-on: [self-hosted, hostinger, bud]
+    runs-on: ubuntu-latest
     needs: build-image
 
     permissions:
@@ -369,7 +369,7 @@ jobs:
   promote-image:
     if: github.event_name == 'push'
     name: Promote moving tags
-    runs-on: [self-hosted, hostinger, bud]
+    runs-on: ubuntu-latest
     needs: [build-image, e2e-image]
 
     permissions:
