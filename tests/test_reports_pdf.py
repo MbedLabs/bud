@@ -187,7 +187,7 @@ class TestFilenameSafety:
 
         name = _safe_filename(hostile)
         assert name.endswith(".pdf")
-        for forbidden in ('/', '\\', '"', '\r', '\n', ';'):
+        for forbidden in ("/", "\\", '"', "\r", "\n", ";"):
             assert forbidden not in name
 
     def test_falls_back_when_nothing_survives(self):

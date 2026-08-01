@@ -9,6 +9,10 @@
 - `GET /api/test-runs` accepts a `suite` filter.
 - PDF reports. `GET /api/reports/test-runs.pdf` renders the current dashboard selection - time range, Test Station and suite - as a document with a passed/failed/skipped pie chart and breakdown tables per suite, per Test Station and per day. `GET /api/reports/test-runs/{run_id}.pdf` reports a single run, carrying its run id, station, product, timings and every recorded result. Both carry the Bud logo, a "Powered by EmbedLabs" footer on every page, and real PDF link annotations: the run's repositories, the run's page in Bud, and the EmbedLabs site are all clickable. The Dashboard and the run detail page each have a download button.
 
+### Security
+
+- Revoking an invitation now revokes its link. It previously only deactivated the account, leaving the emailed token valid until its TTL: whoever held the link could still accept the invitation and set a password, which then worked the moment an administrator reactivated the account.
+
 ### Fixed
 
 - Test run summary tiles reported assertion counts under a "Total Tests" label. Test cases and assertions are now counted separately and shown together on the Total, Passed, and Failed tiles.
