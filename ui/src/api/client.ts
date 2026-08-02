@@ -428,3 +428,60 @@ export const settingsApi = {
     return response.data
   },
 }
+
+/**
+ * PDF reports.
+ *
+ * The download goes through the axios instance rather than a plain link so the
+ * Authorization header (and the 401 refresh retry) still apply; a bare <a href>
+ * would arrive unauthenticated.
+ */
+export const reportsApi = {
+  testRuns: async (params?: TestRunStatsFilters) => {
+    const response = await api.get('/reports/test-runs.pdf', {
+      params,
+      responseType: 'blob',
+    })
+    return { blob: response.data as Blob, filename: filenameFromResponse(response, 'bud-test-report.pdf') }
+  },
+
+  testRun: async (runId: number) => {
+    const response = await api.get(`/reports/test-runs/${runId}.pdf`, { responseType: 'blob' })
+    return { blob: response.data as Blob, filename: filenameFromResponse(response, `bud-run-${runId}.pdf`) }
+  },
+}
+
+/** Read the server's chosen filename, preferring the RFC 5987 form. */
+export function filenameFromResponse(
+  response: { headers: Record<string, unknown> | { get?: (name: string) => string | null } },
+  fallback: string,
+): string {
+  const raw =
+    typeof (response.headers as { get?: (n: string) => string | null }).get === 'function'
+      ? (response.headers as { get: (n: string) => string | null }).get('content-disposition')
+      : ((response.headers as Record<string, unknown>)['content-disposition'] as string | undefined)
+  if (!raw) return fallback
+
+  const encoded = /filename\*=UTF-8''([^;]+)/i.exec(raw)
+  if (encoded) {
+    try {
+      return decodeURIComponent(encoded[1])
+    } catch {
+      // fall through to the plain form
+    }
+  }
+  const plain = /filename="?([^";]+)"?/i.exec(raw)
+  return plain ? plain[1] : fallback
+}
+
+/** Hand a generated file to the browser's downloader. */
+export function saveBlob(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = filename
+  document.body.appendChild(anchor)
+  anchor.click()
+  anchor.remove()
+  URL.revokeObjectURL(url)
+}

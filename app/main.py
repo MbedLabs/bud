@@ -20,6 +20,7 @@ from app.api import auth as auth_api
 from app.api import (
     health,
     products,
+    reports,
     results,
     runners,
     settings,
@@ -213,6 +214,7 @@ app.include_router(uploads.router, prefix="/api/uploads", tags=["Uploads"])
 app.include_router(runners.router, prefix="/api/runners", tags=["Runners"])
 app.include_router(teststations.router, prefix="/api/teststations", tags=["TestStations"])
 app.include_router(settings.router, prefix="/api/settings", tags=["Settings"])
+app.include_router(reports.router, prefix="/api/reports", tags=["Reports"])
 
 
 @app.get("/")

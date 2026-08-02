@@ -244,6 +244,12 @@ async def revoke_invite(
     if user.password_set_at is not None:
         raise HTTPException(status_code=400, detail="Invite already accepted")
 
+    # Deactivating the account is not enough on its own: the emailed link stays
+    # live until its TTL, so whoever holds it can still accept the invitation and
+    # choose a password. That password then works the moment an administrator
+    # reactivates the account. Revoking means revoking the link.
+    await invalidate_tokens(db, user.id, purpose=UserTokenPurpose.invite)
+
     user.is_active = False
     await db.flush()
     await db.refresh(user)
