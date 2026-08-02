@@ -1,9 +1,16 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router'
-import { testRunsApi, testStationsApi, type TestRunStatsFilters } from '../api/client'
+import {
+  extractApiErrorMessage,
+  reportsApi,
+  saveBlob,
+  testRunsApi,
+  testStationsApi,
+  type TestRunStatsFilters,
+} from '../api/client'
 import { formatDateTime } from '../test/date-utils'
-import { CheckCircle, XCircle, PlayCircle, Server, TrendingUp, Activity, Filter, X } from 'lucide-react'
+import { CheckCircle, XCircle, PlayCircle, Server, TrendingUp, Activity, Filter, X, FileDown } from 'lucide-react'
 
 const DEFAULT_DAYS = 30
 
@@ -19,6 +26,8 @@ export default function Dashboard() {
   const [days, setDays] = useState<number | undefined>(DEFAULT_DAYS)
   const [station, setStation] = useState('')
   const [suite, setSuite] = useState('')
+  const [reportError, setReportError] = useState<string | null>(null)
+  const [reportPending, setReportPending] = useState(false)
 
   const filters: TestRunStatsFilters = {
     ...(days !== undefined && { days }),
@@ -97,6 +106,27 @@ export default function Dashboard() {
             />
           </div>
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={async () => {
+                setReportError(null)
+                setReportPending(true)
+                try {
+                  const { blob, filename } = await reportsApi.testRuns(filters)
+                  saveBlob(blob, filename)
+                } catch (error) {
+                  setReportError(extractApiErrorMessage(error, 'Could not generate the report'))
+                } finally {
+                  setReportPending(false)
+                }
+              }}
+              disabled={reportPending}
+              title="Download a PDF report for the current filters"
+              className="inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-2.5 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <FileDown className="h-4 w-4" />
+              {reportPending ? 'Preparing…' : 'PDF report'}
+            </button>
             <Filter className="h-4 w-4 text-muted-foreground" />
             <button
               type="button"
@@ -113,6 +143,11 @@ export default function Dashboard() {
             </button>
           </div>
         </div>
+        {reportError && (
+          <p className="mt-3 rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-200">
+            {reportError}
+          </p>
+        )}
       </div>
 
       {/* Stats */}
