@@ -49,7 +49,7 @@ email-validator==2.3.0
     # via pydantic
 fastapi==0.139.2
     # via bud-app-backend (pyproject.toml)
-greenlet==3.5.3
+greenlet==3.5.4
     # via
     #   bud-app-backend (pyproject.toml)
     #   sqlalchemy
@@ -145,7 +145,7 @@ uvloop==0.22.1
     # via uvicorn
 watchfiles==1.2.0
     # via uvicorn
-websockets==16.1
+websockets==16.1.1
     # via uvicorn
 wrapt==2.2.2
     # via deprecated
