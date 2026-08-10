@@ -8,9 +8,9 @@ aiofiles==25.1.0
     # via bud-app-backend (pyproject.toml)
 alembic==1.18.5
     # via bud-app-backend (pyproject.toml)
-annotated-doc==0.0.4
+annotated-doc==0.0.5
     # via fastapi
-annotated-types==0.7.0
+annotated-types==0.8.0
     # via pydantic
 anyio==4.14.2
     # via
@@ -23,7 +23,7 @@ bcrypt==3.2.2
     # via
     #   bud-app-backend (pyproject.toml)
     #   passlib
-certifi==2026.6.17
+certifi==2026.7.22
     # via
     #   httpcore
     #   httpx
@@ -47,9 +47,9 @@ ecdsa==0.19.2
     # via python-jose
 email-validator==2.3.0
     # via pydantic
-fastapi==0.139.2
+fastapi==0.140.0
     # via bud-app-backend (pyproject.toml)
-greenlet==3.5.3
+greenlet==3.5.4
     # via
     #   bud-app-backend (pyproject.toml)
     #   sqlalchemy
@@ -80,7 +80,7 @@ passlib==1.7.4
     # via bud-app-backend (pyproject.toml)
 pillow==12.3.0
     # via reportlab
-prometheus-client==0.25.0
+prometheus-client==0.26.0
     # via bud-app-backend (pyproject.toml)
 pyasn1==0.6.4
     # via
@@ -145,7 +145,7 @@ uvloop==0.22.1
     # via uvicorn
 watchfiles==1.2.0
     # via uvicorn
-websockets==16.1
+websockets==16.1.1
     # via uvicorn
 wrapt==2.2.2
     # via deprecated
