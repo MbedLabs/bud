@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 20px auto; padding: 20px; border: 1px solid #eee; border-radius: 8px; }
+        .header { background: #1a73e8; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+        .content { padding: 30px; }
+        .button { display: inline-block; padding: 12px 24px; background: #1a73e8; color: white; text-decoration: none; border-radius: 4px; font-weight: bold; }
+        .footer { font-size: 0.8em; color: #777; margin-top: 20px; text-align: center; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Confirm your email change</h1>
+        </div>
+        <div class="content">
+            <p>Hello ${full_name},</p>
+            <p>An administrator approved a request to change your <strong>${app_name}</strong> login email from <strong>${old_email}</strong> to <strong>${new_email}</strong>.</p>
+            <p>Confirm that you control this email address to complete the change.</p>
+            <p style="text-align: center; margin: 30px 0;">
+                <a href="${confirm_link}" class="button" style="color: white;">Confirm Email Change</a>
+            </p>
+            <p>Your login email will not change until you use this link. If you did not expect this request, contact your administrator and do not use the link.</p>
+        </div>
+        <div class="footer">
+            <p>&copy; 2026 EmbedLabs Team. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>

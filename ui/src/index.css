@@ -1,0 +1,117 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Bud brand: logo green + gear orange on very light mint */
+    --background: 120 40% 97%;
+    --foreground: 140 30% 12%;
+    --card: 0 0% 100%;
+    --card-foreground: 140 30% 12%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 140 30% 12%;
+    --primary: 134 61% 41%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 120 35% 93%;
+    --secondary-foreground: 140 30% 12%;
+    --muted: 120 30% 94%;
+    --muted-foreground: 140 10% 42%;
+    --accent: 32 95% 55%;
+    --accent-foreground: 32 90% 12%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 120 25% 88%;
+    --input: 120 25% 88%;
+    --ring: 134 61% 41%;
+    --radius: 0.5rem;
+    --chart-1: 134 61% 41%;
+    --chart-2: 32 95% 55%;
+    --chart-3: 88 50% 48%;
+    --chart-4: 160 35% 42%;
+    --chart-5: 45 90% 52%;
+    --sidebar-background: 140 32% 10%;
+    --sidebar-foreground: 120 30% 92%;
+    --sidebar-active: 134 50% 34%;
+    --sidebar-hover: 140 24% 16%;
+    --sidebar-border: 140 20% 20%;
+  }
+
+  .dark {
+    --background: 140 24% 6%;
+    --foreground: 120 20% 96%;
+    --card: 140 24% 8%;
+    --card-foreground: 120 20% 96%;
+    --popover: 140 24% 8%;
+    --popover-foreground: 120 20% 96%;
+    --primary: 134 58% 48%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 140 18% 14%;
+    --secondary-foreground: 120 20% 96%;
+    --muted: 140 18% 14%;
+    --muted-foreground: 120 10% 65%;
+    --accent: 32 92% 52%;
+    --accent-foreground: 32 90% 96%;
+    --destructive: 0 63% 35%;
+    --destructive-foreground: 120 20% 96%;
+    --border: 140 14% 16%;
+    --input: 140 14% 16%;
+    --ring: 134 58% 48%;
+    --chart-1: 134 58% 48%;
+    --chart-2: 32 92% 52%;
+    --chart-3: 88 45% 50%;
+    --chart-4: 160 35% 45%;
+    --chart-5: 45 85% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  #root {
+    min-height: 100vh;
+  }
+}
+
+@layer utilities {
+  .sidebar-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--sidebar-border) / 0.6) transparent;
+  }
+
+  .sidebar-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .sidebar-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .sidebar-scrollbar::-webkit-scrollbar-thumb {
+    background: hsl(var(--sidebar-border) / 0.6);
+    border-radius: 3px;
+  }
+
+  .sidebar-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--sidebar-border) / 0.85);
+  }
+
+  .glass {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  .dark .glass {
+    background: rgba(12, 20, 14, 0.85);
+  }
+}
