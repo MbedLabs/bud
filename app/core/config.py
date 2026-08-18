@@ -1,0 +1,404 @@
+"""
+Application configuration.
+
+Loads settings from environment variables with sensible defaults.
+"""
+
+import os
+from functools import lru_cache
+from pathlib import Path
+from typing import List, Optional
+
+from pydantic import AliasChoices, EmailStr, Field, field_validator, model_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+BACKEND_DIR = Path(__file__).resolve().parents[2]
+ENV_FILES = (BACKEND_DIR / ".env",)
+
+
+class Settings(BaseSettings):
+    """Application settings loaded from environment variables."""
+
+    model_config = SettingsConfigDict(
+        env_file=ENV_FILES,
+        case_sensitive=True,
+        extra="ignore",
+        populate_by_name=True,
+    )
+
+    @classmethod
+    def settings_customise_sources(
+        cls, settings_cls, init_settings, env_settings, dotenv_settings, file_secret_settings
+    ):
+        if os.environ.get("BUD_DOTENV_DISABLED") == "1":
+            return init_settings, env_settings, file_secret_settings
+        return init_settings, env_settings, dotenv_settings, file_secret_settings
+
+    # Database
+    DATABASE_URL: str = Field(
+        default="", validation_alias=AliasChoices("BUD_DATABASE_URL", "DATABASE_URL")
+    )
+    DB_USER: str = Field(default="bud", validation_alias=AliasChoices("BUD_DB_USER", "DB_USER"))
+    DB_PASSWORD: str = Field(
+        default="bud", validation_alias=AliasChoices("BUD_DB_PASSWORD", "DB_PASSWORD")
+    )
+    DB_NAME: str = Field(default="buddb", validation_alias=AliasChoices("BUD_DB_NAME", "DB_NAME"))
+    DB_HOST: str = Field(
+        default="localhost", validation_alias=AliasChoices("BUD_DB_HOST", "DB_HOST")
+    )
+    DB_PORT: int = Field(default=5432, validation_alias=AliasChoices("BUD_DB_PORT", "DB_PORT"))
+
+    BUD_ENV: str = Field(default="development", validation_alias=AliasChoices("BUD_ENV", "APP_ENV"))
+
+    # Environment (override in CI)
+    BUD_DOTENV_DISABLED: bool = Field(default=False)
+
+    # Run legacy startup migrations (prefer Alembic in production)
+    RUN_STARTUP_DATA_REPAIR: bool | None = Field(
+        default=None,
+        validation_alias=AliasChoices("BUD_RUN_STARTUP_DATA_REPAIR", "RUN_STARTUP_DATA_REPAIR"),
+    )
+
+    # Explicit startup admin bootstrap; defaults on in development, off in production.
+    AUTO_SEED_ADMIN: bool | None = Field(
+        default=None,
+        validation_alias=AliasChoices("BUD_AUTO_SEED_ADMIN", "AUTO_SEED_ADMIN"),
+    )
+
+    # Security
+    # C1: SECRET_KEY must be set explicitly — no insecure fallback in production
+    SECRET_KEY: str = Field(
+        default="", validation_alias=AliasChoices("BUD_SECRET_KEY", "SECRET_KEY")
+    )
+    # Short-lived access token: kept small because a rotating refresh-token
+    # cookie (below) silently renews it. A leaked access token is now valid for
+    # minutes, not a week.
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(
+        default=30,
+        validation_alias=AliasChoices(
+            "BUD_ACCESS_TOKEN_EXPIRE_MINUTES", "ACCESS_TOKEN_EXPIRE_MINUTES"
+        ),
+    )
+    # Refresh token lifetime (delivered as an httpOnly cookie, rotated on every
+    # use, revocable via the user_tokens table).
+    REFRESH_TOKEN_EXPIRE_DAYS: int = Field(
+        default=30,
+        validation_alias=AliasChoices("BUD_REFRESH_TOKEN_EXPIRE_DAYS", "REFRESH_TOKEN_EXPIRE_DAYS"),
+    )
+    # Set the Secure flag on the refresh cookie. None -> on in production, off
+    # elsewhere so local HTTP dev still receives the cookie.
+    AUTH_COOKIE_SECURE: bool | None = Field(
+        default=None,
+        validation_alias=AliasChoices("BUD_AUTH_COOKIE_SECURE", "AUTH_COOKIE_SECURE"),
+    )
+    BUD_APP_NAME: str = "Bud TMP"
+    BUD_APP_VERSION: str = "1.0.0"
+
+    APP_BASE_URL: str = Field(
+        default="http://localhost:8001",
+        validation_alias=AliasChoices("BUD_APP_BASE_URL", "APP_BASE_URL"),
+    )
+    FRONTEND_BASE_URL: str = Field(
+        default="http://localhost:8001",
+        validation_alias=AliasChoices("BUD_FRONTEND_BASE_URL", "FRONTEND_BASE_URL"),
+    )
+
+    # H1: Runner JWT lifetime at registration (default 90 days). Expired runner JWTs
+    # remain usable for heartbeat/results while last_heartbeat is within RUNNER_HEARTBEAT_TIMEOUT.
+    RUNNER_TOKEN_EXPIRE_HOURS: int = Field(
+        default=2160,
+        validation_alias=AliasChoices("BUD_RUNNER_TOKEN_EXPIRE_HOURS", "RUNNER_TOKEN_EXPIRE_HOURS"),
+    )
+
+    # CORS
+    # M1: Restrict CORS to explicit origins only (no wildcard)
+    CORS_ORIGINS: List[str] = Field(
+        default=[
+            "http://localhost:3000",
+            "http://localhost:5173",
+            "http://localhost:8001",
+        ],
+        validation_alias=AliasChoices("BUD_CORS_ORIGINS", "CORS_ORIGINS"),
+    )
+
+    # File uploads
+    UPLOAD_DIR: str = Field(
+        default="./uploads", validation_alias=AliasChoices("BUD_UPLOAD_DIR", "UPLOAD_DIR")
+    )
+    MAX_UPLOAD_SIZE: int = Field(
+        default=25 * 1024 * 1024,
+        ge=1,
+        validation_alias=AliasChoices(
+            "BUD_MAX_UPLOAD_SIZE_BYTES",
+            "MAX_UPLOAD_SIZE_BYTES",
+            "BUD_MAX_UPLOAD_SIZE",
+            "MAX_UPLOAD_SIZE",
+        ),
+    )
+    MAX_UPLOAD_SIZE_HARD_LIMIT_BYTES: int = 100 * 1024 * 1024
+    MAX_RUN_UPLOAD_BYTES: int = Field(
+        default=250 * 1024 * 1024,
+        ge=1,
+        validation_alias=AliasChoices("BUD_MAX_RUN_UPLOAD_BYTES", "MAX_RUN_UPLOAD_BYTES"),
+    )
+    MIN_UPLOAD_FREE_BYTES: int = Field(
+        default=1024 * 1024 * 1024,
+        ge=0,
+        validation_alias=AliasChoices("BUD_MIN_UPLOAD_FREE_BYTES", "MIN_UPLOAD_FREE_BYTES"),
+    )
+    UPLOADS_PER_15_MINUTES: int = Field(
+        default=10,
+        ge=1,
+        validation_alias=AliasChoices("BUD_UPLOADS_PER_15_MINUTES", "UPLOADS_PER_15_MINUTES"),
+    )
+    MAX_CONCURRENT_UPLOADS_PER_PRINCIPAL: int = Field(
+        default=1,
+        ge=1,
+        le=1,
+        validation_alias=AliasChoices(
+            "BUD_MAX_CONCURRENT_UPLOADS_PER_PRINCIPAL",
+            "MAX_CONCURRENT_UPLOADS_PER_PRINCIPAL",
+        ),
+    )
+    ARTIFACT_RETENTION_DAYS: int = Field(
+        default=30,
+        ge=1,
+        validation_alias=AliasChoices("BUD_ARTIFACT_RETENTION_DAYS", "ARTIFACT_RETENTION_DAYS"),
+    )
+    UPLOAD_STREAM_CHUNK_BYTES: int = Field(
+        default=1024 * 1024,
+        ge=64 * 1024,
+        le=4 * 1024 * 1024,
+        validation_alias=AliasChoices("BUD_UPLOAD_STREAM_CHUNK_BYTES", "UPLOAD_STREAM_CHUNK_BYTES"),
+    )
+
+    # H4: Allowlist of accepted MIME types for uploads.
+    #
+    # These are what a test run produces. The list is grouped by the kind of
+    # evidence rather than alphabetically, because the question it answers is
+    # "can the runner send me this", and the answer has to be readable.
+    #
+    # Nothing here is rendered inline: artifacts download through
+    # `Content-Disposition: attachment` with their stored type, so an entry is
+    # a decision about storage, not about execution in a browser.
+    ALLOWED_UPLOAD_MIME_TYPES: List[str] = [
+        # Reports and structured output
+        "application/json",
+        "text/plain",
+        "text/xml",
+        "application/xml",
+        "text/csv",
+        # Screenshots and plots. SVG is text, and a browser would run script
+        # inside one if it were ever served inline - it is not, and the
+        # download header is what keeps that true.
+        "image/png",
+        "image/jpeg",
+        "image/gif",
+        "image/webp",
+        "image/svg+xml",
+        "application/pdf",
+        # Packet captures, from performance and network runs. Clients disagree
+        # about the name, so all three spellings are accepted.
+        "application/vnd.tcpdump.pcap",
+        "application/x-pcapng",
+        "application/cap",
+        # Archives, and the catch-all a client falls back to for a binary
+        # trace whose type it cannot name.
+        "application/zip",
+        "application/x-zip-compressed",
+        "application/gzip",
+        "application/x-tar",
+        "application/octet-stream",
+    ]
+
+    # C2: Shared API key for runner-registration mutations (must be set in production)
+    RUNNER_API_KEY: str = Field(
+        default="", validation_alias=AliasChoices("BUD_RUNNER_API_KEY", "RUNNER_API_KEY")
+    )
+
+    # Default admin user (seeded on first startup)
+    ADMIN_EMAIL: str = Field(
+        default="admin@example.com",
+        validation_alias=AliasChoices("BUD_ADMIN_EMAIL", "ADMIN_EMAIL"),
+    )
+    ADMIN_PASSWORD: str = Field(
+        default="changeme123", validation_alias=AliasChoices("BUD_ADMIN_PASSWORD", "ADMIN_PASSWORD")
+    )
+    ADMIN_FULL_NAME: str = Field(
+        default="Admin", validation_alias=AliasChoices("BUD_ADMIN_FULL_NAME", "ADMIN_FULL_NAME")
+    )
+
+    # Runner settings
+    RUNNER_HEARTBEAT_TIMEOUT: int = Field(
+        default=120,
+        validation_alias=AliasChoices("BUD_RUNNER_HEARTBEAT_TIMEOUT", "RUNNER_HEARTBEAT_TIMEOUT"),
+    )  # seconds
+
+    SMTP_ENABLED: bool = Field(
+        default=False, validation_alias=AliasChoices("BUD_SMTP_ENABLED", "SMTP_ENABLED")
+    )
+    SMTP_HOST: str = Field(default="", validation_alias=AliasChoices("BUD_SMTP_HOST", "SMTP_HOST"))
+    SMTP_PORT: int = Field(default=587, validation_alias=AliasChoices("BUD_SMTP_PORT", "SMTP_PORT"))
+    SMTP_USERNAME: str = Field(
+        default="", validation_alias=AliasChoices("BUD_SMTP_USERNAME", "SMTP_USERNAME")
+    )
+    SMTP_PASSWORD: str = Field(
+        default="", validation_alias=AliasChoices("BUD_SMTP_PASSWORD", "SMTP_PASSWORD")
+    )
+    SMTP_FROM_EMAIL: Optional[EmailStr] = Field(
+        default=None, validation_alias=AliasChoices("BUD_SMTP_FROM_EMAIL", "SMTP_FROM_EMAIL")
+    )
+    SMTP_REPLY_TO: Optional[EmailStr] = Field(
+        default=None, validation_alias=AliasChoices("BUD_SMTP_REPLY_TO", "SMTP_REPLY_TO")
+    )
+    SMTP_STARTTLS: bool = Field(
+        default=True, validation_alias=AliasChoices("BUD_SMTP_STARTTLS", "SMTP_STARTTLS")
+    )
+    SMTP_SSL: bool = Field(default=False, validation_alias=AliasChoices("BUD_SMTP_SSL", "SMTP_SSL"))
+    SMTP_TIMEOUT_SECONDS: int = Field(
+        default=30,
+        validation_alias=AliasChoices("BUD_SMTP_TIMEOUT_SECONDS", "SMTP_TIMEOUT_SECONDS"),
+    )
+
+    INVITE_TOKEN_TTL_HOURS: int = Field(
+        default=72,
+        validation_alias=AliasChoices("BUD_INVITE_TOKEN_TTL_HOURS", "INVITE_TOKEN_TTL_HOURS"),
+    )
+    EMAIL_VERIFICATION_TOKEN_TTL_HOURS: int = Field(
+        default=24,
+        validation_alias=AliasChoices(
+            "BUD_EMAIL_VERIFICATION_TOKEN_TTL_HOURS", "EMAIL_VERIFICATION_TOKEN_TTL_HOURS"
+        ),
+    )
+    PASSWORD_RESET_TOKEN_TTL_HOURS: int = Field(
+        default=2,
+        validation_alias=AliasChoices(
+            "BUD_PASSWORD_RESET_TOKEN_TTL_HOURS", "PASSWORD_RESET_TOKEN_TTL_HOURS"
+        ),
+    )
+
+    # Observability
+    LOG_LEVEL: str = Field(
+        default="INFO", validation_alias=AliasChoices("BUD_LOG_LEVEL", "LOG_LEVEL")
+    )
+    # None -> JSON logs in production, human-readable text elsewhere
+    LOG_JSON: bool | None = Field(
+        default=None, validation_alias=AliasChoices("BUD_LOG_JSON", "LOG_JSON")
+    )
+    ENABLE_METRICS: bool = Field(
+        default=True, validation_alias=AliasChoices("BUD_ENABLE_METRICS", "ENABLE_METRICS")
+    )
+
+    # L1: Disable API docs in production (set ENABLE_DOCS=true to enable locally)
+    ENABLE_DOCS: bool = Field(
+        default=False, validation_alias=AliasChoices("BUD_ENABLE_DOCS", "ENABLE_DOCS")
+    )
+
+    # Bloom Sync
+    INTEGRATION_ENCRYPTION_KEY: str = Field(
+        default="",
+        validation_alias=AliasChoices(
+            "BUD_INTEGRATION_ENCRYPTION_KEY", "INTEGRATION_ENCRYPTION_KEY"
+        ),
+    )
+
+    @model_validator(mode="after")
+    def populate_database_url(self):
+        if not self.DATABASE_URL:
+            # About to build the connection URL from DB_* parts, so those parts
+            # must be safe. When a complete DATABASE_URL is supplied instead (the
+            # docker-compose path), DB_PASSWORD is unused and is not checked here.
+            if self.BUD_ENV.lower() == "production" and self.DB_PASSWORD in ("", "bud"):
+                raise ValueError(
+                    "DB_PASSWORD must be set to a strong, non-default value in "
+                    "production (or provide a complete DATABASE_URL)."
+                )
+            self.DATABASE_URL = (
+                f"postgresql://{self.DB_USER}:{self.DB_PASSWORD}"
+                f"@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
+            )
+        return self
+
+    @model_validator(mode="after")
+    def default_auto_seed_admin(self):
+        if self.RUN_STARTUP_DATA_REPAIR is None:
+            self.RUN_STARTUP_DATA_REPAIR = self.BUD_ENV.lower() != "production"
+        if self.AUTO_SEED_ADMIN is None:
+            self.AUTO_SEED_ADMIN = self.BUD_ENV.lower() != "production"
+        if self.LOG_JSON is None:
+            self.LOG_JSON = self.BUD_ENV.lower() == "production"
+        if self.AUTH_COOKIE_SECURE is None:
+            self.AUTH_COOKIE_SECURE = self.BUD_ENV.lower() == "production"
+        return self
+
+    @model_validator(mode="after")
+    def validate_upload_limits(self):
+        if self.MAX_UPLOAD_SIZE > self.MAX_UPLOAD_SIZE_HARD_LIMIT_BYTES:
+            raise ValueError("MAX_UPLOAD_SIZE_BYTES must not exceed the 100 MiB hard limit.")
+        if self.MAX_RUN_UPLOAD_BYTES < self.MAX_UPLOAD_SIZE:
+            raise ValueError("MAX_RUN_UPLOAD_BYTES must be at least MAX_UPLOAD_SIZE_BYTES.")
+        return self
+
+    @model_validator(mode="after")
+    def reject_unsafe_admin_defaults_in_production(self):
+        if self.BUD_ENV.lower() != "production":
+            return self
+
+        if self.ADMIN_EMAIL == "admin@example.com":
+            raise ValueError("ADMIN_EMAIL must be changed before production startup.")
+        if self.ADMIN_PASSWORD == "changeme123":
+            raise ValueError("ADMIN_PASSWORD must be changed before production startup.")
+        if len(self.ADMIN_PASSWORD) < 16:
+            raise ValueError("ADMIN_PASSWORD must be at least 16 characters long in production.")
+        return self
+
+    @model_validator(mode="after")
+    def reject_unsafe_secrets_in_production(self):
+        """Fail closed: never boot production with .env.example placeholders or a
+        weak runner-registration key still in place. Development and CI, which run
+        with BUD_ENV=development, are unaffected."""
+        if self.BUD_ENV.lower() != "production":
+            return self
+
+        placeholder_prefix = "replace-with-"
+        for name in ("SECRET_KEY", "ADMIN_PASSWORD", "RUNNER_API_KEY", "DB_PASSWORD"):
+            if getattr(self, name).startswith(placeholder_prefix):
+                raise ValueError(
+                    f"{name} still uses the '{placeholder_prefix}...' placeholder from "
+                    ".env.example; set a real value before production startup."
+                )
+
+        if len(self.RUNNER_API_KEY) < 32:
+            raise ValueError(
+                "RUNNER_API_KEY must be set to a strong value of at least 32 characters "
+                "in production (it authenticates runner registration)."
+            )
+        return self
+
+    @field_validator("SECRET_KEY")
+    @classmethod
+    def secret_key_must_be_set(cls, v: str) -> str:
+        """C1: Reject startup if SECRET_KEY is missing or is the insecure placeholder."""
+        insecure_placeholders = {
+            "",
+            "your-secret-key-change-in-production",
+            "change-me-in-production",
+            "secret",
+        }
+        if v in insecure_placeholders:
+            raise ValueError(
+                "SECRET_KEY must be set to a strong random value. "
+                'Generate one with: python -c "import secrets; print(secrets.token_hex(32))"'
+            )
+        if len(v) < 32:
+            raise ValueError("SECRET_KEY must be at least 32 characters long.")
+        return v
+
+
+@lru_cache()
+def get_settings() -> Settings:
+    """Get cached settings instance."""
+    return Settings()
+
+
+settings = get_settings()

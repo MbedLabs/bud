@@ -1,0 +1,252 @@
+"""
+Database models for the bud TMP.
+"""
+
+from datetime import datetime
+from typing import List, Optional
+
+from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.db.database import Base
+
+
+class Product(Base):
+    """Product/project being tested."""
+
+    __tablename__ = "products"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(255), unique=True)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+    )
+
+    # Relationships
+    test_runs: Mapped[List["TestRun"]] = relationship(back_populates="product")
+    results: Mapped[List["TestResult"]] = relationship(
+        "TestResult", backref="product_ref"
+    )  # backref to avoid collision with existing attributes
+
+
+class Runner(Base):
+    """Test runner (test bench) registration."""
+
+    __tablename__ = "runners"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    account: Mapped[str] = mapped_column(String(100), unique=True)
+    password_hash: Mapped[str] = mapped_column(String(255))
+    token: Mapped[str] = mapped_column(String(500))
+    socket_port: Mapped[int] = mapped_column(Integer, default=53035)
+    location: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    last_heartbeat: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    test_runs: Mapped[List["TestRun"]] = relationship(back_populates="runner")
+
+
+class TestRun(Base):
+    """A test run execution."""
+
+    __tablename__ = "test_runs"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(255))
+    test_case_list: Mapped[str] = mapped_column(String(500))
+    status: Mapped[str] = mapped_column(String(50), default="Pending")
+
+    # Test software repository
+    url_test_software: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    ref_test_software: Mapped[str] = mapped_column(String(100), default="main")
+
+    # Software under test repository
+    url_software_under_test: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    ref_software_under_test: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+
+    # Statistics
+    total_tests: Mapped[int] = mapped_column(Integer, default=0)
+    passed_tests: Mapped[int] = mapped_column(Integer, default=0)
+    failed_tests: Mapped[int] = mapped_column(Integer, default=0)
+    skipped_tests: Mapped[int] = mapped_column(Integer, default=0)
+    duration_seconds: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    started_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
+    # A client-generated idempotency key binds retries to one queue claim.
+    # Completion is acknowledged separately so a station cannot silently move
+    # on while Bud still believes the execution is Running.
+    claim_id: Mapped[Optional[str]] = mapped_column(
+        String(36), unique=True, index=True, nullable=True
+    )
+    claim_acknowledged_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    runner_exit_code: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    runner_error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # The explicit test cases a custom run was built from, as importable
+    # `module.Class` paths. NULL for an ordinary run, whose `test_case_list` is
+    # a module path to a pre-declared list the runner resolves itself. A custom
+    # run is a selection made in Bud, so the selection has to travel with it.
+    selected_tests: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
+
+    # Foreign keys
+    product_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("products.id"), index=True, nullable=True
+    )
+    runner_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("runners.id"), index=True, nullable=True
+    )
+
+    # Relationships
+    product: Mapped[Optional["Product"]] = relationship(back_populates="test_runs")
+    runner: Mapped[Optional["Runner"]] = relationship(back_populates="test_runs")
+    results: Mapped[List["TestResult"]] = relationship(
+        back_populates="test_run", cascade="all, delete-orphan"
+    )
+    artifacts: Mapped[List["Artifact"]] = relationship(
+        back_populates="test_run", cascade="all, delete-orphan"
+    )
+    events: Mapped[List["TestRunEvent"]] = relationship(
+        back_populates="test_run", cascade="all, delete-orphan"
+    )
+
+
+class TestRunEvent(Base):
+    """System-visible execution and integration event for a test run."""
+
+    __tablename__ = "test_run_events"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    test_run_id: Mapped[int] = mapped_column(ForeignKey("test_runs.id"), index=True, nullable=False)
+    sequence: Mapped[int] = mapped_column(Integer, default=0)
+    stage: Mapped[str] = mapped_column(String(100))
+    status: Mapped[str] = mapped_column(String(50), default="completed")
+    title: Mapped[str] = mapped_column(String(255))
+    message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    event_metadata: Mapped[Optional[dict]] = mapped_column("event_metadata", JSON, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    test_run: Mapped["TestRun"] = relationship(back_populates="events")
+
+
+class TestResult(Base):
+    """Result of a single test case execution."""
+
+    __tablename__ = "test_results"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    test_class: Mapped[str] = mapped_column(String(255))
+    test_method: Mapped[str] = mapped_column(String(255))
+    passed: Mapped[bool] = mapped_column(Boolean)
+    duration_seconds: Mapped[float] = mapped_column(Float, default=0.0)
+    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    traceback: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    assertions: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    test_metadata: Mapped[Optional[dict]] = mapped_column("test_metadata", JSON, nullable=True)
+
+    # OpenProject integration
+    work_package_id: Mapped[Optional[int]] = mapped_column(Integer, index=True, nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    # Foreign keys (optional: detached uploads before a TestRun exists)
+    test_run_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("test_runs.id"), index=True, nullable=True
+    )
+    product_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("products.id"), index=True, nullable=True
+    )
+
+    # Relationships
+    test_run: Mapped[Optional["TestRun"]] = relationship(back_populates="results")
+
+
+class Artifact(Base):
+    """Uploaded artifacts (traces, logs, etc.)."""
+
+    __tablename__ = "artifacts"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    filename: Mapped[str] = mapped_column(String(255))
+    original_filename: Mapped[str] = mapped_column(String(255))
+    content_type: Mapped[str] = mapped_column(String(100))
+    size_bytes: Mapped[int] = mapped_column(Integer)
+    storage_path: Mapped[str] = mapped_column(String(500))
+    sha256: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+
+    test_case: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+
+    # Foreign key
+    test_run_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("test_runs.id"), nullable=True, index=True
+    )
+
+    # Relationships
+    test_run: Mapped[Optional["TestRun"]] = relationship(back_populates="artifacts")
+
+
+class UploadLease(Base):
+    """Persistent reservation used to serialize upload concurrency and quota."""
+
+    __tablename__ = "upload_leases"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    principal_key: Mapped[str] = mapped_column(String(128), unique=True, index=True)
+    test_run_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("test_runs.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    reserved_bytes: Mapped[int] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    expires_at: Mapped[datetime] = mapped_column(DateTime, index=True)
+
+
+class UploadAttempt(Base):
+    """Database-backed rolling upload-start rate-limit record."""
+
+    __tablename__ = "upload_attempts"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    principal_key: Mapped[str] = mapped_column(String(128), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+
+
+class SystemSetting(Base):
+    """General system settings (integrations, keys, etc.)."""
+
+    __tablename__ = "system_settings"
+
+    key: Mapped[str] = mapped_column(String(100), primary_key=True)
+    value: Mapped[str] = mapped_column(Text)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+    )
+
+
+class TestStation(Base):
+    """Test station (bench) registration."""
+
+    __tablename__ = "teststations"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    account: Mapped[str] = mapped_column(String(100), unique=True)
+    password_hash: Mapped[str] = mapped_column(String(255))
+    token: Mapped[str] = mapped_column(String(500))
+    socket_port: Mapped[int] = mapped_column(Integer, default=53035)
+    location: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    last_heartbeat: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
