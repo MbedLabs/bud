@@ -1,0 +1,431 @@
+name: Bud Product CI
+
+on:
+  push:
+    branches: [main, dev]
+    tags: ['v*']
+  pull_request:
+    branches: [main, dev]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: test_bud
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: ui/package-lock.json
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]" -c constraints.txt
+          pip install black==25.1.0 isort==5.13.2 bandit==1.8.3 pip-audit
+
+      - name: Install UI dependencies
+        run: npm --prefix ui ci
+
+      - name: Audit UI dependencies
+        run: npm --prefix ui run audit
+
+      - name: Check backend formatting with Black
+        run: black --check --diff app/
+
+      - name: Check backend imports with isort
+        run: isort --profile black --check-only --diff app/
+
+      - name: Run backend security scans
+        run: |
+          bandit -r app/ -ll
+          # Blocking: a vulnerable *pinned* dependency fails CI. We audit the
+          # locked closure (constraints.txt), not the ambient runner tooling.
+          # Reviewed ignore: PYSEC-2026-1325 is an ecdsa timing side-channel with
+          # no fix release, pulled in transitively by python-jose. Bud signs JWTs
+          # with HS256 (symmetric), so the affected ES* code path is never used.
+          pip-audit -r constraints.txt --ignore-vuln PYSEC-2026-1325
+
+      # The documented fresh-install path: alembic alone must build the full
+      # schema on a truly EMPTY database, from explicit DDL. No create_all
+      # pre-step — that used to mask exactly this path.
+      - name: Alembic upgrade on an empty database
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_bud
+          PYTHONPATH: ${{ github.workspace }}
+          SECRET_KEY: test-secret-key-for-ci-at-least-32-characters-long
+        run: |
+          alembic upgrade head
+          alembic current
+          alembic current | grep -q "(head)" || { echo "database is not at alembic head" >&2; exit 1; }
+
+      # A fresh install only proves the newest revision can build a schema from
+      # nothing. A deployed database instead runs that revision's downgrade/upgrade
+      # DDL against existing objects, so exercise that path too.
+      - name: Alembic downgrade and re-upgrade (deployed-database path)
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_bud
+          PYTHONPATH: ${{ github.workspace }}
+          SECRET_KEY: test-secret-key-for-ci-at-least-32-characters-long
+        run: |
+          alembic downgrade -1
+          alembic upgrade head
+          alembic current | grep -q "(head)" || { echo "database is not at alembic head" >&2; exit 1; }
+
+      - name: Run backend tests
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_bud
+          PYTHONPATH: ${{ github.workspace }}
+          SECRET_KEY: test-secret-key-for-ci-at-least-32-characters-long
+          RUNNER_API_KEY: test-runner-api-key
+          ENABLE_DOCS: "false"
+        run: |
+          pytest --cov=app --cov-report=xml --cov-report=term-missing --cov-fail-under=85 -v
+
+      # Real-auth integration layer: runs against the alembic-built PostgreSQL
+      # schema with NO dependency overrides — real login, real JWT, real DB I/O.
+      # Also proves the empty-DB alembic schema fully serves the application
+      # (RUN_STARTUP_DATA_REPAIR=false, so the app never falls back to create_all).
+      - name: Postgres integration tests (real auth)
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_bud
+          PYTHONPATH: ${{ github.workspace }}
+          SECRET_KEY: test-secret-key-for-ci-at-least-32-characters-long
+          RUNNER_API_KEY: test-runner-api-key
+          BUD_DOTENV_DISABLED: "1"
+          RUN_STARTUP_DATA_REPAIR: "false"
+          AUTO_SEED_ADMIN: "true"
+          ADMIN_EMAIL: ci-admin@example.com
+          ADMIN_PASSWORD: ci-admin-password-123
+          ADMIN_FULL_NAME: CI Admin
+          ENABLE_DOCS: "false"
+        run: |
+          pytest tests_pg/ -v
+
+      # These run against a real database that keeps its rows between
+      # invocations, so they must survive being run twice. CI alone would never
+      # catch a test that hardcodes a unique value - it gets a new service
+      # container every time - but a developer running them locally hits "Email
+      # already registered" on the second run and has to drop the database to
+      # work. This step is the only thing that keeps that honest.
+      - name: Postgres integration tests again on the same database (re-runnable)
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_bud
+          PYTHONPATH: ${{ github.workspace }}
+          SECRET_KEY: test-secret-key-for-ci-at-least-32-characters-long
+          RUNNER_API_KEY: test-runner-api-key
+          BUD_DOTENV_DISABLED: "1"
+          RUN_STARTUP_DATA_REPAIR: "false"
+          AUTO_SEED_ADMIN: "true"
+          ADMIN_EMAIL: ci-admin@example.com
+          ADMIN_PASSWORD: ci-admin-password-123
+          ADMIN_FULL_NAME: CI Admin
+          ENABLE_DOCS: "false"
+        run: |
+          pytest tests_pg/ -q
+
+      - name: Run UI checks
+        run: |
+          npm --prefix ui run lint
+          npx --prefix ui tsc --project ui/tsconfig.json --noEmit
+          npm --prefix ui run test -- --coverage
+
+  build-image:
+    if: github.event_name == 'push'
+    name: Build Product Image
+    runs-on: ubuntu-latest
+    needs: validate
+
+    permissions:
+      contents: read
+      packages: write
+
+    outputs:
+      image: ${{ steps.sha-image.outputs.image }}
+      aliases: ${{ steps.aliases.outputs.list }}
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Validate release tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        id: release
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          if ! printf '%s\n' "$RELEASE_TAG" | grep -Eq '^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-((0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(\.(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*))?(\+([0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*))?$'; then
+            echo "Invalid release tag: $RELEASE_TAG" >&2
+            echo "Expected vMAJOR.MINOR.PATCH with optional SemVer prerelease or build metadata." >&2
+            exit 1
+          fi
+
+          VERSION_WITHOUT_BUILD=${RELEASE_TAG%%+*}
+          if [[ "$VERSION_WITHOUT_BUILD" == *-* ]]; then
+            echo "stable=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "stable=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Version consistency gate
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          # The tag's MAJOR.MINOR.PATCH must match every source of truth for the
+          # version, so a release can never ship mismatched numbers.
+          base="${RELEASE_TAG#v}"; base="${base%%-*}"; base="${base%%+*}"
+          gate_fail() { echo "::error::version gate: $*"; exit 1; }
+          check() { [ "$2" = "$base" ] || gate_fail "$1 is '$2' but the tag is '$base'"; }
+          check "pyproject.toml version" \
+            "$(sed -nE 's/^version = "([^"]+)".*/\1/p' pyproject.toml | head -1)"
+          check "ui/package.json version" \
+            "$(sed -nE 's/.*"version": *"([^"]+)".*/\1/p' ui/package.json | head -1)"
+          check "app/__init__.py __version__" \
+            "$(sed -nE 's/^__version__ = "([^"]+)".*/\1/p' app/__init__.py | head -1)"
+          # BUD_APP_VERSION is what /api/version reports at runtime.
+          check "BUD_APP_VERSION (/api/version)" \
+            "$(sed -nE 's/.*BUD_APP_VERSION[^"]*"([^"]+)".*/\1/p' app/core/config.py | head -1)"
+          esc="${base//./\\.}"
+          grep -Eq "(^|[^0-9.])${esc}([^0-9]|\$)" CHANGELOG.md \
+            || gate_fail "CHANGELOG.md has no release entry for ${base}"
+          echo "Version consistency OK for ${base}"
+
+      - name: Verify the tagged commit is contained in main history
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          # A release tag must be cut from the reviewed release commit on main:
+          # nothing is ever built or promoted from a commit that never landed on
+          # main. The checkout is shallow, so fetch main's full history and prove
+          # the tagged commit is contained in it before anything else runs.
+          if [ -f "$(git rev-parse --git-dir)/shallow" ]; then
+            git fetch --no-tags --unshallow origin main
+          else
+            git fetch --no-tags origin main
+          fi
+          if git merge-base --is-ancestor "$GITHUB_SHA" FETCH_HEAD; then
+            echo "Tagged commit $GITHUB_SHA is contained in main history."
+          else
+            echo "::error::release tag ${GITHUB_REF_NAME} ($GITHUB_SHA) is not contained in main history" >&2
+            exit 1
+          fi
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@96fe6ef7f33517b61c61be40b68a1882f3264fb8 # v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository }}
+          flavor: latest=false
+          tags: |
+            type=ref,event=branch
+            type=ref,event=tag
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}},enable=${{ steps.release.outputs.stable == 'true' }}
+            type=semver,pattern={{major}},enable=${{ steps.release.outputs.stable == 'true' }}
+            type=sha,prefix=sha-
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=raw,value=stable,enable=${{ steps.release.outputs.stable == 'true' }}
+
+      - name: Extract the immutable sha-only tag
+        id: metasha
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository }}
+          flavor: latest=false
+          tags: type=sha,prefix=sha-
+
+      - name: Build and push the immutable sha image
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
+        with:
+          context: .
+          push: true
+          # Only the immutable sha-<commit> tag is pushed here. Moving aliases
+          # (branch/latest/stable/semver) are promoted to this same manifest by
+          # the promote-image job, and only after e2e-image passes.
+          tags: ${{ steps.metasha.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
+
+      - name: Resolve pushed image reference
+        id: sha-image
+        env:
+          SHA_TAGS: ${{ steps.metasha.outputs.tags }}
+        run: |
+          image="$(printf '%s\n' "$SHA_TAGS" | grep ':sha-' | head -n 1)"
+          if [ -z "$image" ]; then echo "no sha- tag in metadata output" >&2; exit 1; fi
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+          echo "Resolved sha image: $image"
+
+      - name: Compute moving alias tags
+        id: aliases
+        env:
+          ALL_TAGS: ${{ steps.meta.outputs.tags }}
+        run: |
+          # Every tag EXCEPT the immutable sha-<commit> one. These are the moving
+          # deploy aliases (branch / latest / stable / semver). They are NOT pushed
+          # by the build; the promote-image job attaches them to the tested manifest
+          # only after e2e-image passes, so a failing build never moves a deploy tag.
+          aliases="$(printf '%s\n' "$ALL_TAGS" | grep -v ':sha-' || true)"
+          {
+            echo "list<<ALIAS_EOF"
+            printf '%s\n' "$aliases"
+            echo "ALIAS_EOF"
+          } >> "$GITHUB_OUTPUT"
+          echo "Moving aliases to promote after e2e:"
+          printf '%s\n' "$aliases"
+
+      - name: Verify published image startup contract
+        env:
+          IMAGE: ${{ steps.sha-image.outputs.image }}
+        run: |
+          docker pull --platform linux/amd64 "$IMAGE"
+          docker run --rm --platform linux/amd64 --entrypoint /bin/sh "$IMAGE" -c '
+            set -eu
+            test "$(stat -c %a /usr/local/bin/start-product)" = "755"
+            test "$(stat -c %a /etc/supervisord.conf)" = "644"
+            test "$(stat -Lc %a /etc/nginx/sites-enabled/default)" = "644"
+            test -r /usr/local/bin/start-product
+            test -x /usr/local/bin/start-product
+            test -r /etc/supervisord.conf
+            test -r /etc/nginx/sites-enabled/default
+            /bin/sh -n /usr/local/bin/start-product
+            /usr/sbin/nginx -t
+            set +e
+            timeout 5 /bin/sh /usr/local/bin/start-product >/tmp/startup.log 2>&1
+            status=$?
+            set -e
+            cat /tmp/startup.log
+            test "$status" = "124"
+          '
+
+      - name: Generate SBOM (SPDX)
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0
+        with:
+          image: ${{ steps.sha-image.outputs.image }}
+          format: spdx-json
+          artifact-name: bud-sbom.spdx.json
+
+  e2e-image:
+    if: github.event_name == 'push'
+    name: End-to-end (published image)
+    runs-on: ubuntu-latest
+    needs: build-image
+
+    permissions:
+      contents: read
+      packages: read
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.11'
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull the published image
+        run: docker pull --platform linux/amd64 "${{ needs.build-image.outputs.image }}"
+
+      # Real end-to-end proof against the exact image that was just built and
+      # pushed: empty DB -> boot -> alembic upgrade head -> admin login ->
+      # DB-backed call -> >1 MB upload through nginx -> restart -> data persists.
+      - name: End-to-end smoke test
+        run: bash scripts/e2e_image_smoke.sh "${{ needs.build-image.outputs.image }}"
+
+  promote-image:
+    if: github.event_name == 'push'
+    name: Promote moving tags
+    runs-on: ubuntu-latest
+    needs: [build-image, e2e-image]
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # The build published ONLY the immutable sha-<commit> manifest, and
+      # e2e-image has now proven that exact manifest boots and serves. Point every
+      # moving alias (branch / latest / stable / semver) at it via a registry-side
+      # manifest copy (no rebuild, both platforms preserved). Until this job runs,
+      # the aliases still reference the previous image that passed e2e, so a broken
+      # build can never become what `latest`/`stable`/a branch tag resolves to.
+      - name: Promote the tested image to its moving aliases
+        env:
+          SHA_IMAGE: ${{ needs.build-image.outputs.image }}
+          ALIASES: ${{ needs.build-image.outputs.aliases }}
+        run: |
+          if [ -z "${ALIASES//[[:space:]]/}" ]; then
+            echo "No moving aliases for this ref; nothing to promote."
+            exit 0
+          fi
+          printf '%s\n' "$ALIASES" | while IFS= read -r alias; do
+            [ -n "$alias" ] || continue
+            echo "Promoting $alias -> $SHA_IMAGE"
+            docker buildx imagetools create --tag "$alias" "$SHA_IMAGE"
+          done

@@ -1,0 +1,12 @@
+Hello ${full_name},
+
+A request was made from your ${app_name} administrator account to change its login email from ${old_email} to ${new_email}.
+
+Authorize this change from your current email address:
+${confirm_link}
+
+Bud will send a separate verification link to ${new_email} only after you authorize this request. Your login email will not change until both links are used.
+
+If you did not request this change, do not use the link. Change your password immediately and contact your system owner.
+
+© 2026 EmbedLabs Team. All rights reserved.

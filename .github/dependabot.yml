@@ -1,0 +1,92 @@
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: "Europe/Berlin"
+    cooldown:
+      default-days: 7
+      semver-patch-days: 7
+      semver-minor-days: 14
+      semver-major-days: 30
+    open-pull-requests-limit: 2
+    groups:
+      python-minor-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+    ignore:
+      - dependency-name: "bcrypt"
+      - dependency-name: "pydantic-core"
+
+  - package-ecosystem: npm
+    directory: "/ui"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:15"
+      timezone: "Europe/Berlin"
+    cooldown:
+      default-days: 7
+      semver-patch-days: 7
+      semver-minor-days: 14
+      semver-major-days: 30
+    open-pull-requests-limit: 2
+    groups:
+      ui-production-minor-patch:
+        dependency-type: production
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+      ui-development-minor-patch:
+        dependency-type: development
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "eslint-plugin-react-refresh"
+        versions: [">=0.5.0"]
+      - dependency-name: "lucide-react"
+        versions: [">=0.304.0"]
+
+  - package-ecosystem: docker
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:30"
+      timezone: "Europe/Berlin"
+    cooldown:
+      default-days: 14
+    open-pull-requests-limit: 1
+    groups:
+      container-minor-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "python"
+        versions: [">=3.12"]
+      - dependency-name: "node"
+        versions: [">=21"]
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:45"
+      timezone: "Europe/Berlin"
+    cooldown:
+      default-days: 14
+    open-pull-requests-limit: 1
+    groups:
+      actions-minor-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
