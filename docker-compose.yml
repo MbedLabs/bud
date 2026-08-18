@@ -1,0 +1,55 @@
+services:
+  bud:
+    image: ghcr.io/mbedlabs/bud:${BUD_VERSION:-stable}
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@postgres:5432/${DB_NAME}
+      SECRET_KEY: ${SECRET_KEY}
+      RUNNER_API_KEY: ${RUNNER_API_KEY}
+      APP_BASE_URL: ${APP_BASE_URL}
+      FRONTEND_BASE_URL: ${FRONTEND_BASE_URL}
+      BUD_APP_URL: ${BUD_APP_URL}
+      BLOOM_APP_URL: ${BLOOM_APP_URL}
+      BUD_ENV: ${BUD_ENV}
+      RUN_STARTUP_DATA_REPAIR: ${RUN_STARTUP_DATA_REPAIR}
+      AUTO_SEED_ADMIN: ${AUTO_SEED_ADMIN}
+      ENABLE_DOCS: ${ENABLE_DOCS}
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      ADMIN_FULL_NAME: ${ADMIN_FULL_NAME}
+    # Migrations run to completion before the application serves traffic, so a
+    # deployment can never start against an unmigrated database.
+    command: ["/bin/sh", "-c", "alembic upgrade head && exec /usr/local/bin/start-product"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8001:8080"
+    healthcheck:
+      # Readiness: passes only once the app can reach PostgreSQL (SELECT 1).
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/api/ready"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    volumes:
+      - bud-uploads:/app/uploads
+
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - bud-postgres-data:/var/lib/postgresql/data
+
+volumes:
+  bud-postgres-data:
+  bud-uploads:

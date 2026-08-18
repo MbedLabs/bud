@@ -1,0 +1,106 @@
+"""
+Security utilities for authentication and authorization.
+"""
+
+import secrets
+from datetime import datetime, timedelta
+from typing import Optional
+
+from fastapi.security import OAuth2PasswordBearer
+from jose import JWTError, jwt
+from passlib.context import CryptContext
+
+from app.core.config import settings
+
+# OAuth2 scheme
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+
+# Password hashing
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+# JWT settings
+ALGORITHM = "HS256"
+
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """Verify a password against its hash."""
+    return pwd_context.verify(plain_password, hashed_password)
+
+
+def get_password_hash(password: str) -> str:
+    """Hash a password."""
+    return pwd_context.hash(password)
+
+
+def create_access_token(
+    data: dict,
+    expires_delta: Optional[timedelta] = None,
+) -> str:
+    """
+    Create a JWT access token.
+
+    Args:
+        data: Data to encode in the token.
+        expires_delta: Token expiration time.
+
+    Returns:
+        Encoded JWT token.
+    """
+    to_encode = data.copy()
+
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=ALGORITHM)
+
+    return encoded_jwt
+
+
+def decode_access_token(token: str) -> Optional[dict]:
+    """
+    Decode a JWT access token.
+
+    Args:
+        token: JWT token to decode.
+
+    Returns:
+        Decoded token data or None if invalid.
+    """
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[ALGORITHM])
+        return payload
+    except JWTError:
+        return None
+
+
+def generate_runner_token(runner_account: str) -> str:
+    """
+    Generate a revocable token for a runner.
+
+    Tokens expire after RUNNER_TOKEN_EXPIRE_HOURS (default 90 days). A continuously
+    heartbeating runner remains authenticated after the JWT expiry; a stale runner
+    must re-register before reconnecting.
+
+    Args:
+        runner_account: Runner account name.
+
+    Returns:
+        Runner token (JWT).
+    """
+    return create_access_token(
+        data={"sub": runner_account, "type": "runner", "jti": secrets.token_urlsafe(16)},
+        expires_delta=timedelta(hours=settings.RUNNER_TOKEN_EXPIRE_HOURS),
+    )
+
+
+def generate_teststation_token(account: str) -> str:
+    """
+    Generate a short-lived token for a test station.
+    """
+    return create_access_token(
+        data={"sub": account, "type": "teststation", "jti": secrets.token_urlsafe(16)},
+        expires_delta=timedelta(hours=settings.RUNNER_TOKEN_EXPIRE_HOURS),
+    )

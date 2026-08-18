@@ -1,0 +1,203 @@
+# EmbedLabs Source Available License 1.0
+
+Copyright (C) 2026 Mohamed Amine El Omari Alaoui, operating under the name EmbedLabs.
+All rights reserved except as expressly granted by this License.
+
+This License applies to Bud by EmbedLabs and the source code, object code,
+documentation, configuration, and other materials distributed with it
+(collectively, the "Software"). The Software is source-available. It is not
+licensed as Open Source under the Open Source Definition.
+
+## 1. Licensor
+
+"Licensor" means Mohamed Amine El Omari Alaoui, operating under the name
+EmbedLabs. Licensing questions may be sent to dev@embedlabs.net.
+
+## 2. Acceptance
+
+By downloading, copying, modifying, running, deploying, or otherwise using the
+Software, you accept this License. If you do not accept it, you may inspect the
+repository but must not exercise any rights reserved to the Licensor.
+
+## 3. Permitted use
+
+Subject to continued compliance with this License, the Licensor grants you a
+worldwide, non-exclusive, royalty-free, non-transferable, and non-sublicensable
+license to:
+
+1. inspect and evaluate the Software;
+2. copy, install, and run the Software for personal use, education, research,
+   testing, and evaluation;
+3. copy, install, run, and modify the Software for your own internal business
+   operations;
+4. allow your employees and contractors to use or modify the Software solely on
+   your behalf and under your direction for those permitted internal purposes;
+5. provide consulting, installation, integration, training, or support services
+   to another licensee for that licensee's permitted internal use, provided you
+   do not host, resell, sublicense, or distribute the Software as a product or
+   managed service; and
+6. create and publish source-code forks solely for non-commercial review,
+   collaboration, archival, security research, and contribution back to the
+   official project, provided all copyright, attribution, trademark, and license
+   notices remain intact and your changes are clearly identified.
+
+"Internal business operations" means use by you and your personnel to support
+your own organisation. It does not include making the Software or its functions
+available to customers or other third parties as a hosted, managed, embedded,
+white-labelled, or resold offering.
+
+## 4. Prohibited use without a separate commercial license
+
+Unless the Licensor gives you a separate written commercial license, you must
+not, directly or indirectly:
+
+1. sell, rent, lease, sublicense, or commercially distribute the Software or a
+   modified version;
+2. offer the Software or a modified version to third parties as software as a
+   service, platform as a service, managed hosting, application service,
+   outsourced operation, or any other hosted or remotely accessible service;
+3. include the Software or a material part of it in a product or service offered
+   to third parties where the Software provides a substantial part of that
+   product's or service's value;
+4. provide copies, container images, appliances, or modified distributions to a
+   customer except temporarily and solely as necessary to perform permitted
+   consulting for the customer's own licensed internal deployment;
+5. use the Software to create or operate a commercial offering that substitutes
+   for Bud by EmbedLabs;
+6. remove, hide, obscure, disable, or alter required copyright, license,
+   attribution, authorship, or source-availability notices;
+7. circumvent or disable technical measures intended to enforce licensing,
+   attribution, access control, or security; or
+8. use the EmbedLabs, Bud, or related names, logos, or marks in a way that
+   suggests endorsement, sponsorship, or official status without permission.
+
+A separate commercial license may grant some or all of these rights. Contact
+sales@embedlabs.de or dev@embedlabs.net.
+
+## 5. Required attribution
+
+Every deployed graphical user interface must preserve the exact textual notice
+"Powered by EmbedLabs" in a persistent, visible, and legible location in the
+standard application navigation or footer and on the sign-in interface. The
+notice must not be hidden, obscured, replaced, made misleading, or rendered
+illegible. It must link to https://www.embedlabs.net when the interface supports
+links.
+
+Modified versions must also provide an accessible Legal or About view that:
+
+1. identifies the Software as originally developed by EmbedLabs;
+2. states that the version has been modified and identifies the modifying party;
+3. includes this License or a working link to it; and
+4. preserves the applicable copyright notices.
+
+This required factual attribution does not grant permission to use EmbedLabs
+logos or to present a modified version as an official EmbedLabs release.
+
+## 6. Trademarks and branding
+
+The Software license does not grant any trademark rights. "EmbedLabs", "Bud",
+product logos, and related branding remain the property of their respective
+owners.
+
+You may use the names and logos included in an unmodified official distribution
+only to identify that official distribution. A materially modified public fork
+or distribution must use a distinct product name, must not use the official
+product logo without written permission, and must not imply that it is produced,
+certified, supported, or endorsed by EmbedLabs. It must still preserve the
+textual attribution required by Section 5.
+
+## 7. Contributions
+
+Contributions intentionally submitted to the official repository are governed
+by the Contributor License Agreement in `CLA.md`. Merely publishing a fork does
+not transfer ownership to the Licensor. A contribution will not be accepted
+unless its contributor has accepted the applicable CLA.
+
+## 8. Ownership
+
+The Software is licensed, not sold. The Licensor and other identified rights
+holders retain all rights not expressly granted by this License. No implied
+licenses are granted.
+
+Your original modifications remain yours, subject to the Licensor's rights in
+the underlying Software and any rights granted through the CLA if you submit
+them as a contribution.
+
+## 9. Patent license
+
+To the extent the Licensor owns patent claims necessarily infringed by your
+permitted use of the unmodified Software, the Licensor grants you a limited,
+worldwide, non-exclusive, royalty-free patent license solely for that permitted
+use. This patent license ends when your copyright license ends.
+
+If you initiate patent litigation alleging that the Software or a contribution
+to it infringes a patent, all patent rights granted to you under this License
+terminate immediately.
+
+## 10. Third-party components
+
+Third-party software included with or used by the Software remains subject to
+its own license terms. This License does not reduce rights granted under a
+third-party license and does not grant rights the Licensor does not possess.
+Applicable third-party notices must be preserved.
+
+## 11. Updates and separate agreements
+
+The Licensor may release future versions of the Software under this License, a
+later license, or different terms. A change to the license of a future release
+does not change the terms applicable to a copy you already received.
+
+A signed commercial, enterprise, evaluation, partner, or other written agreement
+with the Licensor controls over this License to the extent of a conflict.
+
+## 12. Termination and cure
+
+Your rights terminate automatically when you violate this License. If this is
+your first violation and you cure it completely within 30 days after receiving
+written notice, your rights are reinstated automatically once. A violation of
+Sections 4 or 5 involving deliberate commercial exploitation, removal of
+attribution, or misrepresentation of official status may be treated as material
+and incurable where permitted by law.
+
+After termination, you must stop using and distributing the Software and delete
+copies in your possession or control, except copies retained solely where the
+law requires archival retention.
+
+## 13. Disclaimer of warranty
+
+TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS" AND
+"AS AVAILABLE", WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+PURPOSE, TITLE, NON-INFRINGEMENT, SECURITY, OR ERROR-FREE OPERATION.
+
+Nothing in this License excludes warranties or liability that cannot legally be
+excluded, including mandatory rights applicable to consumers.
+
+## 14. Limitation of liability
+
+TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE LICENSOR WILL NOT BE LIABLE FOR ANY
+INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, EXEMPLARY, OR PUNITIVE DAMAGES,
+OR FOR LOSS OF DATA, PROFITS, REVENUE, BUSINESS, OR GOODWILL ARISING FROM THE
+SOFTWARE OR THIS LICENSE, EVEN IF ADVISED OF THE POSSIBILITY.
+
+Where liability cannot be excluded, it is limited to the minimum extent allowed
+by applicable law. These limitations do not apply to intent, gross negligence,
+injury to life, body, or health, fraudulent concealment, or other liability that
+cannot legally be limited.
+
+## 15. Governing law and jurisdiction
+
+This License is governed by the laws of the Federal Republic of Germany,
+excluding its conflict-of-law rules and the United Nations Convention on
+Contracts for the International Sale of Goods.
+
+Where legally permitted, the competent courts at the Licensor's place of
+business have exclusive jurisdiction. Mandatory consumer jurisdiction rules
+remain unaffected.
+
+## 16. Severability and entire license
+
+If a provision is unenforceable, it will be applied to the maximum extent
+permitted and the remaining provisions remain effective. This License and any
+applicable written commercial agreement form the entire agreement concerning
+the licensed rights in the Software.

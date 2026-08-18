@@ -1,0 +1,83 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bud-app-backend"
+version = "1.0.0"
+description = "Backend API for Bud Test Management Platform by EmbedLabs"
+readme = "README.md"
+license = {text = "LicenseRef-EmbedLabs-Source-Available-1.0"}
+authors = [
+    {name = "EmbedLabs", email = "dev@embedlabs.net"}
+]
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.24.0",
+    "pydantic>=2.5.0",
+    "pydantic-settings>=2.1.0",
+    "pydantic[email]>=2.5.0",
+    "sqlalchemy>=2.0.0",
+    "greenlet>=3.0.0",
+    "asyncpg>=0.29.0",
+    "python-jose[cryptography]>=3.3.0",
+    "cryptography>=50.0.0",
+    "passlib[bcrypt]>=1.7.4",
+    "bcrypt<4",
+    "python-multipart>=0.0.6",
+    "aiofiles>=23.2.0",
+    "httpx>=0.25.0",
+    "slowapi>=0.1.9",
+    "prometheus-client>=0.19.0",
+    "tenacity>=8.0.0",
+    "alembic>=1.18.0",
+    "reportlab>=4.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.0.0",
+    "aiosqlite>=0.19.0",
+    "black>=23.0.0",
+    # Parses generated PDFs so the report assertions are real, not skipped.
+    "pymupdf>=1.24.0",
+    "mypy>=1.0.0",
+]
+
+[project.urls]
+Homepage = "https://www.embedlabs.net"
+Repository = "https://github.com/MbedLabs/bud"
+License = "https://github.com/MbedLabs/bud/blob/main/LICENSE"
+Professional-Services = "https://www.embedlabs.de"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*"]
+
+[tool.black]
+line-length = 100
+target-version = ["py310", "py311", "py312"]
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+ignore_missing_imports = true
+
+[tool.coverage.run]
+# SQLAlchemy's async bridge runs endpoint bodies inside greenlets, and the
+# TestClient drives the ASGI app from a worker thread. Without both concurrency
+# modes coverage simply does not see that code: an endpoint could be exercised
+# by a passing HTTP test and still be reported as entirely unhit.
+concurrency = ["thread", "greenlet"]
+source = ["app"]
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-ra -q"
+testpaths = ["tests"]
+asyncio_mode = "auto"
+# Prefer this package when multiple editable installs expose an ``app`` package (e.g. Bloom).
+pythonpath = ["."]
