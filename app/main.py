@@ -25,6 +25,7 @@ from app.api import (
     results,
     runners,
     settings,
+    setup,
     test_runs,
     teststations,
     uploads,
@@ -219,6 +220,7 @@ app.include_router(uploads.router, prefix="/api/uploads", tags=["Uploads"])
 app.include_router(runners.router, prefix="/api/runners", tags=["Runners"])
 app.include_router(teststations.router, prefix="/api/teststations", tags=["TestStations"])
 app.include_router(settings.router, prefix="/api/settings", tags=["Settings"])
+app.include_router(setup.router, prefix="/api", tags=["Setup"])
 app.include_router(reports.router, prefix="/api/reports", tags=["Reports"])
 
 
