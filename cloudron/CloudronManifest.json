@@ -1,0 +1,36 @@
+{
+  "manifestVersion": 2,
+  "id": "net.embedlabs.bud",
+  "title": "Bud",
+  "tagline": "Hardware test management for embedded teams",
+  "version": "1.0.0",
+  "upstreamVersion": "1.0.0",
+  "icon": "file://logo.png",
+  "httpPort": 8080,
+  "healthCheckPath": "/api/ready",
+  "memoryLimit": 1073741824,
+  "addons": {
+    "postgresql": {},
+    "localstorage": {},
+    "sendmail": {
+      "optional": true
+    }
+  },
+  "description": "file://DESCRIPTION.md",
+  "changelog": "file://CHANGELOG",
+  "postInstallMessage": "file://POSTINSTALL.md",
+  "website": "https://embedlabs.net",
+  "documentationUrl": "https://github.com/MbedLabs/bud#readme",
+  "forumUrl": "https://github.com/MbedLabs/bud/discussions",
+  "packageUrl": "https://github.com/MbedLabs/bud",
+  "packagerName": "EmbedLabs",
+  "packagerUrl": "https://embedlabs.net",
+  "tags": [
+    "testing",
+    "hardware",
+    "embedded",
+    "engineering",
+    "project"
+  ],
+  "minBoxVersion": "9.1.0"
+}
