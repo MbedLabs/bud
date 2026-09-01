@@ -1,8 +1,8 @@
 {
   "manifestVersion": 2,
   "id": "net.embedlabs.bud",
-  "title": "Bud",
-  "tagline": "Hardware test management for embedded teams",
+  "title": "Bud TMP by EmbedLabs",
+  "tagline": "Automated software, hardware and system testing",
   "version": "1.0.0",
   "upstreamVersion": "1.0.0",
   "icon": "file://logo.png",
@@ -27,10 +27,10 @@
   "packagerUrl": "https://embedlabs.net",
   "tags": [
     "testing",
+    "automation",
+    "software",
     "hardware",
-    "embedded",
-    "engineering",
-    "project"
+    "systems"
   ],
   "minBoxVersion": "9.1.0"
 }
