@@ -84,9 +84,7 @@ def test_starttls_on_a_plaintext_port_reports_where_and_why(monkeypatch):
 
     class _NoStartTLS(_DummySMTP):
         def starttls(self):
-            raise smtplib.SMTPNotSupportedError(
-                "STARTTLS extension not supported by server."
-            )
+            raise smtplib.SMTPNotSupportedError("STARTTLS extension not supported by server.")
 
     _configure_smtp(monkeypatch, starttls=True, port=2525)
     monkeypatch.setattr(
@@ -94,9 +92,7 @@ def test_starttls_on_a_plaintext_port_reports_where_and_why(monkeypatch):
     )
 
     try:
-        mail_service.send_email(
-            to_email="someone@example.com", subject="s", text_body="t"
-        )
+        mail_service.send_email(to_email="someone@example.com", subject="s", text_body="t")
     except mail_service.MailDeliveryError as exc:
         message = str(exc)
     else:
