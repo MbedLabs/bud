@@ -16,6 +16,16 @@ class MailConfigurationError(Exception):
     pass
 
 
+class MailDeliveryError(MailConfigurationError):
+    """SMTP is configured, but the message could not be handed to the server.
+
+    Deliberately a subclass: every endpoint that sends mail already turns
+    MailConfigurationError into a 503 carrying the message, so a transport
+    failure now reaches the operator with a reason attached instead of
+    escaping as a bare 500 with an empty body.
+    """
+
+
 def render_template(template_name: str, context: dict[str, str]) -> str:
     template_path = TEMPLATE_DIR / template_name
     content = template_path.read_text(encoding="utf-8")
@@ -41,14 +51,26 @@ def send_email(
         message.add_alternative(html_body, subtype="html")
 
     smtp_class = smtplib.SMTP_SSL if settings.SMTP_SSL else smtplib.SMTP
-    with smtp_class(
-        settings.SMTP_HOST, settings.SMTP_PORT, timeout=settings.SMTP_TIMEOUT_SECONDS
-    ) as smtp:
-        if settings.SMTP_STARTTLS and not settings.SMTP_SSL:
-            smtp.starttls()
-        if settings.SMTP_USERNAME:
-            smtp.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
-        smtp.send_message(message)
+    try:
+        with smtp_class(
+            settings.SMTP_HOST, settings.SMTP_PORT, timeout=settings.SMTP_TIMEOUT_SECONDS
+        ) as smtp:
+            if settings.SMTP_STARTTLS and not settings.SMTP_SSL:
+                smtp.starttls()
+            if settings.SMTP_USERNAME:
+                smtp.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
+            smtp.send_message(message)
+    except (smtplib.SMTPException, OSError) as exc:
+        # Name the endpoint and the TLS mode: the failures seen in practice are
+        # a port/TLS mismatch or an unreachable relay, and neither is
+        # identifiable from the exception text alone.
+        detail = (
+            f"Could not send mail via {settings.SMTP_HOST}:{settings.SMTP_PORT} "
+            f"(STARTTLS={settings.SMTP_STARTTLS}, SSL={settings.SMTP_SSL}): "
+            f"{type(exc).__name__}: {exc}"
+        )
+        logger.error("Mail delivery failed: %s", detail)
+        raise MailDeliveryError(detail) from exc
 
     logger.info("Sent email '%s' to %s", subject, to_email)
 

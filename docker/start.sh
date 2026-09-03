@@ -41,12 +41,22 @@ if [ -n "${CLOUDRON_APP_ORIGIN:-}" ]; then
   if [ -n "${CLOUDRON_MAIL_SMTP_SERVER:-}" ]; then
     export SMTP_ENABLED=true
     export SMTP_HOST="$CLOUDRON_MAIL_SMTP_SERVER"
-    export SMTP_PORT="${CLOUDRON_MAIL_SMTP_PORT:?Cloudron SMTP port missing}"
     export SMTP_USERNAME="${CLOUDRON_MAIL_SMTP_USERNAME:-}"
     export SMTP_PASSWORD="${CLOUDRON_MAIL_SMTP_PASSWORD:-}"
     export SMTP_FROM_EMAIL="${CLOUDRON_MAIL_FROM:?Cloudron mail sender missing}"
-    export SMTP_STARTTLS=true
     export SMTP_SSL=false
+    # The port and the TLS mode have to agree. Cloudron's relay offers STARTTLS
+    # only on CLOUDRON_MAIL_STARTTLS_PORT (2587); CLOUDRON_MAIL_SMTP_PORT (2525)
+    # is plaintext and answers a STARTTLS command with "extension not supported",
+    # which surfaced as a 500 on every invite. Prefer the encrypted port and
+    # fall back to plaintext only when the platform does not offer one.
+    if [ -n "${CLOUDRON_MAIL_STARTTLS_PORT:-}" ]; then
+      export SMTP_PORT="$CLOUDRON_MAIL_STARTTLS_PORT"
+      export SMTP_STARTTLS=true
+    else
+      export SMTP_PORT="${CLOUDRON_MAIL_SMTP_PORT:?Cloudron SMTP port missing}"
+      export SMTP_STARTTLS=false
+    fi
   else
     export SMTP_ENABLED=false
   fi
