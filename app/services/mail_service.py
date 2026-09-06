@@ -163,3 +163,23 @@ def send_password_reset_email(*, to_email: str, full_name: str, reset_link: str)
         text_body=render_template("reset_password.txt", context),
         html_body=render_template("reset_password.html", context),
     )
+
+
+def send_admin_welcome_email(*, to_email: str, full_name: str, login_link: str) -> None:
+    """Confirm to the first administrator that their account exists.
+
+    Carries no credential. Anything revealed once during setup stays in the
+    browser: mail is not confidential, cannot be unsent, and is commonly
+    retained far longer than the secret should be.
+    """
+    context = {
+        "full_name": full_name,
+        "login_link": login_link,
+        "app_name": settings.BUD_APP_NAME,
+    }
+    send_email(
+        to_email=to_email,
+        subject=f"You are the administrator of {settings.BUD_APP_NAME}",
+        text_body=render_template("admin_welcome.txt", context),
+        html_body=render_template("admin_welcome.html", context),
+    )
