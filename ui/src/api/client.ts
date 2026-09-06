@@ -595,6 +595,12 @@ export interface SetupStatusResponse {
   setup_required: boolean
 }
 
+export interface SetupCompletedResponse {
+  message: string
+  /** Shown once, to the browser that completed setup. Never returned again. */
+  runner_api_key?: string | null
+}
+
 export const setupApi = {
   // Unauthenticated on purpose: this is what a brand new instance answers
   // before any account exists. It stops reporting true the moment one does.
@@ -606,8 +612,8 @@ export const setupApi = {
     email: string,
     password: string,
     fullName: string
-  ): Promise<{ message: string }> => {
-    const response = await api.post<{ message: string }>('/setup', {
+  ): Promise<SetupCompletedResponse> => {
+    const response = await api.post<SetupCompletedResponse>('/setup', {
       email,
       password,
       full_name: fullName,
