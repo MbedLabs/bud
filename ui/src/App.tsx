@@ -1,20 +1,27 @@
+import { lazy } from 'react'
 import { Routes, Route, Link } from 'react-router'
 import Layout from './components/Layout'
 import ProtectedRoute from './components/ProtectedRoute'
 import Login from './pages/Login'
-import Dashboard from './pages/Dashboard'
-import TestRuns from './pages/TestRuns'
-import CustomRun from './pages/CustomRun'
-import TestRunDetail from './pages/TestRunDetail'
-import TestStations from './pages/TestStations'
-import Users from './pages/Users'
-import Settings from './pages/Settings'
 import AcceptInvite from './pages/AcceptInvite'
 import VerifyEmail from './pages/VerifyEmail'
 import ForgotPassword from './pages/ForgotPassword'
 import ResetPassword from './pages/ResetPassword'
 import ConfirmEmailChange from './pages/ConfirmEmailChange'
 import Setup from './pages/Setup'
+
+/* v8 ignore start -- these thunks hold no logic, and React only invokes them
+   when a lazy route renders, which renderToString never does. Their one real
+   failure mode is a path that does not resolve, which
+   src/test/lazy-routes-resolve.test.ts checks for every entry below. */
+const CustomRun = lazy(() => import('./pages/CustomRun'))
+const Dashboard = lazy(() => import('./pages/Dashboard'))
+const Settings = lazy(() => import('./pages/Settings'))
+const TestRunDetail = lazy(() => import('./pages/TestRunDetail'))
+const TestRuns = lazy(() => import('./pages/TestRuns'))
+const TestStations = lazy(() => import('./pages/TestStations'))
+const Users = lazy(() => import('./pages/Users'))
+/* v8 ignore stop */
 
 function NotFound() {
   return (

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { Suspense } from 'react'
 import { Outlet, Link, useLocation, useNavigate } from 'react-router'
 import {
   LayoutDashboard, ListChecks, PlayCircle, Server, Settings, Sun, Moon,
@@ -274,7 +275,15 @@ export default function Layout() {
         </header>
 
         <main className="flex-1 min-h-0 p-6 bg-background overflow-auto themed-scrollbar">
-          <Outlet />
+          <Suspense
+            fallback={
+              <div className="flex items-center justify-center h-64">
+                <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              </div>
+            }
+          >
+            <Outlet />
+          </Suspense>
         </main>
         {sidebarCollapsed && (
           <footer className="flex shrink-0 justify-center bg-background px-6 pb-3 pt-2">

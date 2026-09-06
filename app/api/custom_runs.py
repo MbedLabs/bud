@@ -165,14 +165,26 @@ async def create_custom_run(
 
     await db.commit()
 
-    runs = []
-    for run in created:
-        loaded = (
-            await db.execute(
-                select(TestRun).options(selectinload(TestRun.runner)).where(TestRun.id == run.id)
+    # Reload every run just created in one statement. This was a query per run,
+    # so dispatching a plan across many stations cost a round trip each.
+    created_ids = [run.id for run in created]
+    loaded_by_id = {
+        loaded.id: loaded
+        for loaded in (
+            (
+                await db.execute(
+                    select(TestRun)
+                    .options(selectinload(TestRun.runner))
+                    .where(TestRun.id.in_(created_ids))
+                )
             )
-        ).scalar_one()
-        runs.append(TestRunResponse.from_orm_with_runner(loaded))
+            .scalars()
+            .all()
+        )
+    }
+    # Iterated over `created` rather than the query result so the response keeps
+    # the order the plan assigned.
+    runs = [TestRunResponse.from_orm_with_runner(loaded_by_id[run_id]) for run_id in created_ids]
 
     return CustomRunResponse(
         runs=runs,
