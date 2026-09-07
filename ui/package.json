@@ -1,7 +1,7 @@
 {
   "name": "bud-ui",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.0.1",
   "license": "SEE LICENSE IN ../LICENSE",
   "engines": {
     "node": ">=22.22.0"

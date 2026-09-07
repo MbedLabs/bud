@@ -164,10 +164,10 @@ echo "    ready = ${ready}"
 printf '%s' "$ready" | grep -q '"database":"connected"' \
   || fail "/api/ready did not confirm the database"
 
-log "/api/version must report the released version (1.0.0)"
+log "/api/version must report the released version (1.0.1)"
 version="$(curl -fsS "${BASE}/api/version" | json_field version)"
 echo "    /api/version = ${version}"
-[ "$version" = "1.0.0" ] || fail "/api/version reported '${version}', expected 1.0.0"
+[ "$version" = "1.0.1" ] || fail "/api/version reported '${version}', expected 1.0.1"
 
 log "Admin login"
 token="$(login_token)"

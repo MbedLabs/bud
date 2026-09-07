@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.0.1 - 2026-09-07
+
 ### Added
 
 - **Custom runs.** Pick test cases from what Bud already knows and queue them on the bench that can run them. `GET /api/test-catalog` lists every test case Bud has a record of, grouped by suite, with the Test Stations it has run on and how it last finished; `POST /api/test-runs/custom` queues the selection; `POST /api/runners/claim-run` hands a station its next queued run. The new Custom Run screen puts the three together.
