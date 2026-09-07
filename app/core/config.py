@@ -92,7 +92,7 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("BUD_AUTH_COOKIE_SECURE", "AUTH_COOKIE_SECURE"),
     )
     BUD_APP_NAME: str = "Bud TMP"
-    BUD_APP_VERSION: str = "1.0.0"
+    BUD_APP_VERSION: str = "1.0.1"
 
     APP_BASE_URL: str = Field(
         default="http://localhost:8001",
