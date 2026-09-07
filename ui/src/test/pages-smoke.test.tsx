@@ -156,7 +156,7 @@ describe('route smoke (Bud)', () => {
     expect(
       screen.getByRole('link', { name: 'Powered by EmbedLabs' }).closest('aside'),
     ).toBe(sidebar)
-    expect(screen.getByText('v1.0.0')).toBeInTheDocument()
+    expect(screen.getByText('v1.0.1')).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Collapse sidebar' }))
 
