@@ -35,7 +35,11 @@ def _load_workspace_dotenv_into_environ() -> None:
             os.environ[key] = val
 
 
-_load_workspace_dotenv_into_environ()
+# Tests do not inherit the operator's .env. It holds real SMTP, database and
+# admin credentials, and any suite that forgets to mock a mail path would send
+# with them. Opt in deliberately with BUD_TESTS_USE_DOTENV=1.
+if os.environ.get("BUD_TESTS_USE_DOTENV") == "1":
+    _load_workspace_dotenv_into_environ()
 if "SECRET_KEY" not in os.environ and os.environ.get("BUD_SECRET_KEY"):
     os.environ["SECRET_KEY"] = os.environ["BUD_SECRET_KEY"]
 
