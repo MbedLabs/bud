@@ -52,7 +52,6 @@ if args and args[0] == "run" and "--name" in args:
     app_run = next(
         call
         for call in calls
-        if call[:3] == ["run", "-d", "--name"]
-        and call[3].startswith("bud-e2e-app-")
+        if call[:3] == ["run", "-d", "--name"] and call[3].startswith("bud-e2e-app-")
     )
     assert "ADMIN_FULL_NAME=E2E Admin" in app_run
