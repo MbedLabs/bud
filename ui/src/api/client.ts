@@ -134,6 +134,12 @@ export function extractApiErrorMessage(error: unknown, fallback = 'Request faile
       return detail
     }
   }
+  if (axios.isAxiosError(error)) {
+    const reference = error.response?.headers?.['x-request-id']
+    if (typeof reference === 'string' && reference.trim() && reference !== '-') {
+      return `${fallback}. Quote reference ${reference} when reporting this.`
+    }
+  }
   if (error instanceof Error && error.message) {
     return error.message
   }
