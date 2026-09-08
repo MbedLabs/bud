@@ -17,13 +17,7 @@ class MailConfigurationError(Exception):
 
 
 class MailDeliveryError(MailConfigurationError):
-    """SMTP is configured, but the message could not be handed to the server.
-
-    Deliberately a subclass: every endpoint that sends mail already turns
-    MailConfigurationError into a 503 carrying the message, so a transport
-    failure now reaches the operator with a reason attached instead of
-    escaping as a bare 500 with an empty body.
-    """
+    """SMTP is configured, but the message could not be handed to the server."""
 
 
 def render_template(template_name: str, context: dict[str, str]) -> str:
@@ -166,12 +160,7 @@ def send_password_reset_email(*, to_email: str, full_name: str, reset_link: str)
 
 
 def send_admin_welcome_email(*, to_email: str, full_name: str, login_link: str) -> None:
-    """Confirm to the first administrator that their account exists.
-
-    Carries no credential. Anything revealed once during setup stays in the
-    browser: mail is not confidential, cannot be unsent, and is commonly
-    retained far longer than the secret should be.
-    """
+    """Confirm to the first administrator that their account exists."""
     context = {
         "full_name": full_name,
         "login_link": login_link,

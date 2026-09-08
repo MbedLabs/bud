@@ -75,11 +75,7 @@ def _configure_smtp(monkeypatch, *, starttls=True, port=2525):
 
 
 def test_starttls_on_a_plaintext_port_reports_where_and_why(monkeypatch):
-    """The exact production failure: STARTTLS asked of a relay that does not offer it.
-
-    It previously escaped mail_service uncaught and every caller returned a bare
-    500 with an empty body, which is undiagnosable from the browser.
-    """
+    """The exact production failure: STARTTLS asked of a relay that does not offer it."""
     import smtplib
 
     class _NoStartTLS(_DummySMTP):

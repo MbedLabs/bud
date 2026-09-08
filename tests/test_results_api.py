@@ -1,11 +1,5 @@
-"""
-Tests for ``POST /api/results`` — the endpoint CI runners (bud_runner)
+"""Tests for ``POST /api/results`` — the endpoint CI runners (bud_runner)
 use to upload test results after executing a test run.
-
-Covers the critical invariant for the CI → Bud pipeline: the backend
-accepts the flat ``TestResultCreate`` shape produced by
-``bud_runner.api_client._flatten_results``, persists per-method
-``assertions`` as JSON, and updates the parent TestRun's counters.
 """
 
 from __future__ import annotations

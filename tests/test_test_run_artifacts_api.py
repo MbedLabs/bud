@@ -1,14 +1,4 @@
-"""Listing the files a run left behind, and the types it will accept.
-
-Artifacts could be uploaded and downloaded by id, but nothing enumerated them:
-a screenshot or a packet capture attached to a run was reachable only by someone
-who already knew its integer primary key. Nothing in the UI referenced them at
-all, so in practice a run's evidence was write-only.
-
-These cover the listing, and the media types a run actually produces - the
-allowlist is what decides whether a plot, a trace or a capture can be sent at
-all, and a rejection there surfaces as an opaque 415 in CI.
-"""
+"""Listing the files a run left behind, and the types it will accept."""
 
 from __future__ import annotations
 
@@ -159,11 +149,7 @@ class TestListingARunsArtifacts:
 
 
 class TestWhatARunIsAllowedToUpload:
-    """The allowlist decides what evidence can reach Bud at all.
-
-    A type missing here is a 415 in the middle of a CI run, which reads as the
-    upload being broken rather than as the file being unwelcome.
-    """
+    """The allowlist decides what evidence can reach Bud at all."""
 
     @pytest.mark.parametrize(
         "content_type,why",

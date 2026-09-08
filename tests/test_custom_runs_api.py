@@ -1,11 +1,4 @@
-"""Choosing test cases in Bud and having the right bench run them.
-
-The catalogue is built from evidence: Bud does not read a bench's workspace, so
-the only honest answer to "where can this run" is "where it has run". That makes
-the interesting cases the ones about *placement* - a selection spanning two
-benches, a test pinned to a bench that has never had it, a test Bud has never
-seen at all - and about the claim being safe when two pollers race.
-"""
+"""Choosing test cases in Bud and having the right bench run them."""
 
 from __future__ import annotations
 
@@ -33,11 +26,7 @@ def _result(test_class: str, method: str, source_file: str, run_id: int, when: d
 
 @pytest.fixture
 def lab(db_session):
-    """Two benches with different test cases, and one they share.
-
-    A location holds several benches and a test case can live on more than one,
-    so the fixture has to have both or the placement rules are untested.
-    """
+    """Two benches with different test cases, and one they share."""
 
     async def _make():
         bench_a = Runner(account="bench-01", password_hash="x", token="t1", location="Lab A")
@@ -231,9 +220,7 @@ class TestQueueingACustomRun:
             json={"test_paths": ["BigPack_voltage.VoltageTest", "boot_suite.BootTest"]},
         ).json()
 
-        # Voltage has only ever run on bench-01, so it is forced there. Boot has
-        # run on both - sending it to bench-02 because that is where it ran most
-        # recently would split a selection that did not need splitting.
+        # Voltage has only ever run on bench-01, so it is forced there.
         assert len(body["runs"]) == 1
         assert body["runs"][0]["runner_account"] == "bench-01"
         assert sorted(body["runs"][0]["selected_tests"]) == [

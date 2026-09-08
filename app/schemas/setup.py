@@ -1,9 +1,4 @@
-"""
-Schemas for the first-run setup flow.
-
-Only meaningful on a Bud instance that has never had a user: the endpoints
-behind these schemas refuse to do anything once an account exists.
-"""
+"""Schemas for the first-run setup flow."""
 
 from typing import Annotated
 
@@ -27,13 +22,6 @@ class CreateFirstAdminRequest(BaseModel):
 
 
 class SetupCompletedResponse(BaseModel):
-    """Returned once, to the browser that just created the administrator.
-
-    ``runner_api_key`` is the shared runner-registration secret. On a packaged
-    deployment it is generated at first boot and written to a file the operator
-    has no way to read, so this response is their only chance to capture it. It
-    is never returned again, never written to a log, and never sent by mail.
-    """
+    """Returned to the browser that just created the administrator."""
 
     message: str
-    runner_api_key: str | None = None

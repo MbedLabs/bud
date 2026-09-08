@@ -460,35 +460,68 @@ export const testStationsApi = {
   },
 
   /**
-   * Fetch a single runner (a.k.a. test station) by account name.
+   * Fetch a single Test Station by account name.
    * Used to resolve runner_id → account for display on test run detail pages.
    */
   getByAccount: async (account: string) => {
     const response = await api.get<Runner>(`/runners/${account}`)
     return response.data
   },
+
+  /** Delete a Test Station. Revokes its token and its enrolment keys. */
+  remove: async (account: string) => {
+    await api.delete(`/runners/${account}`)
+  },
+
+  listApiKeys: async () => {
+    const response = await api.get<RunnerApiKey[]>('/runners/api-keys')
+    return response.data
+  },
+
+  /** Mint a key. The plaintext is in this response only. */
+  createApiKey: async (label: string) => {
+    const response = await api.post<RunnerApiKeyCreated>('/runners/api-keys', { label })
+    return response.data
+  },
+
+  deleteApiKey: async (id: number) => {
+    await api.delete(`/runners/api-keys/${id}`)
+  },
 }
 
-export interface ALMIntegrationSettings {
+export interface RunnerApiKey {
+  id: number
+  label: string
+  key_prefix: string
+  runner_account: string | null
+  created_at: string
+  last_used_at: string | null
+}
+
+export interface RunnerApiKeyCreated extends RunnerApiKey {
+  api_key: string
+}
+
+export interface PLMIntegrationSettings {
   bloom_url: string
   has_bloom_token: boolean
   bloom_token_prefix: string | null
   bloom_token_rotated_at: string | null
 }
 
-export interface ALMIntegrationSettingsUpdate {
+export interface PLMIntegrationSettingsUpdate {
   bloom_url: string
   bloom_token?: string
   clear_bloom_token?: boolean
 }
 
 export const settingsApi = {
-  getALM: async () => {
-    const response = await api.get<ALMIntegrationSettings>('/settings/integrations/PLM')
+  getPLM: async () => {
+    const response = await api.get<PLMIntegrationSettings>('/settings/integrations/PLM')
     return response.data
   },
-  updateALM: async (data: ALMIntegrationSettingsUpdate) => {
-    const response = await api.post<ALMIntegrationSettings>('/settings/integrations/PLM', data)
+  updatePLM: async (data: PLMIntegrationSettingsUpdate) => {
+    const response = await api.post<PLMIntegrationSettings>('/settings/integrations/PLM', data)
     return response.data
   },
 }
@@ -598,7 +631,6 @@ export interface SetupStatusResponse {
 export interface SetupCompletedResponse {
   message: string
   /** Shown once, to the browser that completed setup. Never returned again. */
-  runner_api_key?: string | null
 }
 
 export const setupApi = {

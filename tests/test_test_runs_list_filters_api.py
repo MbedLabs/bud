@@ -1,16 +1,4 @@
-"""Searching and locating test runs, across every page of them.
-
-The run list pages server-side, but its search box and its location picker used
-to narrow the page that had already arrived - so a run on page three was
-invisible to a search that named it, and picking a location showed only the
-runs at that location that happened to be on screen. Meanwhile the footer went
-on counting the server's unfiltered total, so the page claimed "1 to 20 of 137"
-beside a table holding three.
-
-These drive the endpoint that now answers both questions, with more runs than
-fit on a page, because a filter that only works within one page passes every
-test written against one page.
-"""
+"""Searching and locating test runs, across every page of them."""
 
 from __future__ import annotations
 
@@ -23,12 +11,7 @@ from app.models import Runner, TestRun
 
 @pytest.fixture
 def bench(db_session):
-    """Two benches at one location and one at another.
-
-    A location holds as many runners as the lab has, so a filter on it is a set
-    membership test rather than a lookup - and a fixture with one bench per
-    location cannot tell the two apart.
-    """
+    """Two benches at one location and one at another."""
 
     async def _make():
         runners = [
@@ -62,11 +45,7 @@ def bench(db_session):
 
 
 async def _seed_many(db_session, bench_ids: dict[str, int]) -> None:
-    """Thirty runs, so nothing under test fits on one page of twenty.
-
-    The one that matters sits last by recency, which puts it on the second
-    page: a search that only reads the page it was given cannot find it.
-    """
+    """Thirty runs, so nothing under test fits on one page of twenty."""
     now = datetime.utcnow()
     runs = [
         TestRun(

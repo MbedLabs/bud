@@ -78,14 +78,7 @@ async def _post_to_bloom_with_retry(bloom_url: str, bloom_token: str, payload_re
 
 
 async def sync_results_to_bloom(test_run_id: int):
-    """
-    Background task to sync test results from Bud to Bloom PLM.
-
-    Aggregates execution outcomes by Bloom ``tc_id`` extracted from result
-    metadata. Bud sends no campaign identity or campaign metadata. Bloom owns
-    the matching test cases and may update line items in campaigns that already
-    contain those test cases.
-    """
+    """Background task to sync test results from Bud to Bloom PLM."""
     async with db.async_session_maker() as session:
         try:
             # 1. Get Bloom Configuration from SystemSettings

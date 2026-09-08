@@ -56,10 +56,7 @@ class ProductResponse(ProductBase):
 
 
 class RunnerRegister(BaseModel):
-    """Schema for runner registration.
-
-    M2: Enforce strict length limits and character constraints on username/password.
-    """
+    """Schema for runner registration."""
 
     # M2: tighter max_length and explicit pattern to avoid control chars / injection
     username: str = Field(..., min_length=3, max_length=50, pattern=r"^[a-zA-Z0-9_\-]+$")
@@ -113,6 +110,32 @@ class RunnerToken(BaseModel):
     account: str
     token: str
     message: str = "Runner registered successfully"
+
+
+class RunnerApiKeyCreate(BaseModel):
+    """Schema for minting a Test Station enrolment key."""
+
+    label: str = Field(..., min_length=1, max_length=100)
+
+
+class RunnerApiKeyResponse(BaseModel):
+    """A minted key as it is listed afterwards. Never carries the secret."""
+
+    id: int
+    label: str
+    key_prefix: str
+    runner_account: Optional[str] = None
+    created_at: datetime
+    last_used_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class RunnerApiKeyCreated(RunnerApiKeyResponse):
+    """The one response that carries the plaintext key."""
+
+    api_key: str
 
 
 class RunnerHeartbeat(BaseModel):
@@ -193,13 +216,7 @@ class TestRunResponse(BaseModel):
 
     @classmethod
     def from_orm_with_runner(cls, test_run: Any) -> "TestRunResponse":
-        """Build a response that also exposes the Bud runner's account name.
-
-        Frontend ("Test Station" filter and detail page) wants a human-readable
-        station identifier; ``runner_id`` alone forces a second lookup per
-        row. Accessing ``test_run.runner`` requires the relationship to be
-        loaded (selectinload) or the session to still be attached.
-        """
+        """Build a response that also exposes the Bud runner's account name."""
         data = {c.name: getattr(test_run, c.name) for c in test_run.__table__.columns}
         runner = getattr(test_run, "runner", None)
         data["runner_account"] = runner.account if runner else None
@@ -302,21 +319,7 @@ class TestResultResponse(BaseModel):
 
 
 class TestResultListItem(BaseModel):
-    """A result as the run detail lists it: everything but the traceback.
-
-    The run detail draws its per-assertion table from the `assertions` blob,
-    and the traceback it shows for a failure comes from inside that blob -
-    `assertion.traceback`. The result's own `traceback` column is a separate
-    full stack trace per failed method, and no screen renders it, so listing a
-    run read a few kilobytes per failure out of the database and threw them
-    away.
-
-    Deliberately not a subclass of TestResultResponse: excluding a field from
-    the response would still leave the column being selected and hydrated,
-    which is where the cost is. The listing query selects these columns and no
-    others. The traceback is still on `GET /api/results/detail/{id}`, which is
-    where a single result is fetched in full.
-    """
+    """A result as the run detail lists it: everything but the traceback."""
 
     id: int
     test_class: str
@@ -397,23 +400,14 @@ class UnassignedTest(BaseModel):
 
 
 class CustomRunResponse(BaseModel):
-    """What was queued, and what could not be.
-
-    A selection spanning two benches becomes two runs, so this is a list even
-    when the reader picked what looked like one thing.
-    """
+    """What was queued, and what could not be."""
 
     runs: List[TestRunResponse]
     unassigned: List[UnassignedTest]
 
 
 class ClaimedRunResponse(BaseModel):
-    """The run a Test Station has just taken, and what to execute.
-
-    `selected_tests` is set for a custom run and is the authoritative list.
-    `test_case_list` is the module path an ordinary run names, kept so a station
-    that claims a queued ordinary run resolves it the way it always has.
-    """
+    """The run a Test Station has just taken, and what to execute."""
 
     claim_id: str
     run: TestRunResponse
@@ -453,63 +447,6 @@ class ArtifactResponse(BaseModel):
 
     class Config:
         from_attributes = True
-
-
-# ==================== TestStation Schemas ====================
-
-
-class TestStationRegister(BaseModel):
-    """Schema for teststation registration."""
-
-    username: str = Field(..., min_length=3, max_length=50, pattern=r"^[a-zA-Z0-9_\-]+$")
-    password: str = Field(..., min_length=12, max_length=128)
-    socket_port: int = Field(default=53035, ge=1024, le=65535)
-    location: Optional[str] = Field(default=None, max_length=255)
-
-
-class TestStationResponse(BaseModel):
-    """Schema for teststation response."""
-
-    id: int
-    account: str
-    socket_port: int
-    location: Optional[str]
-    is_active: bool
-    last_heartbeat: Optional[datetime]
-    created_at: datetime
-
-    @field_serializer("last_heartbeat", "created_at")
-    def serialize_dt(self, dt: Optional[datetime], _info):
-        return f"{dt.isoformat()}Z" if dt else None
-
-    class Config:
-        from_attributes = True
-
-
-class TestStationStatusEntry(TestStationResponse):
-    """Schema for teststation status entry with dynamic online status."""
-
-    is_online: bool
-
-
-class TestStationStatusList(BaseModel):
-    """Schema for teststation status list response."""
-
-    teststations: List[TestStationStatusEntry]
-
-
-class TestStationToken(BaseModel):
-    """Schema for teststation token response."""
-
-    account: str
-    token: str
-    message: str = "TestStation registered successfully"
-
-
-class TestStationHeartbeat(BaseModel):
-    """Schema for teststation heartbeat."""
-
-    teststation_account: str = Field(..., min_length=3, max_length=50)
 
 
 # ==================== Health Schemas ====================
@@ -571,7 +508,7 @@ class SystemSettingResponse(SystemSettingBase):
         from_attributes = True
 
 
-class ALMIntegrationSettings(BaseModel):
+class PLMIntegrationSettings(BaseModel):
     """Schema for PLM integration settings (Bloom)."""
 
     bloom_url: str
@@ -580,7 +517,7 @@ class ALMIntegrationSettings(BaseModel):
     bloom_token_rotated_at: Optional[datetime] = None
 
 
-class ALMIntegrationSettingsUpdate(BaseModel):
+class PLMIntegrationSettingsUpdate(BaseModel):
     """One-way update: secrets are accepted but never returned."""
 
     bloom_url: str

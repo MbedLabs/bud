@@ -22,12 +22,8 @@ export default function TestRuns() {
 
   const hasActiveFilters = Boolean(statusFilter || stationFilter || locationFilter || search)
 
-  // The search box and the location picker used to narrow the page the server
-  // had already sent, while the footer went on counting the server's unfiltered
-  // total. A run on page three was invisible to search, and picking a location
-  // showed only the runs at that location that happened to be on this page.
-  // Both are the server's question now, so the count describes what is on
-  // screen.
+  // The search box and the location picker used to narrow the page the server had
+  // already sent, while the footer went on counting the server's unfiltered total.
   const debouncedSearch = useDebounced(search, 250)
 
   const { data, isLoading, error } = useQuery({

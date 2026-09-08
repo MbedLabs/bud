@@ -1,15 +1,4 @@
-"""
-First-run setup: create the very first administrator.
-
-A packaged install (Cloudron, or any one-click deployment) has no way to ask the
-operator for an email address at install time, and no safe place to put a
-generated password. Instead the instance comes up with an empty user table and
-asks the first visitor to create the administrator account.
-
-Both endpoints are unauthenticated, which is only safe because they refuse to
-act once any user exists: the window is exactly the gap between first boot and
-first sign-up, and it closes permanently.
-"""
+"""First-run setup: create the very first administrator."""
 
 import logging
 
@@ -45,11 +34,7 @@ async def _user_count(db: AsyncSession) -> int:
 
 @router.get("/setup/status", response_model=SetupStatusResponse)
 async def setup_status(db: AsyncSession = Depends(get_db)) -> SetupStatusResponse:
-    """Report whether the instance still needs its first administrator.
-
-    The UI calls this before rendering the login screen, so it can send a brand
-    new instance to the setup form instead.
-    """
+    """Report whether the instance still needs its first administrator."""
     return SetupStatusResponse(setup_required=await _user_count(db) == 0)
 
 
@@ -92,10 +77,9 @@ async def create_first_admin(
 
     logger.info("First administrator created via setup flow: %s", data.email)
 
-    # Best effort, never fatal. Setup must complete on a deployment with no SMTP
-    # at all — the docker-compose default, and any Cloudron install with the
-    # optional mail addon disabled. Failing here would leave the instance with
-    # an administrator it refuses to acknowledge.
+    # Best effort, never fatal. Setup must complete on a deployment with no SMTP at all
+    # — the docker-compose default, and any Cloudron install with the optional mail
+    # addon disabled.
     try:
         send_admin_welcome_email(
             to_email=admin.email,
@@ -105,8 +89,6 @@ async def create_first_admin(
     except MailConfigurationError as exc:
         logger.warning("Administrator created but the confirmation email failed: %s", exc)
 
-    # The browser that just completed setup is the only place this is shown.
     return SetupCompletedResponse(
         message="Administrator account created. You can now sign in.",
-        runner_api_key=settings.RUNNER_API_KEY or None,
     )

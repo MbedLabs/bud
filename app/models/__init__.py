@@ -4,11 +4,11 @@ from app.models.models import (
     Artifact,
     Product,
     Runner,
+    RunnerApiKey,
     SystemSetting,
     TestResult,
     TestRun,
     TestRunEvent,
-    TestStation,
     UploadAttempt,
     UploadLease,
 )
@@ -18,6 +18,7 @@ from app.models.user_token import UserToken, UserTokenPurpose
 __all__ = [
     "Product",
     "Runner",
+    "RunnerApiKey",
     "TestRun",
     "TestRunEvent",
     "TestResult",
@@ -27,7 +28,6 @@ __all__ = [
     "UserToken",
     "UserTokenPurpose",
     "SystemSetting",
-    "TestStation",
     "UploadAttempt",
     "UploadLease",
 ]

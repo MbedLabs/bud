@@ -1,10 +1,4 @@
-"""PDF report endpoints.
-
-Two reports: a filtered summary across many runs, broken down per suite, per
-Test Station and per day; and a single-run report carrying that run's identity
-and its individual results. Both share the scoping rules of the dashboard
-statistics, so a report always agrees with the tiles it was generated from.
-"""
+"""PDF report endpoints."""
 
 from __future__ import annotations
 
