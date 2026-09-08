@@ -21,13 +21,6 @@ export default function Setup() {
   const [submitError, setSubmitError] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
-  // Held in component state only. Deliberately never written to localStorage or
-  // sessionStorage: the key would then outlive the tab, survive in a profile
-  // backup, and be readable by any script on the origin.
-  const [issuedKey, setIssuedKey] = useState<string | null>(null)
-  const [keyVisible, setKeyVisible] = useState(false)
-  const [copied, setCopied] = useState(false)
-
   useEffect(() => {
     let cancelled = false
 
@@ -61,13 +54,8 @@ export default function Setup() {
 
     setSubmitting(true)
     try {
-      const result = await setupApi.createFirstAdmin(email, password, fullName)
-      if (result.runner_api_key) {
-        // Do not navigate: this is the only time the key is ever returned.
-        setIssuedKey(result.runner_api_key)
-      } else {
-        navigate('/login', { replace: true })
-      }
+      await setupApi.createFirstAdmin(email, password, fullName)
+      navigate('/login', { replace: true })
     } catch (err: unknown) {
       setSubmitError(extractApiErrorMessage(err, 'Unable to create the administrator account'))
     } finally {
@@ -88,78 +76,6 @@ export default function Setup() {
 
   if (!setupRequired) {
     return <Navigate to="/login" replace />
-  }
-
-  if (issuedKey) {
-    const copyKey = async () => {
-      try {
-        await navigator.clipboard.writeText(issuedKey)
-        setCopied(true)
-        window.setTimeout(() => setCopied(false), 2000)
-      } catch {
-        // Clipboard permission can be refused; the value is on screen behind
-        // the reveal toggle either way.
-        setCopied(false)
-      }
-    }
-
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-auth p-4">
-        <div className="w-full max-w-md bg-card rounded-2xl shadow-2xl p-8 border border-border">
-          <div className="flex flex-col items-center mb-6">
-            <img src={BUD_LOGO_DARK} alt="Bud by EmbedLabs" className="h-16 w-auto max-w-full object-contain mb-3 hidden dark:block" />
-            <img src={BUD_LOGO_LIGHT} alt="Bud by EmbedLabs" className="h-16 w-auto max-w-full object-contain mb-3 dark:hidden" />
-          </div>
-
-          <h1 className="text-2xl font-bold text-foreground mb-2">Save your runner key</h1>
-          <p className="text-sm text-muted-foreground mb-4">
-            Your administrator account is ready. This is the registration key your test
-            stations use to enrol.
-          </p>
-
-          <div className="mb-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-400 text-sm">
-            <strong>This is shown once.</strong> It is not repeated in the confirmation
-            email and cannot be retrieved afterwards. Store it before continuing.
-          </div>
-
-          <label className="block text-sm font-medium text-foreground mb-1.5">
-            Runner registration key
-          </label>
-          <div className="flex gap-2 mb-5">
-            <input
-              readOnly
-              type={keyVisible ? 'text' : 'password'}
-              value={issuedKey}
-              aria-label="Runner registration key"
-              className="flex-1 min-w-0 px-3 py-2.5 bg-background border border-input rounded-lg text-sm font-mono text-foreground"
-            />
-            <button
-              type="button"
-              onClick={() => setKeyVisible((v) => !v)}
-              aria-label={keyVisible ? 'Hide key' : 'Show key'}
-              className="px-3 py-2.5 border border-input rounded-lg text-sm text-foreground hover:bg-muted transition-colors"
-            >
-              {keyVisible ? 'Hide' : 'Show'}
-            </button>
-            <button
-              type="button"
-              onClick={copyKey}
-              className="px-3 py-2.5 border border-input rounded-lg text-sm text-foreground hover:bg-muted transition-colors"
-            >
-              {copied ? 'Copied' : 'Copy'}
-            </button>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => navigate('/login', { replace: true })}
-            className="w-full py-2.5 px-4 bg-gradient-button text-white text-sm font-medium rounded-lg hover:opacity-90 transition-opacity"
-          >
-            I have saved it &mdash; continue to sign in
-          </button>
-        </div>
-      </div>
-    )
   }
 
   return (

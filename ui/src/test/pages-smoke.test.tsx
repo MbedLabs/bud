@@ -51,7 +51,7 @@ vi.mock('../api/client', async (importOriginal) => {
     },
     settingsApi: {
       ...actual.settingsApi,
-      getALM: vi.fn().mockResolvedValue({
+      getPLM: vi.fn().mockResolvedValue({
         bloom_url: '',
         has_bloom_token: false,
         bloom_token_prefix: null,

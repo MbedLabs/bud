@@ -21,11 +21,9 @@ PUBLIC_ENDPOINTS = {
     "reset_password",
     "confirm_email_change",
     "register_runner",
-    "register_teststation",
     # First-run setup. Unauthenticated by necessity — there is no account to
-    # authenticate as yet — and safe because both endpoints refuse to act once
-    # any user exists. See app/api/setup.py and tests/test_setup_api.py, which
-    # asserts the window closes.
+    # authenticate as yet — and safe because both endpoints refuse to act once any user
+    # exists.
     "setup_status",
     "create_first_admin",
 }
@@ -33,12 +31,10 @@ PUBLIC_ENDPOINTS = {
 AUTH_DEPENDENCIES = {
     "get_current_active_entity",
     "get_current_runner",
-    "get_current_teststation",
     "get_current_user",
     "get_uploader_entity",
     "require_admin",
     "require_runner_api_key",
-    "require_teststation_api_key",
     "role_checker",
 }
 

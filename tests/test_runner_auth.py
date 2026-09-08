@@ -13,17 +13,16 @@ from fastapi import HTTPException
 os.environ.setdefault("SECRET_KEY", "test-secret-key-for-ci-at-least-32-characters-long")
 
 from app.api.auth import get_current_active_entity  # noqa: E402
-from app.api.results import get_uploader_entity  # noqa: E402
+from app.api.results import get_uploader_entity
 from app.core.runner_auth import (  # noqa: E402
     authenticate_runner_token,
-    authenticate_teststation_token,
     decode_access_token_ignore_exp,
     runner_has_recent_heartbeat,
 )
+from app.core.runner_keys import mint_key  # noqa: E402
 from app.core.security import create_access_token, decode_access_token  # noqa: E402
-from app.models import Runner, TestStation  # noqa: E402
+from app.models import Runner  # noqa: E402
 from app.models.user import User, UserRole  # noqa: E402
-from app.schemas import ResultsUpload  # noqa: E402
 
 
 def test_decode_access_token_ignore_exp_reads_expired_runner_claims():
@@ -97,7 +96,6 @@ async def test_get_uploader_entity_accepts_expired_runner_jwt(db_session):
     await db_session.commit()
 
     entity = await get_uploader_entity(
-        ResultsUpload(results=[]),
         db=db_session,
         token=token,
         x_api_key=None,
@@ -107,7 +105,8 @@ async def test_get_uploader_entity_accepts_expired_runner_jwt(db_session):
 
 
 @pytest.mark.asyncio
-async def test_get_uploader_entity_accepts_api_key_and_runner_account(db_session):
+async def test_get_uploader_entity_accepts_a_pinned_enrolment_key(db_session):
+    """The key names its station. There is no account argument to supply."""
     runner = Runner(
         account="api-key-runner",
         password_hash="x",
@@ -116,16 +115,34 @@ async def test_get_uploader_entity_accepts_api_key_and_runner_account(db_session
     )
     db_session.add(runner)
     await db_session.commit()
+    await db_session.refresh(runner)
+
+    record, plaintext = mint_key(label="api-key-runner key", created_by_user_id=None)
+    record.runner_id = runner.id
+    db_session.add(record)
+    await db_session.commit()
 
     entity = await get_uploader_entity(
-        ResultsUpload(results=[], runner_account=runner.account),
         db=db_session,
         token=None,
-        x_api_key="test-runner-api-key",
+        x_api_key=plaintext,
     )
 
     assert isinstance(entity, Runner)
     assert entity.account == runner.account
+
+
+@pytest.mark.asyncio
+async def test_get_uploader_entity_rejects_a_key_pinned_to_nobody(db_session):
+    """An unenrolled key identifies no station, so it cannot stand in for one."""
+    record, plaintext = mint_key(label="unused", created_by_user_id=None)
+    db_session.add(record)
+    await db_session.commit()
+
+    with pytest.raises(HTTPException) as error:
+        await get_uploader_entity(db=db_session, token=None, x_api_key=plaintext)
+
+    assert error.value.status_code == 401
 
 
 @pytest.mark.asyncio
@@ -147,25 +164,6 @@ async def test_runner_token_rotation_invalidates_previous_token(db_session):
 
 
 @pytest.mark.asyncio
-async def test_teststation_expired_current_token_uses_recent_heartbeat(db_session):
-    token = create_access_token(
-        {"sub": "station-live", "type": "teststation"},
-        expires_delta=timedelta(seconds=-1),
-    )
-    station = TestStation(
-        account="station-live",
-        password_hash="x",
-        token=token,
-        is_active=True,
-        last_heartbeat=datetime.utcnow(),
-    )
-    db_session.add(station)
-    await db_session.commit()
-
-    assert await authenticate_teststation_token(token, db_session) is not None
-
-
-@pytest.mark.asyncio
 async def test_runner_has_recent_heartbeat_respects_timeout(monkeypatch):
     monkeypatch.setattr("app.core.runner_auth.settings.RUNNER_HEARTBEAT_TIMEOUT", 60)
     runner = Runner(
@@ -180,7 +178,8 @@ async def test_runner_has_recent_heartbeat_respects_timeout(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_teststation_token_cannot_resolve_as_numeric_user(db_session):
+async def test_unknown_token_type_cannot_resolve_as_numeric_user(db_session):
+    """An unrecognised token type must be refused, not coerced into a user."""
     user = User(
         id=1,
         email="admin@example.com",
@@ -189,7 +188,7 @@ async def test_teststation_token_cannot_resolve_as_numeric_user(db_session):
         role=UserRole.admin,
         is_active=True,
     )
-    station = TestStation(
+    station = Runner(
         account="001",
         password_hash="x",
         token="stored-token",
@@ -206,7 +205,6 @@ async def test_teststation_token_cannot_resolve_as_numeric_user(db_session):
 
     with pytest.raises(HTTPException) as upload_error:
         await get_uploader_entity(
-            ResultsUpload(results=[]),
             db=db_session,
             token=token,
             x_api_key=None,

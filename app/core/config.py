@@ -1,8 +1,4 @@
-"""
-Application configuration.
-
-Loads settings from environment variables with sensible defaults.
-"""
+"""Application configuration."""
 
 import os
 from functools import lru_cache
@@ -70,9 +66,8 @@ class Settings(BaseSettings):
     SECRET_KEY: str = Field(
         default="", validation_alias=AliasChoices("BUD_SECRET_KEY", "SECRET_KEY")
     )
-    # Short-lived access token: kept small because a rotating refresh-token
-    # cookie (below) silently renews it. A leaked access token is now valid for
-    # minutes, not a week.
+    # Short-lived access token: kept small because a rotating refresh-token cookie
+    # (below) silently renews it.
     ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(
         default=30,
         validation_alias=AliasChoices(
@@ -211,7 +206,8 @@ class Settings(BaseSettings):
         "application/octet-stream",
     ]
 
-    # C2: Shared API key for runner-registration mutations (must be set in production)
+    # Retired: stations enrol with per-station keys minted in the UI. Kept so a
+    # deployment still exporting it starts cleanly.
     RUNNER_API_KEY: str = Field(
         default="", validation_alias=AliasChoices("BUD_RUNNER_API_KEY", "RUNNER_API_KEY")
     )
@@ -305,9 +301,8 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def populate_database_url(self):
         if not self.DATABASE_URL:
-            # About to build the connection URL from DB_* parts, so those parts
-            # must be safe. When a complete DATABASE_URL is supplied instead (the
-            # docker-compose path), DB_PASSWORD is unused and is not checked here.
+            # About to build the connection URL from DB_* parts, so those parts must be
+            # safe.
             if self.BUD_ENV.lower() == "production" and self.DB_PASSWORD in ("", "bud"):
                 raise ValueError(
                     "DB_PASSWORD must be set to a strong, non-default value in "
@@ -361,18 +356,13 @@ class Settings(BaseSettings):
             return self
 
         placeholder_prefix = "replace-with-"
-        for name in ("SECRET_KEY", "ADMIN_PASSWORD", "RUNNER_API_KEY", "DB_PASSWORD"):
+        for name in ("SECRET_KEY", "ADMIN_PASSWORD", "DB_PASSWORD"):
             if getattr(self, name).startswith(placeholder_prefix):
                 raise ValueError(
                     f"{name} still uses the '{placeholder_prefix}...' placeholder from "
                     ".env.example; set a real value before production startup."
                 )
 
-        if len(self.RUNNER_API_KEY) < 32:
-            raise ValueError(
-                "RUNNER_API_KEY must be set to a strong value of at least 32 characters "
-                "in production (it authenticates runner registration)."
-            )
         return self
 
     @field_validator("SECRET_KEY")

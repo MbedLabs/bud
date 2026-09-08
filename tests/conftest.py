@@ -1,10 +1,4 @@
-"""
-Shared pytest fixtures for the bud-app-backend test suite.
-
-Uses an isolated SQLite (aiosqlite) file per test so the async fixture,
-FastAPI TestClient, and lifespan/background tasks use independent database
-connections without sharing transaction state across threads.
-"""
+"""Shared pytest fixtures for the bud-app-backend test suite."""
 
 from __future__ import annotations
 
@@ -117,13 +111,7 @@ def test_user() -> User:
 
 @pytest_asyncio.fixture(scope="function")
 async def client(_engine, test_user):
-    """
-    TestClient with DB + auth dependencies overridden.
-
-    Each request gets its own AsyncSession from the isolated test engine, and
-    ``get_current_user`` returns the pre-built ``test_user`` so we don't
-    have to issue a real JWT in tests that aren't specifically about auth.
-    """
+    """TestClient with DB + auth dependencies overridden."""
     session_maker = async_sessionmaker(_engine, class_=AsyncSession, expire_on_commit=False)
 
     async def override_get_db() -> AsyncGenerator[AsyncSession, None]:

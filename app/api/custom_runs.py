@@ -1,15 +1,4 @@
-"""Custom runs: pick test cases in Bud, and let the bench that owns them run it.
-
-The shape here is a queue, not a push. Bud never reaches into a bench - it marks
-a run Pending against a Test Station, and the station asks for its next one on
-its own schedule. That keeps the direction of every connection outward from the
-lab, which is what lets a bench sit behind a firewall with no inbound port and
-no control socket exposed to anything.
-
-A test case runs where it has run before. A selection spanning two benches is
-therefore two queued runs, one per bench, rather than a refusal - and the reader
-is told that is what happened.
-"""
+"""Custom runs: pick test cases in Bud, and let the bench that owns them run it."""
 
 from __future__ import annotations
 
@@ -53,13 +42,7 @@ async def get_test_catalog(
     db: AsyncSession = Depends(get_db),
     current_entity: Union[User, Runner] = Depends(get_current_active_entity),
 ):
-    """Every test case Bud has a record of, and the Test Stations it ran on.
-
-    Built from what has executed rather than from a declared inventory: Bud does
-    not read the benches' workspaces, so evidence is the only honest source. A
-    test case that has never run does not appear, and cannot be selected - there
-    would be no way to know which bench holds it.
-    """
+    """Every test case Bud has a record of, and the Test Stations it ran on."""
     if isinstance(current_entity, Runner):
         # A station may see its own catalogue; it has no business enumerating
         # what the rest of the lab runs.
@@ -78,11 +61,7 @@ async def create_custom_run(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_entity),
 ):
-    """Queue a run for each Test Station the selection touches.
-
-    Nothing is written until the whole selection has been resolved, so a request
-    that turns out to be entirely unrunnable leaves no half-built run behind.
-    """
+    """Queue a run for each Test Station the selection touches."""
     if isinstance(current_user, Runner):
         raise HTTPException(status_code=403, detail="A Test Station cannot queue runs for the lab")
     require_mutating_user(current_user)
@@ -217,16 +196,7 @@ async def claim_next_run(
     db: AsyncSession = Depends(get_db),
     current_entity: Union[User, Runner] = Depends(get_current_active_entity),
 ):
-    """Hand this Test Station its next queued run, if it has one.
-
-    Returns 204 when there is nothing waiting, because a station polls on an
-    interval and "nothing for you" is the ordinary answer, not an error.
-
-    The claim is a compare-and-set on the status column: two pollers racing -
-    the same station restarted, or a duplicated deployment - cannot both take
-    the same run, because only the update that still sees `Pending` matches a
-    row. Whoever loses simply looks again.
-    """
+    """Hand this Test Station its next queued run, if it has one."""
     if not isinstance(current_entity, Runner):
         raise HTTPException(status_code=403, detail="Only a Test Station can claim a run")
 
@@ -327,12 +297,7 @@ async def complete_claimed_run(
     db: AsyncSession = Depends(get_db),
     current_entity: Union[User, Runner] = Depends(get_current_active_entity),
 ):
-    """Record the station's terminal answer for a claimed execution.
-
-    Execution status is always ``Completed`` once the process ends. Individual
-    test outcomes remain represented by the result counters and result rows.
-    Retrying the same answer is safe and does not append duplicate events.
-    """
+    """Record the station's terminal answer for a claimed execution."""
     if not isinstance(current_entity, Runner):
         raise HTTPException(status_code=403, detail="Only a Test Station can complete a claim")
 

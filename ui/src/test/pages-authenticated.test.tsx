@@ -116,10 +116,8 @@ describe('the dashboard', () => {
   it('shows the aggregated counters the server returns', async () => {
     renderAt('/', '/', <Dashboard />)
 
-    // The headings render before the counters arrive, so wait for a counter
-    // rather than for the card that will hold it. 5 runs at a 60% run pass
-    // rate, over 30 tests; the numbers also appear in the outcome donuts now,
-    // so each is read off its own card.
+    // The headings render before the counters arrive, so wait for a counter rather than
+    // for the card that will hold it.
     expect(await within(card('Total Test Runs')).findByText('5')).toBeTruthy()
     expect(screen.getAllByText('60%').length).toBeGreaterThan(0)
     expect(screen.getAllByText('30 tests').length).toBeGreaterThan(0)
@@ -204,9 +202,7 @@ describe('the run list', () => {
       target: { value: 'nothing matches' },
     })
 
-    // The page holds twenty of however many runs there are. A search it
-    // answered itself would be a search of those twenty, and a run on page
-    // three would read as "no such run".
+    // The page holds twenty of however many runs there are.
     await waitFor(() => {
       const [params] = lastCall(client.testRunsApi.list) as [{ q?: string }]
       expect(params.q).toBe('nothing matches')
@@ -257,10 +253,8 @@ describe('the run list', () => {
   })
 
   it('shows whatever the server matched, whichever field it matched on', async () => {
-    // The endpoint matches the run name, the test case list and the runner
-    // account; which of the three hit is its business. What the page owes is
-    // to render the answer rather than second-guess it - a page that filtered
-    // again locally would drop a row matched on a field it does not display.
+    // The endpoint matches the run name, the test case list and the runner account;
+    // which of the three hit is its business.
     const other = {
       ...testRun,
       id: 43,
@@ -314,10 +308,9 @@ describe('the run list', () => {
     fireEvent.click(screen.getAllByRole('button', { name: /^Filters/ })[0])
     fireEvent.click(await screen.findByRole('button', { name: 'Lab A' }))
 
-    // Lab A holds two benches, and their runs interleave with everyone else's
-    // across pages - so resolving the location to bench accounts in the
-    // browser and filtering the current page drops whatever sits on the next
-    // one. The location goes to the server, which holds every run.
+    // Lab A holds two benches, and their runs interleave with everyone else's across
+    // pages - so resolving the location to bench accounts in the browser and filtering
+    // the current page drops whatever sits on the next one.
     await waitFor(() => {
       const [params] = lastCall(client.testRunsApi.list) as [{ location?: string }]
       expect(params.location).toBe('Lab A')
@@ -589,7 +582,7 @@ describe('settings', () => {
     fireEvent.click(screen.getByRole('button', { name: /clear credential/i }))
 
     await waitFor(() =>
-      expect(lastCall(client.settingsApi.updateALM)[0]).toMatchObject({
+      expect(lastCall(client.settingsApi.updatePLM)[0]).toMatchObject({
         clear_bloom_token: true,
       }),
     )
@@ -604,7 +597,7 @@ describe('settings', () => {
 
     // Losing the credential silently would stop every result sync from Bud.
     await settle()
-    expect(client.settingsApi.updateALM).not.toHaveBeenCalled()
+    expect(client.settingsApi.updatePLM).not.toHaveBeenCalled()
   })
 
   it('saves a new Bloom URL', async () => {
@@ -615,7 +608,7 @@ describe('settings', () => {
     fireEvent.click(screen.getAllByRole('button', { name: /save/i })[0])
 
     await waitFor(() => {
-      const [payload] = lastCall(client.settingsApi.updateALM) as [{ bloom_url: string }]
+      const [payload] = lastCall(client.settingsApi.updatePLM) as [{ bloom_url: string }]
       expect(payload.bloom_url).toBe('https://plm.example.com')
     })
   })

@@ -25,7 +25,6 @@ if [ -n "${CLOUDRON_APP_ORIGIN:-}" ]; then
     umask 077
     {
       printf 'SECRET_KEY=%s\n' "$(python3 -c 'import secrets; print(secrets.token_hex(32))')"
-      printf 'RUNNER_API_KEY=%s\n' "$(python3 -c 'import secrets; print(secrets.token_hex(32))')"
       printf 'BUD_INTEGRATION_ENCRYPTION_KEY=%s\n' "$(python3 -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())')"
     } > "$secrets_file"
     chown "$APP_UID:$APP_GID" "$secrets_file"

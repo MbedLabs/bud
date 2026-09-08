@@ -137,68 +137,35 @@ describe('first-run setup screen', () => {
   })
 })
 
-describe('one-time runner key reveal', () => {
-  const KEY = 'runner-key-value-32-chars-long-xx'
-
+describe('setup hands over no secret', () => {
   beforeEach(() => {
     cleanup()
     vi.clearAllMocks()
     localStorage.clear()
     sessionStorage.clear()
     mockedApi.getStatus.mockResolvedValue({ setup_required: true })
-    mockedApi.createFirstAdmin.mockResolvedValue({ message: 'created', runner_api_key: KEY })
+    mockedApi.createFirstAdmin.mockResolvedValue({ message: 'created' })
   })
 
-  async function completeSetup() {
+  it('goes straight to login once the administrator exists', async () => {
     renderSetup()
     await screen.findByText('Welcome to Bud')
     await fillForm()
     fireEvent.click(screen.getByRole('button', { name: 'Create Administrator' }))
-    return screen.findByText('Save your runner key')
-  }
-
-  it('stops on the key instead of leaving for login', async () => {
-    await completeSetup()
-
-    // Navigating away would discard the only copy of the key.
-    expect(screen.queryByText('login screen')).toBeNull()
-    expect(screen.getByText(/shown once/i)).toBeTruthy()
-  })
-
-  it('keeps the key masked until asked', async () => {
-    await completeSetup()
-    const field = screen.getByLabelText('Runner registration key') as HTMLInputElement
-
-    expect(field.type).toBe('password')
-    expect(field.value).toBe(KEY)
-
-    fireEvent.click(screen.getByRole('button', { name: 'Show key' }))
-    expect((screen.getByLabelText('Runner registration key') as HTMLInputElement).type).toBe('text')
-  })
-
-  it('never persists the key to browser storage', async () => {
-    await completeSetup()
-    fireEvent.click(screen.getByRole('button', { name: 'Show key' }))
-
-    // A key surviving the tab would outlive its one-time reveal entirely.
-    expect(JSON.stringify(localStorage)).not.toContain(KEY)
-    expect(JSON.stringify(sessionStorage)).not.toContain(KEY)
-  })
-
-  it('copies to the clipboard on request', async () => {
-    const writeText = vi.fn().mockResolvedValue(undefined)
-    Object.assign(navigator, { clipboard: { writeText } })
-
-    await completeSetup()
-    fireEvent.click(screen.getByRole('button', { name: 'Copy' }))
-
-    await waitFor(() => expect(writeText).toHaveBeenCalledWith(KEY))
-  })
-
-  it('goes to login once the operator confirms they saved it', async () => {
-    await completeSetup()
-    fireEvent.click(screen.getByRole('button', { name: /I have saved it/i }))
 
     expect(await screen.findByText('login screen')).toBeTruthy()
+  })
+
+  it('never puts a key on screen or in browser storage', async () => {
+    renderSetup()
+    await screen.findByText('Welcome to Bud')
+    await fillForm()
+    fireEvent.click(screen.getByRole('button', { name: 'Create Administrator' }))
+    await waitFor(() => expect(mockedApi.createFirstAdmin).toHaveBeenCalled())
+
+    expect(screen.queryByText(/shown once/i)).toBeNull()
+    expect(screen.queryByLabelText('Runner registration key')).toBeNull()
+    expect(JSON.stringify(localStorage)).not.toContain('budrnr_')
+    expect(JSON.stringify(sessionStorage)).not.toContain('budrnr_')
   })
 })

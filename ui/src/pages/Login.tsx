@@ -12,10 +12,8 @@ export default function Login() {
   const { login } = useAuth()
   const navigate = useNavigate()
 
-  // An instance with no accounts cannot be signed in to; send the first
-  // visitor to create the administrator instead of showing them a form that
-  // can only fail. Failures are ignored: a backend that cannot answer should
-  // still render the login form.
+  // An instance with no accounts cannot be signed in to; send the first visitor to
+  // create the administrator instead of showing them a form that can only fail.
   useEffect(() => {
     let cancelled = false
     setupApi
