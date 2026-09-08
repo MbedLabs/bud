@@ -1,10 +1,4 @@
-"""The one-time link flows, end to end.
-
-Invitation, password reset, email verification and email change all hand out a
-single-use token and then consume it. These drive each flow with the real token
-rather than a stub, so the acceptance path - not just the rejection path - is
-covered.
-"""
+"""The one-time link flows, end to end."""
 
 from __future__ import annotations
 
@@ -160,12 +154,7 @@ class TestInvitationLifecycle:
     def test_a_revoked_invitation_cannot_seed_a_password_for_later(
         self, client, unauthenticated_client, mailbox
     ):
-        """The whole attack path, not just the status code.
-
-        Revoking used only to deactivate the account, leaving the emailed link
-        live. Whoever held it could still accept and choose a password - which
-        then worked the moment an administrator reactivated the account.
-        """
+        """The whole attack path, not just the status code."""
         created = client.post(
             "/api/users/invite", json={"email": "victim@example.com", "full_name": "Victim"}
         )

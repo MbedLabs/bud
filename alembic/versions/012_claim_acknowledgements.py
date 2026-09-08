@@ -1,9 +1,4 @@
-"""make runner claims idempotent and acknowledge their terminal answer
-
-Revision ID: 012_claim_acknowledgements
-Revises: 011_custom_runs
-Create Date: 2026-08-09
-"""
+"""make runner claims idempotent and acknowledge their terminal answer"""
 
 from alembic import op
 import sqlalchemy as sa

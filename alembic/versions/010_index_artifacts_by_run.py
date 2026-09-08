@@ -1,19 +1,4 @@
-"""index artifacts by the run they belong to
-
-Revision ID: 010_index_artifacts_by_run
-Revises: 009_admin_email_change_workflow
-Create Date: 2026-08-05
-
-`artifacts` carried only its primary key. Every read of the table is by the run
-it belongs to - the new per-run listing, and the cascade that unlinks files when
-a run is deleted - so both were sequential scans. Nothing has noticed yet
-because nothing uploads artifacts through the runner, but the listing endpoint
-is what makes them reachable, and the table grows one row per screenshot, trace
-and capture once it is used.
-
-`created_at` is indexed as well: the retention sweep at startup selects every
-artifact older than the cutoff, which is otherwise a full scan on every boot.
-"""
+"""index artifacts by the run they belong to"""
 
 from alembic import op
 

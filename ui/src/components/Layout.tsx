@@ -11,13 +11,13 @@ import PoweredByEmbedLabs from './PoweredByEmbedLabs'
 
 const getBloomUrl = (): string | null => {
   const runtimeUrl = window.runtimeConfig?.BLOOM_APP_URL
-  const buildTimeUrl = import.meta.env.VITE_BLOOM_ALM_URL
+  const buildTimeUrl = import.meta.env.VITE_BLOOM_PLM_URL
   const rawUrl = runtimeUrl || buildTimeUrl
   if (!rawUrl?.trim()) return null
   return rawUrl.replace(/\/api\/?$/, '')
 }
 
-const BLOOM_ALM_URL = getBloomUrl()
+const BLOOM_PLM_URL = getBloomUrl()
 
 /** Must match Tailwind w-60 / w-14 and main ml-* — also positions the seam toggle. */
 const SIDEBAR_EDGE = { expanded: '15rem', collapsed: '3.5rem' } as const
@@ -161,9 +161,9 @@ export default function Layout() {
 
         <div className={`mt-auto ${sidebarCollapsed ? 'px-2' : 'px-3'} pb-4 pt-2 space-y-1`} style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
           <div className="h-px bg-white/10 mx-2 mb-2" />
-          {BLOOM_ALM_URL && (
+          {BLOOM_PLM_URL && (
             <a
-              href={BLOOM_ALM_URL}
+              href={BLOOM_PLM_URL}
               target="_blank"
               rel="noopener noreferrer"
               className={`flex items-center ${sidebarCollapsed ? 'justify-center px-2' : 'gap-2.5 px-3'} py-1.5 rounded-lg text-[13px] font-medium text-lime-100/70 hover:bg-sidebar-hover hover:text-white transition-all duration-200 group`}

@@ -1,15 +1,4 @@
-"""What a run's result listing carries, and what it deliberately does not.
-
-The run detail page loads every result of a run and renders a per-assertion
-table from the `assertions` blob. The trace it shows against a failure comes
-from inside that blob. The result's own `traceback` column is a separate full
-stack trace per failed method, and no screen reads it - so listing a run was
-reading and hydrating a few kilobytes per failure that went nowhere.
-
-These hold the listing to the columns the screen actually uses, and hold the
-single-result endpoint to still carrying the trace, because "we stopped sending
-it" and "we lost it" look identical from the listing alone.
-"""
+"""What a run's result listing carries, and what it deliberately does not."""
 
 from __future__ import annotations
 

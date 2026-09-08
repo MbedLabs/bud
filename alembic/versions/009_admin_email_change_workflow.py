@@ -1,27 +1,4 @@
-"""locked baseline schema
-
-Revision ID: 009_admin_email_change_workflow
-Revises:
-Create Date: 2026-07-31
-
-Single locked baseline for the Bud schema.
-
-This replaces the previous chain, whose base revision built the schema by calling
-``Base.metadata.create_all()``. Because that base always produced whatever the
-models currently described, every later revision found its columns already
-present on a fresh install and had to be written defensively with
-inspect-then-add guards - and the real ALTER path was therefore never exercised
-by the fresh-install CI check.
-
-The revision identifier is deliberately kept as the previous head
-(``009_admin_email_change_workflow``) so that databases already migrated to that
-head report the same identifier, are seen as up to date, and are left untouched.
-No stamp or manual step is required for an existing deployment.
-
-From here migrations are ordinary explicit DDL: a new revision alters this
-baseline, so the empty-database CI check exercises the same statements a
-deployed database will run.
-"""
+"""locked baseline schema"""
 
 from typing import Sequence, Union
 

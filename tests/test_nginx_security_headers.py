@@ -1,21 +1,4 @@
-"""Every location must carry the security headers, not just the ones that forget to override.
-
-nginx inherits `add_header` from an outer level only when the current level
-declares no `add_header` of its own. Every location that set a Cache-Control
-header therefore dropped the four security headers defined on the server block -
-including `location = /index.html`, which is the document the
-Content-Security-Policy exists to protect and which every SPA deep link resolves
-to through `try_files`.
-
-Checked against nginx 1.24 before the fix: `/`, `/index.html`, `/runs`,
-`/runtime-config.js` and `/assets/*` carried none of the four, while `/api/*` -
-a location with no `add_header` of its own - carried all four. The policy
-applied to JSON responses and to nothing else.
-
-The failure mode is silent: the config is valid, nginx starts, every page loads.
-So this reads the config as a document and fails when a location sets a header
-without pulling the shared file back in.
-"""
+"""Every location must carry the security headers, not just the ones that forget to override."""
 
 from __future__ import annotations
 
@@ -38,11 +21,7 @@ REQUIRED_HEADERS = (
 
 
 def _locations() -> list[tuple[str, str]]:
-    """Each `location` block in the config, as (header line, body).
-
-    A brace counter rather than a regex: the bodies are one level deep, and a
-    regex for balanced braces is the kind of cleverness that fails quietly.
-    """
+    """Each `location` block in the config, as (header line, body)."""
     text = NGINX_CONF.read_text()
     blocks: list[tuple[str, str]] = []
     for match in re.finditer(r"^\s*(location[^\n{]*)\{", text, re.MULTILINE):
@@ -63,7 +42,7 @@ def test_the_shared_header_file_exists_and_holds_all_four():
     source = HEADERS_CONF.read_text()
 
     for header in REQUIRED_HEADERS:
-        assert f'add_header {header} ' in source, header
+        assert f"add_header {header} " in source, header
 
 
 def test_every_header_is_marked_always():
@@ -85,12 +64,7 @@ def test_the_server_block_includes_the_shared_file():
 
 @pytest.mark.parametrize("location,body", _locations(), ids=lambda value: str(value)[:40])
 def test_a_location_that_sets_a_header_re_includes_the_shared_file(location, body):
-    """The inheritance rule, enforced.
-
-    A location with no `add_header` inherits the server block's and is fine. One
-    that sets any header of its own - a Cache-Control, a Pragma - silently loses
-    all four and has to pull them back in.
-    """
+    """The inheritance rule, enforced."""
     if "add_header" not in body:
         return
 
@@ -103,7 +77,9 @@ def test_a_location_that_sets_a_header_re_includes_the_shared_file(location, bod
 def test_the_csp_still_forbids_inline_script():
     source = HEADERS_CONF.read_text()
     csp = next(
-        line for line in source.splitlines() if "Content-Security-Policy" in line and "add_header" in line
+        line
+        for line in source.splitlines()
+        if "Content-Security-Policy" in line and "add_header" in line
     )
 
     assert "script-src 'self'" in csp

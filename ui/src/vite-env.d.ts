@@ -2,7 +2,7 @@
 
 interface ImportMetaEnv {
   readonly VITE_API_URL: string
-  readonly VITE_BLOOM_ALM_URL: string
+  readonly VITE_BLOOM_PLM_URL: string
 }
 
 interface ImportMeta {

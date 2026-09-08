@@ -1,14 +1,4 @@
-"""
-First-run setup flow.
-
-The endpoints are unauthenticated, so the tests that matter are the ones
-proving the window closes: once any user exists, the instance must refuse to
-create another administrator and must stop advertising that setup is needed.
-
-Note the interaction with AUTO_SEED_ADMIN. When that is on, the lifespan seeds
-an administrator before the first request, so setup is never required — which
-is why a packaged deployment that wants the setup screen must leave it off.
-"""
+"""First-run setup flow."""
 
 import pytest
 import pytest_asyncio
@@ -31,12 +21,7 @@ def _payload(**overrides):
 
 @pytest_asyncio.fixture
 async def fresh_client(unauthenticated_client, db_session):
-    """A client whose instance has never had a user.
-
-    Depends on ``unauthenticated_client`` so the app's lifespan has already run;
-    the seeded administrator it may have created is then removed, leaving the
-    empty-table state a packaged first boot actually starts from.
-    """
+    """A client whose instance has never had a user."""
     await db_session.execute(delete(User))
     await db_session.commit()
     return unauthenticated_client
@@ -84,32 +69,20 @@ def test_rejects_a_password_below_the_shared_policy(fresh_client):
     assert response.status_code == 422
 
 
-def test_setup_returns_the_runner_key_exactly_once(fresh_client, monkeypatch):
-    """The browser completing setup is the only place the runner key is shown.
-
-    On a packaged deployment it is generated at first boot into a file the
-    operator cannot read, so if this response does not carry it, it is
-    unreachable without a shell on the server.
-    """
+def test_setup_returns_no_secret(fresh_client, monkeypatch):
+    """Setup hands over no secret at all."""
     monkeypatch.setattr("app.api.setup.send_admin_welcome_email", lambda **kw: None)
-    monkeypatch.setattr(
-        "app.api.setup.settings.RUNNER_API_KEY", "runner-key-value-32-chars-long-xx"
-    )
 
     body = fresh_client.post("/api/setup", json=_payload()).json()
-    assert body["runner_api_key"] == "runner-key-value-32-chars-long-xx"
+    assert "runner_api_key" not in body
+    assert body["message"]
 
-    # Setup is closed now, so there is no second call that could return it.
+    # Setup is closed now.
     assert fresh_client.get("/api/setup/status").json() == {"setup_required": False}
 
 
 def test_setup_succeeds_when_mail_is_unavailable(fresh_client, monkeypatch):
-    """No SMTP is a supported deployment, not a failure.
-
-    docker-compose defaults to SMTP_ENABLED=false and the Cloudron mail addon is
-    optional; if a mail failure aborted setup, those installs could never create
-    an administrator at all.
-    """
+    """No SMTP is a supported deployment, not a failure."""
     from app.services.mail_service import MailConfigurationError
 
     def _boom(**kwargs):

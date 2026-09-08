@@ -1,9 +1,4 @@
-"""Liveness vs readiness probe behaviour.
-
-Guards the release blocker: ``/api/health`` must never claim a database
-connection it has not verified, and ``/api/ready`` must actually check the
-database.
-"""
+"""Liveness vs readiness probe behaviour."""
 
 
 def test_health_is_liveness_only_and_does_not_claim_db(client):

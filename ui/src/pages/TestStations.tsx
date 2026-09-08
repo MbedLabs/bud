@@ -1,17 +1,49 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useState } from 'react'
 import { Link } from 'react-router'
 import { testStationsApi } from '../api/client'
-import { Server, Wifi, WifiOff, Clock, MapPin, Monitor, Radio } from 'lucide-react'
+import { useAuth } from '../contexts/AuthContext'
+import EnrolmentKeys from '../components/EnrolmentKeys'
+import {
+  Server, Wifi, WifiOff, Clock, MapPin, Monitor, Radio,
+  Trash2, AlertTriangle,
+} from 'lucide-react'
 
 export default function TestStations() {
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'admin'
+  const queryClient = useQueryClient()
+
+  const [actionError, setActionError] = useState('')
+
   const { data, isLoading, error } = useQuery({
     queryKey: ['testStations'],
     queryFn: testStationsApi.status,
     refetchInterval: 15000,
   })
 
+  // Shares its cache entry with EnrolmentKeys.
+  const { data: apiKeys } = useQuery({
+    queryKey: ['runnerApiKeys'],
+    queryFn: testStationsApi.listApiKeys,
+    enabled: isAdmin,
+  })
+
+  const removeStation = useMutation({
+    mutationFn: testStationsApi.remove,
+    onSuccess: () => {
+      setActionError('')
+      queryClient.invalidateQueries({ queryKey: ['testStations'] })
+      queryClient.invalidateQueries({ queryKey: ['runnerApiKeys'] })
+    },
+    onError: () => setActionError('Could not remove the Test Station.'),
+  })
+
   const runners = data?.runners || []
   const onlineCount = runners.filter(r => r.is_online).length
+  const keyedAccounts = new Set(
+    (apiKeys || []).map(k => k.runner_account).filter((a): a is string => Boolean(a))
+  )
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -23,6 +55,14 @@ export default function TestStations() {
           </p>
         </div>
       </div>
+
+      {actionError && (
+        <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 text-sm text-destructive">
+          {actionError}
+        </div>
+      )}
+
+      {isAdmin && <EnrolmentKeys />}
 
       {isLoading ? (
         <div className="bg-card rounded-lg border border-border shadow-elegant p-8 text-center text-muted-foreground">
@@ -39,13 +79,15 @@ export default function TestStations() {
           </div>
           <h3 className="text-lg font-semibold text-foreground mb-2">No Test Stations Registered</h3>
           <p className="text-muted-foreground max-w-md mx-auto text-sm">
-            A Test Station is a host where tests execute. Each station registers
-            one or more <span className="font-medium text-foreground">Bud runners</span>{' '}
-            (the execution agents). Register one with the <code>bud_runner</code> CLI:
+            A Test Station is a{' '}
+            <span className="font-medium text-foreground">Bud runner</span> — the two
+            are the same thing. Each location runs one or more of them, so a single
+            machine can host several stations, each with its own account. Register one
+            with the <code>bud_runner</code> CLI:
           </p>
           <div className="mt-6 p-3 bg-muted rounded-lg inline-block text-left">
             <code className="text-xs text-foreground font-mono block">
-              export RUNNER_API_KEY=... # shared secret from the Bud backend
+              export RUNNER_API_KEY=... # the key you created above
             </code>
             <code className="text-xs text-foreground font-mono block">
               export BUD_BACKEND_URL=&lt;your Bud backend URL&gt;
@@ -58,7 +100,13 @@ export default function TestStations() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {runners.map((runner) => (
-            <TestStationCard key={runner.account} runner={runner} />
+            <TestStationCard
+              key={runner.account}
+              runner={runner}
+              isAdmin={isAdmin}
+              hasKey={keyedAccounts.has(runner.account)}
+              onRemove={() => removeStation.mutate(runner.account)}
+            />
           ))}
         </div>
       )}
@@ -79,7 +127,17 @@ interface TestStationInfo {
   }
 }
 
-function TestStationCard({ runner }: { runner: TestStationInfo }) {
+function TestStationCard({
+  runner,
+  isAdmin,
+  hasKey,
+  onRemove,
+}: {
+  runner: TestStationInfo
+  isAdmin: boolean
+  hasKey: boolean
+  onRemove: () => void
+}) {
   return (
     <Link
       to={`/runs?station=${encodeURIComponent(runner.account)}`}
@@ -126,7 +184,32 @@ function TestStationCard({ runner }: { runner: TestStationInfo }) {
               </div>
             </div>
           </div>
+
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={(e) => {
+                // The whole card is a link to this station's runs.
+                e.preventDefault()
+                e.stopPropagation()
+                onRemove()
+              }}
+              aria-label={`Remove Test Station ${runner.account}`}
+              className="p-2 -mr-2 -mt-1 text-muted-foreground hover:text-destructive transition-colors shrink-0"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          )}
         </div>
+
+        {isAdmin && !hasKey && (
+          <div className="mb-4 flex items-start gap-2 p-2.5 rounded-md bg-amber-500/10 border border-amber-500/30">
+            <AlertTriangle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+            <p className="text-xs text-amber-700 dark:text-amber-400">
+              No enrolment key. Create one above and re-register this station.
+            </p>
+          </div>
+        )}
 
         {/* Details */}
         <div className="space-y-2.5">

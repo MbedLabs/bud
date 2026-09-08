@@ -1,8 +1,4 @@
-"""
-FastAPI application for the Bud test automation platform
-
-Main entry point for the backend API.
-"""
+"""FastAPI application for the Bud test automation platform"""
 
 import asyncio
 import contextlib
@@ -27,7 +23,6 @@ from app.api import (
     settings,
     setup,
     test_runs,
-    teststations,
     uploads,
 )
 from app.api import users as users_api
@@ -218,7 +213,6 @@ app.include_router(test_runs.router, prefix="/api/test-runs", tags=["Test Runs"]
 app.include_router(results.router, prefix="/api/results", tags=["Results"])
 app.include_router(uploads.router, prefix="/api/uploads", tags=["Uploads"])
 app.include_router(runners.router, prefix="/api/runners", tags=["Runners"])
-app.include_router(teststations.router, prefix="/api/teststations", tags=["TestStations"])
 app.include_router(settings.router, prefix="/api/settings", tags=["Settings"])
 app.include_router(setup.router, prefix="/api", tags=["Setup"])
 app.include_router(reports.router, prefix="/api/reports", tags=["Reports"])
