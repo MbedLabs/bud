@@ -567,6 +567,56 @@ describe('the Test Stations screen', () => {
     expect(await screen.findByText(testStation.account)).toBeTruthy()
     expect(screen.getAllByText(/online/i).length).toBeGreaterThan(0)
   })
+
+  it('asks before removing a station, and removes nothing until asked again', async () => {
+    renderAt('/test-stations', '/test-stations', <TestStations />)
+    await screen.findByText(testStation.account)
+
+    fireEvent.click(
+      screen.getByRole('button', { name: `Remove Test Station ${testStation.account}` }),
+    )
+
+    const dialog = await screen.findByRole('dialog')
+    expect(dialog.textContent).toContain('Its runs are kept.')
+    expect(client.testStationsApi.remove).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(client.testStationsApi.remove).not.toHaveBeenCalled()
+  })
+
+  it('removes the station once confirmed', async () => {
+    vi.mocked(client.testStationsApi.remove).mockResolvedValue(undefined)
+    renderAt('/test-stations', '/test-stations', <TestStations />)
+    await screen.findByText(testStation.account)
+
+    fireEvent.click(
+      screen.getByRole('button', { name: `Remove Test Station ${testStation.account}` }),
+    )
+    fireEvent.click(await screen.findByRole('button', { name: 'Remove' }))
+
+    const removed = vi.mocked(client.testStationsApi.remove)
+    await waitFor(() => expect(removed.mock.calls.length).toBe(1))
+    expect(removed.mock.calls[0][0]).toBe(testStation.account)
+  })
+
+  it('keeps the dialog open and says what the server said when removal fails', async () => {
+    vi.mocked(client.testStationsApi.remove).mockRejectedValue({
+      isAxiosError: true,
+      message: 'Request failed with status code 409',
+      response: { data: { detail: 'That station is running a test.' }, headers: {} },
+    })
+    renderAt('/test-stations', '/test-stations', <TestStations />)
+    await screen.findByText(testStation.account)
+
+    fireEvent.click(
+      screen.getByRole('button', { name: `Remove Test Station ${testStation.account}` }),
+    )
+    fireEvent.click(await screen.findByRole('button', { name: 'Remove' }))
+
+    expect(await screen.findByText('That station is running a test.')).toBeTruthy()
+    expect(screen.queryByRole('dialog')).toBeTruthy()
+  })
 })
 
 describe('settings', () => {

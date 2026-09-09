@@ -1,8 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link } from 'react-router'
-import { testStationsApi } from '../api/client'
+import { extractApiErrorMessage, testStationsApi } from '../api/client'
 import { useAuth } from '../contexts/AuthContext'
+import ConfirmDialog from '../components/ConfirmDialog'
 import EnrolmentKeys from '../components/EnrolmentKeys'
 import {
   Server, Wifi, WifiOff, Clock, MapPin, Monitor, Radio,
@@ -15,6 +16,7 @@ export default function TestStations() {
   const queryClient = useQueryClient()
 
   const [actionError, setActionError] = useState('')
+  const [pendingRemoval, setPendingRemoval] = useState<string | null>(null)
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['testStations'],
@@ -33,10 +35,12 @@ export default function TestStations() {
     mutationFn: testStationsApi.remove,
     onSuccess: () => {
       setActionError('')
+      setPendingRemoval(null)
       queryClient.invalidateQueries({ queryKey: ['testStations'] })
       queryClient.invalidateQueries({ queryKey: ['runnerApiKeys'] })
     },
-    onError: () => setActionError('Could not remove the Test Station.'),
+    onError: (error) =>
+      setActionError(extractApiErrorMessage(error, 'Could not remove the Test Station')),
   })
 
   const runners = data?.runners || []
@@ -56,7 +60,7 @@ export default function TestStations() {
         </div>
       </div>
 
-      {actionError && (
+      {actionError && !pendingRemoval && (
         <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 text-sm text-destructive">
           {actionError}
         </div>
@@ -105,10 +109,28 @@ export default function TestStations() {
               runner={runner}
               isAdmin={isAdmin}
               hasKey={keyedAccounts.has(runner.account)}
-              onRemove={() => removeStation.mutate(runner.account)}
+              onRemove={() => {
+                setActionError('')
+                setPendingRemoval(runner.account)
+              }}
             />
           ))}
         </div>
+      )}
+      {pendingRemoval && (
+        <ConfirmDialog
+          title="Remove this Test Station?"
+          body={`${pendingRemoval} loses its credentials and cannot upload until it registers again. Its runs are kept.`}
+          confirmLabel="Remove"
+          pendingLabel="Removing..."
+          isPending={removeStation.isPending}
+          error={actionError}
+          onConfirm={() => removeStation.mutate(pendingRemoval)}
+          onCancel={() => {
+            setPendingRemoval(null)
+            setActionError('')
+          }}
+        />
       )}
     </div>
   )

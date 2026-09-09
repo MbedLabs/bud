@@ -21,6 +21,17 @@ vi.mock('../api/client', async (importOriginal) => {
 
 const mockedApi = vi.mocked(testStationsApi)
 
+function apiError(detail?: string, requestId?: string) {
+  return {
+    isAxiosError: true,
+    message: 'Request failed with status code 500',
+    response: {
+      data: detail ? { detail } : {},
+      headers: requestId ? { 'x-request-id': requestId } : {},
+    },
+  }
+}
+
 const PINNED = {
   id: 1,
   label: 'bench-a',
@@ -168,12 +179,28 @@ describe('enrolment keys', () => {
     expect(screen.queryByRole('button', { name: 'Copied' })).toBeNull()
   })
 
-  it('revokes a key and refreshes the list', async () => {
+  it('asks before revoking, and revokes nothing until asked again', async () => {
+    mockedApi.listApiKeys.mockResolvedValue([PINNED])
+    renderKeys()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Revoke key bench-a' }))
+
+    const dialog = await screen.findByRole('dialog')
+    expect(dialog.textContent).toContain('bench-a-station')
+    expect(mockedApi.deleteApiKey).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(mockedApi.deleteApiKey).not.toHaveBeenCalled()
+  })
+
+  it('revokes a key once confirmed, and refreshes the list', async () => {
     mockedApi.listApiKeys.mockResolvedValueOnce([PINNED]).mockResolvedValue([])
     mockedApi.deleteApiKey.mockResolvedValue(undefined)
     renderKeys()
 
     fireEvent.click(await screen.findByRole('button', { name: 'Revoke key bench-a' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Revoke' }))
 
     await waitFor(() => expect(mockedApi.deleteApiKey.mock.calls.length).toBe(1))
     expect(mockedApi.deleteApiKey.mock.calls[0][0]).toBe(1)
@@ -182,8 +209,17 @@ describe('enrolment keys', () => {
     ).toBeTruthy()
   })
 
-  it('reports a failure to mint rather than leaving the form silent', async () => {
-    mockedApi.createApiKey.mockRejectedValue(new Error('boom'))
+  it('says an unused key has not been used yet', async () => {
+    mockedApi.listApiKeys.mockResolvedValue([UNUSED])
+    renderKeys()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Revoke key bench-b' }))
+
+    expect((await screen.findByRole('dialog')).textContent).toContain('has not been used yet')
+  })
+
+  it('shows what the server said rather than a generic failure', async () => {
+    mockedApi.createApiKey.mockRejectedValue(apiError('That label is already in use.'))
     renderKeys()
 
     fireEvent.change(await screen.findByLabelText('New key label'), {
@@ -191,16 +227,30 @@ describe('enrolment keys', () => {
     })
     fireEvent.click(screen.getByRole('button', { name: /New key/ }))
 
-    expect(await screen.findByText('Could not create the key.')).toBeTruthy()
+    expect(await screen.findByText('That label is already in use.')).toBeTruthy()
   })
 
-  it('reports a failure to revoke', async () => {
+  it('falls back to a reference the user can quote', async () => {
+    mockedApi.createApiKey.mockRejectedValue(apiError(undefined, 'abc123'))
+    renderKeys()
+
+    fireEvent.change(await screen.findByLabelText('New key label'), {
+      target: { value: 'bench-b' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /New key/ }))
+
+    expect(await screen.findByText(/Could not create the key. Quote reference abc123/)).toBeTruthy()
+  })
+
+  it('reports a failure to revoke inside the dialog, and keeps it open', async () => {
     mockedApi.listApiKeys.mockResolvedValue([PINNED])
-    mockedApi.deleteApiKey.mockRejectedValue(new Error('boom'))
+    mockedApi.deleteApiKey.mockRejectedValue(apiError('That key is still enrolling a station.'))
     renderKeys()
 
     fireEvent.click(await screen.findByRole('button', { name: 'Revoke key bench-a' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Revoke' }))
 
-    expect(await screen.findByText('Could not revoke the key.')).toBeTruthy()
+    expect(await screen.findByText('That key is still enrolling a station.')).toBeTruthy()
+    expect(screen.queryByRole('dialog')).toBeTruthy()
   })
 })
