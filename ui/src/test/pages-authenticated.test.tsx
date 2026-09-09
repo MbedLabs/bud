@@ -620,6 +620,42 @@ describe('the Test Stations screen', () => {
     expect(renamed.mock.calls[0].slice(0, 2)).toEqual([testStation.account, 'bench-renamed'])
   })
 
+  it('offers to revoke the key from the station that holds it', async () => {
+    vi.mocked(client.testStationsApi.listApiKeys).mockResolvedValue([
+      {
+        id: 9,
+        label: testStation.account,
+        station_name: testStation.account,
+        key_prefix: 'budrnr_aaaa',
+        runner_account: testStation.account,
+        created_at: '2026-09-01T10:00:00Z',
+        last_used_at: null,
+      },
+    ])
+    vi.mocked(client.testStationsApi.deleteApiKey).mockResolvedValue(undefined)
+    renderAt('/test-stations', '/test-stations', <TestStations />)
+    await screen.findByText(testStation.account)
+
+    fireEvent.click(screen.getByRole('button', { name: `Actions for ${testStation.account}` }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Revoke key' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Revoke' }))
+
+    const revoked = vi.mocked(client.testStationsApi.deleteApiKey)
+    await waitFor(() => expect(revoked.mock.calls.length).toBe(1))
+    expect(revoked.mock.calls[0][0]).toBe(9)
+  })
+
+  it('offers no key to revoke on a station that has none', async () => {
+    vi.mocked(client.testStationsApi.listApiKeys).mockResolvedValue([])
+    renderAt('/test-stations', '/test-stations', <TestStations />)
+    await screen.findByText(testStation.account)
+
+    fireEvent.click(screen.getByRole('button', { name: `Actions for ${testStation.account}` }))
+
+    expect(screen.queryByRole('menuitem', { name: 'Revoke key' })).toBeNull()
+    expect(screen.getByRole('menuitem', { name: 'Rename' })).toBeTruthy()
+  })
+
   it('keeps the dialog open and says what the server said when removal fails', async () => {
     vi.mocked(client.testStationsApi.remove).mockRejectedValue({
       isAxiosError: true,
