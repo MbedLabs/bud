@@ -7,8 +7,8 @@ import type { RunnerApiKeyCreated } from '../api/client'
 /**
  * Administrator management for Test Station enrolment keys.
  *
- * The minted secret is held in component state only - never localStorage or
- * sessionStorage, so it cannot outlive the tab.
+ * The minted secret is held in component state only, never in localStorage or
+ * sessionStorage.
  */
 export default function EnrolmentKeys() {
   const queryClient = useQueryClient()
@@ -53,7 +53,6 @@ export default function EnrolmentKeys() {
       setCopied(true)
       window.setTimeout(() => setCopied(false), 2000)
     } catch {
-      // Permission can be refused; the value is on screen behind the toggle.
       setCopied(false)
     }
   }
