@@ -11,6 +11,7 @@ export interface RowMenuAction {
 
 export default function RowMenu({ label, actions }: { label: string; actions: RowMenuAction[] }) {
   const [open, setOpen] = useState(false)
+  const [dropUp, setDropUp] = useState(false)
   const container = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -39,6 +40,8 @@ export default function RowMenu({ label, actions }: { label: string; actions: Ro
         onClick={(event) => {
           event.preventDefault()
           event.stopPropagation()
+          const below = window.innerHeight - event.currentTarget.getBoundingClientRect().bottom
+          setDropUp(below < actions.length * 40 + 16)
           setOpen((current) => !current)
         }}
         className="p-2 -mr-2 -mt-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
@@ -49,7 +52,9 @@ export default function RowMenu({ label, actions }: { label: string; actions: Ro
       {open && (
         <div
           role="menu"
-          className="absolute right-0 top-full z-20 mt-1 w-44 overflow-hidden rounded-lg border border-border bg-card shadow-elegant"
+          className={`absolute right-0 z-20 w-44 overflow-hidden rounded-lg border border-border bg-card shadow-elegant ${
+            dropUp ? 'bottom-full mb-1' : 'top-full mt-1'
+          }`}
         >
           {actions.map((action) => (
             <button
