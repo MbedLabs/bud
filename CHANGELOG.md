@@ -1,14 +1,18 @@
 # Changelog
 
-## Unreleased
+## 1.1.0 - 2026-09-09
 
 ### Added
 
 - **A run points back at the Bloom campaign it reached.** Bloom already recorded the Bud run that executed a campaign; standing in Bud there was no way back. When Bud syncs a run's results, Bloom now names the campaign those results reached and hands over its address, and Bud keeps it on the run as three nullable columns - the public id, the name and the URL - alongside the run itself. The run detail page shows it as a link, the run list a small one under the run name, and the dashboard the identifier.
 
+  An address Bloom supplies is rendered only when it is `http` or `https`; it crosses a service boundary into a link, and a `javascript:` value there would execute in the operator's browser.
+
   The pairing stays optional in both directions. Bud stores what Bloom handed over and never looks anything up: no foreign key, no join, no call back. A Bud with no Bloom configured, or an older Bloom that names no campaign, leaves the columns null and the surface simply absent - not an empty panel and not a warning. Results that reached two campaigns store nothing, because a run that touched both came from neither in particular.
 
 ### Changed
+
+- **Removing a station or revoking a key asks first.** Both were a single click on a destructive, irreversible action: removing a station revokes the credentials of a physical bench, which then cannot upload until someone re-registers it. Each now opens a confirmation naming what is about to happen — that a station's runs are kept, or which station a key enrolled — and a failure is reported inside that dialog with what the server actually said, rather than a fixed string, so the reason is visible without leaving the screen.
 
 - **Every Test Station has its own enrolment key.** A single `RUNNER_API_KEY`, shared by every bench, authenticated result uploads while the uploader's identity was taken from `runner_account` in the request body - so any holder of the key could file results against any active station, and the attribution in the run history was whatever the payload said.
 

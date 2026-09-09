@@ -1,8 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { AlertTriangle, KeyRound, Plus, Trash2 } from 'lucide-react'
-import { testStationsApi } from '../api/client'
-import type { RunnerApiKeyCreated } from '../api/client'
+import { extractApiErrorMessage, testStationsApi } from '../api/client'
+import type { RunnerApiKey, RunnerApiKeyCreated } from '../api/client'
+import ConfirmDialog from './ConfirmDialog'
 
 /**
  * Administrator management for Test Station enrolment keys.
@@ -18,6 +19,7 @@ export default function EnrolmentKeys() {
   const [keyVisible, setKeyVisible] = useState(false)
   const [copied, setCopied] = useState(false)
   const [actionError, setActionError] = useState('')
+  const [pendingRevoke, setPendingRevoke] = useState<RunnerApiKey | null>(null)
 
   const { data: apiKeys } = useQuery({
     queryKey: ['runnerApiKeys'],
@@ -34,16 +36,18 @@ export default function EnrolmentKeys() {
       setActionError('')
       queryClient.invalidateQueries({ queryKey: ['runnerApiKeys'] })
     },
-    onError: () => setActionError('Could not create the key.'),
+    onError: (error) => setActionError(extractApiErrorMessage(error, 'Could not create the key')),
   })
 
   const revokeKey = useMutation({
     mutationFn: testStationsApi.deleteApiKey,
     onSuccess: () => {
       setActionError('')
+      setPendingRevoke(null)
       queryClient.invalidateQueries({ queryKey: ['runnerApiKeys'] })
+      queryClient.invalidateQueries({ queryKey: ['testStations'] })
     },
-    onError: () => setActionError('Could not revoke the key.'),
+    onError: (error) => setActionError(extractApiErrorMessage(error, 'Could not revoke the key')),
   })
 
   const copyIssued = async () => {
@@ -70,7 +74,7 @@ export default function EnrolmentKeys() {
         registers with it, and from then on only that station can use it.
       </p>
 
-      {actionError && (
+      {actionError && !pendingRevoke && (
         <div className="mb-4 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-sm text-destructive">
           {actionError}
         </div>
@@ -167,7 +171,10 @@ export default function EnrolmentKeys() {
               </div>
               <button
                 type="button"
-                onClick={() => revokeKey.mutate(k.id)}
+                onClick={() => {
+                  setActionError('')
+                  setPendingRevoke(k)
+                }}
                 aria-label={`Revoke key ${k.label}`}
                 className="p-2 text-muted-foreground hover:text-destructive transition-colors shrink-0"
               >
@@ -176,6 +183,26 @@ export default function EnrolmentKeys() {
             </li>
           ))}
         </ul>
+      )}
+
+      {pendingRevoke && (
+        <ConfirmDialog
+          title="Revoke this enrolment key?"
+          body={
+            pendingRevoke.runner_account
+              ? `${pendingRevoke.label} enrolled ${pendingRevoke.runner_account}. Revoking it does not remove the station, but the station cannot register again without a new key.`
+              : `${pendingRevoke.label} has not been used yet. Revoking it cannot be undone.`
+          }
+          confirmLabel="Revoke"
+          pendingLabel="Revoking..."
+          isPending={revokeKey.isPending}
+          error={actionError}
+          onConfirm={() => revokeKey.mutate(pendingRevoke.id)}
+          onCancel={() => {
+            setPendingRevoke(null)
+            setActionError('')
+          }}
+        />
       )}
     </div>
   )
