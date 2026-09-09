@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+### Changed
+
+- **Every Test Station has its own enrolment key.** A single `RUNNER_API_KEY`, shared by every bench, authenticated result uploads while the uploader's identity was taken from `runner_account` in the request body - so any holder of the key could file results against any active station, and the attribution in the run history was whatever the payload said.
+
+  A key is now a record an administrator mints on the Test Stations page. It pins to the first station that registers with it and from then on names that station by itself; `get_uploader_entity` no longer reads the request body at all, so the payload cannot influence attribution. Registration refuses a pinned key presented for a different station, and refuses to displace a key a station already has. Deleting a station revokes its credentials and keeps its runs, which are detached rather than deleted.
+
+  A key is shown once, on creation, and is stored only as a SHA-256 digest; the listing shows a prefix, enough to tell two keys apart and nothing more. No key is generated at first boot any more, and the setup screen no longer reveals one. Stations enrolled before this re-register once against a key the administrator creates, and the page marks the ones that have none. `bud_runner` is unchanged: it already read `RUNNER_API_KEY` from its environment and sent it as `X-API-Key`.
+
+- **The `teststations` table and its endpoints are gone.** A Test Station is a runner - the station *is* the machine's registered account - so that parallel surface described nothing the runner table did not already hold. It was unreachable from the interface and still authenticated against the shared key.
+
+- **ALM is renamed PLM throughout**, in the interface, the settings and the API.
+
+### Fixed
+
+- **An unhandled error now carries a reference that can be quoted.** A 500 returned Starlette's default response with no detail for the client to extract, so every one of them surfaced as axios's "Request failed with status code 500". The request identifier was already minted per request, stamped on every log line and returned as `x-request-id`, but nothing put it in front of the user, so a report could not be traced to the log line explaining it. The handler now returns that identifier in the body and the message, and the client falls back to the response header when a body carries nothing usable. The exception itself is logged and never returned.
+
+- **Tests no longer inherit the operator's `.env`.** `conftest` loaded the workspace `.env` into the test environment and overrode only `SECRET_KEY`, `RUNNER_API_KEY` and `DATABASE_URL`; everything else stayed real, SMTP credentials included, so the setup test sent live mail on every run. The workflow already set `BUD_DOTENV_DISABLED` on two steps but nothing read it. Loading is now opt-in through `BUD_TESTS_USE_DOTENV` and covers the database, the admin passwords and the package index as well as mail, so it holds whether or not an individual test remembers to mock.
+
 ## 1.0.1 - 2026-09-07
 
 ### Added
