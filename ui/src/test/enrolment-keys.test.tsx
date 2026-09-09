@@ -68,21 +68,22 @@ describe('enrolment keys', () => {
     mockedApi.listApiKeys.mockResolvedValue([])
   })
 
-  it('says a station cannot enrol while no key exists', async () => {
+  it('says so when no key is waiting for a station', async () => {
     renderKeys()
 
     expect(
-      await screen.findByText('No keys yet. A station cannot enrol until one exists.')
+      await screen.findByText('No key is waiting for a station. Name one above to enrol a new bench.')
     ).toBeTruthy()
   })
 
-  it('distinguishes a pinned key from one still waiting for its station', async () => {
+  it('lists only keys still waiting, so it is not a second station roster', async () => {
     mockedApi.listApiKeys.mockResolvedValue([PINNED, UNUSED])
     renderKeys()
 
-    expect(await screen.findByText('bench-a')).toBeTruthy()
-    expect(screen.getByText(/bench-a-station/)).toBeTruthy()
-    expect(screen.getByText(/unused/)).toBeTruthy()
+    expect(await screen.findByText('bench-b')).toBeTruthy()
+    expect(screen.getByText(/waiting for its station to register/)).toBeTruthy()
+    expect(screen.queryByText('bench-a')).toBeNull()
+    expect(screen.queryByText(/bench-a-station/)).toBeNull()
   })
 
   it('will not mint a key under a name that would break a URL', async () => {
@@ -188,14 +189,14 @@ describe('enrolment keys', () => {
   })
 
   it('asks before revoking, and revokes nothing until asked again', async () => {
-    mockedApi.listApiKeys.mockResolvedValue([PINNED])
+    mockedApi.listApiKeys.mockResolvedValue([UNUSED])
     renderKeys()
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Actions for bench-a' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Actions for bench-b' }))
     fireEvent.click(await screen.findByRole('menuitem', { name: 'Revoke' }))
 
     const dialog = await screen.findByRole('dialog')
-    expect(dialog.textContent).toContain('bench-a-station')
+    expect(dialog.textContent).toContain('has not been used yet')
     expect(mockedApi.deleteApiKey).not.toHaveBeenCalled()
 
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
@@ -204,18 +205,18 @@ describe('enrolment keys', () => {
   })
 
   it('revokes a key once confirmed, and refreshes the list', async () => {
-    mockedApi.listApiKeys.mockResolvedValueOnce([PINNED]).mockResolvedValue([])
+    mockedApi.listApiKeys.mockResolvedValueOnce([UNUSED]).mockResolvedValue([])
     mockedApi.deleteApiKey.mockResolvedValue(undefined)
     renderKeys()
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Actions for bench-a' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Actions for bench-b' }))
     fireEvent.click(await screen.findByRole('menuitem', { name: 'Revoke' }))
     fireEvent.click(await screen.findByRole('button', { name: 'Revoke' }))
 
     await waitFor(() => expect(mockedApi.deleteApiKey.mock.calls.length).toBe(1))
-    expect(mockedApi.deleteApiKey.mock.calls[0][0]).toBe(1)
+    expect(mockedApi.deleteApiKey.mock.calls[0][0]).toBe(2)
     expect(
-      await screen.findByText('No keys yet. A station cannot enrol until one exists.')
+      await screen.findByText('No key is waiting for a station. Name one above to enrol a new bench.')
     ).toBeTruthy()
   })
 
@@ -254,11 +255,11 @@ describe('enrolment keys', () => {
   })
 
   it('reports a failure to revoke inside the dialog, and keeps it open', async () => {
-    mockedApi.listApiKeys.mockResolvedValue([PINNED])
+    mockedApi.listApiKeys.mockResolvedValue([UNUSED])
     mockedApi.deleteApiKey.mockRejectedValue(apiError('That key is still enrolling a station.'))
     renderKeys()
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Actions for bench-a' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Actions for bench-b' }))
     fireEvent.click(await screen.findByRole('menuitem', { name: 'Revoke' }))
     fireEvent.click(await screen.findByRole('button', { name: 'Revoke' }))
 
