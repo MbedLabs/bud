@@ -7,8 +7,14 @@ import ConfirmDialog from '../components/ConfirmDialog'
 import EnrolmentKeys from '../components/EnrolmentKeys'
 import {
   Server, Wifi, WifiOff, Clock, MapPin, Monitor, Radio,
-  Trash2, AlertTriangle,
+  Trash2, AlertTriangle, Pencil,
 } from 'lucide-react'
+
+const STATION_NAME = /^[a-zA-Z0-9_-]{3,50}$/
+
+function isValidStationName(value: string): boolean {
+  return STATION_NAME.test(value)
+}
 
 export default function TestStations() {
   const { user } = useAuth()
@@ -17,6 +23,8 @@ export default function TestStations() {
 
   const [actionError, setActionError] = useState('')
   const [pendingRemoval, setPendingRemoval] = useState<string | null>(null)
+  const [renaming, setRenaming] = useState<string | null>(null)
+  const [newName, setNewName] = useState('')
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['testStations'],
@@ -43,6 +51,20 @@ export default function TestStations() {
       setActionError(extractApiErrorMessage(error, 'Could not remove the Test Station')),
   })
 
+  const renameStation = useMutation({
+    mutationFn: ({ account, next }: { account: string; next: string }) =>
+      testStationsApi.rename(account, next),
+    onSuccess: () => {
+      setActionError('')
+      setRenaming(null)
+      setNewName('')
+      queryClient.invalidateQueries({ queryKey: ['testStations'] })
+      queryClient.invalidateQueries({ queryKey: ['runnerApiKeys'] })
+    },
+    onError: (error) =>
+      setActionError(extractApiErrorMessage(error, 'Could not rename the Test Station')),
+  })
+
   const runners = data?.runners || []
   const onlineCount = runners.filter(r => r.is_online).length
   const keyedAccounts = new Set(
@@ -60,7 +82,7 @@ export default function TestStations() {
         </div>
       </div>
 
-      {actionError && !pendingRemoval && (
+      {actionError && !pendingRemoval && !renaming && (
         <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 text-sm text-destructive">
           {actionError}
         </div>
@@ -113,10 +135,74 @@ export default function TestStations() {
                 setActionError('')
                 setPendingRemoval(runner.account)
               }}
+              onRename={() => {
+                setActionError('')
+                setNewName(runner.account)
+                setRenaming(runner.account)
+              }}
             />
           ))}
         </div>
       )}
+      {renaming && (
+        <div
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50"
+          onClick={() => setRenaming(null)}
+        >
+          <form
+            role="dialog"
+            aria-modal="true"
+            aria-label="Rename Test Station"
+            className="bg-card rounded-lg shadow-elegant p-6 max-w-sm w-full mx-4"
+            onClick={(event) => event.stopPropagation()}
+            onSubmit={(event) => {
+              event.preventDefault()
+              if (isValidStationName(newName)) {
+                renameStation.mutate({ account: renaming, next: newName })
+              }
+            }}
+          >
+            <h3 className="text-lg font-semibold text-foreground mb-2">Rename this Test Station?</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              The station keeps its credentials and its runs, and picks the new name up on its
+              next heartbeat.
+            </p>
+            <input
+              value={newName}
+              onChange={(event) => setNewName(event.target.value)}
+              aria-label="Rename station to"
+              maxLength={50}
+              autoFocus
+              className="w-full mb-4 px-3 py-2 bg-background border border-input rounded-lg text-sm text-foreground"
+            />
+            {actionError && (
+              <div className="mb-4 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-sm text-destructive">
+                {actionError}
+              </div>
+            )}
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setRenaming(null)
+                  setActionError('')
+                }}
+                className="px-4 py-2 border border-input rounded-md text-foreground hover:bg-accent/50 text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={!isValidStationName(newName) || renameStation.isPending}
+                className="px-4 py-2 bg-gradient-button text-white rounded-md hover:opacity-90 disabled:opacity-50 text-sm"
+              >
+                {renameStation.isPending ? 'Renaming...' : 'Rename'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
       {pendingRemoval && (
         <ConfirmDialog
           title="Remove this Test Station?"
@@ -154,11 +240,13 @@ function TestStationCard({
   isAdmin,
   hasKey,
   onRemove,
+  onRename,
 }: {
   runner: TestStationInfo
   isAdmin: boolean
   hasKey: boolean
   onRemove: () => void
+  onRename: () => void
 }) {
   return (
     <Link
@@ -211,7 +299,21 @@ function TestStationCard({
             <button
               type="button"
               onClick={(e) => {
-                // The whole card is a link to this station's runs.
+                e.preventDefault()
+                e.stopPropagation()
+                onRename()
+              }}
+              aria-label={`Rename Test Station ${runner.account}`}
+              className="p-2 -mt-1 text-muted-foreground hover:text-primary transition-colors shrink-0"
+            >
+              <Pencil className="h-4 w-4" />
+            </button>
+          )}
+
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={(e) => {
                 e.preventDefault()
                 e.stopPropagation()
                 onRemove()

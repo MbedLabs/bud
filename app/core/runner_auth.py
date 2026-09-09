@@ -40,6 +40,23 @@ def runner_has_recent_heartbeat(
     return (now - last) < timedelta(seconds=settings.RUNNER_HEARTBEAT_TIMEOUT)
 
 
+def _station_query(payload: dict):
+    """Locate the station a runner token names.
+
+    ``rid`` is the station's primary key and survives a rename. Tokens minted
+    before stations could be renamed carry only ``sub``, the account name.
+    """
+
+    runner_id = payload.get("rid")
+    if runner_id is not None:
+        try:
+            return select(Runner).where(Runner.id == int(runner_id))
+        except (TypeError, ValueError):
+            return None
+    account = payload.get("sub")
+    return select(Runner).where(Runner.account == account) if account else None
+
+
 async def authenticate_runner_token(token: str, db: AsyncSession) -> Optional[Runner]:
     """Resolve the active Test Station holding the current stored bearer token."""
     payload = decode_access_token(token)
@@ -50,11 +67,11 @@ async def authenticate_runner_token(token: str, db: AsyncSession) -> Optional[Ru
     if not payload or payload.get("type") != "runner":
         return None
 
-    account = payload.get("sub")
-    if not account:
+    query = _station_query(payload)
+    if query is None:
         return None
 
-    result = await db.execute(select(Runner).where(Runner.account == account))
+    result = await db.execute(query)
     entity = result.scalar_one_or_none()
     if (
         not entity

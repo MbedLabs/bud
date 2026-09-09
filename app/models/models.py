@@ -63,6 +63,7 @@ class RunnerApiKey(Base):
     key_hash: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     # Leading characters, so the list can tell two keys apart.
     key_prefix: Mapped[str] = mapped_column(String(12))
+    station_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     runner_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("runners.id", ondelete="CASCADE"), index=True, nullable=True
     )

@@ -55,11 +55,14 @@ class ProductResponse(ProductBase):
 # ==================== Runner Schemas ====================
 
 
+STATION_NAME_PATTERN = r"^[a-zA-Z0-9_\-]+$"
+
+
 class RunnerRegister(BaseModel):
     """Schema for runner registration."""
 
     # M2: tighter max_length and explicit pattern to avoid control chars / injection
-    username: str = Field(..., min_length=3, max_length=50, pattern=r"^[a-zA-Z0-9_\-]+$")
+    username: str = Field(..., min_length=3, max_length=50, pattern=STATION_NAME_PATTERN)
     password: str = Field(..., min_length=12, max_length=128)
     socket_port: int = Field(default=53035, ge=1024, le=65535)
     location: Optional[str] = Field(default=None, max_length=255)
@@ -116,6 +119,9 @@ class RunnerApiKeyCreate(BaseModel):
     """Schema for minting a Test Station enrolment key."""
 
     label: str = Field(..., min_length=1, max_length=100)
+    station_name: Optional[str] = Field(
+        default=None, min_length=3, max_length=50, pattern=STATION_NAME_PATTERN
+    )
 
 
 class RunnerApiKeyResponse(BaseModel):
@@ -123,6 +129,7 @@ class RunnerApiKeyResponse(BaseModel):
 
     id: int
     label: str
+    station_name: Optional[str] = None
     key_prefix: str
     runner_account: Optional[str] = None
     created_at: datetime
@@ -136,6 +143,12 @@ class RunnerApiKeyCreated(RunnerApiKeyResponse):
     """The one response that carries the plaintext key."""
 
     api_key: str
+
+
+class RunnerRename(BaseModel):
+    """Schema for renaming a Test Station."""
+
+    account: str = Field(..., min_length=3, max_length=50, pattern=STATION_NAME_PATTERN)
 
 
 class RunnerHeartbeat(BaseModel):

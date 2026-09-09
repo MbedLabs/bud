@@ -492,8 +492,16 @@ export const testStationsApi = {
   },
 
   /** Mint a key. The plaintext is in this response only. */
+  rename: async (account: string, newAccount: string) => {
+    const response = await api.patch<TestStation>(`/runners/${account}`, { account: newAccount })
+    return response.data
+  },
+
   createApiKey: async (label: string) => {
-    const response = await api.post<RunnerApiKeyCreated>('/runners/api-keys', { label })
+    const response = await api.post<RunnerApiKeyCreated>('/runners/api-keys', {
+      label,
+      station_name: label,
+    })
     return response.data
   },
 
@@ -505,6 +513,8 @@ export const testStationsApi = {
 export interface RunnerApiKey {
   id: number
   label: string
+  /** The name the station takes when this key enrols one. Null on keys minted before naming existed. */
+  station_name: string | null
   key_prefix: string
   runner_account: string | null
   created_at: string

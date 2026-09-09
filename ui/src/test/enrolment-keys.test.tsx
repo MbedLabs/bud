@@ -35,6 +35,7 @@ function apiError(detail?: string, requestId?: string) {
 const PINNED = {
   id: 1,
   label: 'bench-a',
+  station_name: 'bench-a',
   key_prefix: 'budrnr_aaaa',
   runner_account: 'bench-a-station',
   created_at: '2026-09-01T10:00:00Z',
@@ -44,6 +45,7 @@ const PINNED = {
 const UNUSED = {
   id: 2,
   label: 'bench-b',
+  station_name: 'bench-b',
   key_prefix: 'budrnr_bbbb',
   runner_account: null,
   created_at: '2026-09-01T10:00:00Z',
@@ -83,21 +85,27 @@ describe('enrolment keys', () => {
     expect(screen.getByText(/unused/)).toBeTruthy()
   })
 
-  it('will not mint a key without a label', async () => {
+  it('will not mint a key under a name that would break a URL', async () => {
     renderKeys()
 
     const submit = await screen.findByRole('button', { name: /New key/ })
+    const field = screen.getByLabelText('New station name')
     expect((submit as HTMLButtonElement).disabled).toBe(true)
 
-    fireEvent.change(screen.getByLabelText('New key label'), { target: { value: '   ' } })
-    expect((submit as HTMLButtonElement).disabled).toBe(true)
+    for (const bad of ['   ', 'ab', "Ada's bench", 'lab 2', 'bench/a', 'bench#3']) {
+      fireEvent.change(field, { target: { value: bad } })
+      expect((submit as HTMLButtonElement).disabled, bad).toBe(true)
+    }
+
+    fireEvent.change(field, { target: { value: 'bench-a' } })
+    expect((submit as HTMLButtonElement).disabled).toBe(false)
   })
 
   it('shows the minted secret masked, and reveals it only on request', async () => {
     mockedApi.createApiKey.mockResolvedValue({ ...UNUSED, api_key: 'budrnr_the-actual-secret' })
     renderKeys()
 
-    fireEvent.change(await screen.findByLabelText('New key label'), {
+    fireEvent.change(await screen.findByLabelText('New station name'), {
       target: { value: 'bench-b' },
     })
     fireEvent.click(screen.getByRole('button', { name: /New key/ }))
@@ -121,19 +129,19 @@ describe('enrolment keys', () => {
     mockedApi.createApiKey.mockResolvedValue({ ...UNUSED, api_key: 'budrnr_secret' })
     renderKeys()
 
-    const label = (await screen.findByLabelText('New key label')) as HTMLInputElement
+    const label = (await screen.findByLabelText('New station name')) as HTMLInputElement
     fireEvent.change(label, { target: { value: 'bench-b' } })
     fireEvent.click(screen.getByRole('button', { name: /New key/ }))
 
     await screen.findByLabelText('New Test Station API key')
-    expect((screen.getByLabelText('New key label') as HTMLInputElement).value).toBe('')
+    expect((screen.getByLabelText('New station name') as HTMLInputElement).value).toBe('')
   })
 
   it('takes the secret off screen when dismissed', async () => {
     mockedApi.createApiKey.mockResolvedValue({ ...UNUSED, api_key: 'budrnr_secret' })
     renderKeys()
 
-    fireEvent.change(await screen.findByLabelText('New key label'), {
+    fireEvent.change(await screen.findByLabelText('New station name'), {
       target: { value: 'bench-b' },
     })
     fireEvent.click(screen.getByRole('button', { name: /New key/ }))
@@ -151,7 +159,7 @@ describe('enrolment keys', () => {
     mockedApi.createApiKey.mockResolvedValue({ ...UNUSED, api_key: 'budrnr_secret' })
     renderKeys()
 
-    fireEvent.change(await screen.findByLabelText('New key label'), {
+    fireEvent.change(await screen.findByLabelText('New station name'), {
       target: { value: 'bench-b' },
     })
     fireEvent.click(screen.getByRole('button', { name: /New key/ }))
@@ -168,7 +176,7 @@ describe('enrolment keys', () => {
     mockedApi.createApiKey.mockResolvedValue({ ...UNUSED, api_key: 'budrnr_secret' })
     renderKeys()
 
-    fireEvent.change(await screen.findByLabelText('New key label'), {
+    fireEvent.change(await screen.findByLabelText('New station name'), {
       target: { value: 'bench-b' },
     })
     fireEvent.click(screen.getByRole('button', { name: /New key/ }))
@@ -222,7 +230,7 @@ describe('enrolment keys', () => {
     mockedApi.createApiKey.mockRejectedValue(apiError('That label is already in use.'))
     renderKeys()
 
-    fireEvent.change(await screen.findByLabelText('New key label'), {
+    fireEvent.change(await screen.findByLabelText('New station name'), {
       target: { value: 'bench-b' },
     })
     fireEvent.click(screen.getByRole('button', { name: /New key/ }))
@@ -234,7 +242,7 @@ describe('enrolment keys', () => {
     mockedApi.createApiKey.mockRejectedValue(apiError(undefined, 'abc123'))
     renderKeys()
 
-    fireEvent.change(await screen.findByLabelText('New key label'), {
+    fireEvent.change(await screen.findByLabelText('New station name'), {
       target: { value: 'bench-b' },
     })
     fireEvent.click(screen.getByRole('button', { name: /New key/ }))

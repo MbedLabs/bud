@@ -76,16 +76,20 @@ def decode_access_token(token: str) -> Optional[dict]:
         return None
 
 
-def generate_runner_token(runner_account: str) -> str:
+def generate_runner_token(runner_account: str, runner_id: Optional[int] = None) -> str:
     """Generate a revocable token for a runner.
 
     Args:
-    runner_account: Runner account name.
+    runner_account: Runner account name, kept as ``sub`` for readability.
+    runner_id: Primary key the token identifies the station by, as ``rid``.
 
     Returns:
     Runner token (JWT).
     """
+    data = {"sub": runner_account, "type": "runner", "jti": secrets.token_urlsafe(16)}
+    if runner_id is not None:
+        data["rid"] = str(runner_id)
     return create_access_token(
-        data={"sub": runner_account, "type": "runner", "jti": secrets.token_urlsafe(16)},
+        data=data,
         expires_delta=timedelta(hours=settings.RUNNER_TOKEN_EXPIRE_HOURS),
     )

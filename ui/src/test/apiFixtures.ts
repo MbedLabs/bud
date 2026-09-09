@@ -246,6 +246,7 @@ export const RESPONSES: Record<string, unknown> = {
 
   'testStationsApi.status': { runners: [testStation] },
   'testStationsApi.getByAccount': runner,
+  'testStationsApi.rename': runner,
 
   'settingsApi.getPLM': plmSettings,
   'settingsApi.updatePLM': plmSettings,
