@@ -294,6 +294,17 @@ export default function Dashboard() {
                       <p className="text-xs text-muted-foreground truncate">{run.test_case_list}</p>
                       <span className="text-[10px] text-muted-foreground/40">•</span>
                       <p className="text-[10px] text-muted-foreground font-mono">{formatDateTime(run.started_at)}</p>
+                      {run.bloom_artefact_id && (
+                        <>
+                          <span className="text-[10px] text-muted-foreground/40">•</span>
+                          <p
+                            className="text-[10px] text-muted-foreground font-mono truncate"
+                            title={run.bloom_artefact_name || undefined}
+                          >
+                            {run.bloom_artefact_id}
+                          </p>
+                        </>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-3 ml-4 flex-shrink-0">

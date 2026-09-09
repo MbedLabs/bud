@@ -203,7 +203,7 @@ export default function CustomRun() {
           <div className="flex items-center gap-2 border-b border-border px-5 py-4">
             <ListChecks className="h-4 w-4 shrink-0 text-primary" />
             <div>
-              <h3 className="text-sm font-semibold text-foreground">Test cases Bud knows</h3>
+              <h3 className="text-sm font-semibold text-foreground">Available test cases</h3>
               <p className="text-xs text-muted-foreground">
                 {isLoading
                   ? 'Loading the catalogue...'

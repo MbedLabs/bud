@@ -12,7 +12,7 @@ from tenacity import (
 )
 
 from app.db import database as db
-from app.models import TestResult
+from app.models import TestResult, TestRun
 from app.services.integration_secrets import decrypt_integration_secret
 from app.services.run_events import record_test_run_event
 
@@ -77,15 +77,18 @@ async def _post_to_bloom_with_retry(bloom_url: str, bloom_token: str, payload_re
         return response
 
 
-async def sync_results_to_bloom(test_run_id: int):
-    """
-    Background task to sync test results from Bud to Bloom PLM.
+def _campaign_reference(data: dict) -> dict | None:
+    """The single campaign Bloom reported, or None when it named none or many."""
 
-    Aggregates execution outcomes by Bloom ``tc_id`` extracted from result
-    metadata. Bud sends no campaign identity or campaign metadata. Bloom owns
-    the matching test cases and may update line items in campaigns that already
-    contain those test cases.
-    """
+    campaigns = data.get("campaigns")
+    if not isinstance(campaigns, list) or len(campaigns) != 1:
+        return None
+    campaign = campaigns[0]
+    return campaign if isinstance(campaign, dict) else None
+
+
+async def sync_results_to_bloom(test_run_id: int):
+    """Background task to sync test results from Bud to Bloom PLM."""
     async with db.async_session_maker() as session:
         try:
             # 1. Get Bloom Configuration from SystemSettings
@@ -177,6 +180,13 @@ async def sync_results_to_bloom(test_run_id: int):
                     ),
                     event_metadata=data,
                 )
+                campaign = _campaign_reference(data)
+                if campaign:
+                    test_run = await session.get(TestRun, test_run_id)
+                    if test_run:
+                        test_run.bloom_artefact_id = campaign.get("campaign_id")
+                        test_run.bloom_artefact_name = campaign.get("name")
+                        test_run.bloom_artefact_url = campaign.get("url")
                 await session.commit()
             else:
                 logger.error(f"Failed to sync to Bloom: {response.status_code} - {response.text}")

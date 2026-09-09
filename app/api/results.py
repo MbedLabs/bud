@@ -2,7 +2,6 @@
 Test results API endpoints.
 """
 
-import hmac
 import logging
 from datetime import datetime
 from typing import List, Optional, Union
@@ -13,9 +12,9 @@ from sqlalchemy import Integer, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.auth import get_current_active_entity
-from app.core.config import settings
 from app.core.run_access import require_mutating_user, require_run_access
 from app.core.runner_auth import authenticate_runner_token
+from app.core.runner_keys import mark_used, resolve_key
 from app.db import get_db
 from app.models import Product, Runner, TestResult, TestRun
 from app.models.user import User
@@ -30,15 +29,13 @@ oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_e
 
 
 async def get_uploader_entity(
-    data: ResultsUpload,
     db: AsyncSession = Depends(get_db),
     token: Optional[str] = Depends(oauth2_scheme_optional),
     x_api_key: Optional[str] = Header(None, alias="X-API-Key"),
 ) -> Union[User, Runner]:
-    """
-    Identifies the uploader via either:
+    """Identifies the uploader via either:
     1. A valid JWT (User or Runner).
-    2. A valid machine-level X-API-Key + runner_account in payload.
+    2. The Test Station's own enrolment key, which names one station.
     """
     # 1. Try JWT first (standard path for UI; runners may use expired JWT + heartbeat)
     if token:
@@ -51,25 +48,23 @@ async def get_uploader_entity(
             if isinstance(entity, User):
                 return entity
         except HTTPException:
-            # A valid machine API key below may still authenticate a runner. If
-            # no fallback credential is supplied, the request ends in the
-            # endpoint's standard 401 response.
+            # An enrolment key below may still authenticate a station; with no
+            # fallback credential the request ends in the standard 401.
             pass
 
-    # 2. Fallback to Persistent Auth (API Key + Account Name)
-    if x_api_key and data.runner_account:
-        expected = getattr(settings, "RUNNER_API_KEY", "")
-        # Constant-time comparison so the key can't be guessed via timing differences.
-        if expected and hmac.compare_digest(x_api_key.encode(), expected.encode()):
-            res = await db.execute(select(Runner).where(Runner.account == data.runner_account))
-            runner = res.scalar_one_or_none()
+    # 2. Fall back to the station's enrolment key.
+    if x_api_key:
+        record = await resolve_key(x_api_key, db)
+        if record is not None and record.runner_id is not None:
+            runner = await db.get(Runner, record.runner_id)
             if runner and runner.is_active:
+                mark_used(record)
                 return runner
 
     # 3. If no valid auth method found
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Authentication required. Provide a valid JWT or X-API-Key and runner_account.",
+        detail="Authentication required. Provide a valid JWT or a Test Station API key.",
         headers={"WWW-Authenticate": "Bearer"},
     )
 
@@ -81,13 +76,7 @@ async def upload_results(
     db: AsyncSession = Depends(get_db),
     _current_entity: Union[User, Runner] = Depends(get_uploader_entity),
 ):
-    """
-    Upload test results.
-
-    Accepts multiple test results and optionally associates them with a test run.
-    Identifies uploader via JWT or persistent machine credentials.
-    Automatically creates a TestRun if missing.
-    """
+    """Upload test results."""
     target_run_id = data.test_run_id
     target_product_id = data.product_id
 
@@ -202,9 +191,6 @@ async def upload_results(
     await db.commit()
 
     # Saving both the Bloom URL and scoped credential enables synchronization.
-    # The background task records a skipped event when either value is absent,
-    # so there is no separate hidden environment flag that can silently disable
-    # an otherwise complete UI configuration.
     background_tasks.add_task(sync_results_to_bloom, target_run_id)
 
     return {
@@ -220,15 +206,7 @@ async def get_results_for_run(
     db: AsyncSession = Depends(get_db),
     _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
 ):
-    """
-    Get all results for a test run.
-
-    The columns are named rather than taking whole rows: `traceback` is a full
-    stack trace per failed method, and nothing renders it - the trace the run
-    detail shows comes from inside each assertion. Selecting it meant reading
-    and hydrating it for every result on every visit to a run. It is still on
-    `/detail/{result_id}`.
-    """
+    """Get all results for a test run."""
     # Verify test run exists
     run_result = await db.execute(select(TestRun).where(TestRun.id == run_id))
     test_run = run_result.scalar_one_or_none()

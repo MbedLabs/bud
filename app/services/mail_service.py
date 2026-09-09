@@ -16,6 +16,10 @@ class MailConfigurationError(Exception):
     pass
 
 
+class MailDeliveryError(MailConfigurationError):
+    """SMTP is configured, but the message could not be handed to the server."""
+
+
 def render_template(template_name: str, context: dict[str, str]) -> str:
     template_path = TEMPLATE_DIR / template_name
     content = template_path.read_text(encoding="utf-8")
@@ -41,14 +45,26 @@ def send_email(
         message.add_alternative(html_body, subtype="html")
 
     smtp_class = smtplib.SMTP_SSL if settings.SMTP_SSL else smtplib.SMTP
-    with smtp_class(
-        settings.SMTP_HOST, settings.SMTP_PORT, timeout=settings.SMTP_TIMEOUT_SECONDS
-    ) as smtp:
-        if settings.SMTP_STARTTLS and not settings.SMTP_SSL:
-            smtp.starttls()
-        if settings.SMTP_USERNAME:
-            smtp.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
-        smtp.send_message(message)
+    try:
+        with smtp_class(
+            settings.SMTP_HOST, settings.SMTP_PORT, timeout=settings.SMTP_TIMEOUT_SECONDS
+        ) as smtp:
+            if settings.SMTP_STARTTLS and not settings.SMTP_SSL:
+                smtp.starttls()
+            if settings.SMTP_USERNAME:
+                smtp.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
+            smtp.send_message(message)
+    except (smtplib.SMTPException, OSError) as exc:
+        # Name the endpoint and the TLS mode: the failures seen in practice are
+        # a port/TLS mismatch or an unreachable relay, and neither is
+        # identifiable from the exception text alone.
+        detail = (
+            f"Could not send mail via {settings.SMTP_HOST}:{settings.SMTP_PORT} "
+            f"(STARTTLS={settings.SMTP_STARTTLS}, SSL={settings.SMTP_SSL}): "
+            f"{type(exc).__name__}: {exc}"
+        )
+        logger.error("Mail delivery failed: %s", detail)
+        raise MailDeliveryError(detail) from exc
 
     logger.info("Sent email '%s' to %s", subject, to_email)
 
@@ -140,4 +156,19 @@ def send_password_reset_email(*, to_email: str, full_name: str, reset_link: str)
         subject=f"Reset your password for {settings.BUD_APP_NAME}",
         text_body=render_template("reset_password.txt", context),
         html_body=render_template("reset_password.html", context),
+    )
+
+
+def send_admin_welcome_email(*, to_email: str, full_name: str, login_link: str) -> None:
+    """Confirm to the first administrator that their account exists."""
+    context = {
+        "full_name": full_name,
+        "login_link": login_link,
+        "app_name": settings.BUD_APP_NAME,
+    }
+    send_email(
+        to_email=to_email,
+        subject=f"You are the administrator of {settings.BUD_APP_NAME}",
+        text_body=render_template("admin_welcome.txt", context),
+        html_body=render_template("admin_welcome.html", context),
     )

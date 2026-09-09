@@ -133,10 +133,7 @@ async def build_summary_report(
     runner_account: str | None = None,
     suite: str | None = None,
 ) -> ReportRequest:
-    """Many runs, with assertion outcomes grouped by suite, Test Station and day.
-
-    `conditions` carries the caller's dashboard/viewer scoping.
-    """
+    """Many runs, with assertion outcomes grouped by suite, Test Station and day."""
     query = (
         select(TestRun.name, Runner.account, TestRun.created_at, TestResult.assertions)
         .select_from(TestRun)
@@ -235,11 +232,7 @@ async def _store_bytes(
 
 
 async def store_run_reports(db: AsyncSession, run_id: int) -> list[Artifact]:
-    """Write the run's report and its suite's report as artifacts of the run.
-
-    Idempotent: a claimed run finishes through both the PATCH and the claim
-    acknowledgement. A report that will not render is logged, not raised.
-    """
+    """Write the run's report and its suite's report as artifacts of the run."""
     run = (
         await db.execute(
             select(TestRun)

@@ -1,0 +1,7 @@
+[1.0.1]
+* First-run setup now hands over the runner registration key and confirms the administrator by email.
+* Transactional email follows the product's own colours.
+* Faster project and traceability screens, and a smaller initial download.
+
+[1.0.0]
+* First Cloudron release of Bud 1.0.0.

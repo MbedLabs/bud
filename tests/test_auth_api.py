@@ -1,9 +1,4 @@
-"""Authentication endpoints exercised against real credentials.
-
-These use ``unauthenticated_client`` so login, the refresh rotation and the
-one-time link flows all run for real, rather than through the dependency
-overrides that the ``client`` fixture installs.
-"""
+"""Authentication endpoints exercised against real credentials."""
 
 from __future__ import annotations
 
@@ -20,13 +15,7 @@ PASSWORD = "a-sufficiently-long-password"
 
 
 def refresh_cookie(response) -> str | None:
-    """Read the refresh token from Set-Cookie.
-
-    The TestClient's jar is not a reliable source here: reading it back can come
-    up empty, and a per-request cookie merges with whatever the jar already
-    holds - which quietly sends the *rotated* token instead of the one under
-    test.
-    """
+    """Read the refresh token from Set-Cookie."""
     match = re.search(r"refresh_token=([^;]+)", response.headers.get("set-cookie", ""))
     return match.group(1) if match else None
 

@@ -23,10 +23,11 @@ import {
   type OutcomeFilters,
 } from '../lib/testRunResultFilters'
 import { formatDateTime } from '../test/date-utils'
+import { safeExternalUrl } from '../lib/externalLink'
 import {
   ArrowLeft, CheckCircle, XCircle, Clock, AlertCircle, Activity,
   ChevronDown, ChevronRight, UploadCloud, RefreshCw, Radio, GitBranch,
-  Filter, X, FileDown, Paperclip, FileText, Download,
+  Filter, X, FileDown, Paperclip, FileText, Download, ExternalLink,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
@@ -211,6 +212,33 @@ export default function TestRunDetail() {
                 : 'Not assigned'
             }
           />
+          {run.bloom_artefact_id && (
+            <div>
+              <dt className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
+                Bloom campaign
+              </dt>
+              <dd className="text-sm text-foreground mt-1 break-words">
+                {safeExternalUrl(run.bloom_artefact_url) ? (
+                  <a
+                    href={safeExternalUrl(run.bloom_artefact_url) as string}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-primary hover:underline"
+                  >
+                    {run.bloom_artefact_id}
+                    <ExternalLink className="h-3 w-3 shrink-0" />
+                  </a>
+                ) : (
+                  run.bloom_artefact_id
+                )}
+                {run.bloom_artefact_name && (
+                  <span className="block text-xs text-muted-foreground">
+                    {run.bloom_artefact_name}
+                  </span>
+                )}
+              </dd>
+            </div>
+          )}
         </dl>
       </div>
 

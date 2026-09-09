@@ -1,9 +1,4 @@
-"""End-to-end integration flow against real PostgreSQL with real authentication.
-
-No dependency overrides: this exercises the exact login -> JWT -> DB-backed
-mutation path a real client uses, over the alembic-built schema. It is the layer
-the audit flagged as missing (the SQLite suite bypasses both Postgres and auth).
-"""
+"""End-to-end integration flow against real PostgreSQL with real authentication."""
 
 import os
 

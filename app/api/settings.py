@@ -15,8 +15,8 @@ from app.db import get_db
 from app.models import SystemSetting, UserRole
 from app.models.user import User
 from app.schemas import (
-    ALMIntegrationSettings,
-    ALMIntegrationSettingsUpdate,
+    PLMIntegrationSettings,
+    PLMIntegrationSettingsUpdate,
     SystemSettingResponse,
     SystemSettingUpdate,
 )
@@ -102,8 +102,8 @@ async def update_setting(
     return setting
 
 
-@router.get("/integrations/PLM", response_model=ALMIntegrationSettings)
-async def get_alm_integration(
+@router.get("/integrations/PLM", response_model=PLMIntegrationSettings)
+async def get_plm_integration(
     db: AsyncSession = Depends(get_db),
     _admin: User = Depends(require_role(UserRole.admin)),
 ):
@@ -115,7 +115,7 @@ async def get_alm_integration(
     prefix_setting = await db.get(SystemSetting, "bloom_token_prefix")
     rotated_setting = await db.get(SystemSetting, "bloom_token_rotated_at")
 
-    return ALMIntegrationSettings(
+    return PLMIntegrationSettings(
         bloom_url=url_setting.value if url_setting else "",
         has_bloom_token=bool(token_setting and token_setting.value),
         bloom_token_prefix=prefix_setting.value if prefix_setting else None,
@@ -125,9 +125,9 @@ async def get_alm_integration(
     )
 
 
-@router.post("/integrations/PLM", response_model=ALMIntegrationSettings)
-async def update_alm_integration(
-    data: ALMIntegrationSettingsUpdate,
+@router.post("/integrations/PLM", response_model=PLMIntegrationSettings)
+async def update_plm_integration(
+    data: PLMIntegrationSettingsUpdate,
     db: AsyncSession = Depends(get_db),
     _admin: User = Depends(require_role(UserRole.admin)),
 ):
@@ -203,4 +203,4 @@ async def update_alm_integration(
     if legacy:
         await db.delete(legacy)
     await db.commit()
-    return await get_alm_integration(db=db, _admin=_admin)
+    return await get_plm_integration(db=db, _admin=_admin)

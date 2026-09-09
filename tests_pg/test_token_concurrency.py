@@ -1,9 +1,4 @@
-"""One-time tokens survive concurrent use exactly once (real PostgreSQL).
-
-Fires several simultaneous requests at a single token and asserts exactly one
-succeeds. The atomic ``UPDATE ... RETURNING`` claim is what makes this hold:
-without it, read-then-update would let multiple racers pass the check together.
-"""
+"""One-time tokens survive concurrent use exactly once (real PostgreSQL)."""
 
 import os
 import re

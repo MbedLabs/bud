@@ -134,6 +134,12 @@ export function extractApiErrorMessage(error: unknown, fallback = 'Request faile
       return detail
     }
   }
+  if (axios.isAxiosError(error)) {
+    const reference = error.response?.headers?.['x-request-id']
+    if (typeof reference === 'string' && reference.trim() && reference !== '-') {
+      return `${fallback}. Quote reference ${reference} when reporting this.`
+    }
+  }
   if (error instanceof Error && error.message) {
     return error.message
   }
@@ -271,6 +277,13 @@ export interface TestRun {
    * names a list the station resolves in its own workspace.
    */
   selected_tests?: string[] | null
+  /**
+   * The Bloom artefact this run's results reached, as Bloom reported it. Null
+   * whenever no Bloom is paired, or the results reached no single campaign.
+   */
+  bloom_artefact_id?: string | null
+  bloom_artefact_name?: string | null
+  bloom_artefact_url?: string | null
 }
 
 export interface TestRunStatsFilters {
@@ -460,35 +473,78 @@ export const testStationsApi = {
   },
 
   /**
-   * Fetch a single runner (a.k.a. test station) by account name.
+   * Fetch a single Test Station by account name.
    * Used to resolve runner_id → account for display on test run detail pages.
    */
   getByAccount: async (account: string) => {
     const response = await api.get<Runner>(`/runners/${account}`)
     return response.data
   },
+
+  /** Delete a Test Station. Revokes its token and its enrolment keys. */
+  remove: async (account: string) => {
+    await api.delete(`/runners/${account}`)
+  },
+
+  listApiKeys: async () => {
+    const response = await api.get<RunnerApiKey[]>('/runners/api-keys')
+    return response.data
+  },
+
+  /** Mint a key. The plaintext is in this response only. */
+  rename: async (account: string, newAccount: string) => {
+    const response = await api.patch<TestStation>(`/runners/${account}`, { account: newAccount })
+    return response.data
+  },
+
+  createApiKey: async (label: string) => {
+    const response = await api.post<RunnerApiKeyCreated>('/runners/api-keys', {
+      label,
+      station_name: label,
+    })
+    return response.data
+  },
+
+  deleteApiKey: async (id: number) => {
+    await api.delete(`/runners/api-keys/${id}`)
+  },
 }
 
-export interface ALMIntegrationSettings {
+export interface RunnerApiKey {
+  id: number
+  label: string
+  /** The name the station takes when this key enrols one. Null on keys minted before naming existed. */
+  station_name: string | null
+  key_prefix: string
+  runner_account: string | null
+  created_at: string
+  last_used_at: string | null
+}
+
+export interface RunnerApiKeyCreated extends RunnerApiKey {
+  api_key: string
+}
+
+export interface PLMIntegrationSettings {
   bloom_url: string
   has_bloom_token: boolean
   bloom_token_prefix: string | null
   bloom_token_rotated_at: string | null
 }
 
-export interface ALMIntegrationSettingsUpdate {
+export interface PLMIntegrationSettingsUpdate {
   bloom_url: string
   bloom_token?: string
   clear_bloom_token?: boolean
 }
 
 export const settingsApi = {
-  getALM: async () => {
-    const response = await api.get<ALMIntegrationSettings>('/settings/integrations/PLM')
+  getPLM: async () => {
+    const response = await api.get<PLMIntegrationSettings>('/settings/integrations/PLM')
     return response.data
   },
-  updateALM: async (data: ALMIntegrationSettingsUpdate) => {
-    const response = await api.post<ALMIntegrationSettings>('/settings/integrations/PLM', data)
+  updatePLM: async (data: PLMIntegrationSettingsUpdate) => {
+    const response = await api.post<PLMIntegrationSettings>('/settings/integrations/PLM', data)
     return response.data
   },
 }
@@ -589,4 +645,34 @@ export function saveBlob(blob: Blob, filename: string): void {
   anchor.click()
   anchor.remove()
   URL.revokeObjectURL(url)
+}
+
+export interface SetupStatusResponse {
+  setup_required: boolean
+}
+
+export interface SetupCompletedResponse {
+  message: string
+  /** Shown once, to the browser that completed setup. Never returned again. */
+}
+
+export const setupApi = {
+  // Unauthenticated on purpose: this is what a brand new instance answers
+  // before any account exists. It stops reporting true the moment one does.
+  getStatus: async (): Promise<SetupStatusResponse> => {
+    const response = await api.get<SetupStatusResponse>('/setup/status')
+    return response.data
+  },
+  createFirstAdmin: async (
+    email: string,
+    password: string,
+    fullName: string
+  ): Promise<SetupCompletedResponse> => {
+    const response = await api.post<SetupCompletedResponse>('/setup', {
+      email,
+      password,
+      full_name: fullName,
+    })
+    return response.data
+  },
 }

@@ -1,8 +1,4 @@
-"""Refresh-token flow against real PostgreSQL.
-
-Exercises the httpOnly cookie, single-use rotation, and server-side revocation
-end to end (real login, real DB-backed user_tokens rows, no overrides).
-"""
+"""Refresh-token flow against real PostgreSQL."""
 
 import os
 

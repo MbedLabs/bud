@@ -109,8 +109,7 @@ describe('choosing what to run', () => {
     await screen.findByText('VoltageTest')
 
     // Which station a case can run on is the whole constraint, so it cannot be
-    // something the reader has to go and look up. Scoped to each row: the
-    // station picker lists the same names.
+    // something the reader has to go and look up.
     const voltage = screen.getByText('VoltageTest').closest('label') as HTMLElement
     const boot = screen.getByText('BootTest').closest('label') as HTMLElement
     expect(within(voltage).getByText('bench-01')).toBeTruthy()

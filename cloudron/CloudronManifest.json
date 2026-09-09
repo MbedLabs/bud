@@ -1,0 +1,35 @@
+{
+  "manifestVersion": 2,
+  "id": "net.embedlabs.bud",
+  "title": "Bud TMP by EmbedLabs",
+  "tagline": "Automated software, hardware and system testing",
+  "version": "1.0.1",
+  "upstreamVersion": "1.0.1",
+  "icon": "file://logo.png",
+  "httpPort": 8080,
+  "healthCheckPath": "/api/ready",
+  "memoryLimit": 1073741824,
+  "addons": {
+    "postgresql": {},
+    "localstorage": {},
+    "sendmail": {
+      "optional": true
+    }
+  },
+  "description": "file://DESCRIPTION.md",
+  "changelog": "file://CHANGELOG",
+  "postInstallMessage": "file://POSTINSTALL.md",
+  "website": "https://embedlabs.net",
+  "documentationUrl": "https://github.com/MbedLabs/bud#readme",
+  "forumUrl": "https://github.com/MbedLabs/bud/discussions",
+  "packagerName": "EmbedLabs",
+  "packagerUrl": "https://embedlabs.net",
+  "tags": [
+    "testing",
+    "automation",
+    "software",
+    "hardware",
+    "systems"
+  ],
+  "minBoxVersion": "9.1.0"
+}
