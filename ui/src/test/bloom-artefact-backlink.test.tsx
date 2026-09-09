@@ -1,11 +1,5 @@
 // @vitest-environment jsdom
-/**
- * The Bloom artefact a run reached.
- *
- * The pairing is optional in both directions, so the whole surface has to
- * disappear cleanly when Bud is running with no Bloom - no empty row, no
- * placeholder, no warning - and be a working link when there is one.
- */
+/** The Bloom artefact a run reached, and its absence when no Bloom is paired. */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'

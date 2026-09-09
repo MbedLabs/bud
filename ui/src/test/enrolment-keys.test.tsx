@@ -1,11 +1,5 @@
 // @vitest-environment jsdom
-/**
- * Administrator management for Test Station enrolment keys.
- *
- * The secret is returned once and never again, so what matters is that it is
- * shown when it arrives, hidden until asked for, and that neither it nor a
- * revoked key survives on screen afterwards.
- */
+/** Administrator management for Test Station enrolment keys. */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
