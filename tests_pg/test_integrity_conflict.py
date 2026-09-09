@@ -14,8 +14,7 @@ from app.models import Runner
 
 @pytest.fixture
 def route_conflicting_on_flush():
-    """The shape every create endpoint here has: the row is flushed inside the
-    endpoint, so the violation surfaces while a response can still be chosen."""
+    """A route that flushes two rows violating a unique constraint."""
 
     path = "/api/__flush_conflict__"
 
