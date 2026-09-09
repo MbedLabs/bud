@@ -68,7 +68,7 @@ export default function EnrolmentKeys() {
     }
   }
 
-  const keys = apiKeys || []
+  const pending = (apiKeys || []).filter((k) => !k.runner_account)
 
   return (
     <div className="bg-card rounded-lg border border-border shadow-elegant p-5">
@@ -157,25 +157,19 @@ export default function EnrolmentKeys() {
         </button>
       </form>
 
-      {keys.length === 0 ? (
+      {pending.length === 0 ? (
         <p className="text-xs text-muted-foreground">
-          No keys yet. A station cannot enrol until one exists.
+          No key is waiting for a station. Name one above to enrol a new bench.
         </p>
       ) : (
         <ul className="divide-y divide-border">
-          {keys.map((k) => (
+          {pending.map((k) => (
             <li key={k.id} className="flex items-center justify-between gap-3 py-2.5">
               <div className="min-w-0">
-                <p className="text-sm text-foreground truncate">{k.label}</p>
+                <p className="text-sm text-foreground truncate">{k.station_name || k.label}</p>
                 <p className="text-xs text-muted-foreground truncate">
                   <span className="font-mono">{k.key_prefix}&hellip;</span>{' '}
-                  {k.runner_account ? (
-                    <>&middot; {k.runner_account}</>
-                  ) : (
-                    <span className="italic">
-                      &middot; unused &mdash; pins to the first station that registers
-                    </span>
-                  )}
+                  <span className="italic">&middot; waiting for its station to register</span>
                 </p>
               </div>
               <RowMenu

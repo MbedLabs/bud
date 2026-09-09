@@ -2,13 +2,14 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link } from 'react-router'
 import { extractApiErrorMessage, testStationsApi } from '../api/client'
+import type { RunnerApiKey } from '../api/client'
 import { useAuth } from '../contexts/AuthContext'
 import ConfirmDialog from '../components/ConfirmDialog'
 import RowMenu from '../components/RowMenu'
 import EnrolmentKeys from '../components/EnrolmentKeys'
 import {
   Server, Wifi, WifiOff, Clock, MapPin, Monitor, Radio,
-  Trash2, AlertTriangle, Pencil,
+  Trash2, AlertTriangle, Pencil, KeyRound,
 } from 'lucide-react'
 
 const STATION_NAME = /^[a-zA-Z0-9_-]{3,50}$/
@@ -25,6 +26,7 @@ export default function TestStations() {
   const [actionError, setActionError] = useState('')
   const [pendingRemoval, setPendingRemoval] = useState<string | null>(null)
   const [renaming, setRenaming] = useState<string | null>(null)
+  const [pendingKeyRevoke, setPendingKeyRevoke] = useState<RunnerApiKey | null>(null)
   const [newName, setNewName] = useState('')
 
   const { data, isLoading, error } = useQuery({
@@ -66,10 +68,23 @@ export default function TestStations() {
       setActionError(extractApiErrorMessage(error, 'Could not rename the Test Station')),
   })
 
+  const revokeKey = useMutation({
+    mutationFn: testStationsApi.deleteApiKey,
+    onSuccess: () => {
+      setActionError('')
+      setPendingKeyRevoke(null)
+      queryClient.invalidateQueries({ queryKey: ['runnerApiKeys'] })
+    },
+    onError: (error) =>
+      setActionError(extractApiErrorMessage(error, 'Could not revoke the key')),
+  })
+
   const runners = data?.runners || []
   const onlineCount = runners.filter(r => r.is_online).length
-  const keyedAccounts = new Set(
-    (apiKeys || []).map(k => k.runner_account).filter((a): a is string => Boolean(a))
+  const keyByAccount = new Map(
+    (apiKeys || [])
+      .filter((k) => k.runner_account)
+      .map((k) => [k.runner_account as string, k])
   )
 
   return (
@@ -83,7 +98,7 @@ export default function TestStations() {
         </div>
       </div>
 
-      {actionError && !pendingRemoval && !renaming && (
+      {actionError && !pendingRemoval && !renaming && !pendingKeyRevoke && (
         <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 text-sm text-destructive">
           {actionError}
         </div>
@@ -131,7 +146,7 @@ export default function TestStations() {
               key={runner.account}
               runner={runner}
               isAdmin={isAdmin}
-              hasKey={keyedAccounts.has(runner.account)}
+              hasKey={keyByAccount.has(runner.account)}
               onRemove={() => {
                 setActionError('')
                 setPendingRemoval(runner.account)
@@ -140,6 +155,12 @@ export default function TestStations() {
                 setActionError('')
                 setNewName(runner.account)
                 setRenaming(runner.account)
+              }}
+              onRevokeKey={() => {
+                const key = keyByAccount.get(runner.account)
+                if (!key) return
+                setActionError('')
+                setPendingKeyRevoke(key)
               }}
             />
           ))}
@@ -204,6 +225,22 @@ export default function TestStations() {
         </div>
       )}
 
+      {pendingKeyRevoke && (
+        <ConfirmDialog
+          title="Revoke this station's key?"
+          body={`${pendingKeyRevoke.runner_account} keeps its credentials and its runs, but cannot register again until an administrator mints it a new key.`}
+          confirmLabel="Revoke"
+          pendingLabel="Revoking..."
+          isPending={revokeKey.isPending}
+          error={actionError}
+          onConfirm={() => revokeKey.mutate(pendingKeyRevoke.id)}
+          onCancel={() => {
+            setPendingKeyRevoke(null)
+            setActionError('')
+          }}
+        />
+      )}
+
       {pendingRemoval && (
         <ConfirmDialog
           title="Remove this Test Station?"
@@ -242,12 +279,14 @@ function TestStationCard({
   hasKey,
   onRemove,
   onRename,
+  onRevokeKey,
 }: {
   runner: TestStationInfo
   isAdmin: boolean
   hasKey: boolean
   onRemove: () => void
   onRename: () => void
+  onRevokeKey: () => void
 }) {
   return (
     <Link
@@ -301,6 +340,9 @@ function TestStationCard({
               label={`Actions for ${runner.account}`}
               actions={[
                 { label: 'Rename', icon: Pencil, onSelect: onRename },
+                ...(hasKey
+                  ? [{ label: 'Revoke key', icon: KeyRound, onSelect: onRevokeKey }]
+                  : []),
                 { label: 'Remove', icon: Trash2, onSelect: onRemove, destructive: true },
               ]}
             />
