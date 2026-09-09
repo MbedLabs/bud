@@ -6,6 +6,7 @@ import { MemoryRouter } from 'react-router'
 
 import App from '../App'
 import { testRunsApi } from '../api/client'
+import packageJson from '../../package.json'
 
 const loginMock = vi.hoisted(() => vi.fn())
 
@@ -156,7 +157,7 @@ describe('route smoke (Bud)', () => {
     expect(
       screen.getByRole('link', { name: 'Powered by EmbedLabs' }).closest('aside'),
     ).toBe(sidebar)
-    expect(screen.getByText('v1.0.1')).toBeInTheDocument()
+    expect(screen.getByText(`v${packageJson.version}`)).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Collapse sidebar' }))
 
