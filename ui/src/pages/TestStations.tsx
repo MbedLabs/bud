@@ -4,6 +4,7 @@ import { Link } from 'react-router'
 import { extractApiErrorMessage, testStationsApi } from '../api/client'
 import { useAuth } from '../contexts/AuthContext'
 import ConfirmDialog from '../components/ConfirmDialog'
+import RowMenu from '../components/RowMenu'
 import EnrolmentKeys from '../components/EnrolmentKeys'
 import {
   Server, Wifi, WifiOff, Clock, MapPin, Monitor, Radio,
@@ -296,33 +297,13 @@ function TestStationCard({
           </div>
 
           {isAdmin && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault()
-                e.stopPropagation()
-                onRename()
-              }}
-              aria-label={`Rename Test Station ${runner.account}`}
-              className="p-2 -mt-1 text-muted-foreground hover:text-primary transition-colors shrink-0"
-            >
-              <Pencil className="h-4 w-4" />
-            </button>
-          )}
-
-          {isAdmin && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault()
-                e.stopPropagation()
-                onRemove()
-              }}
-              aria-label={`Remove Test Station ${runner.account}`}
-              className="p-2 -mr-2 -mt-1 text-muted-foreground hover:text-destructive transition-colors shrink-0"
-            >
-              <Trash2 className="h-4 w-4" />
-            </button>
+            <RowMenu
+              label={`Actions for ${runner.account}`}
+              actions={[
+                { label: 'Rename', icon: Pencil, onSelect: onRename },
+                { label: 'Remove', icon: Trash2, onSelect: onRemove, destructive: true },
+              ]}
+            />
           )}
         </div>
 

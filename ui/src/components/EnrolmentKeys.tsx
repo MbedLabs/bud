@@ -4,6 +4,7 @@ import { AlertTriangle, KeyRound, Plus, Trash2 } from 'lucide-react'
 import { extractApiErrorMessage, testStationsApi } from '../api/client'
 import type { RunnerApiKey, RunnerApiKeyCreated } from '../api/client'
 import ConfirmDialog from './ConfirmDialog'
+import RowMenu from './RowMenu'
 
 /**
  * Administrator management for Test Station enrolment keys.
@@ -148,10 +149,11 @@ export default function EnrolmentKeys() {
         <button
           type="submit"
           disabled={!isValidStationName(label.trim()) || createKey.isPending}
-          className="px-3 py-2 bg-gradient-button text-white text-sm font-medium rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center gap-1.5"
+          aria-label="Add station"
+          title="Add station"
+          className="px-3 py-2 bg-gradient-button text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 shrink-0"
         >
           <Plus className="h-4 w-4" />
-          {createKey.isPending ? 'Creating...' : 'New key'}
         </button>
       </form>
 
@@ -176,17 +178,20 @@ export default function EnrolmentKeys() {
                   )}
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setActionError('')
-                  setPendingRevoke(k)
-                }}
-                aria-label={`Revoke key ${k.label}`}
-                className="p-2 text-muted-foreground hover:text-destructive transition-colors shrink-0"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
+              <RowMenu
+                label={`Actions for ${k.label}`}
+                actions={[
+                  {
+                    label: 'Revoke',
+                    icon: Trash2,
+                    destructive: true,
+                    onSelect: () => {
+                      setActionError('')
+                      setPendingRevoke(k)
+                    },
+                  },
+                ]}
+              />
             </li>
           ))}
         </ul>
