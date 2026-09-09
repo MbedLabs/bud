@@ -4,7 +4,8 @@ import { Link, useSearchParams } from 'react-router'
 import { testRunsApi, testStationsApi, type TestRun } from '../api/client'
 import { formatDateTime } from '../test/date-utils'
 import { useDebounced } from '../hooks/useDebounced'
-import { Search, Filter, ChevronLeft, ChevronRight, PlayCircle, Server, X } from 'lucide-react'
+import { safeExternalUrl } from '../lib/externalLink'
+import { Search, Filter, ChevronLeft, ChevronRight, PlayCircle, Server, X, ExternalLink } from 'lucide-react'
 
 const EMPTY_TEST_RUNS: TestRun[] = []
 
@@ -268,6 +269,18 @@ export default function TestRuns() {
                     >
                       {run.name}
                     </Link>
+                    {run.bloom_artefact_id && safeExternalUrl(run.bloom_artefact_url) && (
+                      <a
+                        href={safeExternalUrl(run.bloom_artefact_url) as string}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title={run.bloom_artefact_name || undefined}
+                        className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
+                      >
+                        {run.bloom_artefact_id}
+                        <ExternalLink className="h-3 w-3 shrink-0" />
+                      </a>
+                    )}
                   </td>
                   <td className="px-5 py-3.5 whitespace-nowrap">
                     <StatusBadge status={run.status} />
