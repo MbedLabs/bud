@@ -117,6 +117,10 @@ class TestRun(Base):
     # paths.
     selected_tests: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
 
+    bloom_artefact_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    bloom_artefact_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    bloom_artefact_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+
     # Foreign keys
     product_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("products.id"), index=True, nullable=True

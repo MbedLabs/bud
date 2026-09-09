@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Added
+
+- **A run points back at the Bloom campaign it reached.** Bloom already recorded the Bud run that executed a campaign; standing in Bud there was no way back. When Bud syncs a run's results, Bloom now names the campaign those results reached and hands over its address, and Bud keeps it on the run as three nullable columns - the public id, the name and the URL - alongside the run itself. The run detail page shows it as a link, the run list a small one under the run name, and the dashboard the identifier.
+
+  The pairing stays optional in both directions. Bud stores what Bloom handed over and never looks anything up: no foreign key, no join, no call back. A Bud with no Bloom configured, or an older Bloom that names no campaign, leaves the columns null and the surface simply absent - not an empty panel and not a warning. Results that reached two campaigns store nothing, because a run that touched both came from neither in particular.
+
 ### Changed
 
 - **Every Test Station has its own enrolment key.** A single `RUNNER_API_KEY`, shared by every bench, authenticated result uploads while the uploader's identity was taken from `runner_account` in the request body - so any holder of the key could file results against any active station, and the attribution in the run history was whatever the payload said.

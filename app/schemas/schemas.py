@@ -206,6 +206,9 @@ class TestRunResponse(BaseModel):
     # Present only on a custom run: the test cases it was built from, as the
     # importable paths the runner's loader takes.
     selected_tests: Optional[List[str]] = None
+    bloom_artefact_id: Optional[str] = None
+    bloom_artefact_name: Optional[str] = None
+    bloom_artefact_url: Optional[str] = None
 
     @field_serializer("created_at", "started_at", "completed_at", "claim_acknowledged_at")
     def serialize_dt(self, dt: Optional[datetime], _info):
