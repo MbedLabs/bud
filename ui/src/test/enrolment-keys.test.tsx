@@ -88,7 +88,7 @@ describe('enrolment keys', () => {
   it('will not mint a key under a name that would break a URL', async () => {
     renderKeys()
 
-    const submit = await screen.findByRole('button', { name: /New key/ })
+    const submit = await screen.findByRole('button', { name: 'Add station' })
     const field = screen.getByLabelText('New station name')
     expect((submit as HTMLButtonElement).disabled).toBe(true)
 
@@ -108,7 +108,7 @@ describe('enrolment keys', () => {
     fireEvent.change(await screen.findByLabelText('New station name'), {
       target: { value: 'bench-b' },
     })
-    fireEvent.click(screen.getByRole('button', { name: /New key/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add station' }))
 
     const field = (await screen.findByLabelText(
       'New Test Station API key'
@@ -131,7 +131,7 @@ describe('enrolment keys', () => {
 
     const label = (await screen.findByLabelText('New station name')) as HTMLInputElement
     fireEvent.change(label, { target: { value: 'bench-b' } })
-    fireEvent.click(screen.getByRole('button', { name: /New key/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add station' }))
 
     await screen.findByLabelText('New Test Station API key')
     expect((screen.getByLabelText('New station name') as HTMLInputElement).value).toBe('')
@@ -144,7 +144,7 @@ describe('enrolment keys', () => {
     fireEvent.change(await screen.findByLabelText('New station name'), {
       target: { value: 'bench-b' },
     })
-    fireEvent.click(screen.getByRole('button', { name: /New key/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add station' }))
     await screen.findByLabelText('New Test Station API key')
 
     fireEvent.click(screen.getByRole('button', { name: 'Done' }))
@@ -162,7 +162,7 @@ describe('enrolment keys', () => {
     fireEvent.change(await screen.findByLabelText('New station name'), {
       target: { value: 'bench-b' },
     })
-    fireEvent.click(screen.getByRole('button', { name: /New key/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add station' }))
     await screen.findByLabelText('New Test Station API key')
 
     fireEvent.click(screen.getByRole('button', { name: 'Copy' }))
@@ -179,7 +179,7 @@ describe('enrolment keys', () => {
     fireEvent.change(await screen.findByLabelText('New station name'), {
       target: { value: 'bench-b' },
     })
-    fireEvent.click(screen.getByRole('button', { name: /New key/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add station' }))
     await screen.findByLabelText('New Test Station API key')
 
     fireEvent.click(screen.getByRole('button', { name: 'Copy' }))
@@ -191,7 +191,8 @@ describe('enrolment keys', () => {
     mockedApi.listApiKeys.mockResolvedValue([PINNED])
     renderKeys()
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Revoke key bench-a' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Actions for bench-a' }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Revoke' }))
 
     const dialog = await screen.findByRole('dialog')
     expect(dialog.textContent).toContain('bench-a-station')
@@ -207,7 +208,8 @@ describe('enrolment keys', () => {
     mockedApi.deleteApiKey.mockResolvedValue(undefined)
     renderKeys()
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Revoke key bench-a' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Actions for bench-a' }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Revoke' }))
     fireEvent.click(await screen.findByRole('button', { name: 'Revoke' }))
 
     await waitFor(() => expect(mockedApi.deleteApiKey.mock.calls.length).toBe(1))
@@ -221,7 +223,8 @@ describe('enrolment keys', () => {
     mockedApi.listApiKeys.mockResolvedValue([UNUSED])
     renderKeys()
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Revoke key bench-b' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Actions for bench-b' }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Revoke' }))
 
     expect((await screen.findByRole('dialog')).textContent).toContain('has not been used yet')
   })
@@ -233,7 +236,7 @@ describe('enrolment keys', () => {
     fireEvent.change(await screen.findByLabelText('New station name'), {
       target: { value: 'bench-b' },
     })
-    fireEvent.click(screen.getByRole('button', { name: /New key/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add station' }))
 
     expect(await screen.findByText('That label is already in use.')).toBeTruthy()
   })
@@ -245,7 +248,7 @@ describe('enrolment keys', () => {
     fireEvent.change(await screen.findByLabelText('New station name'), {
       target: { value: 'bench-b' },
     })
-    fireEvent.click(screen.getByRole('button', { name: /New key/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add station' }))
 
     expect(await screen.findByText(/Could not create the key. Quote reference abc123/)).toBeTruthy()
   })
@@ -255,7 +258,8 @@ describe('enrolment keys', () => {
     mockedApi.deleteApiKey.mockRejectedValue(apiError('That key is still enrolling a station.'))
     renderKeys()
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Revoke key bench-a' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Actions for bench-a' }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Revoke' }))
     fireEvent.click(await screen.findByRole('button', { name: 'Revoke' }))
 
     expect(await screen.findByText('That key is still enrolling a station.')).toBeTruthy()

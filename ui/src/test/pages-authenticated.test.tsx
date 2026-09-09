@@ -572,9 +572,8 @@ describe('the Test Stations screen', () => {
     renderAt('/test-stations', '/test-stations', <TestStations />)
     await screen.findByText(testStation.account)
 
-    fireEvent.click(
-      screen.getByRole('button', { name: `Remove Test Station ${testStation.account}` }),
-    )
+    fireEvent.click(screen.getByRole('button', { name: `Actions for ${testStation.account}` }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Remove' }))
 
     const dialog = await screen.findByRole('dialog')
     expect(dialog.textContent).toContain('Its runs are kept.')
@@ -590,9 +589,8 @@ describe('the Test Stations screen', () => {
     renderAt('/test-stations', '/test-stations', <TestStations />)
     await screen.findByText(testStation.account)
 
-    fireEvent.click(
-      screen.getByRole('button', { name: `Remove Test Station ${testStation.account}` }),
-    )
+    fireEvent.click(screen.getByRole('button', { name: `Actions for ${testStation.account}` }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Remove' }))
     fireEvent.click(await screen.findByRole('button', { name: 'Remove' }))
 
     const removed = vi.mocked(client.testStationsApi.remove)
@@ -605,9 +603,8 @@ describe('the Test Stations screen', () => {
     renderAt('/test-stations', '/test-stations', <TestStations />)
     await screen.findByText(testStation.account)
 
-    fireEvent.click(
-      screen.getByRole('button', { name: `Rename Test Station ${testStation.account}` }),
-    )
+    fireEvent.click(screen.getByRole('button', { name: `Actions for ${testStation.account}` }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Rename' }))
 
     const field = await screen.findByLabelText('Rename station to')
     const submit = screen.getByRole('button', { name: 'Rename' })
@@ -632,9 +629,8 @@ describe('the Test Stations screen', () => {
     renderAt('/test-stations', '/test-stations', <TestStations />)
     await screen.findByText(testStation.account)
 
-    fireEvent.click(
-      screen.getByRole('button', { name: `Remove Test Station ${testStation.account}` }),
-    )
+    fireEvent.click(screen.getByRole('button', { name: `Actions for ${testStation.account}` }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Remove' }))
     fireEvent.click(await screen.findByRole('button', { name: 'Remove' }))
 
     expect(await screen.findByText('That station is running a test.')).toBeTruthy()
