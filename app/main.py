@@ -208,11 +208,9 @@ def _sqlstate(exc: Exception) -> str:
 
 
 async def _integrity_error_handler(request: Request, exc: Exception) -> JSONResponse:
-    """Answer a constraint violation with the status it deserves.
+    """Answer a constraint violation with the status its SQLSTATE names.
 
-    Endpoints check for a conflict before writing, so this catches the race
-    between that check and the write. The constraint text is logged, never
-    returned: it names columns and indexes.
+    The constraint text is logged, never returned.
     """
 
     request_id = request_id_var.get()
