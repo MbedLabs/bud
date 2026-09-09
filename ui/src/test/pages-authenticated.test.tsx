@@ -600,6 +600,29 @@ describe('the Test Stations screen', () => {
     expect(removed.mock.calls[0][0]).toBe(testStation.account)
   })
 
+  it('renames a station, and refuses a name that would break a URL', async () => {
+    vi.mocked(client.testStationsApi.rename).mockResolvedValue({} as never)
+    renderAt('/test-stations', '/test-stations', <TestStations />)
+    await screen.findByText(testStation.account)
+
+    fireEvent.click(
+      screen.getByRole('button', { name: `Rename Test Station ${testStation.account}` }),
+    )
+
+    const field = await screen.findByLabelText('Rename station to')
+    const submit = screen.getByRole('button', { name: 'Rename' })
+
+    fireEvent.change(field, { target: { value: 'lab 2' } })
+    expect((submit as HTMLButtonElement).disabled).toBe(true)
+
+    fireEvent.change(field, { target: { value: 'bench-renamed' } })
+    fireEvent.click(submit)
+
+    const renamed = vi.mocked(client.testStationsApi.rename)
+    await waitFor(() => expect(renamed.mock.calls.length).toBe(1))
+    expect(renamed.mock.calls[0].slice(0, 2)).toEqual([testStation.account, 'bench-renamed'])
+  })
+
   it('keeps the dialog open and says what the server said when removal fails', async () => {
     vi.mocked(client.testStationsApi.remove).mockRejectedValue({
       isAxiosError: true,

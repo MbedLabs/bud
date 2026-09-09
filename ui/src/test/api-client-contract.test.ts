@@ -110,6 +110,7 @@ const CALLS: Array<[string, unknown[], string, string]> = [
   ['testStationsApi.status', [], 'get', '/runners/status'],
   ['testStationsApi.getByAccount', ['bench-01'], 'get', '/runners/bench-01'],
   ['testStationsApi.remove', ['bench-01'], 'delete', '/runners/bench-01'],
+  ['testStationsApi.rename', ['bench-01', 'bench-renamed'], 'patch', '/runners/bench-01'],
   ['testStationsApi.listApiKeys', [], 'get', '/runners/api-keys'],
   ['testStationsApi.createApiKey', ['bench-a'], 'post', '/runners/api-keys'],
   ['testStationsApi.deleteApiKey', [7], 'delete', '/runners/api-keys/7'],

@@ -30,11 +30,16 @@ def key_prefix(plaintext: str) -> str:
     return plaintext[:PREFIX_LENGTH]
 
 
-def mint_key(label: str, created_by_user_id: Optional[int]) -> Tuple[RunnerApiKey, str]:
+def mint_key(
+    label: str,
+    created_by_user_id: Optional[int],
+    station_name: Optional[str] = None,
+) -> Tuple[RunnerApiKey, str]:
     """Build an unsaved key row and return it with the plaintext to show once."""
     plaintext = generate_key()
     record = RunnerApiKey(
         label=label,
+        station_name=station_name,
         key_hash=hash_key(plaintext),
         key_prefix=key_prefix(plaintext),
         created_by_user_id=created_by_user_id,
