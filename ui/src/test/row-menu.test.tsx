@@ -62,6 +62,26 @@ describe('a row menu', () => {
     await waitFor(() => expect(screen.queryByRole('menu')).toBeNull())
   })
 
+  it('opens upward when there is no room below', () => {
+    const original = window.innerHeight
+    Object.defineProperty(window, 'innerHeight', { value: 40, configurable: true })
+    try {
+      renderMenu()
+      fireEvent.click(screen.getByRole('button', { name: 'Actions for bench-a' }))
+      expect(screen.getByRole('menu').className).toContain('bottom-full')
+    } finally {
+      Object.defineProperty(window, 'innerHeight', { value: original, configurable: true })
+    }
+  })
+
+  it('opens downward when there is room', () => {
+    renderMenu()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Actions for bench-a' }))
+
+    expect(screen.getByRole('menu').className).toContain('top-full')
+  })
+
   it('does not navigate the card it sits on', () => {
     const onNavigate = vi.fn()
     render(
