@@ -2,7 +2,7 @@
 
 Bud TMP is a self-hosted test management and execution platform for automated software, hardware, and system testing. It gives teams one place to monitor Test Stations, inspect runs and assertions, retain artifacts, and connect execution evidence to Bloom PLM.
 
-> **Release:** 1.0.0 public beta
+> **Release:** 1.1.0 public beta
 
 ## What Bud provides
 
@@ -55,7 +55,6 @@ Generate independent secrets:
 ```bash
 openssl rand -hex 24
 openssl rand -hex 32
-openssl rand -hex 32
 openssl rand -hex 24
 ```
 
@@ -63,7 +62,6 @@ Open `.env` and replace every active `replace-with-...` value. At minimum, set:
 
 - `DB_PASSWORD`
 - `SECRET_KEY`
-- `RUNNER_API_KEY`
 - `ADMIN_EMAIL`
 - `ADMIN_PASSWORD`
 - `ADMIN_FULL_NAME`
@@ -111,17 +109,28 @@ Open `http://localhost:8001`.
 
 ## Connect a Test Station
 
-Install both execution packages on a trusted lab host or self-hosted CI worker:
+A Test Station enrols with its own key, minted by an administrator. There is no shared
+secret: a key belongs to one station, pins to the first station that registers with it,
+and from then on only that station can use it.
+
+**In Bud, first.** Sign in as an administrator, open **Test Stations**, and create a key
+under **Enrolment keys**, naming the station it is for. That name is the one the station
+takes — whatever the bench passes as `--username` — so the estate is named by whoever
+runs Bud rather than by whoever runs the command. The key is shown once, on creation,
+and is never retrievable afterwards, so copy it onto the bench now.
+
+**On the bench.** Install both execution packages on a trusted lab host or self-hosted
+CI worker:
 
 ```bash
 python -m pip install bud-runner budtestlibrary
 ```
 
-Register and start the runner:
+Register and start the runner, passing the key you just minted:
 
 ```bash
 export BUD_BACKEND_URL="https://bud.example.com"
-export RUNNER_API_KEY="the-registration-secret-from-bud"
+export RUNNER_API_KEY="the-enrolment-key-you-minted-in-bud"
 
 python -m bud_runner register \
   --username "lab-station-01" \
@@ -132,6 +141,14 @@ python -m bud_runner daemon \
   --username "lab-station-01" \
   --location "Hardware Lab"
 ```
+
+Repeat for each station, with a fresh key each time. One machine may host several
+stations; each is a separate account with its own key.
+
+An administrator can rename a station at any time from the same screen: the station keeps
+its credentials and its runs, and picks the new name up on its next heartbeat. Revoking a
+key, and removing a station — which revokes its credentials and keeps every run it
+produced — are on that screen too.
 
 The runner stores its machine identity and tokens under `~/.bud/`. Keep that directory private and never commit it.
 
@@ -154,6 +171,8 @@ Bud and Bloom remain independently deployable. To synchronize linked test-case o
 6. In Bud, open **Settings → PLM Integration (Bloom)** and save Bloom's reachable URL and the scoped credential.
 
 `BLOOM_APP_URL` adds a Bloom navigation link to Bud. It does not configure result synchronization. Clearing the saved scoped credential disables synchronization.
+
+When Bud syncs a run's results, Bloom answers with the campaign those results reached, and Bud keeps that reference on the run — shown on the dashboard, the run list, and the run detail page. Bud does not require Bloom: with none configured, the reference is simply absent.
 
 ## Email
 
@@ -195,14 +214,14 @@ Set `BUD_VERSION` in `.env`:
 
 | Tag | Use |
 |---|---|
-| `1.0.0` | Immutable production release |
+| `1.1.0` | Immutable production release |
 | `1.0` / `1` | Moving release channels |
 | `stable` | Newest stable release |
 | `latest` | Rolling image from `main` |
 | `dev` | Rolling image from `dev` |
 | `sha-<commit>` | Exact source and image revision |
 
-Pin a complete version such as `1.0.0` for production.
+Pin a complete version such as `1.1.0` for production.
 
 ## Upgrade
 

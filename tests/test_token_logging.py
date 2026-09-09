@@ -1,10 +1,4 @@
-"""One-time tokens must never appear in application/access logs.
-
-The access-log middleware records only the request *path* (never the query
-string or body), and one-time tokens now travel in request bodies / URL
-fragments. This test proves a token sent both ways is access-logged as a request
-but the raw token itself is never written to the logs.
-"""
+"""One-time tokens must never appear in application/access logs."""
 
 import logging
 

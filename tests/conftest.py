@@ -1,10 +1,4 @@
-"""
-Shared pytest fixtures for the bud-app-backend test suite.
-
-Uses an isolated SQLite (aiosqlite) file per test so the async fixture,
-FastAPI TestClient, and lifespan/background tasks use independent database
-connections without sharing transaction state across threads.
-"""
+"""Shared pytest fixtures for the bud-app-backend test suite."""
 
 from __future__ import annotations
 
@@ -41,17 +35,14 @@ def _load_workspace_dotenv_into_environ() -> None:
             os.environ[key] = val
 
 
-_load_workspace_dotenv_into_environ()
+if os.environ.get("BUD_TESTS_USE_DOTENV") == "1":
+    _load_workspace_dotenv_into_environ()
 if "SECRET_KEY" not in os.environ and os.environ.get("BUD_SECRET_KEY"):
     os.environ["SECRET_KEY"] = os.environ["BUD_SECRET_KEY"]
 
-# These MUST be set BEFORE ``app.core.config`` is imported — the Settings
-# validator rejects an empty SECRET_KEY.
 os.environ.setdefault("SECRET_KEY", secrets.token_hex(32))
-# Contract tests send ``X-API-Key: test-runner-api-key``; never use production key from ``.env``.
 os.environ["RUNNER_API_KEY"] = "test-runner-api-key"
 os.environ["BUD_RUNNER_API_KEY"] = os.environ["RUNNER_API_KEY"]
-# Always use isolated SQLite for ORM tests; real ``BUD_DATABASE_URL`` stays in ``.env`` for operators.
 os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
 os.environ["BUD_DATABASE_URL"] = os.environ["DATABASE_URL"]
 os.environ.setdefault("BUD_SECRET_KEY", os.environ["SECRET_KEY"])
@@ -117,13 +108,7 @@ def test_user() -> User:
 
 @pytest_asyncio.fixture(scope="function")
 async def client(_engine, test_user):
-    """
-    TestClient with DB + auth dependencies overridden.
-
-    Each request gets its own AsyncSession from the isolated test engine, and
-    ``get_current_user`` returns the pre-built ``test_user`` so we don't
-    have to issue a real JWT in tests that aren't specifically about auth.
-    """
+    """TestClient with DB + auth dependencies overridden."""
     session_maker = async_sessionmaker(_engine, class_=AsyncSession, expire_on_commit=False)
 
     async def override_get_db() -> AsyncGenerator[AsyncSession, None]:

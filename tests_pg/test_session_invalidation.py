@@ -1,11 +1,4 @@
-"""Password change / reset invalidates all existing sessions (real PostgreSQL).
-
-Each test provisions its own throwaway user via the admin API so it never
-disturbs the admin account the session-scoped client logs in as. Proves the
-audit's guarantees: access tokens and refresh tokens minted before the
-credential change stop working, the old password can no longer log in, and the
-new one can.
-"""
+"""Password change / reset invalidates all existing sessions (real PostgreSQL)."""
 
 import os
 import re

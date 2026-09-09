@@ -52,11 +52,7 @@ async def create_test_run(
     db: AsyncSession = Depends(get_db),
     _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
 ):
-    """
-    Create a new test run.
-
-    This endpoint is called by bud_runner when starting a test suite.
-    """
+    """Create a new test run."""
     if isinstance(_current_entity, Runner):
         if data.runner_account and data.runner_account != _current_entity.account:
             raise HTTPException(
@@ -144,14 +140,7 @@ async def get_test_run_artifacts(
     db: AsyncSession = Depends(get_db),
     _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
 ):
-    """
-    List the artifacts uploaded against a test run.
-
-    Artifacts could be uploaded and fetched by id, but nothing could enumerate
-    them, so a screenshot or a trace attached to a run was only reachable by
-    someone who already knew its integer id. Access is the run's own: whoever
-    may read the run may read what was attached to it.
-    """
+    """List the artifacts uploaded against a test run."""
     run_result = await db.execute(select(TestRun).where(TestRun.id == run_id))
     test_run = run_result.scalar_one_or_none()
     if test_run is None:
@@ -196,17 +185,7 @@ async def list_test_runs(
     db: AsyncSession = Depends(get_db),
     _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
 ):
-    """
-    List test runs with optional filtering and pagination.
-
-    ``runner_account`` filters by the Bud runner (Test Station) that executed
-    the run. Many suites can share one runner, so this returns every
-    ``TestRun`` tied to that runner — not just the latest. ``location`` is the
-    same question asked of a whole bench: one location, several runners.
-
-    Every filter here narrows the set the count and the page are taken from, so
-    the pager describes what the reader is actually looking at.
-    """
+    """List test runs with optional filtering and pagination."""
     conditions = []
 
     if isinstance(_current_entity, Runner):
@@ -250,11 +229,7 @@ async def list_test_runs(
         )
 
     if latest_per_suite:
-        # One row per suite, the most recent. This used to load every test run
-        # in the database and dedupe them in Python on every page view - the
-        # list screen asks for it by default, so the cost grew with every run
-        # ever recorded. A window function does the same in one pass and lets
-        # the count and the page stay in SQL.
+        # One row per suite, the most recent.
         ranked = (
             select(
                 TestRun.id,
@@ -300,11 +275,7 @@ async def _scope_conditions(
     runner_account: Optional[str],
     suite: Optional[str],
 ) -> Optional[list]:
-    """Build the WHERE terms shared by the dashboard aggregate endpoints.
-
-    Returns ``None`` when the requested Test Station does not exist, which the
-    callers translate into an empty result rather than an error.
-    """
+    """Build the WHERE terms shared by the dashboard aggregate endpoints."""
     conditions: list = []
 
     if isinstance(current_entity, Runner):
@@ -341,12 +312,7 @@ async def get_test_run_stats(
     db: AsyncSession = Depends(get_db),
     _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
 ):
-    """Aggregate the dashboard counters over every run matching the filters.
-
-    The dashboard used to derive these from the handful of runs on the first page,
-    so the pass rate silently depended on the page size. Counting in the database
-    keeps the tiles consistent with the full filtered set.
-    """
+    """Aggregate the dashboard counters over every run matching the filters."""
     conditions = await _scope_conditions(
         db, _current_entity, days=days, runner_account=runner_account, suite=suite
     )
@@ -528,11 +494,7 @@ async def publish_run_to_bloom(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_entity),
 ):
-    """Send this run's report documents to Bloom as a Report (RPT) document.
-
-    On request only. Bloom keeps what a project is answerable for, and a suite
-    that runs nightly would fill it with a Report a night.
-    """
+    """Send this run's report documents to Bloom as a Report (RPT) document."""
     if isinstance(current_user, Runner):
         raise HTTPException(status_code=403, detail="A Test Station cannot publish to Bloom")
     require_mutating_user(current_user)

@@ -7,22 +7,31 @@ from app.models.user import User, UserRole
 
 
 @pytest.mark.asyncio
-async def test_runner_heartbeat_wrong_account_returns_403(client, db_session):
-    runner = Runner(
+async def test_a_heartbeat_naming_another_station_touches_only_its_own(client, db_session):
+    """A station renamed in Bud still reports under the name it last knew, so the
+    body cannot be the authority. The token is, and it reaches one row."""
+    mine = Runner(
         account="runner-a",
         password_hash="hash",
         token="runner-token",
         socket_port=53035,
     )
-    db_session.add(runner)
+    theirs = Runner(
+        account="runner-b",
+        password_hash="hash",
+        token="other-token",
+        socket_port=53035,
+    )
+    db_session.add_all([mine, theirs])
     await db_session.commit()
-    await db_session.refresh(runner)
+    await db_session.refresh(mine)
+    await db_session.refresh(theirs)
 
     from app.core.deps import get_current_runner
     from app.main import app
 
     async def override_get_current_runner():
-        return runner
+        return mine
 
     app.dependency_overrides[get_current_runner] = override_get_current_runner
     try:
@@ -33,8 +42,12 @@ async def test_runner_heartbeat_wrong_account_returns_403(client, db_session):
     finally:
         app.dependency_overrides.pop(get_current_runner, None)
 
-    assert response.status_code == 403
-    assert "own runner account" in response.json()["detail"]
+    assert response.status_code == 200, response.text
+    assert response.json()["account"] == "runner-a"
+
+    assert mine.last_heartbeat is not None
+    assert theirs.last_heartbeat is None
+    assert theirs.location is None
 
 
 @pytest.mark.asyncio

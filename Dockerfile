@@ -37,6 +37,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     curl \
+    gosu \
     nginx \
     && rm -rf /var/lib/apt/lists/*
 
@@ -47,6 +48,7 @@ COPY --chmod=0644 docker/nginx.conf /etc/nginx/sites-enabled/default
 # Included from the server block and from every location that sets a header of
 # its own: nginx drops inherited add_header directives at those levels.
 COPY --chmod=0644 docker/security-headers.conf /etc/nginx/security-headers.conf
+COPY --chmod=0644 docker/runtime-paths.conf /etc/nginx/conf.d/runtime-paths.conf
 COPY --chmod=0644 docker/supervisord.conf /etc/supervisord.conf
 COPY --chmod=0755 docker/start.sh /usr/local/bin/start-product
 COPY --from=ui-build /ui/dist /var/www/app
@@ -54,13 +56,20 @@ COPY --from=ui-build /ui/dist /var/www/app
 RUN useradd -m appuser \
     && mkdir -p /app/uploads /run/nginx /var/lib/nginx /var/log/nginx /var/log/supervisor \
     && chown -R appuser:appuser /app /var/www/app /run/nginx /var/lib/nginx /var/log/nginx /var/log/supervisor \
-    && chown appuser:appuser /usr/local/bin/start-product \
     && chmod 0755 /usr/local/bin/start-product \
-    && chmod 0644 /etc/supervisord.conf /etc/nginx/sites-enabled/default /etc/nginx/security-headers.conf \
-    && sed -i 's#^pid .*#pid /run/nginx/nginx.pid;#' /etc/nginx/nginx.conf
+    && chmod 0644 /etc/supervisord.conf /etc/nginx/sites-enabled/default /etc/nginx/security-headers.conf /etc/nginx/conf.d/runtime-paths.conf \
+    && sed -i \
+      -e 's#^pid .*#pid /run/nginx/nginx.pid;#' \
+      -e 's#^[[:space:]]*error_log[[:space:]].*#error_log /dev/stderr warn;#' \
+      -e 's#^[[:space:]]*access_log[[:space:]].*#access_log /dev/stdout;#' \
+      -e 's#^[[:space:]]*user[[:space:]].*#user appuser;#' \
+      /etc/nginx/nginx.conf \
+    && rm -f /var/www/app/runtime-config.js \
+    && ln -s /run/bud/runtime-config.js /var/www/app/runtime-config.js
 
-# Run the whole stack unprivileged: supervisord, nginx (port 8080) and uvicorn
-USER appuser
+# PID 1 prepares Cloudron's writable mounts, then supervisord/nginx drop their
+# application-facing processes to appuser. The same image is used everywhere.
+USER root
 
 EXPOSE 8080
 

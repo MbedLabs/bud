@@ -244,10 +244,9 @@ async def revoke_invite(
     if user.password_set_at is not None:
         raise HTTPException(status_code=400, detail="Invite already accepted")
 
-    # Deactivating the account is not enough on its own: the emailed link stays
-    # live until its TTL, so whoever holds it can still accept the invitation and
-    # choose a password. That password then works the moment an administrator
-    # reactivates the account. Revoking means revoking the link.
+    # Deactivating the account is not enough on its own: the emailed link stays live
+    # until its TTL, so whoever holds it can still accept the invitation and choose a
+    # password.
     await invalidate_tokens(db, user.id, purpose=UserTokenPurpose.invite)
 
     user.is_active = False
@@ -263,11 +262,7 @@ async def start_email_change(
     admin: User = Depends(require_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    """Let an administrator propose a new login email.
-
-    The address is not applied directly. A confirmation link is sent to the new
-    mailbox and the login changes only after that link is used.
-    """
+    """Let an administrator propose a new login email."""
     user = await _get_user_or_404(db, user_id)
     user.email_change_requested_at = datetime.utcnow()
     return await _send_email_change_confirmation(

@@ -1,16 +1,4 @@
-"""
-Operational instrumentation: structured logging, request IDs, Prometheus metrics.
-
-- ``setup_logging`` configures root logging once, as text (dev) or JSON lines
-  (production) with the active request id stamped on every record.
-- ``RequestObservabilityMiddleware`` is a pure ASGI middleware that assigns or
-  propagates ``X-Request-ID``, emits one access-log line per request, and
-  records Prometheus counters/histograms keyed by route template (bounded
-  label cardinality — raw paths are never used as labels).
-- ``metrics_router`` exposes ``GET /metrics`` in the Prometheus text format.
-  The endpoint is unauthenticated by convention; disable it with
-  ``ENABLE_METRICS=false`` or restrict it at the network layer.
-"""
+"""Operational instrumentation: structured logging, request IDs, Prometheus metrics."""
 
 from __future__ import annotations
 

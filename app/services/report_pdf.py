@@ -1,9 +1,4 @@
-"""PDF rendering for Bud test reports.
-
-Everything visual lives here: the Bud logo, the pass/fail/skip pie chart, the
-tables, and the "Powered by EmbedLabs" footer that is stamped on every page.
-The API layer builds the numbers; this module only draws them.
-"""
+"""PDF rendering for Bud test reports."""
 
 from __future__ import annotations
 
@@ -352,11 +347,7 @@ def _assertions_table(
 
 
 def _draw_footer(canvas, doc) -> None:
-    """ "Powered by EmbedLabs" on every page, with the page number.
-
-    The wordmark is a real PDF link annotation, so it is clickable in any
-    viewer. The logo is drawn beside it when the asset is present.
-    """
+    """ "Powered by EmbedLabs" on every page, with the page number."""
     canvas.saveState()
     width, _ = A4
     baseline = FOOTER_HEIGHT - 4 * mm

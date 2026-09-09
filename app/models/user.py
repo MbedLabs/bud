@@ -30,10 +30,7 @@ class User(Base):
         SaEnum(UserRole), default=UserRole.viewer, nullable=False
     )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    # Bumped on password change/reset and confirmed email change. Every access
-    # token carries the value it was minted with; a mismatch means the token
-    # predates a credential change and is rejected, so those events log the user
-    # out everywhere.
+    # Bumped on password change/reset and confirmed email change.
     session_version: Mapped[int] = mapped_column(
         Integer, nullable=False, default=1, server_default="1"
     )

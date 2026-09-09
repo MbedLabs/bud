@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "bud-app-backend"
-version = "1.0.0"
+version = "1.1.0"
 description = "Backend API for Bud Test Management Platform by EmbedLabs"
 readme = "README.md"
 license = {text = "LicenseRef-EmbedLabs-Source-Available-1.0"}

@@ -48,8 +48,32 @@ class Runner(Base):
     last_heartbeat: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
-    # Relationships
+    # Relationships. No ORM cascade: the delete handler clears both by statement.
     test_runs: Mapped[List["TestRun"]] = relationship(back_populates="runner")
+    api_keys: Mapped[List["RunnerApiKey"]] = relationship(back_populates="runner")
+
+
+class RunnerApiKey(Base):
+    """An enrolment key for a single Test Station."""
+
+    __tablename__ = "runner_api_keys"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    label: Mapped[str] = mapped_column(String(100))
+    key_hash: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    # Leading characters, so the list can tell two keys apart.
+    key_prefix: Mapped[str] = mapped_column(String(12))
+    station_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    runner_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("runners.id", ondelete="CASCADE"), index=True, nullable=True
+    )
+    created_by_user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    last_used_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
+    runner: Mapped[Optional["Runner"]] = relationship(back_populates="api_keys")
 
 
 class TestRun(Base):
@@ -83,8 +107,6 @@ class TestRun(Base):
     completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
     # A client-generated idempotency key binds retries to one queue claim.
-    # Completion is acknowledged separately so a station cannot silently move
-    # on while Bud still believes the execution is Running.
     claim_id: Mapped[Optional[str]] = mapped_column(
         String(36), unique=True, index=True, nullable=True
     )
@@ -92,11 +114,13 @@ class TestRun(Base):
     runner_exit_code: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     runner_error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
-    # The explicit test cases a custom run was built from, as importable
-    # `module.Class` paths. NULL for an ordinary run, whose `test_case_list` is
-    # a module path to a pre-declared list the runner resolves itself. A custom
-    # run is a selection made in Bud, so the selection has to travel with it.
+    # The explicit test cases a custom run was built from, as importable `module.Class`
+    # paths.
     selected_tests: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
+
+    bloom_artefact_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    bloom_artefact_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    bloom_artefact_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
 
     # Foreign keys
     product_id: Mapped[Optional[int]] = mapped_column(
@@ -234,19 +258,3 @@ class SystemSetting(Base):
         default=datetime.utcnow,
         onupdate=datetime.utcnow,
     )
-
-
-class TestStation(Base):
-    """Test station (bench) registration."""
-
-    __tablename__ = "teststations"
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    account: Mapped[str] = mapped_column(String(100), unique=True)
-    password_hash: Mapped[str] = mapped_column(String(255))
-    token: Mapped[str] = mapped_column(String(500))
-    socket_port: Mapped[int] = mapped_column(Integer, default=53035)
-    location: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    last_heartbeat: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

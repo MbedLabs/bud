@@ -1,9 +1,4 @@
-"""Publishing a run's report into Bloom, when someone asks for it.
-
-Deliberately not automatic. A suite that runs nightly would otherwise put a
-Report document into the PLM every night, and a project holding a year of
-identical reports is harder to read than one holding none.
-"""
+"""Publishing a run's report into Bloom, when someone asks for it."""
 
 from __future__ import annotations
 
@@ -41,11 +36,7 @@ async def bloom_credentials(db: AsyncSession) -> tuple[str, str]:
 
 
 async def publishable_artifacts(db: AsyncSession, run_id: int) -> list[Artifact]:
-    """The report documents of a run: its PDFs and its JUnit XML.
-
-    Screenshots, captures and logs stay in Bud. They are evidence for whoever
-    is debugging the run, not the record the PLM keeps.
-    """
+    """The report documents of a run: its PDFs and its JUnit XML."""
     rows = (
         await db.scalars(
             select(Artifact)

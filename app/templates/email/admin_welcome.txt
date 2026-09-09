@@ -1,0 +1,15 @@
+Hello ${full_name},
+
+Your administrator account for ${app_name} is ready. You are the first user on
+this instance, so setup is now closed - nobody else can claim it.
+
+Open ${app_name}: ${login_link}
+
+Anything shown to you once during setup, such as a runner registration key, is
+not repeated in this email and cannot be recovered later. If you did not save
+it, generate a new one from inside the app.
+
+If you did not create this account, contact whoever administers this server
+immediately.
+
+(c) 2026 EmbedLabs. All rights reserved.

@@ -164,10 +164,15 @@ echo "    ready = ${ready}"
 printf '%s' "$ready" | grep -q '"database":"connected"' \
   || fail "/api/ready did not confirm the database"
 
-log "/api/version must report the released version (1.0.0)"
+repo_root="$(cd "$(dirname "$0")/.." && pwd)"
+expected_version="$(sed -nE 's/^version = "([^"]+)".*/\1/p' "${repo_root}/pyproject.toml" | head -1)"
+[ -n "$expected_version" ] || fail "could not read the version from pyproject.toml"
+
+log "/api/version must report the released version (${expected_version})"
 version="$(curl -fsS "${BASE}/api/version" | json_field version)"
 echo "    /api/version = ${version}"
-[ "$version" = "1.0.0" ] || fail "/api/version reported '${version}', expected 1.0.0"
+[ "$version" = "$expected_version" ] \
+  || fail "/api/version reported '${version}', expected ${expected_version}"
 
 log "Admin login"
 token="$(login_token)"

@@ -81,13 +81,7 @@ async def _get_accessible_artifact(
 async def _validate_runner_upload_run(
     db: AsyncSession, current_entity: Union[User, Runner], run_id: Optional[int]
 ) -> None:
-    """Prevent a runner from attaching an artifact to another runner's test run.
-
-    Runners must always target one of their own test runs; only admins may upload
-    unassociated (run_id-less) artifacts. Requiring run_id for runners also closes
-    a quota-bypass: reserve_upload only charges the per-run aggregate quota when a
-    run is targeted, so a run_id-less runner upload would otherwise escape it.
-    """
+    """Prevent a runner from attaching an artifact to another runner's test run."""
     if isinstance(current_entity, User) and current_entity.role != UserRole.admin:
         raise HTTPException(status_code=403, detail="Only admins may upload artifacts")
     if run_id is None:
@@ -119,12 +113,7 @@ async def upload_file(
     db: AsyncSession = Depends(get_db),
     _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
 ):
-    """
-    Upload a file artifact (trace, log, etc.).
-
-    Files are stored with a UUID filename and can be associated with
-    a test case and/or test run.
-    """
+    """Upload a file artifact (trace, log, etc.)."""
     await _validate_runner_upload_run(db, _current_entity, run_id)
     display_filename = validate_display_metadata(file.filename, test_case)
 
