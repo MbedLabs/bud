@@ -252,14 +252,14 @@ function TestStationCard({
   return (
     <Link
       to={`/runs?station=${encodeURIComponent(runner.account)}`}
-      className={`block bg-card rounded-lg border shadow-elegant overflow-hidden transition-all duration-300 hover:shadow-glow group cursor-pointer ${
+      className={`block bg-card rounded-lg border shadow-elegant transition-all duration-300 hover:shadow-glow group cursor-pointer ${
         runner.is_online
           ? 'border-primary/20 hover:border-primary/40'
           : 'border-border opacity-70'
       }`}
     >
       {/* Top accent bar */}
-      <div className={`h-1 ${
+      <div className={`h-1 rounded-t-lg ${
         runner.is_online
           ? 'bg-gradient-to-r from-primary via-bud-forest to-bud-orange'
           : 'bg-muted'
