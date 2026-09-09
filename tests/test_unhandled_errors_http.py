@@ -43,6 +43,7 @@ def test_a_500_does_not_leak_the_exception(exploding_route):
     assert "RuntimeError" not in response.text
     assert "Traceback" not in response.text
 
+
 @pytest.fixture
 def conflicting_route():
     """A route that loses the race between checking for a row and writing it."""

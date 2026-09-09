@@ -11,6 +11,12 @@ import ConfirmDialog from './ConfirmDialog'
  * The minted secret is held in component state only, never in localStorage or
  * sessionStorage.
  */
+const STATION_NAME = /^[a-zA-Z0-9_-]{3,50}$/
+
+function isValidStationName(value: string): boolean {
+  return STATION_NAME.test(value)
+}
+
 export default function EnrolmentKeys() {
   const queryClient = useQueryClient()
 
@@ -70,8 +76,9 @@ export default function EnrolmentKeys() {
         <h3 className="font-semibold text-foreground text-sm">Enrolment keys</h3>
       </div>
       <p className="text-xs text-muted-foreground mb-4">
-        Each key belongs to one Test Station. It pins to the first station that
-        registers with it, and from then on only that station can use it.
+        The name you give a key is the name its Test Station takes, whatever the
+        bench registers as. A key pins to the first station that uses it, and
+        from then on only that station can.
       </p>
 
       {actionError && !pendingRevoke && (
@@ -127,20 +134,20 @@ export default function EnrolmentKeys() {
         className="flex gap-2 mb-4"
         onSubmit={(e) => {
           e.preventDefault()
-          if (label.trim()) createKey.mutate(label.trim())
+          if (isValidStationName(label.trim())) createKey.mutate(label.trim())
         }}
       >
         <input
           value={label}
           onChange={(e) => setLabel(e.target.value)}
-          placeholder="Label, e.g. bench-a"
-          aria-label="New key label"
-          maxLength={100}
+          placeholder="Station name, e.g. bench-a"
+          aria-label="New station name"
+          maxLength={50}
           className="flex-1 min-w-0 px-3 py-2 bg-background border border-input rounded-lg text-sm text-foreground"
         />
         <button
           type="submit"
-          disabled={!label.trim() || createKey.isPending}
+          disabled={!isValidStationName(label.trim()) || createKey.isPending}
           className="px-3 py-2 bg-gradient-button text-white text-sm font-medium rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center gap-1.5"
         >
           <Plus className="h-4 w-4" />

@@ -114,8 +114,10 @@ secret: a key belongs to one station, pins to the first station that registers w
 and from then on only that station can use it.
 
 **In Bud, first.** Sign in as an administrator, open **Test Stations**, and create a key
-under **Enrolment keys** with a label naming the bench. The key is shown once, on
-creation, and is never retrievable afterwards — copy it onto the bench now.
+under **Enrolment keys**, naming the station it is for. That name is the one the station
+takes — whatever the bench passes as `--username` — so the estate is named by whoever
+runs Bud rather than by whoever runs the command. The key is shown once, on creation,
+and is never retrievable afterwards, so copy it onto the bench now.
 
 **On the bench.** Install both execution packages on a trusted lab host or self-hosted
 CI worker:
@@ -143,8 +145,10 @@ python -m bud_runner daemon \
 Repeat for each station, with a fresh key each time. One machine may host several
 stations; each is a separate account with its own key.
 
-An administrator can revoke a key at any time, and can remove a station from the same
-screen — which revokes its credentials and keeps every run it produced.
+An administrator can rename a station at any time from the same screen: the station keeps
+its credentials and its runs, and picks the new name up on its next heartbeat. Revoking a
+key, and removing a station — which revokes its credentials and keeps every run it
+produced — are on that screen too.
 
 The runner stores its machine identity and tokens under `~/.bud/`. Keep that directory private and never commit it.
 

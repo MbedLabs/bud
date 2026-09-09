@@ -12,6 +12,12 @@
 
 ### Changed
 
+- **The administrator names the Test Station, and that name wins.** A station was called whatever the operator typed at the bench, so the estate was named by whoever ran the command and a typo was permanent. The name is now chosen in Bud when the enrolment key is minted, and it is the name the station takes whatever it registers as. An administrator can also rename a station afterwards, from the same screen.
+
+  This needed the station's identity to stop being its name. A runner's token carried the account name and was resolved by it, and the heartbeat refused any body naming a different account — so renaming a station locked it out on the spot, with no way back in, because it would have had to authenticate to be told its new name. The token now carries the station's id and is resolved by it; the name is a label. Tokens issued before this keep working, resolved the old way, so no bench is locked out by the upgrade.
+
+  A station learns its new name from its next heartbeat and writes it into `~/.bud/`. Names are unique and validated as usernames, because the name is also a URL path segment.
+
 - **Removing a station or revoking a key asks first.** Both were a single click on a destructive, irreversible action: removing a station revokes the credentials of a physical bench, which then cannot upload until someone re-registers it. Each now opens a confirmation naming what is about to happen — that a station's runs are kept, or which station a key enrolled — and a failure is reported inside that dialog with what the server actually said, rather than a fixed string, so the reason is visible without leaving the screen.
 
 - **Every Test Station has its own enrolment key.** A single `RUNNER_API_KEY`, shared by every bench, authenticated result uploads while the uploader's identity was taken from `runner_account` in the request body - so any holder of the key could file results against any active station, and the attribution in the run history was whatever the payload said.
