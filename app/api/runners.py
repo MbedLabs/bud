@@ -1,26 +1,28 @@
-"""
-Runners API endpoints.
-
-H2: Rate-limited registration and heartbeat endpoints.
-C2: Runner registration requires a server-side API key.
-"""
+"""Runners API endpoints."""
 
 from datetime import datetime, timedelta
+from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from sqlalchemy import select
+from sqlalchemy import delete, select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.auth import get_current_user, require_role
 from app.core.config import settings
 from app.core.deps import get_current_runner, limiter, require_runner_api_key
+from app.core.runner_keys import mark_used, mint_key
 from app.core.security import generate_runner_token, get_password_hash, verify_password
 from app.db import get_db
-from app.models import Runner, TestRun
+from app.models import Runner, RunnerApiKey, TestRun
 from app.models.user import User, UserRole
 from app.schemas import (
+    RunnerApiKeyCreate,
+    RunnerApiKeyCreated,
+    RunnerApiKeyResponse,
     RunnerHeartbeat,
     RunnerRegister,
+    RunnerRename,
     RunnerResponse,
     RunnerStatusList,
     RunnerToken,
@@ -29,28 +31,31 @@ from app.schemas import (
 router = APIRouter()
 
 
-@router.post(
-    "/register",
-    response_model=RunnerToken,
-    status_code=201,
-    dependencies=[Depends(require_runner_api_key)],
-)
+@router.post("/register", response_model=RunnerToken, status_code=201)
 @limiter.limit("10/minute")  # H2: prevent registration flood
 async def register_runner(
     request: Request,
     data: RunnerRegister,
     db: AsyncSession = Depends(get_db),
+    api_key: RunnerApiKey = Depends(require_runner_api_key),
 ):
-    """
-    Register a new test runner.
+    """Register a Test Station.
 
-    Requires a valid X-API-Key header (C2).
-    Rate-limited to 10 requests/minute per IP (H2).
-    Creates a runner account and returns an authentication token.
+    A key minted with a station name carries the name an administrator chose,
+    and that name is the one the station ends up with.
     """
-    # Check if runner already exists
-    result = await db.execute(select(Runner).where(Runner.account == data.username))
+    account = api_key.station_name or data.username
+    result = await db.execute(select(Runner).where(Runner.account == account))
     runner = result.scalar_one_or_none()
+    if runner is None and account != data.username:
+        result = await db.execute(select(Runner).where(Runner.account == data.username))
+        runner = result.scalar_one_or_none()
+
+    if api_key.runner_id is not None and (runner is None or runner.id != api_key.runner_id):
+        raise HTTPException(
+            status_code=403,
+            detail="This API key belongs to another Test Station.",
+        )
 
     if runner:
         # If it exists, verify password (M3)
@@ -59,23 +64,43 @@ async def register_runner(
                 status_code=400,
                 detail="Runner already exists and password does not match.",
             )
-        # Update socket_port and location if provided
+        if api_key.runner_id is None:
+            # An unpinned key may adopt a station that has none, but never
+            # displace one the station already has.
+            existing = await db.execute(
+                select(RunnerApiKey).where(RunnerApiKey.runner_id == runner.id)
+            )
+            if existing.scalars().first() is not None:
+                raise HTTPException(
+                    status_code=409,
+                    detail=(
+                        "This Test Station already has an API key. Delete it in "
+                        "Bud before enrolling the station with a new one."
+                    ),
+                )
+        if runner.account != account:
+            await _require_station_name_free(db, account, exclude_runner_id=runner.id)
+            runner.account = account
         runner.socket_port = data.socket_port
         if data.location:
             runner.location = data.location
     else:
-        # Create new runner
         runner = Runner(
-            account=data.username,
+            account=account,
             password_hash=get_password_hash(data.password),
             socket_port=data.socket_port,
             location=data.location,
+            token=generate_runner_token(account),
         )
         db.add(runner)
+        # Flushed for the id the key is pinned to.
+        await db.flush()
 
-    # Generate fresh token
-    token = generate_runner_token(data.username)
+    token = generate_runner_token(runner.account, runner.id)
     runner.token = token
+
+    api_key.runner_id = runner.id
+    mark_used(api_key)
 
     await db.commit()
     await db.refresh(runner)
@@ -94,16 +119,12 @@ async def runner_heartbeat(
     db: AsyncSession = Depends(get_db),
     current_runner: Runner = Depends(get_current_runner),
 ):
-    """
-    Receive a heartbeat from a runner.
+    """Receive a heartbeat from a runner.
 
-    M3: Authenticated — only the owner of the account can update its heartbeat/location.
+    The token names the station, so ``runner_account`` in the body is advisory:
+    a station renamed in Bud still reports under the name it last knew, and
+    learns the current one from this response.
     """
-    if current_runner.account != data.runner_account:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You can only send heartbeats for your own runner account.",
-        )
 
     current_runner.last_heartbeat = datetime.utcnow()
     current_runner.is_active = True
@@ -170,6 +191,105 @@ async def get_runner_status(
     return {"runners": runner_list}
 
 
+async def _require_station_name_free(db: AsyncSession, name: str, exclude_runner_id: int = 0):
+    """Refuse a station name already taken, or already reserved by another key."""
+
+    taken = (
+        await db.execute(
+            select(Runner.id).where(Runner.account == name, Runner.id != exclude_runner_id)
+        )
+    ).scalar_one_or_none()
+    if taken is not None:
+        raise HTTPException(status_code=409, detail=f"A Test Station is already named {name}.")
+
+    reserved = (
+        (
+            await db.execute(
+                select(RunnerApiKey.id).where(
+                    RunnerApiKey.station_name == name, RunnerApiKey.runner_id.is_(None)
+                )
+            )
+        )
+        .scalars()
+        .first()
+    )
+    if reserved is not None:
+        raise HTTPException(
+            status_code=409,
+            detail=f"An unused enrolment key already reserves the name {name}.",
+        )
+
+
+@router.post("/api-keys", response_model=RunnerApiKeyCreated, status_code=201)
+async def create_runner_api_key(
+    data: RunnerApiKeyCreate,
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_role(UserRole.admin)),
+):
+    """Mint an enrolment key for a Test Station."""
+    if data.station_name:
+        await _require_station_name_free(db, data.station_name)
+
+    record, plaintext = mint_key(
+        label=data.label,
+        created_by_user_id=admin.id,
+        station_name=data.station_name,
+    )
+    db.add(record)
+    await db.flush()
+
+    return RunnerApiKeyCreated(
+        id=record.id,
+        label=record.label,
+        station_name=record.station_name,
+        key_prefix=record.key_prefix,
+        runner_account=None,
+        created_at=record.created_at,
+        last_used_at=None,
+        api_key=plaintext,
+    )
+
+
+@router.get("/api-keys", response_model=List[RunnerApiKeyResponse])
+async def list_runner_api_keys(
+    db: AsyncSession = Depends(get_db),
+    _admin: User = Depends(require_role(UserRole.admin)),
+):
+    """List every enrolment key and the station it is pinned to, if any."""
+    result = await db.execute(
+        select(RunnerApiKey, Runner.account)
+        .outerjoin(Runner, RunnerApiKey.runner_id == Runner.id)
+        .order_by(RunnerApiKey.created_at.desc())
+    )
+    return [
+        RunnerApiKeyResponse(
+            id=record.id,
+            label=record.label,
+            station_name=record.station_name,
+            key_prefix=record.key_prefix,
+            runner_account=account,
+            created_at=record.created_at,
+            last_used_at=record.last_used_at,
+        )
+        for record, account in result.all()
+    ]
+
+
+@router.delete("/api-keys/{key_id}", status_code=204)
+async def delete_runner_api_key(
+    key_id: int,
+    db: AsyncSession = Depends(get_db),
+    _admin: User = Depends(require_role(UserRole.admin)),
+):
+    """Revoke an enrolment key."""
+    record = await db.get(RunnerApiKey, key_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="API key not found")
+
+    await db.delete(record)
+    await db.flush()
+
+
 @router.get("/{account}", response_model=RunnerResponse)
 async def get_runner(
     account: str,
@@ -188,19 +308,62 @@ async def get_runner(
     return runner
 
 
+@router.patch("/{account}", response_model=RunnerResponse)
+async def rename_runner(
+    account: str,
+    data: RunnerRename,
+    db: AsyncSession = Depends(get_db),
+    _admin: User = Depends(require_role(UserRole.admin)),
+):
+    """Rename a Test Station.
+
+    The station's token identifies it by id, so it stays authenticated and
+    learns the new name from its next heartbeat.
+    """
+    runner = (
+        await db.execute(select(Runner).where(Runner.account == account))
+    ).scalar_one_or_none()
+    if not runner:
+        raise HTTPException(status_code=404, detail="Runner not found")
+
+    if data.account != runner.account:
+        await _require_station_name_free(db, data.account, exclude_runner_id=runner.id)
+        runner.account = data.account
+        await db.execute(
+            update(RunnerApiKey)
+            .where(RunnerApiKey.runner_id == runner.id)
+            .values(station_name=data.account)
+        )
+
+    await db.flush()
+    await db.refresh(runner)
+    return runner
+
+
 @router.delete("/{account}", status_code=204)
 async def delete_runner(
     account: str,
     db: AsyncSession = Depends(get_db),
     _admin: User = Depends(require_role(UserRole.admin)),
 ):
-    """
-    Delete a runner. Requires an authenticated administrator.
-    """
+    """Delete a Test Station. Requires an authenticated administrator."""
     result = await db.execute(select(Runner).where(Runner.account == account))
     runner = result.scalar_one_or_none()
 
     if not runner:
         raise HTTPException(status_code=404, detail="Runner not found")
 
-    await db.delete(runner)
+    try:
+        await db.execute(
+            update(TestRun).where(TestRun.runner_id == runner.id).values(runner_id=None)
+        )
+        await db.execute(delete(RunnerApiKey).where(RunnerApiKey.runner_id == runner.id))
+        await db.delete(runner)
+        # Flushed here so a dangling reference is a 409, not a rollback behind
+        # the 204 that get_db's later commit would produce.
+        await db.flush()
+    except IntegrityError as exc:
+        raise HTTPException(
+            status_code=409,
+            detail="Test Station could not be deleted because related records still reference it",
+        ) from exc

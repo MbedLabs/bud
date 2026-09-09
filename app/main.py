@@ -1,20 +1,18 @@
-"""
-FastAPI application for the Bud test automation platform
-
-Main entry point for the backend API.
-"""
+"""FastAPI application for the Bud test automation platform"""
 
 import asyncio
 import contextlib
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.responses import JSONResponse
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from sqlalchemy import select, text
+from sqlalchemy.exc import IntegrityError
 
 from app.api import auth as auth_api
 from app.api import (
@@ -25,8 +23,8 @@ from app.api import (
     results,
     runners,
     settings,
+    setup,
     test_runs,
-    teststations,
     uploads,
 )
 from app.api import users as users_api
@@ -35,6 +33,7 @@ from app.core.deps import limiter
 from app.core.observability import (
     RequestObservabilityMiddleware,
     metrics_router,
+    request_id_var,
     setup_logging,
 )
 from app.core.security import get_password_hash
@@ -187,7 +186,72 @@ app = FastAPI(
 
 # H2: Attach rate-limiter state and error handler
 app.state.limiter = limiter
+
+
+INTEGRITY_ANSWERS: dict[str, tuple[int, str]] = {
+    "23505": (409, "That already exists."),
+    "23P01": (409, "That already exists."),
+    "23503": (409, "Something this refers to is missing or still in use."),
+    "23502": (422, "A required value was missing."),
+    "23514": (422, "A value was outside what this field accepts."),
+}
+
+
+def _sqlstate(exc: Exception) -> str:
+    cause = getattr(exc, "orig", None)
+    for candidate in (cause, getattr(cause, "__cause__", None)):
+        for attribute in ("sqlstate", "pgcode"):
+            code = getattr(candidate, attribute, None)
+            if code:
+                return str(code)
+    return ""
+
+
+async def _integrity_error_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Answer a constraint violation with the status its SQLSTATE names.
+
+    The constraint text is logged, never returned.
+    """
+
+    request_id = request_id_var.get()
+    status_code, detail = INTEGRITY_ANSWERS.get(
+        _sqlstate(exc), (409, "That conflicts with something already stored.")
+    )
+    logger.warning(
+        "Integrity error on %s %s: %s",
+        request.method,
+        request.url.path,
+        getattr(exc, "orig", None) or exc,
+    )
+    return JSONResponse(
+        status_code=status_code,
+        content={
+            "detail": f"{detail} Quote reference {request_id} when reporting this.",
+            "request_id": request_id,
+        },
+        headers={"x-request-id": request_id},
+    )
+
+
+async def _unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    request_id = request_id_var.get()
+    logger.exception("Unhandled error on %s %s", request.method, request.url.path)
+    return JSONResponse(
+        status_code=500,
+        content={
+            "detail": (
+                "Something went wrong on the server. "
+                f"Quote reference {request_id} when reporting this."
+            ),
+            "request_id": request_id,
+        },
+        headers={"x-request-id": request_id},
+    )
+
+
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_exception_handler(IntegrityError, _integrity_error_handler)
+app.add_exception_handler(Exception, _unhandled_exception_handler)
 
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
@@ -217,8 +281,8 @@ app.include_router(test_runs.router, prefix="/api/test-runs", tags=["Test Runs"]
 app.include_router(results.router, prefix="/api/results", tags=["Results"])
 app.include_router(uploads.router, prefix="/api/uploads", tags=["Uploads"])
 app.include_router(runners.router, prefix="/api/runners", tags=["Runners"])
-app.include_router(teststations.router, prefix="/api/teststations", tags=["TestStations"])
 app.include_router(settings.router, prefix="/api/settings", tags=["Settings"])
+app.include_router(setup.router, prefix="/api", tags=["Setup"])
 app.include_router(reports.router, prefix="/api/reports", tags=["Reports"])
 
 

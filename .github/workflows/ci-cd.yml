@@ -388,6 +388,9 @@ jobs:
       - name: End-to-end smoke test
         run: bash scripts/e2e_image_smoke.sh "${{ needs.build-image.outputs.image }}"
 
+      - name: Cloudron compatibility smoke test (normal image)
+        run: bash scripts/cloudron_image_smoke.sh "${{ needs.build-image.outputs.image }}" bud
+
   promote-image:
     if: github.event_name == 'push'
     name: Promote moving tags

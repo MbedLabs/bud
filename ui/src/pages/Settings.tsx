@@ -73,28 +73,28 @@ export default function Settings() {
   const [hasBloomToken, setHasBloomToken] = useState(false)
   const [bloomTokenPrefix, setBloomTokenPrefix] = useState<string | null>(null)
 
-  const { data: almSettings, isLoading: almLoading } = useQuery({
-    queryKey: ['almSettings'],
-    queryFn: settingsApi.getALM,
+  const { data: plmSettings, isLoading: plmLoading } = useQuery({
+    queryKey: ['plmSettings'],
+    queryFn: settingsApi.getPLM,
     enabled: isAdmin,
   })
 
   useEffect(() => {
-    if (almSettings) {
-      setBloomUrl(almSettings.bloom_url)
+    if (plmSettings) {
+      setBloomUrl(plmSettings.bloom_url)
       setBloomToken('')
-      setHasBloomToken(almSettings.has_bloom_token)
-      setBloomTokenPrefix(almSettings.bloom_token_prefix)
+      setHasBloomToken(plmSettings.has_bloom_token)
+      setBloomTokenPrefix(plmSettings.bloom_token_prefix)
     }
-  }, [almSettings])
+  }, [plmSettings])
 
-  const almMutation = useMutation({
-    mutationFn: settingsApi.updateALM,
+  const plmMutation = useMutation({
+    mutationFn: settingsApi.updatePLM,
     onSuccess: (updated) => {
       setHasBloomToken(updated.has_bloom_token)
       setBloomTokenPrefix(updated.bloom_token_prefix)
       setBloomToken('')
-      queryClient.invalidateQueries({ queryKey: ['almSettings'] })
+      queryClient.invalidateQueries({ queryKey: ['plmSettings'] })
       alert('PLM settings updated successfully')
     },
     onError: (error) => {
@@ -126,8 +126,8 @@ export default function Settings() {
     },
   })
 
-  const handleSaveALM = () => {
-    almMutation.mutate({
+  const handleSavePLM = () => {
+    plmMutation.mutate({
       bloom_url: bloomUrl,
       ...(bloomToken ? { bloom_token: bloomToken } : {}),
     })
@@ -135,7 +135,7 @@ export default function Settings() {
 
   const handleClearToken = () => {
     if (!window.confirm('Remove the Bloom result-sync credential from Bud?')) return
-    almMutation.mutate({ bloom_url: bloomUrl, clear_bloom_token: true })
+    plmMutation.mutate({ bloom_url: bloomUrl, clear_bloom_token: true })
   }
 
   const handleTimezoneChange = (newTz: string) => {
@@ -313,7 +313,7 @@ export default function Settings() {
             <h3 className="text-sm font-semibold text-foreground">Bloom PLM Integration</h3>
           </div>
           <div className="p-5 space-y-4">
-            {almLoading ? (
+            {plmLoading ? (
               <div className="flex items-center justify-center py-4">
                 <Loader2 className="h-5 w-5 text-muted-foreground animate-spin" />
               </div>
@@ -364,18 +364,18 @@ export default function Settings() {
                     <button
                       type="button"
                       onClick={handleClearToken}
-                      disabled={almMutation.isPending}
+                      disabled={plmMutation.isPending}
                       className="mr-3 px-4 py-2 text-sm font-medium text-destructive hover:underline disabled:opacity-50"
                     >
                       Clear Credential
                     </button>
                   )}
                   <button
-                    onClick={handleSaveALM}
-                    disabled={almMutation.isPending}
+                    onClick={handleSavePLM}
+                    disabled={plmMutation.isPending}
                     className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
                   >
-                    {almMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                    {plmMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                     Save Integration
                   </button>
                 </div>

@@ -136,7 +136,7 @@ export const filterOptions = {
   runner_accounts: ['bench-01', 'bench-02'],
 }
 
-export const almSettings = {
+export const plmSettings = {
   bloom_url: 'https://bloom.example.com',
   has_bloom_token: true,
   bloom_token_prefix: 'blm_sync_abcd',
@@ -246,9 +246,10 @@ export const RESPONSES: Record<string, unknown> = {
 
   'testStationsApi.status': { runners: [testStation] },
   'testStationsApi.getByAccount': runner,
+  'testStationsApi.rename': runner,
 
-  'settingsApi.getALM': almSettings,
-  'settingsApi.updateALM': almSettings,
+  'settingsApi.getPLM': plmSettings,
+  'settingsApi.updatePLM': plmSettings,
 
   'reportsApi.testRuns': { blob: new Blob(['%PDF-']), filename: 'bud-test-report.pdf' },
   'reportsApi.testRun': { blob: new Blob(['%PDF-']), filename: 'bud-run-42.pdf' },

@@ -2,12 +2,23 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
-
 import pytest
 from sqlalchemy import select
 
-from app.models import Product, Runner, TestStation
+from app.models import Product, Runner
+
+
+async def _runner(db_session, account: str, **overrides) -> Runner:
+    runner = Runner(
+        account=account,
+        password_hash=overrides.pop("password_hash", "hashed"),
+        token=overrides.pop("token", f"token-{account}"),
+        **overrides,
+    )
+    db_session.add(runner)
+    await db_session.commit()
+    await db_session.refresh(runner)
+    return runner
 
 
 class TestProducts:
@@ -64,93 +75,6 @@ class TestProducts:
         ]:
             response = unauthenticated_client.request(method, path, json={"name": "x"})
             assert response.status_code == 401, f"{method} {path} was {response.status_code}"
-
-
-async def _station(db_session, account: str, **overrides) -> TestStation:
-    station = TestStation(
-        account=account,
-        password_hash=overrides.pop("password_hash", "hashed"),
-        token=overrides.pop("token", f"token-{account}"),
-        location=overrides.pop("location", "Lab A"),
-        is_active=overrides.pop("is_active", True),
-        **overrides,
-    )
-    db_session.add(station)
-    await db_session.commit()
-    await db_session.refresh(station)
-    return station
-
-
-class TestTestStations:
-    @pytest.mark.asyncio
-    async def test_status_lists_registered_stations(self, client, db_session):
-        await _station(db_session, "bench-01")
-        await _station(db_session, "bench-02")
-
-        response = client.get("/api/teststations/status")
-        assert response.status_code == 200, response.text
-        body = response.json()
-        accounts = {s["account"] for s in body["teststations"]}
-        assert {"bench-01", "bench-02"} <= accounts
-
-    @pytest.mark.asyncio
-    async def test_status_reports_a_stale_station_as_offline(self, client, db_session):
-        await _station(
-            db_session,
-            "stale",
-            last_heartbeat=datetime.utcnow() - timedelta(days=1),
-        )
-        await _station(db_session, "fresh", last_heartbeat=datetime.utcnow())
-
-        listed = client.get("/api/teststations/status").json()["teststations"]
-        stations = {s["account"]: s for s in listed}
-        assert stations["stale"]["is_online"] is False
-        assert stations["fresh"]["is_online"] is True
-
-    @pytest.mark.asyncio
-    async def test_fetches_one_station(self, client, db_session):
-        await _station(db_session, "single")
-        response = client.get("/api/teststations/single")
-        assert response.status_code == 200, response.text
-        assert response.json()["account"] == "single"
-
-    def test_unknown_station_is_404(self, client):
-        assert client.get("/api/teststations/nobody").status_code == 404
-
-    @pytest.mark.asyncio
-    async def test_deletes_a_station(self, client, db_session):
-        await _station(db_session, "removable")
-        assert client.delete("/api/teststations/removable").status_code == 204
-
-        remaining = (
-            await db_session.execute(select(TestStation).where(TestStation.account == "removable"))
-        ).scalar_one_or_none()
-        assert remaining is None
-
-    def test_deleting_an_unknown_station_is_404(self, client):
-        assert client.delete("/api/teststations/nobody").status_code == 404
-
-    def test_stations_require_authentication(self, unauthenticated_client):
-        for method, path in [
-            ("GET", "/api/teststations/status"),
-            ("GET", "/api/teststations/bench-01"),
-            ("DELETE", "/api/teststations/bench-01"),
-        ]:
-            response = unauthenticated_client.request(method, path)
-            assert response.status_code == 401, f"{method} {path} was {response.status_code}"
-
-
-async def _runner(db_session, account: str, **overrides) -> Runner:
-    runner = Runner(
-        account=account,
-        password_hash=overrides.pop("password_hash", "hashed"),
-        token=overrides.pop("token", f"token-{account}"),
-        **overrides,
-    )
-    db_session.add(runner)
-    await db_session.commit()
-    await db_session.refresh(runner)
-    return runner
 
 
 class TestRunners:

@@ -116,10 +116,8 @@ describe('the dashboard', () => {
   it('shows the aggregated counters the server returns', async () => {
     renderAt('/', '/', <Dashboard />)
 
-    // The headings render before the counters arrive, so wait for a counter
-    // rather than for the card that will hold it. 5 runs at a 60% run pass
-    // rate, over 30 tests; the numbers also appear in the outcome donuts now,
-    // so each is read off its own card.
+    // The headings render before the counters arrive, so wait for a counter rather than
+    // for the card that will hold it.
     expect(await within(card('Total Test Runs')).findByText('5')).toBeTruthy()
     expect(screen.getAllByText('60%').length).toBeGreaterThan(0)
     expect(screen.getAllByText('30 tests').length).toBeGreaterThan(0)
@@ -204,9 +202,7 @@ describe('the run list', () => {
       target: { value: 'nothing matches' },
     })
 
-    // The page holds twenty of however many runs there are. A search it
-    // answered itself would be a search of those twenty, and a run on page
-    // three would read as "no such run".
+    // The page holds twenty of however many runs there are.
     await waitFor(() => {
       const [params] = lastCall(client.testRunsApi.list) as [{ q?: string }]
       expect(params.q).toBe('nothing matches')
@@ -257,10 +253,8 @@ describe('the run list', () => {
   })
 
   it('shows whatever the server matched, whichever field it matched on', async () => {
-    // The endpoint matches the run name, the test case list and the runner
-    // account; which of the three hit is its business. What the page owes is
-    // to render the answer rather than second-guess it - a page that filtered
-    // again locally would drop a row matched on a field it does not display.
+    // The endpoint matches the run name, the test case list and the runner account;
+    // which of the three hit is its business.
     const other = {
       ...testRun,
       id: 43,
@@ -314,10 +308,9 @@ describe('the run list', () => {
     fireEvent.click(screen.getAllByRole('button', { name: /^Filters/ })[0])
     fireEvent.click(await screen.findByRole('button', { name: 'Lab A' }))
 
-    // Lab A holds two benches, and their runs interleave with everyone else's
-    // across pages - so resolving the location to bench accounts in the
-    // browser and filtering the current page drops whatever sits on the next
-    // one. The location goes to the server, which holds every run.
+    // Lab A holds two benches, and their runs interleave with everyone else's across
+    // pages - so resolving the location to bench accounts in the browser and filtering
+    // the current page drops whatever sits on the next one.
     await waitFor(() => {
       const [params] = lastCall(client.testRunsApi.list) as [{ location?: string }]
       expect(params.location).toBe('Lab A')
@@ -574,6 +567,111 @@ describe('the Test Stations screen', () => {
     expect(await screen.findByText(testStation.account)).toBeTruthy()
     expect(screen.getAllByText(/online/i).length).toBeGreaterThan(0)
   })
+
+  it('asks before removing a station, and removes nothing until asked again', async () => {
+    renderAt('/test-stations', '/test-stations', <TestStations />)
+    await screen.findByText(testStation.account)
+
+    fireEvent.click(screen.getByRole('button', { name: `Actions for ${testStation.account}` }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Remove' }))
+
+    const dialog = await screen.findByRole('dialog')
+    expect(dialog.textContent).toContain('Its runs are kept.')
+    expect(client.testStationsApi.remove).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(client.testStationsApi.remove).not.toHaveBeenCalled()
+  })
+
+  it('removes the station once confirmed', async () => {
+    vi.mocked(client.testStationsApi.remove).mockResolvedValue(undefined)
+    renderAt('/test-stations', '/test-stations', <TestStations />)
+    await screen.findByText(testStation.account)
+
+    fireEvent.click(screen.getByRole('button', { name: `Actions for ${testStation.account}` }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Remove' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Remove' }))
+
+    const removed = vi.mocked(client.testStationsApi.remove)
+    await waitFor(() => expect(removed.mock.calls.length).toBe(1))
+    expect(removed.mock.calls[0][0]).toBe(testStation.account)
+  })
+
+  it('renames a station, and refuses a name that would break a URL', async () => {
+    vi.mocked(client.testStationsApi.rename).mockResolvedValue({} as never)
+    renderAt('/test-stations', '/test-stations', <TestStations />)
+    await screen.findByText(testStation.account)
+
+    fireEvent.click(screen.getByRole('button', { name: `Actions for ${testStation.account}` }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Rename' }))
+
+    const field = await screen.findByLabelText('Rename station to')
+    const submit = screen.getByRole('button', { name: 'Rename' })
+
+    fireEvent.change(field, { target: { value: 'lab 2' } })
+    expect((submit as HTMLButtonElement).disabled).toBe(true)
+
+    fireEvent.change(field, { target: { value: 'bench-renamed' } })
+    fireEvent.click(submit)
+
+    const renamed = vi.mocked(client.testStationsApi.rename)
+    await waitFor(() => expect(renamed.mock.calls.length).toBe(1))
+    expect(renamed.mock.calls[0].slice(0, 2)).toEqual([testStation.account, 'bench-renamed'])
+  })
+
+  it('offers to revoke the key from the station that holds it', async () => {
+    vi.mocked(client.testStationsApi.listApiKeys).mockResolvedValue([
+      {
+        id: 9,
+        label: testStation.account,
+        station_name: testStation.account,
+        key_prefix: 'budrnr_aaaa',
+        runner_account: testStation.account,
+        created_at: '2026-09-01T10:00:00Z',
+        last_used_at: null,
+      },
+    ])
+    vi.mocked(client.testStationsApi.deleteApiKey).mockResolvedValue(undefined)
+    renderAt('/test-stations', '/test-stations', <TestStations />)
+    await screen.findByText(testStation.account)
+
+    fireEvent.click(screen.getByRole('button', { name: `Actions for ${testStation.account}` }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Revoke key' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Revoke' }))
+
+    const revoked = vi.mocked(client.testStationsApi.deleteApiKey)
+    await waitFor(() => expect(revoked.mock.calls.length).toBe(1))
+    expect(revoked.mock.calls[0][0]).toBe(9)
+  })
+
+  it('offers no key to revoke on a station that has none', async () => {
+    vi.mocked(client.testStationsApi.listApiKeys).mockResolvedValue([])
+    renderAt('/test-stations', '/test-stations', <TestStations />)
+    await screen.findByText(testStation.account)
+
+    fireEvent.click(screen.getByRole('button', { name: `Actions for ${testStation.account}` }))
+
+    expect(screen.queryByRole('menuitem', { name: 'Revoke key' })).toBeNull()
+    expect(screen.getByRole('menuitem', { name: 'Rename' })).toBeTruthy()
+  })
+
+  it('keeps the dialog open and says what the server said when removal fails', async () => {
+    vi.mocked(client.testStationsApi.remove).mockRejectedValue({
+      isAxiosError: true,
+      message: 'Request failed with status code 409',
+      response: { data: { detail: 'That station is running a test.' }, headers: {} },
+    })
+    renderAt('/test-stations', '/test-stations', <TestStations />)
+    await screen.findByText(testStation.account)
+
+    fireEvent.click(screen.getByRole('button', { name: `Actions for ${testStation.account}` }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Remove' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Remove' }))
+
+    expect(await screen.findByText('That station is running a test.')).toBeTruthy()
+    expect(screen.queryByRole('dialog')).toBeTruthy()
+  })
 })
 
 describe('settings', () => {
@@ -589,7 +687,7 @@ describe('settings', () => {
     fireEvent.click(screen.getByRole('button', { name: /clear credential/i }))
 
     await waitFor(() =>
-      expect(lastCall(client.settingsApi.updateALM)[0]).toMatchObject({
+      expect(lastCall(client.settingsApi.updatePLM)[0]).toMatchObject({
         clear_bloom_token: true,
       }),
     )
@@ -604,7 +702,7 @@ describe('settings', () => {
 
     // Losing the credential silently would stop every result sync from Bud.
     await settle()
-    expect(client.settingsApi.updateALM).not.toHaveBeenCalled()
+    expect(client.settingsApi.updatePLM).not.toHaveBeenCalled()
   })
 
   it('saves a new Bloom URL', async () => {
@@ -615,7 +713,7 @@ describe('settings', () => {
     fireEvent.click(screen.getAllByRole('button', { name: /save/i })[0])
 
     await waitFor(() => {
-      const [payload] = lastCall(client.settingsApi.updateALM) as [{ bloom_url: string }]
+      const [payload] = lastCall(client.settingsApi.updatePLM) as [{ bloom_url: string }]
       expect(payload.bloom_url).toBe('https://plm.example.com')
     })
   })

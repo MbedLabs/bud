@@ -1,17 +1,91 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useState } from 'react'
 import { Link } from 'react-router'
-import { testStationsApi } from '../api/client'
-import { Server, Wifi, WifiOff, Clock, MapPin, Monitor, Radio } from 'lucide-react'
+import { extractApiErrorMessage, testStationsApi } from '../api/client'
+import type { RunnerApiKey } from '../api/client'
+import { useAuth } from '../contexts/AuthContext'
+import ConfirmDialog from '../components/ConfirmDialog'
+import RowMenu from '../components/RowMenu'
+import EnrolmentKeys from '../components/EnrolmentKeys'
+import {
+  Server, Wifi, WifiOff, Clock, MapPin, Monitor, Radio,
+  Trash2, AlertTriangle, Pencil, KeyRound,
+} from 'lucide-react'
+
+const STATION_NAME = /^[a-zA-Z0-9_-]{3,50}$/
+
+function isValidStationName(value: string): boolean {
+  return STATION_NAME.test(value)
+}
 
 export default function TestStations() {
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'admin'
+  const queryClient = useQueryClient()
+
+  const [actionError, setActionError] = useState('')
+  const [pendingRemoval, setPendingRemoval] = useState<string | null>(null)
+  const [renaming, setRenaming] = useState<string | null>(null)
+  const [pendingKeyRevoke, setPendingKeyRevoke] = useState<RunnerApiKey | null>(null)
+  const [newName, setNewName] = useState('')
+
   const { data, isLoading, error } = useQuery({
     queryKey: ['testStations'],
     queryFn: testStationsApi.status,
     refetchInterval: 15000,
   })
 
+  // Shares its cache entry with EnrolmentKeys.
+  const { data: apiKeys } = useQuery({
+    queryKey: ['runnerApiKeys'],
+    queryFn: testStationsApi.listApiKeys,
+    enabled: isAdmin,
+  })
+
+  const removeStation = useMutation({
+    mutationFn: testStationsApi.remove,
+    onSuccess: () => {
+      setActionError('')
+      setPendingRemoval(null)
+      queryClient.invalidateQueries({ queryKey: ['testStations'] })
+      queryClient.invalidateQueries({ queryKey: ['runnerApiKeys'] })
+    },
+    onError: (error) =>
+      setActionError(extractApiErrorMessage(error, 'Could not remove the Test Station')),
+  })
+
+  const renameStation = useMutation({
+    mutationFn: ({ account, next }: { account: string; next: string }) =>
+      testStationsApi.rename(account, next),
+    onSuccess: () => {
+      setActionError('')
+      setRenaming(null)
+      setNewName('')
+      queryClient.invalidateQueries({ queryKey: ['testStations'] })
+      queryClient.invalidateQueries({ queryKey: ['runnerApiKeys'] })
+    },
+    onError: (error) =>
+      setActionError(extractApiErrorMessage(error, 'Could not rename the Test Station')),
+  })
+
+  const revokeKey = useMutation({
+    mutationFn: testStationsApi.deleteApiKey,
+    onSuccess: () => {
+      setActionError('')
+      setPendingKeyRevoke(null)
+      queryClient.invalidateQueries({ queryKey: ['runnerApiKeys'] })
+    },
+    onError: (error) =>
+      setActionError(extractApiErrorMessage(error, 'Could not revoke the key')),
+  })
+
   const runners = data?.runners || []
   const onlineCount = runners.filter(r => r.is_online).length
+  const keyByAccount = new Map(
+    (apiKeys || [])
+      .filter((k) => k.runner_account)
+      .map((k) => [k.runner_account as string, k])
+  )
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -23,6 +97,14 @@ export default function TestStations() {
           </p>
         </div>
       </div>
+
+      {actionError && !pendingRemoval && !renaming && !pendingKeyRevoke && (
+        <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 text-sm text-destructive">
+          {actionError}
+        </div>
+      )}
+
+      {isAdmin && <EnrolmentKeys />}
 
       {isLoading ? (
         <div className="bg-card rounded-lg border border-border shadow-elegant p-8 text-center text-muted-foreground">
@@ -39,13 +121,15 @@ export default function TestStations() {
           </div>
           <h3 className="text-lg font-semibold text-foreground mb-2">No Test Stations Registered</h3>
           <p className="text-muted-foreground max-w-md mx-auto text-sm">
-            A Test Station is a host where tests execute. Each station registers
-            one or more <span className="font-medium text-foreground">Bud runners</span>{' '}
-            (the execution agents). Register one with the <code>bud_runner</code> CLI:
+            A Test Station is a{' '}
+            <span className="font-medium text-foreground">Bud runner</span> — the two
+            are the same thing. Each location runs one or more of them, so a single
+            machine can host several stations, each with its own account. Register one
+            with the <code>bud_runner</code> CLI:
           </p>
           <div className="mt-6 p-3 bg-muted rounded-lg inline-block text-left">
             <code className="text-xs text-foreground font-mono block">
-              export RUNNER_API_KEY=... # shared secret from the Bud backend
+              export RUNNER_API_KEY=... # the key you created above
             </code>
             <code className="text-xs text-foreground font-mono block">
               export BUD_BACKEND_URL=&lt;your Bud backend URL&gt;
@@ -58,9 +142,119 @@ export default function TestStations() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {runners.map((runner) => (
-            <TestStationCard key={runner.account} runner={runner} />
+            <TestStationCard
+              key={runner.account}
+              runner={runner}
+              isAdmin={isAdmin}
+              hasKey={keyByAccount.has(runner.account)}
+              onRemove={() => {
+                setActionError('')
+                setPendingRemoval(runner.account)
+              }}
+              onRename={() => {
+                setActionError('')
+                setNewName(runner.account)
+                setRenaming(runner.account)
+              }}
+              onRevokeKey={() => {
+                const key = keyByAccount.get(runner.account)
+                if (!key) return
+                setActionError('')
+                setPendingKeyRevoke(key)
+              }}
+            />
           ))}
         </div>
+      )}
+      {renaming && (
+        <div
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50"
+          onClick={() => setRenaming(null)}
+        >
+          <form
+            role="dialog"
+            aria-modal="true"
+            aria-label="Rename Test Station"
+            className="bg-card rounded-lg shadow-elegant p-6 max-w-sm w-full mx-4"
+            onClick={(event) => event.stopPropagation()}
+            onSubmit={(event) => {
+              event.preventDefault()
+              if (isValidStationName(newName)) {
+                renameStation.mutate({ account: renaming, next: newName })
+              }
+            }}
+          >
+            <h3 className="text-lg font-semibold text-foreground mb-2">Rename this Test Station?</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              The station keeps its credentials and its runs, and picks the new name up on its
+              next heartbeat.
+            </p>
+            <input
+              value={newName}
+              onChange={(event) => setNewName(event.target.value)}
+              aria-label="Rename station to"
+              maxLength={50}
+              autoFocus
+              className="w-full mb-4 px-3 py-2 bg-background border border-input rounded-lg text-sm text-foreground"
+            />
+            {actionError && (
+              <div className="mb-4 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-sm text-destructive">
+                {actionError}
+              </div>
+            )}
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setRenaming(null)
+                  setActionError('')
+                }}
+                className="px-4 py-2 border border-input rounded-md text-foreground hover:bg-accent/50 text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={!isValidStationName(newName) || renameStation.isPending}
+                className="px-4 py-2 bg-gradient-button text-white rounded-md hover:opacity-90 disabled:opacity-50 text-sm"
+              >
+                {renameStation.isPending ? 'Renaming...' : 'Rename'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {pendingKeyRevoke && (
+        <ConfirmDialog
+          title="Revoke this station's key?"
+          body={`${pendingKeyRevoke.runner_account} keeps its credentials and its runs, but cannot register again until an administrator mints it a new key.`}
+          confirmLabel="Revoke"
+          pendingLabel="Revoking..."
+          isPending={revokeKey.isPending}
+          error={actionError}
+          onConfirm={() => revokeKey.mutate(pendingKeyRevoke.id)}
+          onCancel={() => {
+            setPendingKeyRevoke(null)
+            setActionError('')
+          }}
+        />
+      )}
+
+      {pendingRemoval && (
+        <ConfirmDialog
+          title="Remove this Test Station?"
+          body={`${pendingRemoval} loses its credentials and cannot upload until it registers again. Its runs are kept.`}
+          confirmLabel="Remove"
+          pendingLabel="Removing..."
+          isPending={removeStation.isPending}
+          error={actionError}
+          onConfirm={() => removeStation.mutate(pendingRemoval)}
+          onCancel={() => {
+            setPendingRemoval(null)
+            setActionError('')
+          }}
+        />
       )}
     </div>
   )
@@ -79,18 +273,32 @@ interface TestStationInfo {
   }
 }
 
-function TestStationCard({ runner }: { runner: TestStationInfo }) {
+function TestStationCard({
+  runner,
+  isAdmin,
+  hasKey,
+  onRemove,
+  onRename,
+  onRevokeKey,
+}: {
+  runner: TestStationInfo
+  isAdmin: boolean
+  hasKey: boolean
+  onRemove: () => void
+  onRename: () => void
+  onRevokeKey: () => void
+}) {
   return (
     <Link
       to={`/runs?station=${encodeURIComponent(runner.account)}`}
-      className={`block bg-card rounded-lg border shadow-elegant overflow-hidden transition-all duration-300 hover:shadow-glow group cursor-pointer ${
+      className={`block bg-card rounded-lg border shadow-elegant transition-all duration-300 hover:shadow-glow group cursor-pointer ${
         runner.is_online
           ? 'border-primary/20 hover:border-primary/40'
           : 'border-border opacity-70'
       }`}
     >
       {/* Top accent bar */}
-      <div className={`h-1 ${
+      <div className={`h-1 rounded-t-lg ${
         runner.is_online
           ? 'bg-gradient-to-r from-primary via-bud-forest to-bud-orange'
           : 'bg-muted'
@@ -126,7 +334,29 @@ function TestStationCard({ runner }: { runner: TestStationInfo }) {
               </div>
             </div>
           </div>
+
+          {isAdmin && (
+            <RowMenu
+              label={`Actions for ${runner.account}`}
+              actions={[
+                { label: 'Rename', icon: Pencil, onSelect: onRename },
+                ...(hasKey
+                  ? [{ label: 'Revoke key', icon: KeyRound, onSelect: onRevokeKey }]
+                  : []),
+                { label: 'Remove', icon: Trash2, onSelect: onRemove, destructive: true },
+              ]}
+            />
+          )}
         </div>
+
+        {isAdmin && !hasKey && (
+          <div className="mb-4 flex items-start gap-2 p-2.5 rounded-md bg-amber-500/10 border border-amber-500/30">
+            <AlertTriangle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+            <p className="text-xs text-amber-700 dark:text-amber-400">
+              No enrolment key. Create one above and re-register this station.
+            </p>
+          </div>
+        )}
 
         {/* Details */}
         <div className="space-y-2.5">

@@ -91,9 +91,9 @@ def clear_config_env(monkeypatch):
 
 def set_prod_baseline(monkeypatch):
     """Supply the secrets production now requires so each test can exercise a
-    single validator in isolation. A full DATABASE_URL is provided (so the
-    DB_PASSWORD-from-parts guard is not what fires) alongside a strong
-    RUNNER_API_KEY (>= 32 chars, no placeholder)."""
+    single validator in isolation. A full DATABASE_URL is provided so the
+    DB_PASSWORD-from-parts guard is not what fires. RUNNER_API_KEY is set only
+    because a deployment may still carry it; nothing validates it any more."""
     monkeypatch.setenv("BUD_DATABASE_URL", "postgresql://bud:strong-db-pass@db:5432/buddb")
     monkeypatch.setenv("BUD_RUNNER_API_KEY", "r" * 32)
 
@@ -386,7 +386,8 @@ def test_production_rejects_replace_with_secret_key_placeholder(monkeypatch):
         Settings(_env_file=None)
 
 
-def test_production_rejects_short_runner_api_key(monkeypatch):
+def test_production_starts_without_a_shared_runner_key(monkeypatch):
+    """The shared key is retired, so production must not demand one."""
     clear_config_env(monkeypatch)
 
     monkeypatch.setenv("BUD_ENV", "production")
@@ -394,29 +395,9 @@ def test_production_rejects_short_runner_api_key(monkeypatch):
     monkeypatch.setenv("BUD_DATABASE_URL", "postgresql://bud:strong-db-pass@db:5432/buddb")
     monkeypatch.setenv("BUD_ADMIN_EMAIL", "ops@embedlabs.net")
     monkeypatch.setenv("BUD_ADMIN_PASSWORD", "this-is-a-long-password")
-    monkeypatch.setenv("BUD_RUNNER_API_KEY", "too-short-runner-key")
 
-    import pytest
-
-    with pytest.raises(ValueError, match="RUNNER_API_KEY"):
-        Settings(_env_file=None)
-
-
-def test_production_rejects_replace_with_runner_api_key_even_if_long(monkeypatch):
-    clear_config_env(monkeypatch)
-
-    monkeypatch.setenv("BUD_ENV", "production")
-    monkeypatch.setenv("BUD_SECRET_KEY", "b" * 32)
-    monkeypatch.setenv("BUD_DATABASE_URL", "postgresql://bud:strong-db-pass@db:5432/buddb")
-    monkeypatch.setenv("BUD_ADMIN_EMAIL", "ops@embedlabs.net")
-    monkeypatch.setenv("BUD_ADMIN_PASSWORD", "this-is-a-long-password")
-    # 48 chars: clears the length gate but is still the .env.example placeholder.
-    monkeypatch.setenv("BUD_RUNNER_API_KEY", "replace-with-a-shared-runner-registration-secret")
-
-    import pytest
-
-    with pytest.raises(ValueError, match="placeholder"):
-        Settings(_env_file=None)
+    settings = Settings(_env_file=None)
+    assert settings.RUNNER_API_KEY == ""
 
 
 def test_production_rejects_default_db_password_when_url_built_from_parts(monkeypatch):
@@ -439,9 +420,8 @@ def test_production_rejects_default_db_password_when_url_built_from_parts(monkey
 def test_production_allows_default_db_password_when_full_url_provided(monkeypatch):
     clear_config_env(monkeypatch)
 
-    # The docker-compose path: a complete DATABASE_URL carries the real password,
-    # so an unset DB_PASSWORD (default "bud") must NOT be a false-positive boot
-    # failure. This guards the actual production deployment.
+    # The docker-compose path: a complete DATABASE_URL carries the real password, so an
+    # unset DB_PASSWORD (default "bud") must NOT be a false-positive boot failure.
     monkeypatch.setenv("BUD_ENV", "production")
     monkeypatch.setenv("BUD_SECRET_KEY", "b" * 32)
     monkeypatch.setenv(

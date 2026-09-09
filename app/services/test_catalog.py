@@ -1,17 +1,4 @@
-"""What Bud knows can be run, and on which bench.
-
-Bud does not read the test workspace - the benches do. What Bud has is the
-record of what has already executed: every result carries the class that ran and
-the file it came from, and the run it belongs to names the bench. That is enough
-to answer the only question a custom run needs answered, which is "where can
-this test case run", and it is answered from evidence rather than from a
-declaration someone has to keep up to date.
-
-The consequence is worth stating plainly: a test case Bud has never seen cannot
-be selected. There is no way to guess which bench holds it, and queueing it
-against the wrong one would fail on the bench, minutes later, for a reason the
-reader could not have predicted.
-"""
+"""What Bud knows can be run, and on which bench."""
 
 from __future__ import annotations
 
@@ -41,18 +28,7 @@ class CatalogEntry:
 
 
 def derive_test_path(test_case_file: Optional[str], test_class: Optional[str]) -> Optional[str]:
-    """The importable `module.Class` path for a result, or None if it has none.
-
-    `test_case_file` is `inspect.getsourcefile()` on the bench, so an absolute
-    path in the bench's own workspace. The runner's loader takes `module.Class`
-    and imports the module with the workspace on `sys.path`, so the module is
-    the file's stem - which is the same shape as the entries in the pre-declared
-    lists the runner already resolves.
-
-    A result recorded without the file (an older upload, or a runner that did
-    not report it) yields None: the class name alone is not importable, and
-    guessing a module from it would produce a run that fails on the bench.
-    """
+    """The importable `module.Class` path for a result, or None if it has none."""
     if not test_class:
         return None
     if not test_case_file:
@@ -69,12 +45,7 @@ async def build_catalog(
     runner_account: Optional[str] = None,
     suite: Optional[str] = None,
 ) -> list[CatalogEntry]:
-    """Every test case Bud has a record of, newest evidence winning.
-
-    One query over results joined to their run, folded in Python: the fold needs
-    the derived module path, which is a string operation on a JSON field and not
-    something to express in SQL across two dialects.
-    """
+    """Every test case Bud has a record of, newest evidence winning."""
     query = (
         select(
             TestResult.test_class,
@@ -155,16 +126,7 @@ def plan_custom_run(
     runner_ids: dict[str, int],
     pinned_runner: Optional[str] = None,
 ) -> Plan:
-    """Work out which bench runs what, before anything is written.
-
-    A test case runs where it has run before. A selection that spans two benches
-    is therefore two runs, not one refusal - the alternative is telling someone
-    who picked five sensible tests that they may not have them, which is a worse
-    answer than "this became two runs, here they are".
-
-    Pinning a runner narrows it to one bench and reports whatever that bench has
-    never run, rather than quietly moving those tests somewhere else.
-    """
+    """Work out which bench runs what, before anything is written."""
     known = {entry.test_path: entry for entry in catalog}
     grouped: dict[str, list[str]] = {}
     unassigned: list[Unassigned] = []
@@ -210,11 +172,9 @@ def plan_custom_run(
         else:
             undecided.append((test_path, available))
 
-    # Placed second, and deliberately: a test case that could run on either
-    # bench should follow the ones that had no choice, rather than splitting the
-    # selection into two runs for no reason. Only when nothing is forced does the
-    # most recent bench win - it is the one whose workspace most likely still
-    # holds the case.
+    # Placed second, and deliberately: a test case that could run on either bench should
+    # follow the ones that had no choice, rather than splitting the selection into two
+    # runs for no reason.
     for test_path, available in undecided:
         already_used = [account for account in available if account in grouped]
         chosen = already_used[-1] if already_used else available[-1]

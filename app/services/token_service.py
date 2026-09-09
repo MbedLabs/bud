@@ -102,18 +102,7 @@ async def claim_token(
     token: str,
     purpose: UserTokenPurpose,
 ) -> ClaimedToken:
-    """Atomically consume a one-time token.
-
-    A single conditional ``UPDATE ... RETURNING`` marks the token used only if it
-    exists, matches the purpose, is unused, and is unexpired. At most one
-    concurrent caller can claim it; the losers get no row and are rejected. This
-    replaces read-then-update validation, which let two racing requests both pass
-    the check and both act on the same token.
-
-    Raises ``TokenValidationError`` with a specific reason when nothing is
-    claimed (an advisory follow-up read — the claim itself already failed
-    authoritatively).
-    """
+    """Atomically consume a one-time token."""
     now = datetime.utcnow()
     result = await db.execute(
         update(UserToken)
@@ -160,9 +149,5 @@ async def invalidate_tokens(db: AsyncSession, user_id: int, *, purpose: UserToke
 
 
 async def invalidate_all_refresh_tokens(db: AsyncSession, user_id: int) -> None:
-    """Revoke every unused refresh token for a user (all active sessions).
-
-    Used on password change/reset and confirmed email change so a credential
-    change ends existing sessions everywhere, not just on the current device.
-    """
+    """Revoke every unused refresh token for a user (all active sessions)."""
     await invalidate_tokens(db, user_id, purpose=UserTokenPurpose.refresh)
