@@ -135,7 +135,7 @@ export default function TestStations() {
               export BUD_BACKEND_URL=&lt;your Bud backend URL&gt;
             </code>
             <code className="text-xs text-foreground font-mono block">
-              bud_runner register --username my-station
+              bud_runner register --username my-station # the name you chose above
             </code>
           </div>
         </div>

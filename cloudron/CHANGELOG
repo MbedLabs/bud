@@ -1,3 +1,8 @@
+[1.1.0]
+* Per-station enrolment credentials and updated Test Stations management.
+* Improved run actions and Available test cases catalogue.
+* Clearer API conflict and error responses.
+
 [1.0.1]
 * First-run setup now hands over the runner registration key and confirms the administrator by email.
 * Transactional email follows the product's own colours.
