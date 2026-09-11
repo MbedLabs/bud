@@ -176,7 +176,7 @@ jobs:
       cancel-in-progress: false
 
     permissions:
-      contents: read
+      contents: write  # Attach the SBOM to an existing GitHub release.
       packages: write
 
     outputs:
