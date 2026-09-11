@@ -35,11 +35,12 @@
                     "hardware",
                     "systems"
                 ],
-                "minBoxVersion": "9.1.0",
+                "minBoxVersion": "10.0.0",
                 "iconUrl": "https://embedlabs.net/img/bud-mark.png",
                 "mediaLinks": [
                     "https://embedlabs.net/app-bud-dashboard-light.png"
                 ],
+                "packageUrl": "https://github.com/MbedLabs/bud",
                 "dockerImage": "ghcr.io/mbedlabs/bud:v1.1.0"
             },
             "creationDate": "Fri, 11 Sep 2026 12:14:19 GMT",

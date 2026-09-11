@@ -31,9 +31,10 @@
     "hardware",
     "systems"
   ],
-  "minBoxVersion": "9.1.0",
+  "minBoxVersion": "10.0.0",
   "iconUrl": "https://embedlabs.net/img/bud-mark.png",
   "mediaLinks": [
     "https://embedlabs.net/app-bud-dashboard-light.png"
-  ]
+  ],
+  "packageUrl": "https://github.com/MbedLabs/bud"
 }
