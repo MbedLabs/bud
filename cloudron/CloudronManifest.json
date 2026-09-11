@@ -31,5 +31,10 @@
     "hardware",
     "systems"
   ],
-  "minBoxVersion": "9.1.0"
+  "minBoxVersion": "9.1.0",
+  "iconUrl": "https://embedlabs.net/img/bud-mark.png",
+  "packageUrl": "https://github.com/MbedLabs/bud/tree/main/cloudron",
+  "mediaLinks": [
+    "https://embedlabs.net/app-bud-dashboard-light.png"
+  ]
 }

@@ -1,11 +1,14 @@
 """Release promotion regression checks, independent of a registry."""
+
 import importlib.util
 from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
 
-spec = importlib.util.spec_from_file_location("image_release", Path(__file__).parents[1] / "scripts/image_release.py")
+spec = importlib.util.spec_from_file_location(
+    "image_release", Path(__file__).parents[1] / "scripts/image_release.py"
+)
 release = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(release)
 DIGEST = "sha256:" + "a" * 64
@@ -19,7 +22,9 @@ def test_older_release_does_not_move_floating_tags():
 
 
 def test_current_release_can_promote_stable():
-    assert release.eligible_aliases(["image:stable"], "refs/tags/v1.1.0", "v1.1.0") == ["image:stable"]
+    assert release.eligible_aliases(["image:stable"], "refs/tags/v1.1.0", "v1.1.0") == [
+        "image:stable"
+    ]
 
 
 def test_stale_branch_run_does_not_promote_latest():
