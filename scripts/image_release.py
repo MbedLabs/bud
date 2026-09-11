@@ -1,4 +1,5 @@
 """Reuse commit images and promote only the exact manifest that passed tests."""
+
 import os
 import re
 import subprocess
@@ -12,7 +13,8 @@ def run(*args):
 def digest(image):
     result = subprocess.run(
         ["docker", "buildx", "imagetools", "inspect", image, "--format", "{{.Manifest.Digest}}"],
-        text=True, capture_output=True,
+        text=True,
+        capture_output=True,
     )
     if result.returncode:
         if re.search(r"(?:manifest unknown|not found)", result.stderr, re.I):
