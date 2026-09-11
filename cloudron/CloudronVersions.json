@@ -1,0 +1,50 @@
+{
+    "stable": true,
+    "versions": {
+        "1.1.0": {
+            "manifest": {
+                "manifestVersion": 2,
+                "id": "net.embedlabs.bud",
+                "title": "Bud TMP by EmbedLabs",
+                "tagline": "Automated software, hardware and system testing",
+                "version": "1.1.0",
+                "upstreamVersion": "1.1.0",
+                "icon": "file://logo.png",
+                "httpPort": 8080,
+                "healthCheckPath": "/api/ready",
+                "memoryLimit": 1073741824,
+                "addons": {
+                    "postgresql": {},
+                    "localstorage": {},
+                    "sendmail": {
+                        "optional": true
+                    }
+                },
+                "description": "Bud TMP by EmbedLabs provides test management and execution for automated software, hardware and system testing.\n",
+                "changelog": "* Per-station enrolment credentials and updated Test Stations management.\n* Improved run actions and Available test cases catalogue.\n* Clearer API conflict and error responses.\n",
+                "postInstallMessage": "Open Bud at $CLOUDRON-APP-ORIGIN and create your administrator account.\n\nThe instance starts with no accounts, so the first visit shows a setup screen\nthat asks for your name, email address and a password. It stops being reachable\nthe moment the account exists \u2014 nobody else can claim the instance.\n\nEmail \u2014 invitations, password resets and address changes \u2014 works only if you\nenabled the Email addon for this app. Without it, the administrator you create\nhere is the only way in.\n",
+                "website": "https://embedlabs.net",
+                "documentationUrl": "https://github.com/MbedLabs/bud#readme",
+                "forumUrl": "https://github.com/MbedLabs/bud/discussions",
+                "packagerName": "EmbedLabs",
+                "packagerUrl": "https://embedlabs.net",
+                "tags": [
+                    "testing",
+                    "automation",
+                    "software",
+                    "hardware",
+                    "systems"
+                ],
+                "minBoxVersion": "9.1.0",
+                "iconUrl": "https://embedlabs.net/img/bud-mark.png",
+                "mediaLinks": [
+                    "https://embedlabs.net/app-bud-dashboard-light.png"
+                ],
+                "dockerImage": "ghcr.io/mbedlabs/bud:v1.1.0"
+            },
+            "creationDate": "Fri, 11 Sep 2026 12:14:19 GMT",
+            "ts": "Fri, 11 Sep 2026 12:14:19 GMT",
+            "publishState": "published"
+        }
+    }
+}
