@@ -1,6 +1,6 @@
 {
   "manifestVersion": 2,
-  "id": "net.embedlabs.bud",
+  "id": "app.embedlabs.bud",
   "title": "Bud TMP by EmbedLabs",
   "tagline": "Automated software, hardware and system testing",
   "version": "1.1.0",
@@ -31,9 +31,10 @@
     "hardware",
     "systems"
   ],
-  "minBoxVersion": "9.1.0",
+  "minBoxVersion": "10.0.0",
   "iconUrl": "https://embedlabs.net/img/bud-mark.png",
   "mediaLinks": [
     "https://embedlabs.net/app-bud-dashboard-light.png"
-  ]
+  ],
+  "packageUrl": "https://github.com/MbedLabs/bud"
 }
