@@ -6,7 +6,7 @@
 #
 aiofiles==25.1.0
     # via bud-app-backend (pyproject.toml)
-alembic==1.19.1
+alembic==1.19.2
     # via bud-app-backend (pyproject.toml)
 annotated-doc==0.0.5
     # via fastapi
@@ -33,9 +33,9 @@ cffi==2.1.1
     #   cryptography
 charset-normalizer==3.5.1
     # via reportlab
-click==8.4.2
+click==8.5.0
     # via uvicorn
-cryptography==50.0.0
+cryptography==50.0.1
     # via
     #   bud-app-backend (pyproject.toml)
     #   python-jose
@@ -63,7 +63,7 @@ httptools==0.8.0
     # via uvicorn
 httpx==0.28.1
     # via bud-app-backend (pyproject.toml)
-idna==3.18
+idna==3.19
     # via
     #   anyio
     #   email-validator
@@ -88,7 +88,7 @@ pyasn1==0.6.4
     #   rsa
 pycparser==3.0
     # via cffi
-pydantic==2.13.4
+pydantic==2.13.5
     # via
     #   bud-app-backend (pyproject.toml)
     #   fastapi
@@ -139,7 +139,7 @@ typing-inspection==0.4.4
     #   fastapi
     #   pydantic
     #   pydantic-settings
-uvicorn==0.52.3
+uvicorn==0.52.4
     # via bud-app-backend (pyproject.toml)
 uvloop==0.22.1
     # via uvicorn
@@ -147,5 +147,5 @@ watchfiles==1.2.0
     # via uvicorn
 websockets==16.1
     # via uvicorn
-wrapt==2.3.0
+wrapt==2.4.0
     # via deprecated
