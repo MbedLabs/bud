@@ -560,6 +560,18 @@ describe('a run in detail', () => {
   })
 })
 
+describe('a page inside the shell does not title itself', () => {
+  it.each([
+    ['Test Stations', () => <TestStations />],
+    ['Users', () => <Users />],
+  ])('%s renders no heading of its own', async (_name, render) => {
+    const { container } = renderAt('/x', '/x', render())
+    await settle()
+
+    expect(container.querySelector('h1, h2')).toBeNull()
+  })
+})
+
 describe('the Test Stations screen', () => {
   it('lists each station and whether it is online', async () => {
     renderAt('/test-stations', '/test-stations', <TestStations />)
