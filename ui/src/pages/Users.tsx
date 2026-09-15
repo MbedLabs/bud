@@ -97,10 +97,9 @@ export default function UsersPage() {
   return (
     <div className="animate-fade-in">
       <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">User Management</h1>
-          <p className="text-sm text-muted-foreground mt-1">Invite and manage Bud users</p>
-        </div>
+        <p className="text-sm text-muted-foreground">
+          {users?.length ?? 0} {users?.length === 1 ? 'user' : 'users'}
+        </p>
         <button
           onClick={() => setShowInviteModal(true)}
           className="flex items-center gap-2 px-4 py-2 bg-gradient-button text-white text-sm font-medium rounded-lg hover:opacity-90 transition-opacity"

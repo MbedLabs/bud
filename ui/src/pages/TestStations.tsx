@@ -90,12 +90,9 @@ export default function TestStations() {
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold text-foreground">Test Stations</h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            {onlineCount} of {runners.length} test stations online
-          </p>
-        </div>
+        <p className="text-sm text-muted-foreground">
+          {onlineCount} of {runners.length} online
+        </p>
       </div>
 
       {actionError && !pendingRemoval && !renaming && !pendingKeyRevoke && (
