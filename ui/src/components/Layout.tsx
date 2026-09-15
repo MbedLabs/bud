@@ -224,7 +224,7 @@ export default function Layout() {
                 {location.pathname === '/custom-run' && 'Pick test cases and queue them on a station'}
                 {location.pathname === '/test-stations' && 'Monitor connected test stations'}
                 {location.pathname === '/settings' && 'Manage your preferences'}
-                {location.pathname === '/users' && 'Manage users'}
+                {location.pathname === '/users' && 'Invite and manage members'}
                 {location.pathname.startsWith('/runs/') && 'Test run details and results'}
               </p>
             </div>
