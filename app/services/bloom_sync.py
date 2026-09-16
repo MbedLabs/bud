@@ -77,14 +77,26 @@ async def _post_to_bloom_with_retry(bloom_url: str, bloom_token: str, payload_re
         return response
 
 
-def _campaign_reference(data: dict) -> dict | None:
-    """The single campaign Bloom reported, or None when it named none or many."""
+def _suite_reference(data: dict, synced: int) -> dict | None:
+    """The suite Bloom named that holds every synced test case, the smallest when several do, None when none or tied."""
 
-    campaigns = data.get("campaigns")
-    if not isinstance(campaigns, list) or len(campaigns) != 1:
+    suites = data.get("suites")
+    if not isinstance(suites, list) or synced <= 0:
         return None
-    campaign = campaigns[0]
-    return campaign if isinstance(campaign, dict) else None
+    covering = [
+        suite
+        for suite in suites
+        if isinstance(suite, dict)
+        and isinstance(suite.get("matched"), int)
+        and isinstance(suite.get("size"), int)
+        and suite["matched"] >= synced
+    ]
+    if not covering:
+        return None
+    covering.sort(key=lambda suite: suite["size"])
+    if len(covering) > 1 and covering[0]["size"] == covering[1]["size"]:
+        return None
+    return covering[0]
 
 
 async def sync_results_to_bloom(test_run_id: int):
@@ -180,13 +192,13 @@ async def sync_results_to_bloom(test_run_id: int):
                     ),
                     event_metadata=data,
                 )
-                campaign = _campaign_reference(data)
-                if campaign:
+                suite = _suite_reference(data, data.get("updated", 0))
+                if suite:
                     test_run = await session.get(TestRun, test_run_id)
                     if test_run:
-                        test_run.bloom_artefact_id = campaign.get("campaign_id")
-                        test_run.bloom_artefact_name = campaign.get("name")
-                        test_run.bloom_artefact_url = campaign.get("url")
+                        test_run.bloom_artefact_id = suite.get("suite_id")
+                        test_run.bloom_artefact_name = suite.get("name")
+                        test_run.bloom_artefact_url = suite.get("url")
                 await session.commit()
             else:
                 logger.error(f"Failed to sync to Bloom: {response.status_code} - {response.text}")

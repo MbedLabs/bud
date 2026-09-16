@@ -215,7 +215,7 @@ export default function TestRunDetail() {
           {run.bloom_artefact_id && (
             <div>
               <dt className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
-                Bloom campaign
+                Bloom suite
               </dt>
               <dd className="text-sm text-foreground mt-1 break-words">
                 {safeExternalUrl(run.bloom_artefact_url) ? (

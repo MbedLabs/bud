@@ -2,7 +2,7 @@ import json
 import tomllib
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 MANIFEST = ROOT / "cloudron" / "CloudronManifest.json"
 DESCRIPTION = ROOT / "cloudron" / "DESCRIPTION.md"
 

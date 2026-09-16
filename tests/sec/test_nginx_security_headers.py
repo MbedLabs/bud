@@ -7,10 +7,10 @@ from pathlib import Path
 
 import pytest
 
-DOCKER_DIR = Path(__file__).resolve().parents[1] / "docker"
+DOCKER_DIR = Path(__file__).resolve().parents[2] / "docker"
 NGINX_CONF = DOCKER_DIR / "nginx.conf"
 HEADERS_CONF = DOCKER_DIR / "security-headers.conf"
-DOCKERFILE = Path(__file__).resolve().parents[1] / "Dockerfile"
+DOCKERFILE = Path(__file__).resolve().parents[2] / "Dockerfile"
 
 REQUIRED_HEADERS = (
     "X-Content-Type-Options",

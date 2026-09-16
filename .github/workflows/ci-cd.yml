@@ -116,13 +116,13 @@ jobs:
           RUNNER_API_KEY: test-runner-api-key
           ENABLE_DOCS: "false"
         run: |
-          pytest --cov=app --cov-report=xml --cov-report=term-missing --cov-fail-under=85 -v
+          pytest --cov=app --cov-report=xml --cov-report=term-missing --cov-fail-under=85 tests/api tests/logic tests/sec -v
 
       # Real-auth integration layer: runs against the alembic-built PostgreSQL
       # schema with NO dependency overrides — real login, real JWT, real DB I/O.
       # Also proves the empty-DB alembic schema fully serves the application
       # (RUN_STARTUP_DATA_REPAIR=false, so the app never falls back to create_all).
-      - name: Postgres integration tests (real auth)
+      - name: Postgres tests
         env:
           DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_bud
           PYTHONPATH: ${{ github.workspace }}
@@ -136,7 +136,7 @@ jobs:
           ADMIN_FULL_NAME: CI Admin
           ENABLE_DOCS: "false"
         run: |
-          pytest tests_pg/ -v
+          pytest tests/pg -v
 
       # These run against a real database that keeps its rows between
       # invocations, so they must survive being run twice. CI alone would never
@@ -144,7 +144,7 @@ jobs:
       # container every time - but a developer running them locally hits "Email
       # already registered" on the second run and has to drop the database to
       # work. This step is the only thing that keeps that honest.
-      - name: Postgres integration tests again on the same database (re-runnable)
+      - name: Postgres tests again on the same database
         env:
           DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_bud
           PYTHONPATH: ${{ github.workspace }}
@@ -158,7 +158,7 @@ jobs:
           ADMIN_FULL_NAME: CI Admin
           ENABLE_DOCS: "false"
         run: |
-          pytest tests_pg/ -q
+          pytest tests/pg -q
 
       - name: Run UI checks
         run: |
@@ -227,8 +227,8 @@ jobs:
           check "Cloudron package version" "$(python -c 'import json; print(json.load(open("cloudron/CloudronManifest.json"))["version"])')"
           check "Cloudron upstream version" "$(python -c 'import json; print(json.load(open("cloudron/CloudronManifest.json"))["upstreamVersion"])')"
           esc="${base//./\\.}"
-          grep -Eq "(^|[^0-9.])${esc}([^0-9]|\$)" CHANGELOG.md \
-            || gate_fail "CHANGELOG.md has no release entry for ${base}"
+          grep -Eq "(^|[^0-9.])${esc}([^0-9]|\$)" docs/CHANGELOG.md \
+            || gate_fail "docs/CHANGELOG.md has no release entry for ${base}"
           echo "Version consistency OK for ${base}"
 
       - name: Verify the tagged commit is contained in main history

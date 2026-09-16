@@ -277,10 +277,7 @@ export interface TestRun {
    * names a list the station resolves in its own workspace.
    */
   selected_tests?: string[] | null
-  /**
-   * The Bloom artefact this run's results reached, as Bloom reported it. Null
-   * whenever no Bloom is paired, or the results reached no single campaign.
-   */
+  /** The Bloom test suite this run's results reached, as Bloom reported it; null when none was identified. */
   bloom_artefact_id?: string | null
   bloom_artefact_name?: string | null
   bloom_artefact_url?: string | null
