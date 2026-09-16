@@ -227,8 +227,8 @@ jobs:
           check "Cloudron package version" "$(python -c 'import json; print(json.load(open("cloudron/CloudronManifest.json"))["version"])')"
           check "Cloudron upstream version" "$(python -c 'import json; print(json.load(open("cloudron/CloudronManifest.json"))["upstreamVersion"])')"
           esc="${base//./\\.}"
-          grep -Eq "(^|[^0-9.])${esc}([^0-9]|\$)" CHANGELOG.md \
-            || gate_fail "CHANGELOG.md has no release entry for ${base}"
+          grep -Eq "(^|[^0-9.])${esc}([^0-9]|\$)" docs/CHANGELOG.md \
+            || gate_fail "docs/CHANGELOG.md has no release entry for ${base}"
           echo "Version consistency OK for ${base}"
 
       - name: Verify the tagged commit is contained in main history
