@@ -225,7 +225,7 @@ Pin a complete version such as `1.1.0` for production.
 
 ## Upgrade
 
-1. Read [`CHANGELOG.md`](CHANGELOG.md).
+1. Read [`docs/CHANGELOG.md`](docs/CHANGELOG.md).
 2. Back up `bud-postgres-data`, `bud-uploads`, and `.env`.
 3. Set the target `BUD_VERSION`.
 4. Pull and restart. The container runs `alembic upgrade head` before serving traffic:
@@ -242,10 +242,10 @@ Restore the pre-upgrade backups to roll back a release that changed the database
 ## Documentation
 
 - [Operations](docs/OPERATIONS.md)
-- [Security policy](SECURITY.md)
-- [Changelog](CHANGELOG.md)
-- [Contributing](CONTRIBUTING.md)
-- [Contributor License Agreement](CLA.md)
+- [Security policy](docs/SECURITY.md)
+- [Changelog](docs/CHANGELOG.md)
+- [Contributing](docs/CONTRIBUTING.md)
+- [Contributor License Agreement](docs/CLA.md)
 
 API documentation is disabled by default. Enable it only in a trusted development environment.
 
