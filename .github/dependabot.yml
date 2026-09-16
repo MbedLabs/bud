@@ -2,6 +2,7 @@ version: 2
 updates:
   - package-ecosystem: pip
     directory: "/"
+    target-branch: dev
     schedule:
       interval: weekly
       day: monday
@@ -23,6 +24,7 @@ updates:
 
   - package-ecosystem: npm
     directory: "/ui"
+    target-branch: dev
     schedule:
       interval: weekly
       day: monday
@@ -53,6 +55,7 @@ updates:
 
   - package-ecosystem: docker
     directory: "/"
+    target-branch: dev
     schedule:
       interval: weekly
       day: monday
@@ -75,6 +78,7 @@ updates:
 
   - package-ecosystem: github-actions
     directory: "/"
+    target-branch: dev
     schedule:
       interval: weekly
       day: monday
