@@ -6,7 +6,7 @@ import secrets
 import pytest
 from fastapi.testclient import TestClient
 
-REQUIRES_PG_REASON = "tests_pg requires a PostgreSQL DATABASE_URL (CI-only)"
+REQUIRES_PG_REASON = "tests/pg requires a PostgreSQL DATABASE_URL"
 
 
 def unique_suffix() -> str:
@@ -35,19 +35,12 @@ def _is_postgres() -> bool:
 
 @pytest.fixture(scope="session")
 def client():
+    """Session-wide TestClient on the real PostgreSQL database with the login rate limiter disabled."""
     if not _is_postgres():
         pytest.skip(REQUIRES_PG_REASON)
-    # Import lazily so a non-PG local run skips before the app/engine is built.
     from app.core.deps import limiter
     from app.main import app
 
-    # This suite drives many real logins across a single client IP within a minute; the
-    # login rate limiter (10/min) is not what these flows test, so disable it here to
-    # avoid cross-test 429s.
     limiter.enabled = False
-
-    # Entering the context runs the lifespan: with RUN_STARTUP_DATA_REPAIR=false
-    # the schema must already exist (built by the empty-DB alembic step), and
-    # AUTO_SEED_ADMIN=true seeds the admin this suite logs in as.
     with TestClient(app) as test_client:
         yield test_client

@@ -4,7 +4,7 @@ import os
 
 import pytest
 
-from tests_pg.conftest import unique_name
+from tests.pg.conftest import unique_name
 
 pytestmark = pytest.mark.skipif(
     "postgres" not in os.environ.get("DATABASE_URL", ""),
