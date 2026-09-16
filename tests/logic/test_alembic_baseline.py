@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-VERSIONS_DIR = Path(__file__).resolve().parents[1] / "alembic" / "versions"
+VERSIONS_DIR = Path(__file__).resolve().parents[2] / "alembic" / "versions"
 
 # Deliberately equal to the head the previously deployed chain ended on, so a
 # database already at that revision is seen as up to date and never re-migrated.
