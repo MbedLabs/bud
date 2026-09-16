@@ -7,7 +7,7 @@ from unittest.mock import Mock
 import pytest
 
 spec = importlib.util.spec_from_file_location(
-    "image_release", Path(__file__).parents[1] / "scripts/image_release.py"
+    "image_release", Path(__file__).parents[2] / "scripts/image_release.py"
 )
 release = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(release)

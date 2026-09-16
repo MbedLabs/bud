@@ -7,7 +7,7 @@ import re
 import asyncpg
 import pytest
 
-from tests_pg.conftest import unique_email
+from tests.pg.conftest import unique_email
 
 pytestmark = pytest.mark.skipif(
     "postgres" not in os.environ.get("DATABASE_URL", ""),

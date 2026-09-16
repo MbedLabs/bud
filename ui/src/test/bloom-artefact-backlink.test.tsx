@@ -48,7 +48,7 @@ const TestRuns = (await import('../pages/TestRuns')).default
 const PAIRED = {
   bloom_artefact_id: 'FLT-CMP-003',
   bloom_artefact_name: 'Nightly regression',
-  bloom_artefact_url: 'https://bloom.example.com/projects/FLT/campaigns/12',
+  bloom_artefact_url: 'https://bloom.example.com/projects/FLT/suites/7',
 }
 
 function renderRuns() {
@@ -73,7 +73,7 @@ describe('the Bloom artefact a run reached', () => {
     cleanup()
   })
 
-  it('links a paired run to its campaign in Bloom', async () => {
+  it('links a paired run to its suite in Bloom', async () => {
     vi.mocked(client.testRunsApi.list).mockResolvedValue({
       runs: [{ ...testRun, ...PAIRED }],
       total: 1,
@@ -83,7 +83,7 @@ describe('the Bloom artefact a run reached', () => {
     const link = (await screen.findByRole('link', {
       name: /FLT-CMP-003/,
     })) as HTMLAnchorElement
-    expect(link.href).toBe('https://bloom.example.com/projects/FLT/campaigns/12')
+    expect(link.href).toBe('https://bloom.example.com/projects/FLT/suites/7')
     expect(link.target).toBe('_blank')
     expect(link.rel).toContain('noopener')
     expect(link.title).toBe('Nightly regression')
@@ -125,11 +125,11 @@ describe('the Bloom artefact a run reached', () => {
 
 describe('safeExternalUrl', () => {
   it('passes an http or https address through unchanged', () => {
-    expect(safeExternalUrl('https://bloom.example.com/projects/FLT/campaigns/12')).toBe(
-      'https://bloom.example.com/projects/FLT/campaigns/12',
+    expect(safeExternalUrl('https://bloom.example.com/projects/FLT/suites/7')).toBe(
+      'https://bloom.example.com/projects/FLT/suites/7',
     )
-    expect(safeExternalUrl('http://bloom.internal/projects/FLT/campaigns/12')).toBe(
-      'http://bloom.internal/projects/FLT/campaigns/12',
+    expect(safeExternalUrl('http://bloom.internal/projects/FLT/suites/7')).toBe(
+      'http://bloom.internal/projects/FLT/suites/7',
     )
   })
 
@@ -140,7 +140,7 @@ describe('safeExternalUrl', () => {
   })
 
   it('refuses anything that is not a URL at all', () => {
-    expect(safeExternalUrl('/projects/FLT/campaigns/12')).toBeNull()
+    expect(safeExternalUrl('/projects/FLT/suites/7')).toBeNull()
     expect(safeExternalUrl('')).toBeNull()
     expect(safeExternalUrl(null)).toBeNull()
     expect(safeExternalUrl(undefined)).toBeNull()
