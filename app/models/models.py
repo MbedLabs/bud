@@ -5,7 +5,17 @@ Database models for the bud TMP.
 from datetime import datetime
 from typing import List, Optional
 
-from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    LargeBinary,
+    String,
+    Text,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.database import Base
@@ -257,4 +267,18 @@ class SystemSetting(Base):
         DateTime,
         default=datetime.utcnow,
         onupdate=datetime.utcnow,
+    )
+
+
+class ReportBranding(Base):
+    """Instance-wide report branding: an admin-uploaded company logo for PDF reports."""
+
+    __tablename__ = "report_branding"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    logo: Mapped[Optional[bytes]] = mapped_column(LargeBinary, nullable=True)
+    logo_content_type: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    logo_filename: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
     )

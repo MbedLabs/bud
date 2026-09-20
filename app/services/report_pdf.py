@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from datetime import datetime
+from functools import partial
 from html import escape
 from io import BytesIO
 from pathlib import Path
@@ -346,7 +347,7 @@ def _assertions_table(
     return table
 
 
-def _draw_footer(canvas, doc) -> None:
+def _draw_footer(canvas, doc, company_logo=None) -> None:
     """ "Powered by EmbedLabs" on every page, with the page number."""
     canvas.saveState()
     width, _ = A4
@@ -385,6 +386,23 @@ def _draw_footer(canvas, doc) -> None:
         relative=0,
         thickness=0,
     )
+
+    if company_logo:
+        try:
+            company = ImageReader(BytesIO(company_logo))
+            ciw, cih = company.getSize()
+            company_h = 6.5 * mm
+            company_w = company_h * (ciw / cih)
+            canvas.drawImage(
+                company,
+                width - PAGE_MARGIN - company_w - 22 * mm,
+                baseline - (company_h - 8 * 0.72) / 2,
+                width=company_w,
+                height=company_h,
+                mask="auto",
+            )
+        except Exception:  # noqa: BLE001 - a bad logo must never break the report
+            pass
 
     canvas.setFillColor(MUTED)
     canvas.setFont("Helvetica", 8)
@@ -490,7 +508,7 @@ def _run_facts(run: RunDetail, styles: dict[str, ParagraphStyle]) -> Table:
     return table
 
 
-def render_report(request: ReportRequest) -> bytes:
+def render_report(request: ReportRequest, company_logo=None) -> bytes:
     """Render a report to PDF bytes."""
     styles = _styles()
     buffer = BytesIO()
@@ -549,5 +567,6 @@ def render_report(request: ReportRequest) -> bytes:
         story.append(Paragraph("Assertion evidence", styles["h2"]))
         story.append(_assertions_table(request.assertions, styles))
 
-    doc.build(story, onFirstPage=_draw_footer, onLaterPages=_draw_footer)
+    footer = partial(_draw_footer, company_logo=company_logo)
+    doc.build(story, onFirstPage=footer, onLaterPages=footer)
     return buffer.getvalue()
