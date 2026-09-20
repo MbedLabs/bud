@@ -125,6 +125,8 @@ const CALLS: Array<[string, unknown[], string, string]> = [
 
   ['reportsApi.testRuns', [], 'get', '/reports/test-runs.pdf'],
   ['reportsApi.testRun', [42], 'get', '/reports/test-runs/42.pdf'],
+  ['brandingApi.setLogo', [new File(['x'], 'logo.png')], 'put', '/branding/logo'],
+  ['brandingApi.deleteLogo', [], 'delete', '/branding/logo'],
   ['artifactsApi.download', [7, 'trace.pcap'], 'get', '/uploads/7'],
 ]
 

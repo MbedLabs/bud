@@ -653,6 +653,22 @@ export interface SetupCompletedResponse {
   /** Shown once, to the browser that completed setup. Never returned again. */
 }
 
+export const brandingApi = {
+  setLogo: async (file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    const response = await api.put<{ content_type: string; size: number }>(
+      '/branding/logo',
+      form,
+      { headers: { 'Content-Type': 'multipart/form-data' } },
+    )
+    return response.data
+  },
+  deleteLogo: async () => {
+    await api.delete('/branding/logo')
+  },
+}
+
 export const setupApi = {
   // Unauthenticated on purpose: this is what a brand new instance answers
   // before any account exists. It stops reporting true the moment one does.
