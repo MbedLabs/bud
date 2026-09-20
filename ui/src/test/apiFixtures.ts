@@ -196,6 +196,8 @@ export const catalogEntries = [
 
 export const RESPONSES: Record<string, unknown> = {
   'authApi.login': { access_token: 'tok', token_type: 'bearer', user },
+  'brandingApi.setLogo': { content_type: 'image/png', size: 4 },
+  'brandingApi.deleteLogo': undefined,
   'authApi.refresh': { access_token: 'tok', token_type: 'bearer', user },
   'authApi.logout': undefined,
   'authApi.getMe': user,
