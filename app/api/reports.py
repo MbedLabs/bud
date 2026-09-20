@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.auth import get_current_active_entity
+from app.api.branding import load_report_logo
 from app.api.test_runs import _scope_conditions
 from app.core.run_access import require_run_access
 from app.db import get_db
@@ -64,7 +65,8 @@ async def test_run_summary_report(
     pdf = render_report(
         await build_summary_report(
             db, conditions, days=days, runner_account=runner_account, suite=suite
-        )
+        ),
+        await load_report_logo(db),
     )
     stem = "bud-test-report"
     if suite:
@@ -92,5 +94,5 @@ async def test_run_report(
         raise HTTPException(status_code=404, detail="Test run not found")
     require_run_access(current_entity, run)
 
-    pdf = render_report(await build_run_report(db, run))
+    pdf = render_report(await build_run_report(db, run), await load_report_logo(db))
     return _pdf_response(pdf, _safe_filename(f"bud-run-{run.id}-{run.name}"))

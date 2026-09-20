@@ -3,6 +3,7 @@
 from app.models.models import (
     Artifact,
     Product,
+    ReportBranding,
     Runner,
     RunnerApiKey,
     SystemSetting,
@@ -17,6 +18,7 @@ from app.models.user_token import UserToken, UserTokenPurpose
 
 __all__ = [
     "Product",
+    "ReportBranding",
     "Runner",
     "RunnerApiKey",
     "TestRun",
