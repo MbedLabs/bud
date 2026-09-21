@@ -62,7 +62,6 @@ if [ -n "${CLOUDRON_APP_ORIGIN:-}" ]; then
 
   export BUD_ENV=production
   export APP_BASE_URL="$CLOUDRON_APP_ORIGIN"
-  export FRONTEND_BASE_URL="$CLOUDRON_APP_ORIGIN"
   export BUD_APP_URL="$CLOUDRON_APP_ORIGIN"
   export BUD_UPLOAD_DIR=/app/data/uploads
   export ENABLE_DOCS=false

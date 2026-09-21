@@ -452,3 +452,26 @@ def test_production_accepts_fully_valid_config(monkeypatch):
     # URL assembled from parts using the strong password.
     assert "a-strong-non-default-db-password" in settings.DATABASE_URL
     assert settings.RUNNER_API_KEY == "r" * 32
+
+
+def test_legacy_frontend_base_url_backfills_app_base_url(monkeypatch):
+    # Backward compatibility: an install that still sets only the legacy
+    # FRONTEND_BASE_URL keeps working because APP_BASE_URL falls back to it.
+    clear_config_env(monkeypatch)
+    monkeypatch.setenv("BUD_SECRET_KEY", "b" * 32)
+    monkeypatch.setenv("BUD_FRONTEND_BASE_URL", "https://legacy.example.com")
+
+    settings = Settings(_env_file=None)
+
+    assert settings.APP_BASE_URL == "https://legacy.example.com"
+
+
+def test_app_base_url_wins_over_legacy_frontend_base_url(monkeypatch):
+    clear_config_env(monkeypatch)
+    monkeypatch.setenv("BUD_SECRET_KEY", "b" * 32)
+    monkeypatch.setenv("BUD_APP_BASE_URL", "https://app.example.com")
+    monkeypatch.setenv("BUD_FRONTEND_BASE_URL", "https://legacy.example.com")
+
+    settings = Settings(_env_file=None)
+
+    assert settings.APP_BASE_URL == "https://app.example.com"
