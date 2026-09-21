@@ -31,7 +31,7 @@ MAX_RESULT_ROWS = 2000
 
 
 def frontend_run_url(run_id: int) -> str | None:
-    base = (settings.FRONTEND_BASE_URL or "").rstrip("/")
+    base = (settings.APP_BASE_URL or "").rstrip("/")
     return f"{base}/test-runs/{run_id}" if base else None
 
 

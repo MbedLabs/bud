@@ -84,7 +84,7 @@ async def create_first_admin(
         send_admin_welcome_email(
             to_email=admin.email,
             full_name=admin.full_name,
-            login_link=f"{settings.FRONTEND_BASE_URL.rstrip('/')}/login",
+            login_link=f"{settings.APP_BASE_URL.rstrip('/')}/login",
         )
     except MailConfigurationError as exc:
         logger.warning("Administrator created but the confirmation email failed: %s", exc)

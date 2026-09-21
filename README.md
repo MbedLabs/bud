@@ -66,7 +66,6 @@ Open `.env` and replace every active `replace-with-...` value. At minimum, set:
 - `ADMIN_PASSWORD`
 - `ADMIN_FULL_NAME`
 - `APP_BASE_URL`
-- `FRONTEND_BASE_URL`
 - `BUD_APP_URL`
 
 For a new database, set `AUTO_SEED_ADMIN=true` for the first startup. In production, Bud rejects placeholder secrets and requires an administrator password of at least 16 characters.
