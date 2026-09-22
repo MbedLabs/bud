@@ -20,7 +20,7 @@
   "changelog": "file://CHANGELOG",
   "postInstallMessage": "file://POSTINSTALL.md",
   "website": "https://embedlabs.net",
-  "documentationUrl": "https://github.com/MbedLabs/bud#readme",
+  "documentationUrl": "https://embedlabs.net/docs#install-bud",
   "forumUrl": "https://github.com/MbedLabs/bud/discussions",
   "packagerName": "EmbedLabs",
   "packagerUrl": "https://embedlabs.net",

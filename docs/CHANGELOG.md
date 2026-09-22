@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.0 - unreleased
+
+### Added
+
+- Admin company logo on test-run PDF reports: an administrator uploads a company logo in Settings; it renders on the report letterhead (top-left) alongside the EmbedLabs tamper-evidence footer, which is always present. The Settings preview loads through the authenticated client so the admin sees exactly what was stored.
+
 ## 1.1.0 - 2026-09-16
 
 ### Added
@@ -64,7 +70,7 @@
 
 ## 1.0.0 - 2026-07-24
 
-Initial public beta release of Bud TMP by EmbedLabs — a self-hosted test
+Initial public beta release of Bud TMP by EmbedLabs, a test
 management and execution platform. Published as a multi-architecture container
 image with PostgreSQL-backed deployment, Alembic migrations, liveness/readiness
 health checks, and persistent artifact storage.

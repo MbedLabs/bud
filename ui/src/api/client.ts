@@ -653,19 +653,31 @@ export interface SetupCompletedResponse {
   /** Shown once, to the browser that completed setup. Never returned again. */
 }
 
-export const brandingApi = {
+export const companyLogoApi = {
   setLogo: async (file: File) => {
     const form = new FormData()
     form.append('file', file)
     const response = await api.put<{ content_type: string; size: number }>(
-      '/branding/logo',
+      '/company-logo/logo',
       form,
       { headers: { 'Content-Type': 'multipart/form-data' } },
     )
     return response.data
   },
+  // Fetched through the authenticated client (not a bare <img src>) so the
+  // admin actually sees the stored logo; 404 means none is set yet.
+  fetchLogo: async (): Promise<Blob | null> => {
+    try {
+      const response = await api.get('/company-logo/logo', { responseType: 'blob' })
+      return response.data as Blob
+    } catch (err) {
+      const status = (err as { response?: { status?: number } }).response?.status
+      if (status === 404) return null
+      throw err
+    }
+  },
   deleteLogo: async () => {
-    await api.delete('/branding/logo')
+    await api.delete('/company-logo/logo')
   },
 }
 

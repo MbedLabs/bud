@@ -1,3 +1,6 @@
+[1.2.0]
+* Admin company logo on test-run PDF reports, alongside the EmbedLabs branding.
+
 [1.1.0]
 * Per-station enrolment credentials and updated Test Stations management.
 * Improved run actions and Available test cases catalogue.

@@ -1,4 +1,4 @@
-"""Report branding: admin company logo storage, retrieval, and PDF rendering."""
+"""Company logo: admin customer-logo storage, retrieval, and PDF rendering."""
 
 import base64
 import io
@@ -9,11 +9,11 @@ from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from starlette.datastructures import Headers, UploadFile
 
-from app.api.branding import (
-    delete_report_logo,
-    get_report_logo,
+from app.api.company_logo import (
+    delete_company_logo,
+    get_company_logo,
     load_report_logo,
-    set_report_logo,
+    set_company_logo,
 )
 from app.db.database import Base
 from app.services.report_pdf import Breakdown, Outcome, ReportRequest, render_report
@@ -41,21 +41,21 @@ def _upload(data: bytes, content_type: str) -> UploadFile:
 
 
 async def test_set_get_delete_and_load(session):
-    out = await set_report_logo(file=_upload(PNG, "image/png"), db=session, _admin=None)
+    out = await set_company_logo(file=_upload(PNG, "image/png"), db=session, _admin=None)
     assert out["content_type"] == "image/png"
-    resp = await get_report_logo(db=session, _entity=None)
+    resp = await get_company_logo(db=session, _entity=None)
     assert resp.body == PNG
     assert await load_report_logo(session) == PNG
-    await delete_report_logo(db=session, _admin=None)
+    await delete_company_logo(db=session, _admin=None)
     with pytest.raises(HTTPException) as exc:
-        await get_report_logo(db=session, _entity=None)
+        await get_company_logo(db=session, _entity=None)
     assert exc.value.status_code == 404
     assert await load_report_logo(session) is None
 
 
 async def test_non_image_rejected(session):
     with pytest.raises(HTTPException) as exc:
-        await set_report_logo(file=_upload(b"nope", "text/plain"), db=session, _admin=None)
+        await set_company_logo(file=_upload(b"nope", "text/plain"), db=session, _admin=None)
     assert exc.value.status_code == 415
 
 
@@ -71,8 +71,14 @@ def _request() -> ReportRequest:
 
 
 def test_report_renders_with_and_without_company_logo():
+    import fitz
+
     without = render_report(_request())
     withlogo = render_report(_request(), PNG)
     assert without.startswith(b"%PDF-")
     assert withlogo.startswith(b"%PDF-")
-    assert len(withlogo) >= len(without)
+    # The company logo must actually land on the page, not be silently dropped:
+    # exactly one more embedded image than the un-branded report.
+    n_without = len(fitz.open(stream=without, filetype="pdf")[0].get_images())
+    n_with = len(fitz.open(stream=withlogo, filetype="pdf")[0].get_images())
+    assert n_with == n_without + 1

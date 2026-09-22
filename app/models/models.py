@@ -270,10 +270,10 @@ class SystemSetting(Base):
     )
 
 
-class ReportBranding(Base):
-    """Instance-wide report branding: an admin-uploaded company logo for PDF reports."""
+class CompanyLogo(Base):
+    """Instance-wide company logo: an admin-uploaded customer logo for PDF reports."""
 
-    __tablename__ = "report_branding"
+    __tablename__ = "company_logo"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     logo: Mapped[Optional[bytes]] = mapped_column(LargeBinary, nullable=True)
