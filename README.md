@@ -1,6 +1,6 @@
 # Bud TMP by EmbedLabs
 
-Bud TMP is a self-hosted test management and execution platform for automated software, hardware, and system testing. It gives teams one place to monitor Test Stations, inspect runs and assertions, retain artifacts, and connect execution evidence to Bloom PLM.
+Bud TMP is a test management and execution platform for automated software, hardware, and system testing. It gives teams one place to monitor Test Stations, inspect runs and assertions, retain artifacts, and connect execution evidence to Bloom PLM.
 
 > **Release:** 1.1.0 public beta
 
@@ -9,6 +9,9 @@ Bud TMP is a self-hosted test management and execution platform for automated so
 - Live Test Station registration, heartbeat, and availability
 - Searchable test runs with status, station, and location filters
 - Assertion results, execution events, logs, and uploaded artifacts
+- Custom runs built from the test catalogue and dispatched per station
+- PDF reports for the dashboard and individual runs, with an optional company logo
+- Dashboard statistics filtered by time range, Test Station, and suite
 - User, invitation, administrator, and viewer management
 - Runner-token and API-key authentication for automated uploads
 - Optional result synchronization to Bloom PLM test cases
@@ -114,7 +117,7 @@ and from then on only that station can use it.
 
 **In Bud, first.** Sign in as an administrator, open **Test Stations**, and create a key
 under **Enrolment keys**, naming the station it is for. That name is the one the station
-takes — whatever the bench passes as `--username` — so the estate is named by whoever
+takes (whatever the bench passes as `--username`), so the estate is named by whoever
 runs Bud rather than by whoever runs the command. The key is shown once, on creation,
 and is never retrievable afterwards, so copy it onto the bench now.
 
@@ -146,8 +149,8 @@ stations; each is a separate account with its own key.
 
 An administrator can rename a station at any time from the same screen: the station keeps
 its credentials and its runs, and picks the new name up on its next heartbeat. Revoking a
-key, and removing a station — which revokes its credentials and keeps every run it
-produced — are on that screen too.
+key, and removing a station (which revokes its credentials and keeps every run it
+produced) are on that screen too.
 
 The runner stores its machine identity and tokens under `~/.bud/`. Keep that directory private and never commit it.
 
@@ -171,7 +174,7 @@ Bud and Bloom remain independently deployable. To synchronize linked test-case o
 
 `BLOOM_APP_URL` adds a Bloom navigation link to Bud. It does not configure result synchronization. Clearing the saved scoped credential disables synchronization.
 
-When Bud syncs a run's results, Bloom answers with the campaign those results reached, and Bud keeps that reference on the run — shown on the dashboard, the run list, and the run detail page. Bud does not require Bloom: with none configured, the reference is simply absent.
+When Bud syncs a run's results, Bloom answers with the campaign those results reached, and Bud keeps that reference on the run, shown on the dashboard, the run list, and the run detail page. Bud does not require Bloom: with none configured, the reference is simply absent.
 
 ## Email
 
@@ -195,7 +198,7 @@ Each suite execution is represented by a `TestRun` and may upload multiple
 artifacts. `MAX_UPLOAD_SIZE_BYTES` limits each file, while
 `MAX_RUN_UPLOAD_BYTES` limits the combined artifacts attached to that run. The
 upload-start rate and one-active-upload guard are per authenticated runner or
-user principal—not per suite name—so different runners have independent
+user principal, not per suite name, so different runners have independent
 allowances and a suite can submit multiple files until its run byte budget is
 exhausted.
 
