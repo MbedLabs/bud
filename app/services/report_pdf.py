@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from datetime import datetime
-from functools import partial
 from html import escape
 from io import BytesIO
 from pathlib import Path
@@ -347,8 +346,11 @@ def _assertions_table(
     return table
 
 
-def _draw_footer(canvas, doc, company_logo=None) -> None:
-    """ "Powered by EmbedLabs" on every page, with the page number."""
+def _draw_footer(canvas, doc) -> None:
+    """ "Powered by EmbedLabs" on every page, with the page number.
+
+    Tamper-evidence branding, deployment-agnostic - always present. The
+    customer's own company logo lives on the header (top-left), not here."""
     canvas.saveState()
     width, _ = A4
     baseline = FOOTER_HEIGHT - 4 * mm
@@ -387,30 +389,13 @@ def _draw_footer(canvas, doc, company_logo=None) -> None:
         thickness=0,
     )
 
-    if company_logo:
-        try:
-            company = ImageReader(BytesIO(company_logo))
-            ciw, cih = company.getSize()
-            company_h = 6.5 * mm
-            company_w = company_h * (ciw / cih)
-            canvas.drawImage(
-                company,
-                width - PAGE_MARGIN - company_w - 22 * mm,
-                baseline - (company_h - 8 * 0.72) / 2,
-                width=company_w,
-                height=company_h,
-                mask="auto",
-            )
-        except Exception:  # noqa: BLE001 - a bad logo must never break the report
-            pass
-
     canvas.setFillColor(MUTED)
     canvas.setFont("Helvetica", 8)
     canvas.drawRightString(width - PAGE_MARGIN, baseline, f"Page {canvas.getPageNumber()}")
     canvas.restoreState()
 
 
-def _header(request: ReportRequest, styles: dict[str, ParagraphStyle]) -> list:
+def _header(request: ReportRequest, styles: dict[str, ParagraphStyle], company_logo=None) -> list:
     generated = request.generated_at or datetime.utcnow()
     meta = [
         Paragraph(f"<b>{request.title}</b>", styles["title"]),
@@ -422,39 +407,64 @@ def _header(request: ReportRequest, styles: dict[str, ParagraphStyle]) -> list:
         ),
     ]
 
+    # mask="auto" honours each logo's alpha channel; without it the artwork is
+    # composited onto an opaque box.
+    from reportlab.platypus import Image as PlatypusImage
+
+    cells: list = []
+    widths: list = []
+    align_cmds: list = []
+
+    # Customer company logo, top-left. Fit inside a box so a wide or tall logo
+    # is never cropped or pushed off the page edge.
+    if company_logo:
+        try:
+            ciw, cih = ImageReader(BytesIO(company_logo)).getSize()
+            ch = 12 * mm
+            cw = ch * (ciw / cih)
+            if cw > 45 * mm:
+                cw = 45 * mm
+                ch = cw * (cih / ciw)
+            # Pass a fresh BytesIO (a file-like), not the ImageReader: reportlab's
+            # Image runs os.path.splitext on its first arg and rejects an ImageReader.
+            cells.append(PlatypusImage(BytesIO(company_logo), width=cw, height=ch, mask="auto"))
+            widths.append(cw + 6)
+            align_cmds.append(("ALIGN", (0, 0), (0, 0), "LEFT"))
+        except Exception:  # noqa: BLE001 - a bad logo must never break the report
+            pass
+
+    cells.append(meta)
+    widths.append(None)
+
+    # Bud application mark, top-right.
     if BUD_LOGO.exists():
         logo = ImageReader(str(BUD_LOGO))
         iw, ih = logo.getSize()
         logo_height = 14 * mm
         logo_width = logo_height * (iw / ih)
-        from reportlab.platypus import Image as PlatypusImage
+        cells.append(
+            PlatypusImage(str(BUD_LOGO), width=logo_width, height=logo_height, mask="auto")
+        )
+        widths.append(logo_width + 4)
+        align_cmds.append(("ALIGN", (len(cells) - 1, 0), (len(cells) - 1, 0), "RIGHT"))
 
-        # mask="auto" honours the logo's alpha channel; without it the artwork
-        # is composited onto an opaque box.
-        banner = Table(
+    if len(cells) == 1:
+        return meta
+
+    banner = Table([cells], colWidths=widths, hAlign="LEFT")
+    banner.setStyle(
+        TableStyle(
             [
-                [
-                    meta,
-                    PlatypusImage(str(BUD_LOGO), width=logo_width, height=logo_height, mask="auto"),
-                ]
-            ],
-            colWidths=[None, logo_width + 4],
-            hAlign="LEFT",
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+                ("TOPPADDING", (0, 0), (-1, -1), 0),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+                *align_cmds,
+            ]
         )
-        banner.setStyle(
-            TableStyle(
-                [
-                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
-                    ("ALIGN", (1, 0), (1, 0), "RIGHT"),
-                    ("LEFTPADDING", (0, 0), (-1, -1), 0),
-                    ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-                    ("TOPPADDING", (0, 0), (-1, -1), 0),
-                    ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
-                ]
-            )
-        )
-        return [banner]
-    return meta
+    )
+    return [banner]
 
 
 def _run_facts(run: RunDetail, styles: dict[str, ParagraphStyle]) -> Table:
@@ -525,7 +535,7 @@ def render_report(request: ReportRequest, company_logo=None) -> bytes:
     )
 
     story: list = []
-    story.extend(_header(request, styles))
+    story.extend(_header(request, styles, company_logo=company_logo))
     story.append(Spacer(1, 6 * mm))
 
     if request.filters:
@@ -567,6 +577,5 @@ def render_report(request: ReportRequest, company_logo=None) -> bytes:
         story.append(Paragraph("Assertion evidence", styles["h2"]))
         story.append(_assertions_table(request.assertions, styles))
 
-    footer = partial(_draw_footer, company_logo=company_logo)
-    doc.build(story, onFirstPage=footer, onLaterPages=footer)
+    doc.build(story, onFirstPage=_draw_footer, onLaterPages=_draw_footer)
     return buffer.getvalue()

@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.auth import get_current_active_entity
-from app.api.branding import load_report_logo
+from app.api.company_logo import load_report_logo
 from app.api.test_runs import _scope_conditions
 from app.core.run_access import require_run_access
 from app.db import get_db

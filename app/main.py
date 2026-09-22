@@ -16,7 +16,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.api import auth as auth_api
 from app.api import (
-    branding,
+    company_logo,
     custom_runs,
     health,
     products,
@@ -285,7 +285,7 @@ app.include_router(runners.router, prefix="/api/runners", tags=["Runners"])
 app.include_router(settings.router, prefix="/api/settings", tags=["Settings"])
 app.include_router(setup.router, prefix="/api", tags=["Setup"])
 app.include_router(reports.router, prefix="/api/reports", tags=["Reports"])
-app.include_router(branding.router, prefix="/api/branding", tags=["Branding"])
+app.include_router(company_logo.router, prefix="/api/company-logo", tags=["Company logo"])
 
 
 @app.get("/")

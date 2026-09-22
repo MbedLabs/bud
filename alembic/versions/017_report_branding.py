@@ -1,4 +1,4 @@
-"""report_branding: instance company logo for PDF reports
+"""company_logo: instance customer logo for PDF reports
 
 Revision ID: 017_report_branding
 Revises: 016_key_station_name
@@ -17,9 +17,9 @@ depends_on = None
 
 
 def upgrade() -> None:
-    """Create the report_branding table."""
+    """Create the company_logo table."""
     op.create_table(
-        "report_branding",
+        "company_logo",
         sa.Column("id", sa.Integer(), primary_key=True),
         sa.Column("logo", sa.LargeBinary(), nullable=True),
         sa.Column("logo_content_type", sa.String(length=100), nullable=True),
@@ -29,5 +29,5 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """Drop the report_branding table."""
-    op.drop_table("report_branding")
+    """Drop the company_logo table."""
+    op.drop_table("company_logo")
