@@ -82,13 +82,13 @@ async def upload_results(
     target_product_id = data.product_id
 
     if isinstance(_current_entity, User):
-        require_mutating_user(_current_entity)
+        await require_mutating_user(db, _current_entity)
 
     if target_run_id is not None:
         target_run = await db.get(TestRun, target_run_id)
         if target_run is None:
             raise HTTPException(status_code=404, detail="Test run not found")
-        require_run_access(_current_entity, target_run, mutate=True)
+        await require_run_access(db, _current_entity, target_run, mutate=True)
 
     # AUTO-ALIGNMENT: Create a TestRun if results are uploaded without one
     if not target_run_id:
@@ -214,7 +214,7 @@ async def get_results_for_run(
     test_run = run_result.scalar_one_or_none()
     if test_run is None:
         raise HTTPException(status_code=404, detail="Test run not found")
-    require_run_access(_current_entity, test_run)
+    await require_run_access(db, _current_entity, test_run)
 
     result = await db.execute(
         select(
@@ -259,6 +259,6 @@ async def get_result(
         test_run = await db.get(TestRun, test_result.test_run_id)
         if test_run is None:
             raise HTTPException(status_code=404, detail="Test result not found")
-        require_run_access(_current_entity, test_run)
+        await require_run_access(db, _current_entity, test_run)
 
     return test_result

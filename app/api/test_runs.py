@@ -13,6 +13,7 @@ from sqlalchemy.orm import selectinload
 
 from app.api.auth import get_current_active_entity, require_role
 from app.api.uploads import get_upload_root
+from app.core.access import readable_products, scope_condition
 from app.core.run_access import require_mutating_user, require_run_access
 from app.db import get_db
 from app.models import Artifact, Runner, TestRun, TestRunEvent
@@ -61,7 +62,7 @@ async def create_test_run(
             )
         runner_id = _current_entity.id
     else:
-        require_mutating_user(_current_entity)
+        await require_mutating_user(db, _current_entity)
         runner_id = None
 
     if isinstance(_current_entity, User) and data.runner_account:
@@ -125,7 +126,7 @@ async def get_test_run_events(
     test_run = run_result.scalar_one_or_none()
     if test_run is None:
         raise HTTPException(status_code=404, detail="Test run not found")
-    require_run_access(_current_entity, test_run)
+    await require_run_access(db, _current_entity, test_run)
 
     result = await db.execute(
         select(TestRunEvent)
@@ -146,7 +147,7 @@ async def get_test_run_artifacts(
     test_run = run_result.scalar_one_or_none()
     if test_run is None:
         raise HTTPException(status_code=404, detail="Test run not found")
-    require_run_access(_current_entity, test_run)
+    await require_run_access(db, _current_entity, test_run)
 
     result = await db.execute(
         select(Artifact)
@@ -193,6 +194,12 @@ async def list_test_runs(
         if runner_account and runner_account != _current_entity.account:
             raise HTTPException(status_code=403, detail="Runner cannot list another runner's runs")
         conditions.append(TestRun.runner_id == _current_entity.id)
+    else:
+        product_limit = scope_condition(
+            await readable_products(db, _current_entity), TestRun.product_id
+        )
+        if product_limit is not None:
+            conditions.append(product_limit)
 
     if status:
         conditions.append(TestRun.status == status)
@@ -285,7 +292,13 @@ async def _scope_conditions(
                 status_code=403, detail="Runner cannot read another runner's statistics"
             )
         conditions.append(TestRun.runner_id == current_entity.id)
-    elif runner_account:
+    else:
+        product_limit = scope_condition(
+            await readable_products(db, current_entity), TestRun.product_id
+        )
+        if product_limit is not None:
+            conditions.append(product_limit)
+    if runner_account and not isinstance(current_entity, Runner):
         runner_result = await db.execute(select(Runner.id).where(Runner.account == runner_account))
         runner_id = runner_result.scalar_one_or_none()
         if runner_id is None:
@@ -422,7 +435,7 @@ async def get_test_run(
 
     if not test_run:
         raise HTTPException(status_code=404, detail="Test run not found")
-    require_run_access(_current_entity, test_run)
+    await require_run_access(db, _current_entity, test_run)
 
     return TestRunResponse.from_orm_with_runner(test_run)
 
@@ -443,7 +456,7 @@ async def update_test_run(
 
     if not test_run:
         raise HTTPException(status_code=404, detail="Test run not found")
-    require_run_access(_current_entity, test_run, mutate=True)
+    await require_run_access(db, _current_entity, test_run, mutate=True)
 
     # Update fields
     if data.status is not None:
@@ -501,12 +514,12 @@ async def publish_run_to_bloom(
     """Send this run's report documents to Bloom as a Report (RPT) document."""
     if isinstance(current_user, Runner):
         raise HTTPException(status_code=403, detail="A Test Station cannot publish to Bloom")
-    require_mutating_user(current_user)
+    await require_mutating_user(db, current_user)
 
     test_run = (await db.execute(select(TestRun).where(TestRun.id == run_id))).scalar_one_or_none()
     if not test_run:
         raise HTTPException(status_code=404, detail="Test run not found")
-    require_run_access(current_user, test_run, mutate=True)
+    await require_run_access(db, current_user, test_run, mutate=True)
 
     if test_run.status != "Completed":
         raise HTTPException(

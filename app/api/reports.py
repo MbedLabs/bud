@@ -92,7 +92,7 @@ async def test_run_report(
     ).scalar_one_or_none()
     if run is None:
         raise HTTPException(status_code=404, detail="Test run not found")
-    require_run_access(current_entity, run)
+    await require_run_access(db, current_entity, run)
 
     pdf = render_report(await build_run_report(db, run), await load_report_logo(db))
     return _pdf_response(pdf, _safe_filename(f"bud-run-{run.id}-{run.name}"))

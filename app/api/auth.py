@@ -11,6 +11,7 @@ from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.access import effective_role
 from app.core.config import settings
 from app.core.deps import limiter
 from app.core.security import (
@@ -164,8 +165,11 @@ async def get_current_user(
 
 
 def require_role(*roles: UserRole):
-    async def role_checker(current_user: User = Depends(get_current_user)) -> User:
-        if current_user.role not in roles:
+    async def role_checker(
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db),
+    ) -> User:
+        if await effective_role(db, current_user) not in roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Insufficient permissions.",
@@ -173,6 +177,13 @@ def require_role(*roles: UserRole):
         return current_user
 
     return role_checker
+
+
+async def user_view(db: AsyncSession, user: User) -> UserResponse:
+    """The user as the API reports them: with the role their groups give them."""
+    return UserResponse.model_validate(user).model_copy(
+        update={"role": await effective_role(db, user)}
+    )
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -203,7 +214,7 @@ async def login(
 
     return TokenResponse(
         access_token=access_token,
-        user=UserResponse.model_validate(user),
+        user=await user_view(db, user),
     )
 
 
@@ -245,7 +256,7 @@ async def refresh(
 
     return TokenResponse(
         access_token=access_token,
-        user=UserResponse.model_validate(user),
+        user=await user_view(db, user),
     )
 
 
@@ -265,8 +276,10 @@ async def logout(
 
 
 @router.get("/me", response_model=UserResponse)
-async def get_me(current_user: User = Depends(get_current_user)):
-    return UserResponse.model_validate(current_user)
+async def get_me(
+    current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
+):
+    return await user_view(db, current_user)
 
 
 @router.put("/me", response_model=UserResponse)

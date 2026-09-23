@@ -18,6 +18,7 @@ from app.api import auth as auth_api
 from app.api import (
     company_logo,
     custom_runs,
+    groups,
     health,
     products,
     reports,
@@ -273,6 +274,7 @@ app.include_router(health.router, prefix="/api", tags=["Health"])
 app.include_router(metrics_router, prefix="/api", tags=["Observability"])
 app.include_router(auth_api.router, prefix="/api/auth", tags=["Auth"])
 app.include_router(users_api.router, prefix="/api/users", tags=["Users"])
+app.include_router(groups.router, prefix="/api/groups", tags=["Groups"])
 app.include_router(products.router, prefix="/api/products", tags=["Products"])
 # Before the test-runs and runners routers: its paths sit under both prefixes
 # (/test-runs/custom, /runners/claim-run) and registering it first keeps the

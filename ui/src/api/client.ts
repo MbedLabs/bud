@@ -217,6 +217,48 @@ export const authApi = {
   },
 }
 
+export type GroupRole = 'admin' | 'viewer'
+
+export interface Group {
+  id: number
+  name: string
+  description: string | null
+  role: GroupRole
+  members: { user_id: number; email: string; full_name: string }[]
+  grants: { id: number; product_id: number | null; product_name: string | null }[]
+  created_at: string
+  updated_at: string
+}
+
+export interface Product {
+  id: number
+  name: string
+  description: string | null
+}
+
+export const productsApi = {
+  list: async () => (await api.get<Product[]>('/products')).data,
+}
+
+export const groupsApi = {
+  list: async () => (await api.get<Group[]>('/groups')).data,
+  create: async (data: { name: string; role: GroupRole; description?: string }) =>
+    (await api.post<Group>('/groups', data)).data,
+  update: async (id: number, data: { name?: string; role?: GroupRole; description?: string | null }) =>
+    (await api.patch<Group>(`/groups/${id}`, data)).data,
+  remove: async (id: number) => {
+    await api.delete(`/groups/${id}`)
+  },
+  addMember: async (id: number, userId: number) =>
+    (await api.post<Group>(`/groups/${id}/members`, { user_id: userId })).data,
+  removeMember: async (id: number, userId: number) =>
+    (await api.delete<Group>(`/groups/${id}/members/${userId}`)).data,
+  addGrant: async (id: number, productId: number | null) =>
+    (await api.post<Group>(`/groups/${id}/grants`, { product_id: productId })).data,
+  removeGrant: async (id: number, grantId: number) =>
+    (await api.delete<Group>(`/groups/${id}/grants/${grantId}`)).data,
+}
+
 export const usersApi = {
   list: async (): Promise<User[]> => {
     const response = await api.get<User[]>('/users')
