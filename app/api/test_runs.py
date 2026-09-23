@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from typing import Optional, Union
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -44,6 +44,7 @@ from app.services.run_reports import frontend_run_url as _frontend_run_url
 from app.services.run_reports import store_run_reports
 
 router = APIRouter()
+from app.services.notify import notify_run_finished
 
 
 @router.post("", response_model=TestRunResponse, status_code=201)
@@ -430,6 +431,7 @@ async def get_test_run(
 async def update_test_run(
     run_id: int,
     data: TestRunUpdate,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
 ):
@@ -479,6 +481,8 @@ async def update_test_run(
     if data.status is not None and data.status.value == "Completed":
         await store_run_reports(db, test_run.id)
         await db.commit()
+    if data.status is not None and data.status.value in ("Completed", "Cancelled"):
+        background_tasks.add_task(notify_run_finished, test_run.id)
 
     result = await db.execute(
         select(TestRun).options(selectinload(TestRun.runner)).where(TestRun.id == test_run.id)

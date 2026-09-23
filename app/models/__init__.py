@@ -3,6 +3,8 @@
 from app.models.models import (
     Artifact,
     CompanyLogo,
+    NotificationChannel,
+    NotificationDelivery,
     Product,
     Runner,
     RunnerApiKey,
@@ -19,6 +21,8 @@ from app.models.user_token import UserToken, UserTokenPurpose
 __all__ = [
     "Product",
     "CompanyLogo",
+    "NotificationChannel",
+    "NotificationDelivery",
     "Runner",
     "RunnerApiKey",
     "TestRun",

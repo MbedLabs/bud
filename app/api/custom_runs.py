@@ -6,7 +6,15 @@ from datetime import datetime
 from typing import Union
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    Header,
+    HTTPException,
+    Query,
+    Response,
+)
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -31,6 +39,7 @@ from app.services.run_reports import store_run_reports
 from app.services.test_catalog import build_catalog, plan_custom_run
 
 router = APIRouter()
+from app.services.notify import notify_run_finished
 
 
 @router.get("/test-catalog", response_model=TestCatalogResponse)
@@ -293,6 +302,7 @@ async def claim_next_run(
 async def complete_claimed_run(
     run_id: int,
     data: ClaimedRunCompletion,
+    background_tasks: BackgroundTasks,
     idempotency_key: UUID = Header(alias="Idempotency-Key"),
     db: AsyncSession = Depends(get_db),
     current_entity: Union[User, Runner] = Depends(get_current_active_entity),
@@ -349,5 +359,6 @@ async def complete_claimed_run(
     # A claimed run reaches Completed here, not through the PATCH.
     await store_run_reports(db, run.id)
     await db.commit()
+    background_tasks.add_task(notify_run_finished, run.id)
 
     return TestRunResponse.from_orm_with_runner(run)

@@ -20,6 +20,7 @@ from app.models import Product, Runner, TestResult, TestRun
 from app.models.user import User
 from app.schemas import ResultsUpload, TestResultListItem, TestResultResponse
 from app.services.bloom_sync import sync_results_to_bloom
+from app.services.notify import notify_run_finished
 from app.services.run_events import record_test_run_event
 
 router = APIRouter()
@@ -192,6 +193,7 @@ async def upload_results(
 
     # Saving both the Bloom URL and scoped credential enables synchronization.
     background_tasks.add_task(sync_results_to_bloom, target_run_id)
+    background_tasks.add_task(notify_run_finished, target_run_id)
 
     return {
         "message": f"Uploaded {len(created_results)} results to run {target_run_id}",
