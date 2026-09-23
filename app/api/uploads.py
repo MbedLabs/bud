@@ -48,6 +48,15 @@ async def ensure_upload_dir() -> Path:
     return upload_path
 
 
+ARTIFACT_DOWNLOAD_HEADERS = {
+    "Content-Security-Policy": "sandbox",
+    "X-Content-Type-Options": "nosniff",
+}
+"""An artifact is user-supplied (an HTML report, an SVG plot): it downloads as an
+attachment, and should a browser render it anyway, it renders sandboxed, with no
+script and no access to the Bud origin."""
+
+
 def _can_runner_access_artifact(runner: Runner, artifact: Artifact) -> bool:
     """Runner reads are limited to artifacts associated with its own run."""
     return (
@@ -214,6 +223,7 @@ async def download_artifact(
         path=str(storage_path),
         filename=artifact.original_filename,
         media_type=artifact.content_type,
+        headers=ARTIFACT_DOWNLOAD_HEADERS,
     )
 
 

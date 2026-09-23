@@ -1,6 +1,7 @@
 import logging
 from collections.abc import AsyncIterable
 from datetime import datetime
+from typing import Optional
 
 import httpx
 from sqlalchemy import select
@@ -20,16 +21,28 @@ logger = logging.getLogger(__name__)
 
 
 async def _coalesce_results_by_tc_id(
-    results: AsyncIterable[TestResult], test_run_id: int
+    results: AsyncIterable[TestResult], test_run_id: int, tally: Optional[dict] = None
 ) -> list[dict]:
+    """One Bloom execution row per tc_id; any failing method fails the test case.
+
+    Results without a tc_id, and skipped results, are not sent. When ``tally`` is
+    given, it counts them under ``unidentified`` and ``skipped``.
+    """
     grouped: dict[str, dict] = {}
+    counts = tally if tally is not None else {}
+    counts.setdefault("unidentified", 0)
+    counts.setdefault("skipped", 0)
 
     async for res in results:
         tc_id = None
-        if res.test_metadata and isinstance(res.test_metadata, dict):
-            tc_id = res.test_metadata.get("tc_id")
+        metadata = res.test_metadata if isinstance(res.test_metadata, dict) else {}
+        tc_id = metadata.get("tc_id")
 
         if not tc_id:
+            counts["unidentified"] += 1
+            continue
+        if metadata.get("skipped"):
+            counts["skipped"] += 1
             continue
 
         executed_at = (
@@ -57,6 +70,16 @@ async def _coalesce_results_by_tc_id(
                 entry["comment"] = res.error_message
 
     return list(grouped.values())
+
+
+def _left_out(tally: dict) -> str:
+    """A sentence naming the results that were not sent to Bloom, or nothing."""
+    parts = []
+    if tally.get("unidentified"):
+        parts.append(f"{tally['unidentified']} result(s) had no Bloom tc_id")
+    if tally.get("skipped"):
+        parts.append(f"{tally['skipped']} skipped result(s) were not sent")
+    return (" " + "; ".join(parts) + ".") if parts else ""
 
 
 @retry(
@@ -139,7 +162,9 @@ async def sync_results_to_bloom(test_run_id: int):
                 .execution_options(yield_per=500)
             )
 
-            payload_results = await _coalesce_results_by_tc_id(results_stream, test_run_id)
+            tally: dict = {}
+            payload_results = await _coalesce_results_by_tc_id(results_stream, test_run_id, tally)
+            left_out = _left_out(tally)
 
             if not payload_results:
                 logger.info(
@@ -151,7 +176,7 @@ async def sync_results_to_bloom(test_run_id: int):
                     stage="bloom_sync",
                     status="skipped",
                     title="Bloom sync skipped",
-                    message="No result metadata included a Bloom tc_id to match.",
+                    message="No result metadata included a Bloom tc_id to match." + left_out,
                 )
                 await session.commit()
                 return
@@ -189,6 +214,7 @@ async def sync_results_to_bloom(test_run_id: int):
                             if data.get("not_found")
                             else ""
                         )
+                        + left_out
                     ),
                     event_metadata=data,
                 )

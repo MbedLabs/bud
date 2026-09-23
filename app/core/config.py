@@ -186,6 +186,7 @@ class Settings(BaseSettings):
         "text/xml",
         "application/xml",
         "text/csv",
+        "text/html",
         # Screenshots and plots. SVG is text, and a browser would run script
         # inside one if it were ever served inline - it is not, and the
         # download header is what keeps that true.
