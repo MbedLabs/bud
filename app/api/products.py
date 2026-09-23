@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.auth import get_current_active_entity, require_role
+from app.core.access import in_scope, readable_products, scope_condition
 from app.db import get_db
 from app.models import Product, Runner
 from app.models.user import User, UserRole
@@ -49,7 +50,12 @@ async def list_products(
     """
     List all products.
     """
-    result = await db.execute(select(Product).order_by(Product.name))
+    query = select(Product).order_by(Product.name)
+    if isinstance(_current_entity, User):
+        product_limit = scope_condition(await readable_products(db, _current_entity), Product.id)
+        if product_limit is not None:
+            query = query.where(product_limit)
+    result = await db.execute(query)
     return result.scalars().all()
 
 
@@ -64,7 +70,10 @@ async def get_product(
     """
     result = await db.execute(select(Product).where(Product.id == product_id))
     product = result.scalar_one_or_none()
-    if not product:
+    if not product or (
+        isinstance(_current_entity, User)
+        and not in_scope(await readable_products(db, _current_entity), product.id)
+    ):
         raise HTTPException(status_code=404, detail="Product not found")
     return product
 

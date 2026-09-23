@@ -73,7 +73,7 @@ async def create_custom_run(
     """Queue a run for each Test Station the selection touches."""
     if isinstance(current_user, Runner):
         raise HTTPException(status_code=403, detail="A Test Station cannot queue runs for the lab")
-    require_mutating_user(current_user)
+    await require_mutating_user(db, current_user)
 
     requested: list[str] = []
     for path in data.test_paths:

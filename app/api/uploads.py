@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.auth import get_current_active_entity, get_current_user
+from app.core.access import effective_role, in_scope, readable_products
 from app.core.config import settings
 from app.db import get_db
 from app.models import Artifact, Runner, TestRun
@@ -56,8 +57,8 @@ def _can_runner_access_artifact(runner: Runner, artifact: Artifact) -> bool:
     )
 
 
-def _can_user_delete_artifact(user: User) -> bool:
-    return user.role == UserRole.admin
+async def _can_user_delete_artifact(db: AsyncSession, user: User) -> bool:
+    return await effective_role(db, user) == UserRole.admin
 
 
 async def _get_accessible_artifact(
@@ -75,6 +76,11 @@ async def _get_accessible_artifact(
         current_entity, artifact
     ):
         raise HTTPException(status_code=403, detail="Runner is not authorized for this artifact")
+    if isinstance(current_entity, User) and not in_scope(
+        await readable_products(db, current_entity),
+        artifact.test_run.product_id if artifact.test_run is not None else None,
+    ):
+        raise HTTPException(status_code=404, detail="Artifact not found")
     return artifact
 
 
@@ -82,7 +88,10 @@ async def _validate_runner_upload_run(
     db: AsyncSession, current_entity: Union[User, Runner], run_id: Optional[int]
 ) -> None:
     """Prevent a runner from attaching an artifact to another runner's test run."""
-    if isinstance(current_entity, User) and current_entity.role != UserRole.admin:
+    if (
+        isinstance(current_entity, User)
+        and await effective_role(db, current_entity) != UserRole.admin
+    ):
         raise HTTPException(status_code=403, detail="Only admins may upload artifacts")
     if run_id is None:
         if isinstance(current_entity, Runner):
@@ -235,7 +244,7 @@ async def delete_artifact(
     if not artifact:
         raise HTTPException(status_code=404, detail="Artifact not found")
 
-    if not _can_user_delete_artifact(_current_user):
+    if not await _can_user_delete_artifact(db, _current_user):
         raise HTTPException(status_code=403, detail="Only admins may delete artifacts")
 
     storage_key = artifact.storage_path

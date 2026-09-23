@@ -9,6 +9,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.auth import get_current_user, require_role
+from app.core.access import readable_products, scope_condition
 from app.core.config import settings
 from app.core.deps import get_current_runner, limiter, require_runner_api_key
 from app.core.runner_keys import mark_used, mint_key
@@ -157,11 +158,17 @@ async def get_runner_status(
     # Find any test run currently executing on each runner.
     active_runs_map: dict[int, dict] = {}
     if runner_ids:
-        active_q = await db.execute(
+        active_query = (
             select(TestRun)
             .where(TestRun.status == "Running", TestRun.runner_id.in_(runner_ids))
             .order_by(TestRun.started_at.desc())
         )
+        product_limit = scope_condition(
+            await readable_products(db, _current_user), TestRun.product_id
+        )
+        if product_limit is not None:
+            active_query = active_query.where(product_limit)
+        active_q = await db.execute(active_query)
         for run in active_q.scalars().all():
             if run.runner_id not in active_runs_map:
                 active_runs_map[run.runner_id] = {"id": run.id, "name": run.name}

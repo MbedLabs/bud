@@ -1,5 +1,6 @@
 """Models package initialization."""
 
+from app.models.groups import Group, GroupMembership, GroupProductGrant
 from app.models.models import (
     Artifact,
     CompanyLogo,
@@ -20,6 +21,9 @@ from app.models.user_token import UserToken, UserTokenPurpose
 
 __all__ = [
     "Product",
+    "Group",
+    "GroupMembership",
+    "GroupProductGrant",
     "CompanyLogo",
     "NotificationChannel",
     "NotificationDelivery",
