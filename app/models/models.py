@@ -282,3 +282,41 @@ class CompanyLogo(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
     )
+
+
+class NotificationChannel(Base):
+    """An outbound chat or automation webhook that finished runs are posted to."""
+
+    __tablename__ = "notification_channels"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(100), unique=True)
+    format: Mapped[str] = mapped_column(String(20))
+    url_encrypted: Mapped[str] = mapped_column(Text)
+    url_prefix: Mapped[str] = mapped_column(String(60))
+    secret_encrypted: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    run_filter: Mapped[str] = mapped_column(String(30), default="all")
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+
+class NotificationDelivery(Base):
+    """One attempt to post a run summary to a notification channel."""
+
+    __tablename__ = "notification_deliveries"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    test_run_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("test_runs.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    channel_id: Mapped[int] = mapped_column(
+        ForeignKey("notification_channels.id", ondelete="CASCADE"), index=True
+    )
+    attempt: Mapped[int] = mapped_column(Integer, default=1)
+    delivered: Mapped[bool] = mapped_column(Boolean, default=False)
+    status_code: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

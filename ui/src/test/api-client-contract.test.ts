@@ -115,6 +115,11 @@ const CALLS: Array<[string, unknown[], string, string]> = [
   ['testStationsApi.createApiKey', ['bench-a'], 'post', '/runners/api-keys'],
   ['testStationsApi.deleteApiKey', [7], 'delete', '/runners/api-keys/7'],
 
+  ['notificationsApi.listChannels', [], 'get', '/settings/notifications/channels'],
+  ['notificationsApi.createChannel', [{ name: 'qa', format: 'slack', url: 'https://h' }], 'post', '/settings/notifications/channels'],
+  ['notificationsApi.updateChannel', [4, { enabled: false }], 'patch', '/settings/notifications/channels/4'],
+  ['notificationsApi.deleteChannel', [4], 'delete', '/settings/notifications/channels/4'],
+  ['notificationsApi.testChannel', [4], 'post', '/settings/notifications/channels/4/test'],
   ['settingsApi.getPLM', [], 'get', '/settings/integrations/PLM'],
   [
     'settingsApi.updatePLM',

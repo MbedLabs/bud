@@ -535,6 +535,50 @@ export interface PLMIntegrationSettingsUpdate {
   clear_bloom_token?: boolean
 }
 
+export type NotificationFormat = 'teams' | 'slack' | 'discord' | 'json'
+export type NotificationRunFilter = 'all' | 'failures' | 'first_failure'
+
+export interface NotificationChannel {
+  id: number
+  name: string
+  format: NotificationFormat
+  url_prefix: string
+  run_filter: NotificationRunFilter
+  enabled: boolean
+  has_secret: boolean
+  created_at: string
+}
+
+export interface NotificationChannelInput {
+  name?: string
+  format?: NotificationFormat
+  url?: string
+  secret?: string
+  run_filter?: NotificationRunFilter
+  enabled?: boolean
+}
+
+export interface NotificationTestResult {
+  delivered: boolean
+  attempts: number
+  status_code: number | null
+  error: string | null
+}
+
+export const notificationsApi = {
+  listChannels: async () =>
+    (await api.get<NotificationChannel[]>('/settings/notifications/channels')).data,
+  createChannel: async (data: NotificationChannelInput) =>
+    (await api.post<NotificationChannel>('/settings/notifications/channels', data)).data,
+  updateChannel: async (id: number, data: NotificationChannelInput) =>
+    (await api.patch<NotificationChannel>(`/settings/notifications/channels/${id}`, data)).data,
+  deleteChannel: async (id: number) => {
+    await api.delete(`/settings/notifications/channels/${id}`)
+  },
+  testChannel: async (id: number) =>
+    (await api.post<NotificationTestResult>(`/settings/notifications/channels/${id}/test`)).data,
+}
+
 export const settingsApi = {
   getPLM: async () => {
     const response = await api.get<PLMIntegrationSettings>('/settings/integrations/PLM')

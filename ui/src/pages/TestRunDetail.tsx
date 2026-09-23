@@ -24,11 +24,7 @@ import {
 } from '../lib/testRunResultFilters'
 import { formatDateTime } from '../test/date-utils'
 import { safeExternalUrl } from '../lib/externalLink'
-import {
-  ArrowLeft, CheckCircle, XCircle, Clock, AlertCircle, Activity,
-  ChevronDown, ChevronRight, UploadCloud, RefreshCw, Radio, GitBranch,
-  Filter, X, FileDown, Paperclip, FileText, Download, ExternalLink,
-} from 'lucide-react'
+import { ArrowLeft, CheckCircle, XCircle, Clock, AlertCircle, Activity, ChevronDown, ChevronRight, UploadCloud, RefreshCw, Radio, GitBranch, Filter, X, FileDown, Paperclip, FileText, Download, ExternalLink, Bell } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
 export default function TestRunDetail() {
@@ -523,6 +519,7 @@ function getStageIcon(stage: string): LucideIcon {
     execution: Activity,
     results: UploadCloud,
     bloom_sync: RefreshCw,
+    notify: Bell,
   }
   return icons[stage] || Activity
 }

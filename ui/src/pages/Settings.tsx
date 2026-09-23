@@ -3,6 +3,7 @@ import { Sun, Moon, Monitor, Info, ExternalLink, Link as LinkIcon, Save, Loader2
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { APP_VERSION, authApi, settingsApi, companyLogoApi, extractApiErrorMessage } from '../api/client'
 import { useAuth } from '../contexts/AuthContext'
+import NotificationChannels from '../components/NotificationChannels'
 
 const COMMON_TIMEZONES = [
   { label: 'Auto (Browser)', value: 'auto' },
@@ -444,6 +445,8 @@ export default function Settings() {
           </div>
         </div>
       )}
+
+      {isAdmin && <NotificationChannels />}
 
       {isAdmin && (
         <div className="bg-card rounded-lg border border-border shadow-elegant overflow-hidden border-primary/20">
