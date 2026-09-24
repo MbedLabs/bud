@@ -1,5 +1,6 @@
 """Models package initialization."""
 
+from app.models.audit import AuditEvent
 from app.models.groups import Group, GroupMembership, GroupProductGrant
 from app.models.models import (
     Artifact,
@@ -20,6 +21,7 @@ from app.models.user import User, UserRole
 from app.models.user_token import UserToken, UserTokenPurpose
 
 __all__ = [
+    "AuditEvent",
     "Product",
     "Group",
     "GroupMembership",

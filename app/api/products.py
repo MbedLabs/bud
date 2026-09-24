@@ -14,6 +14,7 @@ from app.db import get_db
 from app.models import Product, Runner
 from app.models.user import User, UserRole
 from app.schemas import ProductCreate, ProductResponse
+from app.services.audit import record_audit_event
 
 router = APIRouter()
 
@@ -38,6 +39,14 @@ async def create_product(
     )
     db.add(product)
     await db.flush()
+    await record_audit_event(
+        db,
+        "product.created",
+        target_type="product",
+        target_id=product.id,
+        product_id=product.id,
+        details={"name": product.name},
+    )
     await db.refresh(product)
     return product
 
@@ -91,4 +100,12 @@ async def delete_product(
     product = result.scalar_one_or_none()
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
+    await record_audit_event(
+        db,
+        "product.deleted",
+        target_type="product",
+        target_id=product.id,
+        product_id=product.id,
+        details={"name": product.name},
+    )
     await db.delete(product)

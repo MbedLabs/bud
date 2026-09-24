@@ -3,7 +3,7 @@ import { Suspense } from 'react'
 import { Outlet, Link, useLocation, useNavigate } from 'react-router'
 import {
   LayoutDashboard, ListChecks, PlayCircle, Server, Settings, Sun, Moon,
-  LogOut, ChevronDown, ChevronLeft, ChevronRight, Users, ExternalLink,
+  LogOut, ChevronDown, ChevronLeft, ChevronRight, Users, ExternalLink, ScrollText,
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { APP_VERSION } from '../api/client'
@@ -157,6 +157,25 @@ export default function Layout() {
               {!sidebarCollapsed && 'Users'}
             </Link>
           )}
+          {user?.role === 'admin' && (
+            <Link
+              to="/audit"
+              className={`flex items-center ${sidebarCollapsed ? 'justify-center px-2' : 'gap-2.5 px-3'} py-2 rounded-lg text-sm font-medium transition-all duration-200 group ${
+                location.pathname === '/audit'
+                  ? 'bg-sidebar-active text-white shadow-sm'
+                  : 'text-lime-100/70 hover:bg-sidebar-hover hover:text-white'
+              }`}
+              title={sidebarCollapsed ? 'Audit log' : undefined}
+              onClick={() => {
+                if (sidebarCollapsed && location.pathname !== '/audit') {
+                  setSidebarCollapsed(false)
+                }
+              }}
+            >
+              <ScrollText className="h-[18px] w-[18px] shrink-0 text-lime-300/50 group-hover:text-lime-200" />
+              {!sidebarCollapsed && 'Audit log'}
+            </Link>
+          )}
         </nav>
 
         <div className={`mt-auto ${sidebarCollapsed ? 'px-2' : 'px-3'} pb-4 pt-2 space-y-1`} style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
@@ -216,7 +235,7 @@ export default function Layout() {
           <div className="px-6 py-4 flex items-center justify-between">
             <div className="pl-6">
               <h2 className="text-lg font-semibold text-foreground">
-                {activeNav?.name || (location.pathname === '/settings' ? 'Settings' : location.pathname === '/users' ? 'Users' : 'Dashboard')}
+                {activeNav?.name || (location.pathname === '/settings' ? 'Settings' : location.pathname === '/users' ? 'Users' : location.pathname === '/audit' ? 'Audit log' : 'Dashboard')}
               </h2>
               <p className="text-xs text-muted-foreground mt-0.5">
                 {location.pathname === '/' && 'Overview of test activities'}
@@ -225,6 +244,7 @@ export default function Layout() {
                 {location.pathname === '/test-stations' && 'Monitor connected test stations'}
                 {location.pathname === '/settings' && 'Manage your preferences'}
                 {location.pathname === '/users' && 'Invite and manage members'}
+                {location.pathname === '/audit' && 'Who did what to accounts, access, configuration and data'}
                 {location.pathname.startsWith('/runs/') && 'Test run details and results'}
               </p>
             </div>

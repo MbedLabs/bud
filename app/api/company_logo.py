@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.auth import get_current_active_entity, require_role
 from app.db import get_db
 from app.models import CompanyLogo, UserRole
+from app.services.audit import record_audit_event
 
 router = APIRouter()
 
@@ -49,6 +50,12 @@ async def set_company_logo(
     logo.logo = raw
     logo.logo_content_type = file.content_type
     logo.logo_filename = file.filename
+    await record_audit_event(
+        db,
+        "company_logo.set",
+        target_type="company_logo",
+        details={"content_type": file.content_type, "size": len(raw)},
+    )
     await db.flush()
     return {"content_type": file.content_type, "size": len(raw)}
 
@@ -76,4 +83,9 @@ async def delete_company_logo(
         row.logo = None
         row.logo_content_type = None
         row.logo_filename = None
+        await record_audit_event(
+            db,
+            "company_logo.deleted",
+            target_type="company_logo",
+        )
         await db.flush()

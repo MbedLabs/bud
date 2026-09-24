@@ -25,6 +25,7 @@ from app.schemas import (
     SystemSettingResponse,
     SystemSettingUpdate,
 )
+from app.services.audit import record_audit_event
 from app.services.integration_secrets import encrypt_integration_secret
 from app.services.notify import send_test_message
 
@@ -103,6 +104,12 @@ async def update_setting(
         setting = SystemSetting(key=key, value=data.value, description=data.description)
         db.add(setting)
 
+    await record_audit_event(
+        db,
+        "setting.updated",
+        target_type="setting",
+        target_id=key,
+    )
     await db.commit()
     await db.refresh(setting)
     return setting
@@ -208,6 +215,12 @@ async def update_plm_integration(
     legacy = await db.get(SystemSetting, "bloom_token")
     if legacy:
         await db.delete(legacy)
+    await record_audit_event(
+        db,
+        "integration.updated",
+        target_type="plm_integration",
+        details={"fields": sorted(data.model_fields_set)},
+    )
     await db.commit()
     return await get_plm_integration(db=db, _admin=_admin)
 
@@ -294,6 +307,14 @@ async def create_notification_channel(
         enabled=data.enabled,
     )
     db.add(channel)
+    await db.flush()
+    await record_audit_event(
+        db,
+        "notification_channel.created",
+        target_type="notification_channel",
+        target_id=channel.id,
+        details={"name": channel.name, "format": channel.format},
+    )
     await db.commit()
     await db.refresh(channel)
     return _channel_response(channel)
@@ -324,6 +345,13 @@ async def update_notification_channel(
         channel.run_filter = data.run_filter
     if data.enabled is not None:
         channel.enabled = data.enabled
+    await record_audit_event(
+        db,
+        "notification_channel.updated",
+        target_type="notification_channel",
+        target_id=channel.id,
+        details={"name": channel.name, "fields": sorted(data.model_fields_set)},
+    )
     await db.commit()
     await db.refresh(channel)
     return _channel_response(channel)
@@ -337,6 +365,13 @@ async def delete_notification_channel(
 ):
     """Remove a channel and its delivery history."""
     channel = await _get_channel_or_404(db, channel_id)
+    await record_audit_event(
+        db,
+        "notification_channel.deleted",
+        target_type="notification_channel",
+        target_id=channel.id,
+        details={"name": channel.name},
+    )
     await db.delete(channel)
     await db.commit()
     return Response(status_code=204)

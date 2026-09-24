@@ -16,6 +16,7 @@ from app.schemas.setup import (
     SetupCompletedResponse,
     SetupStatusResponse,
 )
+from app.services.audit import record_audit_event
 from app.services.mail_service import MailConfigurationError, send_admin_welcome_email
 
 logger = logging.getLogger(__name__)
@@ -73,6 +74,15 @@ async def create_first_admin(
         is_active=True,
     )
     db.add(admin)
+    await db.flush()
+    await record_audit_event(
+        db,
+        "setup.first_admin_created",
+        actor_type="anonymous",
+        target_type="user",
+        target_id=admin.id,
+        details={"email": admin.email},
+    )
     await db.commit()
 
     logger.info("First administrator created via setup flow: %s", data.email)

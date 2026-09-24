@@ -26,6 +26,7 @@ from app.schemas.auth import (
     UserResponse,
     UserUpdate,
 )
+from app.services.audit import record_audit_event
 from app.services.mail_service import (
     MailConfigurationError,
     send_email_change_email,
@@ -61,6 +62,7 @@ async def _send_email_change_confirmation(
     user: User,
     new_email: str,
     admin: User,
+    action: str,
 ) -> UserResponse:
     await _validate_new_email(db, user, new_email)
     await invalidate_tokens(db, user.id, purpose=UserTokenPurpose.email_change)
@@ -89,6 +91,13 @@ async def _send_email_change_confirmation(
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
     await db.flush()
+    await record_audit_event(
+        db,
+        action,
+        target_type="user",
+        target_id=user.id,
+        details={"new_email": new_email},
+    )
     await db.refresh(user)
     return UserResponse.model_validate(user)
 
@@ -120,6 +129,13 @@ async def create_user(
     )
     db.add(user)
     await db.flush()
+    await record_audit_event(
+        db,
+        "user.created",
+        target_type="user",
+        target_id=user.id,
+        details={"email": user.email, "role": user.role.value},
+    )
     await db.refresh(user)
     return UserResponse.model_validate(user)
 
@@ -179,6 +195,13 @@ async def invite_user(
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
     await db.flush()
+    await record_audit_event(
+        db,
+        "user.invited",
+        target_type="user",
+        target_id=user.id,
+        details={"email": user.email, "role": user.role.value},
+    )
     await db.refresh(user)
     return InviteResponse(
         message="Invitation sent",
@@ -223,6 +246,12 @@ async def resend_invite(
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
     await db.flush()
+    await record_audit_event(
+        db,
+        "user.invite_resent",
+        target_type="user",
+        target_id=user.id,
+    )
     await db.refresh(user)
     return InviteResponse(
         message="Invitation resent",
@@ -251,6 +280,12 @@ async def revoke_invite(
 
     user.is_active = False
     await db.flush()
+    await record_audit_event(
+        db,
+        "user.invite_revoked",
+        target_type="user",
+        target_id=user.id,
+    )
     await db.refresh(user)
     return InviteResponse(message="Invitation revoked", user=UserResponse.model_validate(user))
 
@@ -266,7 +301,11 @@ async def start_email_change(
     user = await _get_user_or_404(db, user_id)
     user.email_change_requested_at = datetime.utcnow()
     return await _send_email_change_confirmation(
-        db, user=user, new_email=str(data.new_email), admin=admin
+        db,
+        user=user,
+        new_email=str(data.new_email),
+        admin=admin,
+        action="user.email_change_started",
     )
 
 
@@ -283,7 +322,11 @@ async def approve_email_change(
             detail="No email change request is waiting for administrator approval",
         )
     return await _send_email_change_confirmation(
-        db, user=user, new_email=user.pending_email, admin=admin
+        db,
+        user=user,
+        new_email=user.pending_email,
+        admin=admin,
+        action="user.email_change_approved",
     )
 
 
@@ -301,6 +344,12 @@ async def reject_email_change(
     user.email_change_requested_at = None
     await invalidate_tokens(db, user.id, purpose=UserTokenPurpose.email_change)
     await db.flush()
+    await record_audit_event(
+        db,
+        "user.email_change_rejected",
+        target_type="user",
+        target_id=user.id,
+    )
     await db.refresh(user)
     return UserResponse.model_validate(user)
 
@@ -317,6 +366,8 @@ async def update_user(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
+    previous_role = user.role
+    previous_active = user.is_active
     if data.full_name is not None:
         user.full_name = data.full_name
     if data.role is not None:
@@ -329,6 +380,21 @@ async def update_user(
         user.is_active = data.is_active
 
     await db.flush()
+    if user.role != previous_role:
+        await record_audit_event(
+            db,
+            "user.role_changed",
+            target_type="user",
+            target_id=user.id,
+            details={"from": previous_role.value, "to": user.role.value},
+        )
+    if user.is_active != previous_active:
+        await record_audit_event(
+            db,
+            "user.activated" if user.is_active else "user.deactivated",
+            target_type="user",
+            target_id=user.id,
+        )
     await db.refresh(user)
     return UserResponse.model_validate(user)
 
@@ -364,8 +430,16 @@ async def delete_user(
             update(User).where(User.invited_by_user_id == user_id).values(invited_by_user_id=None)
         )
 
+        deleted_email = user.email
         await db.delete(user)
         await db.flush()
+        await record_audit_event(
+            db,
+            "user.deleted",
+            target_type="user",
+            target_id=user_id,
+            details={"email": deleted_email},
+        )
     except IntegrityError as exc:
         logger.error(f"Integrity error deleting user {user_id}: {exc}")
         raise HTTPException(

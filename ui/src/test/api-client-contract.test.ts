@@ -117,6 +117,7 @@ const CALLS: Array<[string, unknown[], string, string]> = [
 
   ['notificationsApi.listChannels', [], 'get', '/settings/notifications/channels'],
   ['productsApi.list', [], 'get', '/products'],
+  ['auditApi.list', [{ action: 'auth.' }], 'get', '/audit'],
   ['groupsApi.list', [], 'get', '/groups'],
   ['groupsApi.create', [{ name: 'Lab', role: 'viewer' }], 'post', '/groups'],
   ['groupsApi.update', [3, { role: 'admin' }], 'patch', '/groups/3'],

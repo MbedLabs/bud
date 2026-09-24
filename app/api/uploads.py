@@ -30,6 +30,7 @@ from app.services.artifact_storage import (
     store_upload,
     validate_display_metadata,
 )
+from app.services.audit import record_audit_event
 
 router = APIRouter()
 
@@ -190,6 +191,18 @@ async def upload_file(
         )
         db.add(artifact)
         await db.flush()
+        await record_audit_event(
+            db,
+            "artifact.uploaded",
+            target_type="test_run",
+            target_id=run_id,
+            details={
+                "artifact_id": artifact.id,
+                "filename": display_filename,
+                "size": stored.size_bytes,
+                "station": getattr(_current_entity, "account", None),
+            },
+        )
         await db.delete(lease)
         await db.commit()
         await db.refresh(artifact)
@@ -287,6 +300,13 @@ async def delete_artifact(
         raise HTTPException(status_code=403, detail="Only admins may delete artifacts")
 
     storage_key = artifact.storage_path
+    await record_audit_event(
+        db,
+        "artifact.deleted",
+        target_type="test_run",
+        target_id=artifact.test_run_id,
+        details={"artifact_id": artifact.id, "filename": artifact.original_filename},
+    )
     await db.delete(artifact)
     await db.commit()
     await remove_storage_key(storage_key)
