@@ -67,7 +67,11 @@ def pytest_configure(config: pytest.Config) -> None:
 @pytest_asyncio.fixture(scope="function")
 async def _engine(tmp_path_factory):
     """Fresh file-backed SQLite engine per test, bound into app.db.database."""
-    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+    from sqlalchemy.ext.asyncio import (
+        AsyncSession,
+        async_sessionmaker,
+        create_async_engine,
+    )
 
     from app.db import database as db_module
     from app.db.database import Base

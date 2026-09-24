@@ -1,3 +1,4 @@
+import html
 import logging
 import smtplib
 from email.message import EmailMessage
@@ -171,4 +172,38 @@ def send_admin_welcome_email(*, to_email: str, full_name: str, login_link: str) 
         subject=f"You are the administrator of {settings.BUD_APP_NAME}",
         text_body=render_template("admin_welcome.txt", context),
         html_body=render_template("admin_welcome.html", context),
+    )
+
+
+def send_access_request_email(
+    *,
+    to_email: str,
+    admin_name: str,
+    requester_name: str,
+    requester_email: str,
+    resource: str,
+    project: str,
+    requested_at: str,
+    request_id: str,
+    review_link: str,
+) -> None:
+    """Tell an administrator that a user asks for access to a resource."""
+    context = {
+        "admin_name": admin_name,
+        "requester_name": requester_name,
+        "requester_email": requester_email,
+        "resource": resource,
+        "project_part": f" in project {project}" if project else "",
+        "requested_at": requested_at,
+        "request_id": request_id,
+        "review_link": review_link,
+        "app_name": settings.BUD_APP_NAME,
+    }
+    send_email(
+        to_email=to_email,
+        subject=f"Access requested on {settings.BUD_APP_NAME}: {resource}",
+        text_body=render_template("access_request.txt", context),
+        html_body=render_template(
+            "access_request.html", {key: html.escape(value) for key, value in context.items()}
+        ),
     )

@@ -82,6 +82,10 @@ const CALLS: Array<[string, unknown[], string, string]> = [
   ['setupApi.createFirstAdmin', ['u@example.com', 'pw', 'Owner'], 'post', '/setup'],
 
   ['usersApi.list', [], 'get', '/users'],
+  ['accessRequestsApi.create', [{ resource_type: 'test-run', resource_ref: '42' }], 'post', '/access-requests'],
+  ['accessRequestsApi.mine', [{ resource_type: 'test-run', resource_ref: '42' }], 'get', '/access-requests/mine'],
+  ['accessRequestsApi.list', [], 'get', '/access-requests'],
+  ['accessRequestsApi.decide', [3, 'refused'], 'post', '/access-requests/3/decision'],
   [
     'usersApi.create',
     [{ email: 'u@example.com', full_name: 'U', password: 'pw' }],
