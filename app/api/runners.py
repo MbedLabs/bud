@@ -37,7 +37,7 @@ router = APIRouter()
 async def register_runner(
     request: Request,
     data: RunnerRegister,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     api_key: RunnerApiKey = Depends(require_runner_api_key),
 ):
     """Register a Test Station.
@@ -117,7 +117,7 @@ async def register_runner(
 async def runner_heartbeat(
     request: Request,
     data: RunnerHeartbeat,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     current_runner: Runner = Depends(get_current_runner),
 ):
     """Receive a heartbeat from a runner.
@@ -144,7 +144,7 @@ async def runner_heartbeat(
 
 @router.get("/status", response_model=RunnerStatusList)
 async def get_runner_status(
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     _current_user: User = Depends(get_current_user),
 ):
     """
@@ -230,7 +230,7 @@ async def _require_station_name_free(db: AsyncSession, name: str, exclude_runner
 @router.post("/api-keys", response_model=RunnerApiKeyCreated, status_code=201)
 async def create_runner_api_key(
     data: RunnerApiKeyCreate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     admin: User = Depends(require_role(UserRole.admin)),
 ):
     """Mint an enrolment key for a Test Station."""
@@ -259,7 +259,7 @@ async def create_runner_api_key(
 
 @router.get("/api-keys", response_model=List[RunnerApiKeyResponse])
 async def list_runner_api_keys(
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     _admin: User = Depends(require_role(UserRole.admin)),
 ):
     """List every enrolment key and the station it is pinned to, if any."""
@@ -285,7 +285,7 @@ async def list_runner_api_keys(
 @router.delete("/api-keys/{key_id}", status_code=204)
 async def delete_runner_api_key(
     key_id: int,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     _admin: User = Depends(require_role(UserRole.admin)),
 ):
     """Revoke an enrolment key."""
@@ -300,7 +300,7 @@ async def delete_runner_api_key(
 @router.get("/{account}", response_model=RunnerResponse)
 async def get_runner(
     account: str,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     _current_user: User = Depends(get_current_user),
 ):
     """
@@ -319,7 +319,7 @@ async def get_runner(
 async def rename_runner(
     account: str,
     data: RunnerRename,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     _admin: User = Depends(require_role(UserRole.admin)),
 ):
     """Rename a Test Station.
@@ -350,7 +350,7 @@ async def rename_runner(
 @router.delete("/{account}", status_code=204)
 async def delete_runner(
     account: str,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     _admin: User = Depends(require_role(UserRole.admin)),
 ):
     """Delete a Test Station. Requires an authenticated administrator."""

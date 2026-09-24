@@ -18,7 +18,7 @@ limiter = Limiter(key_func=get_remote_address)
 
 
 async def get_current_runner(
-    db: AsyncSession = Depends(get_db), token: str = Depends(oauth2_scheme)
+    db: AsyncSession = Depends(get_db, scope="function"), token: str = Depends(oauth2_scheme)
 ) -> Runner:
     """M3: Authenticate a runner via JWT."""
     runner = await authenticate_runner_token(token, db)
@@ -37,7 +37,7 @@ async def get_current_runner(
 
 async def require_runner_api_key(
     x_api_key: str = Header(..., alias="X-API-Key"),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
 ) -> RunnerApiKey:
     """C2: Resolve the enrolment key presented for a runner-registration mutation."""
     record = await resolve_key(x_api_key, db)

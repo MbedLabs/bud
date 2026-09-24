@@ -21,7 +21,7 @@ router = APIRouter()
 @router.post("", response_model=ProductResponse, status_code=201)
 async def create_product(
     data: ProductCreate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     _admin: User = Depends(require_role(UserRole.admin)),
 ):
     """
@@ -44,7 +44,7 @@ async def create_product(
 
 @router.get("", response_model=List[ProductResponse])
 async def list_products(
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
 ):
     """
@@ -62,7 +62,7 @@ async def list_products(
 @router.get("/{product_id}", response_model=ProductResponse)
 async def get_product(
     product_id: int,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
 ):
     """
@@ -81,7 +81,7 @@ async def get_product(
 @router.delete("/{product_id}", status_code=204)
 async def delete_product(
     product_id: int,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     _admin: User = Depends(require_role(UserRole.admin)),
 ):
     """

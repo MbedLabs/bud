@@ -45,7 +45,10 @@ async def create_tables():
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """
-    Dependency for getting database sessions.
+    Yield the request's database session and commit it when the endpoint returns.
+
+    Routes depend on it with scope "function", so the commit runs before the
+    response is built and a failing commit is answered by the exception handlers.
 
     Yields:
         AsyncSession: Database session.

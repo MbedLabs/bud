@@ -48,7 +48,7 @@ async def get_test_catalog(
         None, description="Only test cases this Test Station has run."
     ),
     suite: str | None = Query(None, description="Only test cases from this suite."),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     current_entity: Union[User, Runner] = Depends(get_current_active_entity),
 ):
     """Every test case Bud has a record of, and the Test Stations it ran on."""
@@ -67,7 +67,7 @@ async def get_test_catalog(
 @router.post("/test-runs/custom", response_model=CustomRunResponse, status_code=201)
 async def create_custom_run(
     data: CustomRunRequest,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     current_user: User = Depends(get_current_active_entity),
 ):
     """Queue a run for each Test Station the selection touches."""
@@ -202,7 +202,7 @@ async def _most_recent_source_run(db: AsyncSession, run_ids: list[int | None]) -
 )
 async def claim_next_run(
     idempotency_key: UUID = Header(alias="Idempotency-Key"),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     current_entity: Union[User, Runner] = Depends(get_current_active_entity),
 ):
     """Hand this Test Station its next queued run, if it has one."""
@@ -304,7 +304,7 @@ async def complete_claimed_run(
     data: ClaimedRunCompletion,
     background_tasks: BackgroundTasks,
     idempotency_key: UUID = Header(alias="Idempotency-Key"),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     current_entity: Union[User, Runner] = Depends(get_current_active_entity),
 ):
     """Record the station's terminal answer for a claimed execution."""

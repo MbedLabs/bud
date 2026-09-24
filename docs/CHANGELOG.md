@@ -12,6 +12,7 @@
 
 ### Fixed
 
+- A database error while committing a request, such as a constraint violation, is answered with 409 or 500 and the request id; the commit now runs before the response is built instead of after it had started.
 - Orphan cleanup measured its grace period from a UTC time read as local time, so on a host not running in UTC it was off by the UTC offset.
 
 ## 1.1.0 - 2026-09-16

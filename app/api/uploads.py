@@ -133,7 +133,7 @@ async def upload_file(
     file: UploadFile = File(...),
     test_case: Optional[str] = Form(None),
     run_id: Optional[int] = Form(None),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
 ):
     """Upload a file artifact (trace, log, etc.)."""
@@ -206,7 +206,7 @@ async def upload_file(
 @router.get("/{artifact_id}")
 async def download_artifact(
     artifact_id: int,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
 ):
     """
@@ -259,7 +259,7 @@ async def download_artifact(
 @router.get("/info/{artifact_id}", response_model=ArtifactResponse)
 async def get_artifact_info(
     artifact_id: int,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
 ):
     """
@@ -271,7 +271,7 @@ async def get_artifact_info(
 @router.delete("/{artifact_id}", status_code=204)
 async def delete_artifact(
     artifact_id: int,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     _current_user: User = Depends(get_current_user),
 ):
     """
