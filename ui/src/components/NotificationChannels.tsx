@@ -10,7 +10,7 @@ import {
 } from '../api/client'
 
 const FORMATS: { value: NotificationFormat; label: string }[] = [
-  { value: 'teams', label: 'Microsoft Teams' },
+  { value: 'teams', label: 'Microsoft Teams (Workflows or connector, read from the URL)' },
   { value: 'slack', label: 'Slack' },
   { value: 'discord', label: 'Discord' },
   { value: 'json', label: 'JSON (n8n, scripts, any endpoint)' },
