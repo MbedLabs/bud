@@ -48,7 +48,7 @@ def _origin(url: str) -> tuple[str, str, int | None]:
 
 @router.get("", response_model=List[SystemSettingResponse])
 async def get_settings(
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     _admin: User = Depends(require_role(UserRole.admin)),
 ):
     """
@@ -65,7 +65,7 @@ async def get_settings(
 @router.get("/{key}", response_model=SystemSettingResponse)
 async def get_setting(
     key: str,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     _admin: User = Depends(require_role(UserRole.admin)),
 ):
     """
@@ -83,7 +83,7 @@ async def get_setting(
 async def update_setting(
     key: str,
     data: SystemSettingUpdate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     _admin: User = Depends(require_role(UserRole.admin)),
 ):
     """
@@ -110,7 +110,7 @@ async def update_setting(
 
 @router.get("/integrations/PLM", response_model=PLMIntegrationSettings)
 async def get_plm_integration(
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     _admin: User = Depends(require_role(UserRole.admin)),
 ):
     """
@@ -134,7 +134,7 @@ async def get_plm_integration(
 @router.post("/integrations/PLM", response_model=PLMIntegrationSettings)
 async def update_plm_integration(
     data: PLMIntegrationSettingsUpdate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     _admin: User = Depends(require_role(UserRole.admin)),
 ):
     """
@@ -262,7 +262,7 @@ async def _name_taken(db: AsyncSession, name: str, exclude_id: int | None = None
 
 @router.get("/notifications/channels", response_model=List[NotificationChannelResponse])
 async def list_notification_channels(
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     _admin: User = Depends(require_role(UserRole.admin)),
 ):
     """List the channels finished runs are posted to."""
@@ -277,7 +277,7 @@ async def list_notification_channels(
 @router.post("/notifications/channels", response_model=NotificationChannelResponse, status_code=201)
 async def create_notification_channel(
     data: NotificationChannelCreate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     _admin: User = Depends(require_role(UserRole.admin)),
 ):
     """Add a channel; its URL and secret are stored encrypted and never returned."""
@@ -303,7 +303,7 @@ async def create_notification_channel(
 async def update_notification_channel(
     channel_id: int,
     data: NotificationChannelUpdate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     _admin: User = Depends(require_role(UserRole.admin)),
 ):
     """Change a channel; a URL or secret is replaced only when given."""
@@ -332,7 +332,7 @@ async def update_notification_channel(
 @router.delete("/notifications/channels/{channel_id}", status_code=204)
 async def delete_notification_channel(
     channel_id: int,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     _admin: User = Depends(require_role(UserRole.admin)),
 ):
     """Remove a channel and its delivery history."""
@@ -345,7 +345,7 @@ async def delete_notification_channel(
 @router.post("/notifications/channels/{channel_id}/test", response_model=NotificationTestResult)
 async def test_notification_channel(
     channel_id: int,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     _admin: User = Depends(require_role(UserRole.admin)),
 ):
     """Post a sample run summary to the channel so the administrator sees it in the tool."""

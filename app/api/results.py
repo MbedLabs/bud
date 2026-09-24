@@ -30,7 +30,7 @@ oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_e
 
 
 async def get_uploader_entity(
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     token: Optional[str] = Depends(oauth2_scheme_optional),
     x_api_key: Optional[str] = Header(None, alias="X-API-Key"),
 ) -> Union[User, Runner]:
@@ -74,7 +74,7 @@ async def get_uploader_entity(
 async def upload_results(
     data: ResultsUpload,
     background_tasks: BackgroundTasks,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     _current_entity: Union[User, Runner] = Depends(get_uploader_entity),
 ):
     """Upload test results."""
@@ -205,7 +205,7 @@ async def upload_results(
 @router.get("/{run_id}", response_model=List[TestResultListItem])
 async def get_results_for_run(
     run_id: int,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
 ):
     """Get all results for a test run."""
@@ -240,7 +240,7 @@ async def get_results_for_run(
 @router.get("/detail/{result_id}", response_model=TestResultResponse)
 async def get_result(
     result_id: int,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
 ):
     """

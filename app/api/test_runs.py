@@ -52,7 +52,7 @@ from app.services.notify import notify_run_finished
 @router.post("", response_model=TestRunResponse, status_code=201)
 async def create_test_run(
     data: TestRunCreate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
 ):
     """Create a new test run."""
@@ -117,7 +117,7 @@ async def create_test_run(
 @router.get("/{run_id}/events", response_model=list[TestRunEventResponse])
 async def get_test_run_events(
     run_id: int,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
 ):
     """
@@ -140,7 +140,7 @@ async def get_test_run_events(
 @router.get("/{run_id}/artifacts", response_model=list[ArtifactResponse])
 async def get_test_run_artifacts(
     run_id: int,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
 ):
     """List the artifacts uploaded against a test run."""
@@ -185,7 +185,7 @@ async def list_test_runs(
     ),
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
 ):
     """List test runs with optional filtering and pagination."""
@@ -324,7 +324,7 @@ async def get_test_run_stats(
         None, description="Only count runs executed by this Bud runner account (Test Station)."
     ),
     suite: Optional[str] = Query(None, description="Only count runs for this test suite name."),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
 ):
     """Aggregate the dashboard counters over every run matching the filters."""
@@ -390,7 +390,7 @@ async def get_test_run_filter_options(
     days: Optional[int] = Query(
         None, ge=1, le=3650, description="Only consider runs created within the last N days."
     ),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
 ):
     """List the suite names and Test Stations that actually appear in test runs."""
@@ -423,7 +423,7 @@ async def get_test_run_filter_options(
 @router.get("/{run_id}", response_model=TestRunResponse)
 async def get_test_run(
     run_id: int,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
 ):
     """
@@ -446,7 +446,7 @@ async def update_test_run(
     run_id: int,
     data: TestRunUpdate,
     background_tasks: BackgroundTasks,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
 ):
     """
@@ -509,7 +509,7 @@ async def update_test_run(
 @router.post("/{run_id}/publish-to-bloom", response_model=BloomPublishResponse)
 async def publish_run_to_bloom(
     run_id: int,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     current_user: User = Depends(get_current_active_entity),
 ):
     """Send this run's report documents to Bloom as a Report (RPT) document."""
@@ -612,7 +612,7 @@ async def publish_run_to_bloom(
 @router.delete("/{run_id}", status_code=204)
 async def delete_test_run(
     run_id: int,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     _admin: User = Depends(require_role(UserRole.admin)),
 ):
     """

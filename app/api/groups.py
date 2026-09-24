@@ -76,7 +76,9 @@ async def _response(db: AsyncSession, group: Group) -> GroupResponse:
 
 
 @router.get("", response_model=list[GroupResponse])
-async def list_groups(db: AsyncSession = Depends(get_db), _admin: User = Depends(require_admin)):
+async def list_groups(
+    db: AsyncSession = Depends(get_db, scope="function"), _admin: User = Depends(require_admin)
+):
     """Every group with its members and product grants."""
     groups = (
         await db.execute(
@@ -90,7 +92,9 @@ async def list_groups(db: AsyncSession = Depends(get_db), _admin: User = Depends
 
 @router.post("", response_model=GroupResponse, status_code=201)
 async def create_group(
-    data: GroupCreate, db: AsyncSession = Depends(get_db), _admin: User = Depends(require_admin)
+    data: GroupCreate,
+    db: AsyncSession = Depends(get_db, scope="function"),
+    _admin: User = Depends(require_admin),
 ):
     """Create a group with a role and no members or grants yet."""
     group = Group(name=data.name.strip(), description=data.description, role=data.role)
@@ -106,7 +110,7 @@ async def create_group(
 async def update_group(
     group_id: int,
     data: GroupUpdate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     _admin: User = Depends(require_admin),
 ):
     """Rename a group, change its description or its role."""
@@ -126,7 +130,9 @@ async def update_group(
 
 @router.delete("/{group_id}", status_code=204)
 async def delete_group(
-    group_id: int, db: AsyncSession = Depends(get_db), _admin: User = Depends(require_admin)
+    group_id: int,
+    db: AsyncSession = Depends(get_db, scope="function"),
+    _admin: User = Depends(require_admin),
 ):
     """Delete a group; its members keep only their own role."""
     await db.delete(await _load(db, group_id))
@@ -137,7 +143,7 @@ async def delete_group(
 async def add_member(
     group_id: int,
     data: GroupMemberAdd,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     _admin: User = Depends(require_admin),
 ):
     """Add a user to a group."""
@@ -160,7 +166,7 @@ async def add_member(
 async def remove_member(
     group_id: int,
     user_id: int,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     _admin: User = Depends(require_admin),
 ):
     """Remove a user from a group."""
@@ -182,7 +188,7 @@ async def remove_member(
 async def add_grant(
     group_id: int,
     data: GroupGrantAdd,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     _admin: User = Depends(require_admin),
 ):
     """Grant a group one product, or every product when no product is given."""
@@ -210,7 +216,7 @@ async def add_grant(
 async def remove_grant(
     group_id: int,
     grant_id: int,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     _admin: User = Depends(require_admin),
 ):
     """Revoke one product grant of a group."""
