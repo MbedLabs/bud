@@ -26,6 +26,8 @@ import { formatDateTime } from '../test/date-utils'
 import { safeExternalUrl } from '../lib/externalLink'
 import { ArrowLeft, CheckCircle, XCircle, Clock, AlertCircle, Activity, ChevronDown, ChevronRight, UploadCloud, RefreshCw, Radio, GitBranch, Filter, X, FileDown, Paperclip, FileText, Download, ExternalLink, Bell } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
+import AccessDenied from '../components/AccessDenied'
+import { isAccessDenied } from '../lib/accessDenied'
 
 export default function TestRunDetail() {
   const { id } = useParams<{ id: string }>()
@@ -66,6 +68,10 @@ export default function TestRunDetail() {
         <div className="text-muted-foreground">Loading...</div>
       </div>
     )
+  }
+
+  if (isAccessDenied(runError)) {
+    return <AccessDenied resourceType="test-run" resourceRef={id ?? ''} />
   }
 
   if (runError || !run) {

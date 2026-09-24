@@ -4,6 +4,7 @@ import { Check, Copy, Eye, Mail, Shield, Trash2, UserPlus, X } from 'lucide-reac
 import { extractApiErrorMessage, InviteUserResponse, User, usersApi } from '../api/client'
 import UserGroups from '../components/UserGroups'
 import { useAuth } from '../contexts/AuthContext'
+import AccessRequestsPanel from '../components/AccessRequestsPanel'
 
 const ROLE_CONFIG = {
   admin: { label: 'Admin', color: 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400', icon: Shield },
@@ -285,6 +286,7 @@ export default function UsersPage() {
           }
         />
       )}
+      <AccessRequestsPanel />
       <UserGroups />
     </div>
   )

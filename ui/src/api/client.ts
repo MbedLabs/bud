@@ -259,6 +259,37 @@ export const groupsApi = {
     (await api.delete<Group>(`/groups/${id}/grants/${grantId}`)).data,
 }
 
+export type AccessResourceType = 'test-run' | 'product'
+
+export interface AccessRequestInfo {
+  id: number
+  resource_type: string
+  resource_ref: string
+  status: 'pending' | 'granted' | 'refused'
+  created_at: string
+  decided_at: string | null
+  requester_name: string | null
+  requester_email: string | null
+  already_requested: boolean
+  mail_sent: boolean | null
+}
+
+export interface AccessRequestParams {
+  resource_type: AccessResourceType
+  resource_ref: string
+}
+
+export const accessRequestsApi = {
+  create: async (data: AccessRequestParams) =>
+    (await api.post<AccessRequestInfo>('/access-requests', data)).data,
+  mine: async (params: AccessRequestParams) =>
+    (await api.get<AccessRequestInfo | null>('/access-requests/mine', { params })).data,
+  list: async (params: { status?: string } = {}) =>
+    (await api.get<AccessRequestInfo[]>('/access-requests', { params })).data,
+  decide: async (id: number, decision: 'granted' | 'refused') =>
+    (await api.post<AccessRequestInfo>(`/access-requests/${id}/decision`, { decision })).data,
+}
+
 export interface AuditEvent {
   id: number
   occurred_at: string
