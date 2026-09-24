@@ -164,6 +164,20 @@ counted missing when the bucket lacks it. On Cloudron the variables are set with
 `cloudron env set`; keep the mirror, as it lives under `/app/data` and is part of
 Cloudron's backup.
 
+## Audit log
+
+Security-relevant events are written to the `audit_events` table in the same transaction as the action: sign-in, sign-out, session refresh, password change and reset, email verification and email change; user creation, invitation, role change, activation, deletion; groups, station registration, enrolment keys and station removal; configuration changes; deletions, exports, imports and attachments. A failed sign-in or password reset is recorded even though the request itself fails. Each event carries the acting user or `anonymous`/`service`/`runner`, the action, the target, the request id (the `x-request-id` response header), the client address and user agent, the outcome and details without secrets.
+
+Administrators read the log under Audit log in the sidebar, or with `GET /api/audit` (filters: `actor_user_id`, `action` or an action prefix ending in `.`, `target_type`, `target_id`, `product`, `outcome`, `since`, `until`, `limit`, `offset`). No endpoint changes or deletes an event.
+
+The client address is the one the image's own nginx received. Behind another reverse proxy (Cloudron, a load balancer) it is that proxy's address.
+
+Retention is the operator's choice. The application never deletes events; to remove old ones, run on a schedule:
+
+```
+python -m app.audit prune --older-than-days 365
+```
+
 ## Upgrades
 
 1. Back up first (see above).

@@ -28,6 +28,7 @@ from app.schemas import (
     RunnerStatusList,
     RunnerToken,
 )
+from app.services.audit import record_audit_event
 
 router = APIRouter()
 
@@ -103,6 +104,14 @@ async def register_runner(
     api_key.runner_id = runner.id
     mark_used(api_key)
 
+    await record_audit_event(
+        db,
+        "station.registered",
+        actor_type="runner",
+        target_type="station",
+        target_id=runner.account,
+        details={"enrolment_key_id": api_key.id},
+    )
     await db.commit()
     await db.refresh(runner)
 
@@ -244,6 +253,13 @@ async def create_runner_api_key(
     )
     db.add(record)
     await db.flush()
+    await record_audit_event(
+        db,
+        "enrolment_key.minted",
+        target_type="enrolment_key",
+        target_id=record.id,
+        details={"label": record.label, "station_name": data.station_name},
+    )
 
     return RunnerApiKeyCreated(
         id=record.id,
@@ -293,6 +309,13 @@ async def delete_runner_api_key(
     if record is None:
         raise HTTPException(status_code=404, detail="API key not found")
 
+    await record_audit_event(
+        db,
+        "enrolment_key.revoked",
+        target_type="enrolment_key",
+        target_id=key_id,
+        details={"label": record.label},
+    )
     await db.delete(record)
     await db.flush()
 
@@ -334,6 +357,13 @@ async def rename_runner(
         raise HTTPException(status_code=404, detail="Runner not found")
 
     if data.account != runner.account:
+        await record_audit_event(
+            db,
+            "station.renamed",
+            target_type="station",
+            target_id=runner.id,
+            details={"from": runner.account, "to": data.account},
+        )
         await _require_station_name_free(db, data.account, exclude_runner_id=runner.id)
         runner.account = data.account
         await db.execute(
@@ -365,6 +395,13 @@ async def delete_runner(
             update(TestRun).where(TestRun.runner_id == runner.id).values(runner_id=None)
         )
         await db.execute(delete(RunnerApiKey).where(RunnerApiKey.runner_id == runner.id))
+        await record_audit_event(
+            db,
+            "station.removed",
+            target_type="station",
+            target_id=runner.id,
+            details={"account": runner.account},
+        )
         await db.delete(runner)
         # Flushed here so a dangling reference is a 409, not a rollback behind
         # the 204 that get_db's later commit would produce.

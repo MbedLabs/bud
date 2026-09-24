@@ -31,6 +31,7 @@ from app.schemas import (
 )
 from app.services.artifact_cleanup import remove_storage_key
 from app.services.artifact_storage import read_stored
+from app.services.audit import record_audit_event
 from app.services.bloom_publish import (
     BloomNotConfigured,
     BloomProjectNotIdentifiable,
@@ -628,6 +629,14 @@ async def delete_test_run(
         (
             await db.scalars(select(Artifact.storage_path).where(Artifact.test_run_id == run_id))
         ).all()
+    )
+    await record_audit_event(
+        db,
+        "test_run.deleted",
+        target_type="test_run",
+        target_id=test_run.id,
+        product_id=test_run.product_id,
+        details={"name": test_run.name},
     )
     await db.delete(test_run)
     await db.commit()

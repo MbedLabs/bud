@@ -14,6 +14,8 @@ from fastapi.responses import Response
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
 
 request_id_var: ContextVar[str] = ContextVar("request_id", default="-")
+client_ip_var: ContextVar[str | None] = ContextVar("client_ip", default=None)
+user_agent_var: ContextVar[str | None] = ContextVar("user_agent", default=None)
 
 access_logger = logging.getLogger("bud.access")
 
@@ -86,6 +88,10 @@ class RequestObservabilityMiddleware:
         incoming = headers.get("x-request-id", b"").decode("latin-1").strip()
         request_id = incoming[:64] if incoming else uuid.uuid4().hex
         token = request_id_var.set(request_id)
+        client = scope.get("client")
+        ip_token = client_ip_var.set(client[0] if client else None)
+        agent = headers.get("user-agent", b"").decode("latin-1")
+        agent_token = user_agent_var.set(agent or None)
 
         status_code = 500
         start = time.perf_counter()
@@ -126,6 +132,8 @@ class RequestObservabilityMiddleware:
                 },
             )
             request_id_var.reset(token)
+            client_ip_var.reset(ip_token)
+            user_agent_var.reset(agent_token)
 
 
 metrics_router = APIRouter()

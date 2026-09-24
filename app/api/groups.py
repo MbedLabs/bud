@@ -20,6 +20,7 @@ from app.schemas.groups import (
     GroupResponse,
     GroupUpdate,
 )
+from app.services.audit import record_audit_event
 
 router = APIRouter()
 
@@ -101,6 +102,13 @@ async def create_group(
     db.add(group)
     try:
         await db.flush()
+        await record_audit_event(
+            db,
+            "group.created",
+            target_type="group",
+            target_id=group.id,
+            details={"name": group.name, "role": group.role},
+        )
     except IntegrityError:
         raise HTTPException(status_code=400, detail="A group with this name already exists")
     return await _response(db, await _load(db, group.id))
@@ -123,6 +131,13 @@ async def update_group(
         group.role = data.role
     try:
         await db.flush()
+        await record_audit_event(
+            db,
+            "group.updated",
+            target_type="group",
+            target_id=group_id,
+            details={"fields": sorted(data.model_fields_set)},
+        )
     except IntegrityError:
         raise HTTPException(status_code=400, detail="A group with this name already exists")
     return await _response(db, await _load(db, group_id))
@@ -135,6 +150,12 @@ async def delete_group(
     _admin: User = Depends(require_admin),
 ):
     """Delete a group; its members keep only their own role."""
+    await record_audit_event(
+        db,
+        "group.deleted",
+        target_type="group",
+        target_id=group_id,
+    )
     await db.delete(await _load(db, group_id))
     await db.flush()
 
@@ -158,6 +179,13 @@ async def add_member(
     if exists is not None:
         raise HTTPException(status_code=400, detail="The user is already in this group")
     db.add(GroupMembership(group_id=group_id, user_id=data.user_id))
+    await record_audit_event(
+        db,
+        "group.member_added",
+        target_type="group",
+        target_id=group_id,
+        details={"user_id": data.user_id},
+    )
     await db.flush()
     return await _response(db, await _load(db, group_id))
 
@@ -180,6 +208,13 @@ async def remove_member(
     if membership is None:
         raise HTTPException(status_code=404, detail="The user is not in this group")
     await db.delete(membership)
+    await record_audit_event(
+        db,
+        "group.member_removed",
+        target_type="group",
+        target_id=group_id,
+        details={"user_id": membership.user_id},
+    )
     await db.flush()
     return await _response(db, await _load(db, group_id))
 
@@ -208,6 +243,14 @@ async def add_grant(
     if exists is not None:
         raise HTTPException(status_code=400, detail="The group already has this grant")
     db.add(GroupProductGrant(group_id=group_id, product_id=data.product_id))
+    await record_audit_event(
+        db,
+        "group.grant_added",
+        target_type="group",
+        target_id=group_id,
+        product_id=data.product_id,
+        details={"all_products": data.product_id is None},
+    )
     await db.flush()
     return await _response(db, await _load(db, group_id))
 
@@ -224,5 +267,13 @@ async def remove_grant(
     if grant is None or grant.group_id != group_id:
         raise HTTPException(status_code=404, detail="Grant not found")
     await db.delete(grant)
+    await record_audit_event(
+        db,
+        "group.grant_removed",
+        target_type="group",
+        target_id=group_id,
+        product_id=grant.product_id,
+        details={"all_products": grant.product_id is None},
+    )
     await db.flush()
     return await _response(db, await _load(db, group_id))

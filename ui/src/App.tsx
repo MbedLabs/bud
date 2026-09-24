@@ -21,6 +21,7 @@ const TestRunDetail = lazy(() => import('./pages/TestRunDetail'))
 const TestRuns = lazy(() => import('./pages/TestRuns'))
 const TestStations = lazy(() => import('./pages/TestStations'))
 const Users = lazy(() => import('./pages/Users'))
+const Audit = lazy(() => import('./pages/Audit'))
 /* v8 ignore stop */
 
 function NotFound() {
@@ -56,6 +57,7 @@ function App() {
           <Route path="test-stations" element={<TestStations />} />
           <Route path="settings" element={<Settings />} />
           <Route path="users" element={<Users />} />
+          <Route path="audit" element={<Audit />} />
           <Route path="*" element={<NotFound />} />
         </Route>
     </Routes>

@@ -17,6 +17,7 @@ from app.core.run_access import require_run_access
 from app.db import get_db
 from app.models import Runner, TestRun
 from app.models.user import User
+from app.services.audit import record_audit_event
 from app.services.report_pdf import render_report
 from app.services.run_reports import build_run_report, build_summary_report
 
@@ -62,6 +63,12 @@ async def test_run_summary_report(
     # the statistics endpoint.
     conditions = conditions if conditions is not None else [TestRun.id.is_(None)]
 
+    await record_audit_event(
+        db,
+        "export.generated",
+        target_type="report",
+        details={"kind": "summary_pdf"},
+    )
     pdf = render_report(
         await build_summary_report(
             db, conditions, days=days, runner_account=runner_account, suite=suite
@@ -94,5 +101,13 @@ async def test_run_report(
         raise HTTPException(status_code=404, detail="Test run not found")
     await require_run_access(db, current_entity, run)
 
+    await record_audit_event(
+        db,
+        "export.generated",
+        target_type="test_run",
+        target_id=run.id,
+        product_id=run.product_id,
+        details={"kind": "run_pdf"},
+    )
     pdf = render_report(await build_run_report(db, run), await load_report_logo(db))
     return _pdf_response(pdf, _safe_filename(f"bud-run-{run.id}-{run.name}"))
