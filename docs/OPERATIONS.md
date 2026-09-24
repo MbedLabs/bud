@@ -136,6 +136,34 @@ retention pass, which also removes orphaned files and expired reservations.
 These are authorization and resource-exhaustion controls, not a malware scanner.
 Add a fail-closed ClamAV or YARA stage if your deployment needs that claim.
 
+## Object storage (S3)
+
+Run artifacts are kept in `BUD_UPLOAD_DIR` by default. To keep them in an
+S3-compatible bucket (AWS S3, MinIO, Hetzner, Ceph) instead:
+
+- `BUD_STORAGE_BACKEND=s3` and `BUD_S3_BUCKET`. The bucket must exist.
+- `BUD_S3_ENDPOINT_URL` for anything that is not AWS (for MinIO, for example
+  `http://minio:9000`); `BUD_S3_REGION` where the store needs one.
+- `BUD_S3_PREFIX` (default `bud`) keeps several instances apart in one bucket.
+- `BUD_S3_ACCESS_KEY_ID` and `BUD_S3_SECRET_ACCESS_KEY`, or neither, in which
+  case the ambient AWS credentials (an instance role) are used.
+- `BUD_STORAGE_LOCAL_MIRROR` (default `true`) also keeps every file in
+  `BUD_UPLOAD_DIR`. Reads come from the bucket and fall back to the mirror when the
+  bucket does not answer; the log then names the key as a warning. The free-space
+  reserve applies to this directory; quotas in the bucket are the operator's.
+
+Existing files are copied with `python -m app.storage migrate --to s3`. Each file
+keeps its storage name under the prefix, sizes are checked after the copy, and files
+already in the bucket are skipped, so the command can be run again. The local files
+stay where they are.
+
+`GET /api/ready` reports `storage`: `local`, `s3`, or `s3-unreachable` when the bucket
+did not answer. It stays `200` in that case, because the database decides readiness
+and reads can still come from the mirror. Orphan cleanup lists the bucket; a file is
+counted missing when the bucket lacks it. On Cloudron the variables are set with
+`cloudron env set`; keep the mirror, as it lives under `/app/data` and is part of
+Cloudron's backup.
+
 ## Upgrades
 
 1. Back up first (see above).

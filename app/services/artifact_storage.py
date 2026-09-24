@@ -20,6 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.models import Artifact, Runner, UploadAttempt, UploadLease
 from app.models.user import User
+from app.services import object_store
 
 
 @dataclass(frozen=True)
@@ -198,3 +199,34 @@ async def store_upload(
         raise
 
     return StoredUpload(size_bytes=size_bytes, sha256=digest.hexdigest())
+
+
+async def persist(final_path: Path, name: str, content_type: str) -> None:
+    """Put a stored file in the bucket when S3 is on; drop the local copy unless it
+    is kept as the mirror. The local file is removed when the bucket refuses it."""
+    if not object_store.s3_enabled():
+        return
+    try:
+        await object_store.put_file(final_path, name, content_type)
+    except Exception as exc:
+        with contextlib.suppress(OSError):
+            final_path.unlink()
+        raise HTTPException(
+            status_code=503, detail="The file store did not accept the file."
+        ) from exc
+    if not object_store.keeps_local_copy():
+        with contextlib.suppress(OSError):
+            final_path.unlink()
+
+
+async def read_stored(upload_root: Path, name: str) -> bytes | None:
+    """A stored file's bytes from the bucket, or the local copy, or None."""
+    local = upload_root / name
+    if object_store.s3_enabled():
+        try:
+            body = await object_store.fetch(name)
+            return b"".join(object_store.iter_body(body))
+        except Exception:
+            if not (object_store.keeps_local_copy() and local.is_file()):
+                return None
+    return local.read_bytes() if local.is_file() else None

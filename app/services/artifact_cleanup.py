@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import contextlib
+import time
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from sqlalchemy import delete, func, select
@@ -12,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.models import Artifact, UploadAttempt, UploadLease
+from app.services import object_store
 
 
 @dataclass(frozen=True)
@@ -33,7 +35,11 @@ def _safe_upload_root() -> Path:
 async def reconcile_artifacts(
     db: AsyncSession, *, orphan_grace_seconds: int = 3600
 ) -> CleanupReport:
-    """Remove expired rows/files and old unreferenced files under the upload root."""
+    """Remove expired rows/files and old unreferenced files under the upload root.
+
+    With S3 storage the bucket is reconciled (a file is missing when the bucket lacks
+    it), and the local mirror, when kept, is cleared of orphans too.
+    """
 
     now = datetime.utcnow()
     root = _safe_upload_root()
@@ -48,24 +54,36 @@ async def reconcile_artifacts(
     )
     expired_count = 0
     for artifact in expired:
-        path = (root / artifact.storage_path).resolve()
-        if path.parent == root:
-            with contextlib.suppress(OSError):
-                path.unlink()
+        await remove_storage_key(artifact.storage_path)
         await db.delete(artifact)
         expired_count += 1
     await db.flush()
 
     referenced = set((await db.scalars(select(Artifact.storage_path))).all())
-    orphan_cutoff = now.timestamp() - orphan_grace_seconds
+    orphan_cutoff = time.time() - orphan_grace_seconds
     orphan_count = 0
-    for path in root.iterdir():
-        if path.is_file() and path.name not in referenced and path.stat().st_mtime < orphan_cutoff:
-            with contextlib.suppress(OSError):
-                path.unlink()
-                orphan_count += 1
+    if object_store.keeps_local_copy():
+        for path in root.iterdir():
+            if (
+                path.is_file()
+                and path.name not in referenced
+                and path.stat().st_mtime < orphan_cutoff
+            ):
+                with contextlib.suppress(OSError):
+                    path.unlink()
+                    orphan_count += 1
 
-    missing_count = sum(1 for storage_key in referenced if not (root / storage_key).is_file())
+    if object_store.s3_enabled():
+        cutoff = datetime.fromtimestamp(orphan_cutoff, tz=timezone.utc)
+        present = set()
+        for stored in await object_store.list_objects():
+            present.add(stored.name)
+            if stored.name not in referenced and stored.last_modified < cutoff:
+                await object_store.delete(stored.name)
+                orphan_count += 1
+        missing_count = len(referenced - present)
+    else:
+        missing_count = sum(1 for storage_key in referenced if not (root / storage_key).is_file())
     await db.execute(delete(UploadLease).where(UploadLease.expires_at <= now))
     await db.execute(
         delete(UploadAttempt).where(UploadAttempt.created_at < now - timedelta(minutes=15))
@@ -86,3 +104,11 @@ def unlink_storage_key(storage_key: str) -> None:
     if path.parent == root:
         with contextlib.suppress(OSError):
             path.unlink()
+
+
+async def remove_storage_key(storage_key: str) -> None:
+    """Delete a stored file wherever it is kept; a missing file is not an error."""
+    unlink_storage_key(storage_key)
+    if object_store.s3_enabled():
+        with contextlib.suppress(Exception):
+            await object_store.delete(storage_key)

@@ -484,6 +484,7 @@ class ReadinessResponse(BaseModel):
     status: str = "ready"
     version: str
     database: str = "connected"
+    storage: str = "local"
 
 
 class VersionResponse(BaseModel):

@@ -29,7 +29,8 @@ from app.schemas import (
     TestRunStats,
     TestRunUpdate,
 )
-from app.services.artifact_cleanup import unlink_storage_key
+from app.services.artifact_cleanup import remove_storage_key
+from app.services.artifact_storage import read_stored
 from app.services.bloom_publish import (
     BloomNotConfigured,
     BloomProjectNotIdentifiable,
@@ -551,10 +552,10 @@ async def publish_run_to_bloom(
 
     files = []
     for artifact in artifacts:
-        path = get_upload_root() / artifact.storage_path
-        if not path.exists():
+        content = await read_stored(get_upload_root(), artifact.storage_path)
+        if content is None:
             continue
-        files.append((artifact.original_filename, artifact.content_type, path.read_bytes()))
+        files.append((artifact.original_filename, artifact.content_type, content))
     if not files:
         raise HTTPException(
             status_code=409, detail="This run's report files are no longer on disk."
@@ -631,4 +632,4 @@ async def delete_test_run(
     await db.delete(test_run)
     await db.commit()
     for storage_key in storage_keys:
-        unlink_storage_key(storage_key)
+        await remove_storage_key(storage_key)

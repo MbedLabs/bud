@@ -5,9 +5,14 @@
 ### Added
 
 - Admin company logo on test-run PDF reports: an administrator uploads a company logo in Settings; it renders on the report letterhead (top-left) alongside the EmbedLabs tamper-evidence footer, which is always present. The Settings preview loads through the authenticated client so the admin sees exactly what was stored.
+- S3-compatible object storage: `STORAGE_BACKEND=s3` keeps run artifacts and generated reports in a bucket (AWS S3, MinIO, Hetzner, Ceph) under a per-instance prefix, with the local directory as a mirror that reads fall back to when the bucket does not answer (`STORAGE_LOCAL_MIRROR`, default on). `python -m app.storage migrate --to s3` copies existing files and checks their sizes; cleanup reconciles the bucket; `/api/ready` reports the storage. Local storage stays the default and is unchanged. Adds boto3 to the locked dependencies.
 - Robot Framework runs (bud-runner `run-robot`): HTML artifacts (`text/html`, Robot's log.html and report.html) are accepted. Every artifact download is an attachment sent with `Content-Security-Policy: sandbox` and `X-Content-Type-Options: nosniff`, so user-supplied HTML or SVG never runs in the Bud origin. The Bloom sync event says how many results had no Bloom tc_id and how many skipped results were not sent; a skipped result is no longer reported to Bloom as passed.
 - User groups (Users page, admin): a group has a role, members and product grants (one product or all products). An admin group makes its members administrators. A viewer group shows its members only the products it is granted, across runs, results, reports, artifacts, statistics and products; a run outside them answers 404. A user in no group keeps their own role and sees every product, as before. `/api/auth/me` reports the role groups give.
 - Run notifications: when a run finishes, Bud posts it to every enabled channel under Settings, Notifications: Microsoft Teams (Adaptive Card), Slack (Block Kit), Discord (embed) or plain JSON for any endpoint. The message carries the run, product, station and software under test, the counts and duration, up to five failed tests, the Bud link and the Bloom link or sync failure. A channel sends all runs, failures only, or the first failure after a green run; its URL is stored encrypted and shown as a prefix; an optional secret signs the JSON body (`X-Bud-Signature`). Each delivery is retried three times and recorded, shown as a notify stage on the run timeline; Send test message checks a channel. Routing per product and per station is not in this release.
+
+### Fixed
+
+- Orphan cleanup measured its grace period from a UTC time read as local time, so on a host not running in UTC it was off by the UTC offset.
 
 ## 1.1.0 - 2026-09-16
 
