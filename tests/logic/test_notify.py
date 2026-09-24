@@ -272,3 +272,62 @@ async def test_filters(db_session):
     assert await notify.channel_wants_run(db_session, failures, red2)
     assert await notify.channel_wants_run(db_session, first, red1)
     assert not await notify.channel_wants_run(db_session, first, red2)
+
+
+CONNECTOR_URL = "https://acme.webhook.office.com/webhookb2/abc/IncomingWebhook/def"
+WORKFLOW_URLS = (
+    "https://prod-12.westeurope.logic.azure.com:443/workflows/abc/triggers/manual/paths/invoke",
+    "https://default1234.environment.api.powerplatform.com/powerautomate/automations/direct/x",
+)
+
+
+def test_teams_connector_urls_get_a_message_card():
+    summary = _summary(bloom_sync_error="Bloom returned HTTP 500.")
+    card = notify.render_payload("teams", CONNECTOR_URL, summary)
+    assert card["@type"] == "MessageCard" and card["themeColor"] == "E01E5A"
+    assert card["summary"] == summary.headline
+    section = card["sections"][0]
+    assert {f["name"] for f in section["facts"]} >= {"Product", "Station", "Duration"}
+    assert "test_a" in section["text"] and "Bloom returned HTTP 500." in section["text"]
+    assert [a["targets"][0]["uri"] for a in card["potentialAction"]] == [
+        "https://bud.example.com/runs/7",
+        "https://bloom.example.com/suites/3",
+    ]
+    bare = notify.render_teams_connector(_summary(failed_tests=[], run_url=None, bloom_url=None))
+    assert "text" not in bare["sections"][0] and bare["potentialAction"] == []
+
+
+def test_teams_workflow_urls_get_an_adaptive_card():
+    for url in WORKFLOW_URLS:
+        payload = notify.render_payload("teams", url, _summary())
+        assert payload["attachments"][0]["content"]["type"] == "AdaptiveCard", url
+    assert not notify.is_teams_workflow_url("https://powerplatform.com.attacker.example/x")
+    assert notify.render_payload("slack", CONNECTOR_URL, _summary())["attachments"][0]["blocks"]
+
+
+def test_discord_embed_has_a_timestamp():
+    embed = notify.render_discord(_summary())["embeds"][0]
+    assert embed["timestamp"].endswith("+00:00")
+
+
+@pytest.mark.asyncio
+async def test_teams_delivery_picks_the_card_from_the_url(db_session):
+    connector = await _channel(db_session, "teams", name="connector")
+    connector.url_encrypted = encrypt_integration_secret(CONNECTOR_URL)
+    workflow = await _channel(db_session, "teams", name="workflow")
+    workflow.url_encrypted = encrypt_integration_secret(WORKFLOW_URLS[1])
+    await db_session.commit()
+    _Recorder.statuses = [200, 202]
+
+    assert (await notify.deliver(db_session, connector, _summary(), wait=wait_none())).delivered
+    assert (await notify.deliver(db_session, workflow, _summary(), wait=wait_none())).delivered
+    assert _Recorder.posts[0]["body"]["@type"] == "MessageCard"
+    assert _Recorder.posts[1]["body"]["type"] == "message"
+
+
+@pytest.mark.asyncio
+async def test_a_redirect_is_not_a_delivery(db_session):
+    channel = await _channel(db_session)
+    _Recorder.statuses = [302, 302, 302]
+    delivery = await notify.deliver(db_session, channel, _summary(), wait=wait_none())
+    assert delivery.delivered is False and delivery.status_code == 302

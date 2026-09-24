@@ -13,7 +13,9 @@ import hmac
 import json
 import logging
 from dataclasses import asdict, dataclass, field
+from datetime import datetime, timezone
 from typing import Callable, Optional
+from urllib.parse import urlsplit
 
 import httpx
 from sqlalchemy import select
@@ -212,6 +214,7 @@ def render_discord(summary: RunSummary) -> dict:
         "title": _clip(summary.headline, 250),
         "color": int(_COLOURS[summary.outcome], 16),
         "fields": fields,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
     if summary.run_url:
         embed["url"] = summary.run_url
@@ -219,7 +222,8 @@ def render_discord(summary: RunSummary) -> dict:
 
 
 def render_teams(summary: RunSummary) -> dict:
-    """A Teams Adaptive Card, accepted by Workflows and classic Office 365 webhooks."""
+    """A Teams Adaptive Card in the message envelope that a Power Automate Workflows
+    webhook ("post to a channel when a webhook request is received") expects."""
     body = [
         {
             "type": "TextBlock",
@@ -272,6 +276,53 @@ def render_teams(summary: RunSummary) -> dict:
             {"contentType": "application/vnd.microsoft.card.adaptive", "content": card}
         ],
     }
+
+
+def render_teams_connector(summary: RunSummary) -> dict:
+    """A MessageCard, the format of a classic Teams connector webhook
+    (``*.webhook.office.com``)."""
+    text = []
+    if summary.failed_line:
+        text.append(f"**Failed:** {_clip(summary.failed_line, 1500)}")
+    if summary.bloom_sync_error:
+        text.append(f"**Results not synced to Bloom:** {_clip(summary.bloom_sync_error)}")
+    section = {
+        "activityTitle": summary.headline,
+        "activitySubtitle": f"{summary.product or 'n/a'} on {summary.station or 'n/a'}",
+        "facts": [{"name": label, "value": _clip(value)} for label, value in _facts(summary)],
+    }
+    if text:
+        section["text"] = "\n\n".join(text)
+    actions = [
+        {"@type": "OpenUri", "name": name, "targets": [{"os": "default", "uri": url}]}
+        for name, url in (("Open in Bud", summary.run_url), ("Open in Bloom", summary.bloom_url))
+        if url
+    ]
+    return {
+        "@type": "MessageCard",
+        "@context": "http://schema.org/extensions",
+        "themeColor": _COLOURS[summary.outcome],
+        "summary": summary.headline,
+        "sections": [section],
+        "potentialAction": actions,
+    }
+
+
+TEAMS_WORKFLOW_HOSTS = ("powerplatform.com", "logic.azure.com")
+
+
+def is_teams_workflow_url(url: str) -> bool:
+    """True for a Power Automate Workflows webhook; any other Teams URL is a connector."""
+    host = (urlsplit(url).hostname or "").lower()
+    return any(host == h or host.endswith("." + h) for h in TEAMS_WORKFLOW_HOSTS)
+
+
+def render_payload(fmt: str, url: str, summary: RunSummary) -> dict:
+    """The body for a channel: Teams gets an Adaptive Card for a Workflows URL and a
+    MessageCard for a connector URL; every other format has one renderer."""
+    if fmt == "teams" and not is_teams_workflow_url(url):
+        return render_teams_connector(summary)
+    return RENDERERS[fmt](summary)
 
 
 RENDERERS: dict = {
@@ -378,13 +429,13 @@ async def deliver(
     wait: Optional[Callable] = None,
 ) -> NotificationDelivery:
     """Post the summary to one channel with retries; one delivery row per attempt."""
-    body = json.dumps(RENDERERS[channel.format](summary)).encode("utf-8")
+    url = decrypt_integration_secret(channel.url_encrypted)
+    body = json.dumps(render_payload(channel.format, url, summary)).encode("utf-8")
     headers = {"Content-Type": "application/json", "X-Bud-Event": "run.finished"}
     if channel.secret_encrypted:
         headers["X-Bud-Signature"] = sign(
             decrypt_integration_secret(channel.secret_encrypted), body
         )
-    url = decrypt_integration_secret(channel.url_encrypted)
     last: Optional[NotificationDelivery] = None
     try:
         async for attempt in AsyncRetrying(
@@ -407,7 +458,7 @@ async def deliver(
                     await session.flush()
                     raise DeliveryFailed(last.error) from exc
                 last.status_code = response.status_code
-                if response.status_code >= 400:
+                if not 200 <= response.status_code < 300:
                     last.error = _clip(response.text, 500)
                     await session.flush()
                     raise DeliveryFailed(f"HTTP {response.status_code}")
