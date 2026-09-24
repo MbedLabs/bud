@@ -2,12 +2,14 @@
 File uploads API endpoints.
 """
 
+import logging
 import uuid
 from pathlib import Path
 from typing import Optional, Union
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -19,8 +21,10 @@ from app.db import get_db
 from app.models import Artifact, Runner, TestRun
 from app.models.user import User, UserRole
 from app.schemas import ArtifactResponse
-from app.services.artifact_cleanup import unlink_storage_key
+from app.services import object_store
+from app.services.artifact_cleanup import remove_storage_key
 from app.services.artifact_storage import (
+    persist,
     release_upload,
     reserve_upload,
     store_upload,
@@ -30,6 +34,7 @@ from app.services.artifact_storage import (
 router = APIRouter()
 
 # Resolved absolute upload root — used for path-traversal checks (C3)
+logger = logging.getLogger(__name__)
 _UPLOAD_ROOT: Optional[Path] = None
 
 
@@ -170,6 +175,7 @@ async def upload_file(
     lease_id = lease.id
     try:
         stored = await store_upload(file, resolved_storage, max_bytes=lease.reserved_bytes)
+        await persist(resolved_storage, unique_filename, content_type)
 
         # Store only the relative UUID key. The display name is never a path.
         artifact = Artifact(
@@ -216,6 +222,29 @@ async def download_artifact(
     if storage_path.parent != upload_root:
         raise HTTPException(status_code=400, detail="Invalid artifact path.")
 
+    if object_store.s3_enabled():
+        try:
+            body = await object_store.fetch(artifact.storage_path)
+            name = artifact.original_filename
+            return StreamingResponse(
+                object_store.iter_body(body),
+                media_type=artifact.content_type,
+                headers={
+                    **ARTIFACT_DOWNLOAD_HEADERS,
+                    "Content-Disposition": (
+                        f"attachment; filename=\"{name}\"; filename*=UTF-8''{quote(name)}"
+                    ),
+                },
+            )
+        except Exception as exc:
+            if not (object_store.keeps_local_copy() and storage_path.exists()):
+                raise HTTPException(status_code=503, detail="The file store is unreachable.")
+            logger.warning(
+                "Object storage read failed for %s; serving the local mirror: %s",
+                object_store.object_key(artifact.storage_path),
+                exc,
+            )
+
     if not storage_path.exists():
         raise HTTPException(status_code=404, detail="File not found on disk")
 
@@ -260,4 +289,4 @@ async def delete_artifact(
     storage_key = artifact.storage_path
     await db.delete(artifact)
     await db.commit()
-    unlink_storage_key(storage_key)
+    await remove_storage_key(storage_key)
