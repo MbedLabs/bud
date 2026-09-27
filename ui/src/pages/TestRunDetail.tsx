@@ -24,16 +24,17 @@ import {
 } from '../lib/testRunResultFilters'
 import { formatDateTime } from '../test/date-utils'
 import { safeExternalUrl } from '../lib/externalLink'
-import { ArrowLeft, CheckCircle, XCircle, Clock, AlertCircle, Activity, ChevronDown, ChevronRight, UploadCloud, RefreshCw, Radio, GitBranch, Filter, X, FileDown, Paperclip, FileText, Download, ExternalLink, Bell } from 'lucide-react'
+import { ArrowLeft, CheckCircle, XCircle, Clock, AlertCircle, Activity, ChevronDown, ChevronRight, UploadCloud, RefreshCw, Radio, GitBranch, Filter, X, Paperclip, FileText, Download, ExternalLink, Bell } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import AccessDenied from '../components/AccessDenied'
 import { isAccessDenied } from '../lib/accessDenied'
+import RunStatusBadge from '../components/RunStatusBadge'
+import PdfReportButton from '../components/PdfReportButton'
 
 export default function TestRunDetail() {
   const { id } = useParams<{ id: string }>()
   const runId = parseInt(id || '0')
   const [reportError, setReportError] = useState<string | null>(null)
-  const [reportPending, setReportPending] = useState(false)
   const [systemReportOpen, setSystemReportOpen] = useState(false)
   const [resultsFiltersOpen, setResultsFiltersOpen] = useState(false)
   const [outcomeFilters, setOutcomeFilters] = useState<OutcomeFilters>(EMPTY_OUTCOME_FILTERS)
@@ -112,28 +113,12 @@ export default function TestRunDetail() {
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <button
-            type="button"
-            onClick={async () => {
-              setReportError(null)
-              setReportPending(true)
-              try {
-                const { blob, filename } = await reportsApi.testRun(runId)
-                saveBlob(blob, filename)
-              } catch (error) {
-                setReportError(extractApiErrorMessage(error, 'Could not generate the report'))
-              } finally {
-                setReportPending(false)
-              }
-            }}
-            disabled={reportPending}
+          <PdfReportButton
+            fetchReport={() => reportsApi.testRun(runId)}
             title="Download this run as a PDF report"
-            className="inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-2.5 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <FileDown className="h-4 w-4" />
-            {reportPending ? 'Preparing…' : 'PDF report'}
-          </button>
-          <StatusBadge status={run.status} />
+            onError={setReportError}
+          />
+          <RunStatusBadge status={run.status} large />
         </div>
       </div>
 
@@ -856,22 +841,6 @@ function DetailItem({ label, value }: { label: string; value: string }) {
       <dt className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">{label}</dt>
       <dd className="text-sm text-foreground mt-1 break-words">{value}</dd>
     </div>
-  )
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const config: Record<string, string> = {
-    Pending: 'bg-yellow-500/10 text-yellow-700 dark:text-yellow-400',
-    Running: 'bg-amber-500/10 text-amber-800 dark:text-amber-300',
-    Completed: 'bg-amber-500/10 text-amber-800 dark:text-amber-300',
-    Failed: 'bg-red-500/10 text-red-700 dark:text-red-400',
-    Cancelled: 'bg-muted text-muted-foreground',
-  }
-
-  return (
-    <span className={`px-3 py-1.5 rounded-md text-xs font-semibold ${config[status] || config.Pending}`}>
-      {status}
-    </span>
   )
 }
 

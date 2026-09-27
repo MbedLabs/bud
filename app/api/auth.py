@@ -52,6 +52,7 @@ from app.services.mail_service import (
 )
 from app.services.token_service import (
     TokenValidationError,
+    cancel_pending_email_change,
     claim_token,
     create_user_token,
     find_token,
@@ -445,11 +446,7 @@ async def cancel_email_change(
     )
     if current_user is None:
         raise HTTPException(status_code=404, detail="User not found")
-    current_user.pending_email = None
-    current_user.email_change_status = None
-    current_user.email_change_requested_at = None
-    await invalidate_tokens(db, current_user.id, purpose=UserTokenPurpose.email_change)
-    await db.flush()
+    await cancel_pending_email_change(db, current_user)
     await record_audit_event(
         db,
         "auth.email_change_cancelled",
@@ -506,9 +503,7 @@ async def confirm_email_change(
         select(User).where(User.email == candidate.target_email, User.id != user.id)
     )
     if existing.scalar_one_or_none():
-        user.pending_email = None
-        user.email_change_status = None
-        user.email_change_requested_at = None
+        user.clear_pending_email_change()
         await db.flush()
         raise HTTPException(status_code=400, detail="Email already in use")
 
@@ -550,9 +545,7 @@ async def confirm_email_change(
         )
 
     user.email = candidate.target_email
-    user.pending_email = None
-    user.email_change_status = None
-    user.email_change_requested_at = None
+    user.clear_pending_email_change()
     user.email_verified_at = datetime.utcnow()
     # Confirmed identity change ends every existing session.
     user.session_version += 1

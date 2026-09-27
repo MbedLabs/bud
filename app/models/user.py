@@ -52,3 +52,9 @@ class User(Base):
         default=datetime.utcnow,
         onupdate=datetime.utcnow,
     )
+
+    def clear_pending_email_change(self) -> None:
+        """Forget the pending email change."""
+        self.pending_email = None
+        self.email_change_status = None
+        self.email_change_requested_at = None

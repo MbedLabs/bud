@@ -59,19 +59,18 @@ def create_access_token(
     return encoded_jwt
 
 
-def decode_access_token(token: str) -> Optional[dict]:
-    """
-    Decode a JWT access token.
+def decode_access_token(token: str, verify_exp: bool = True) -> Optional[dict]:
+    """The claims of a JWT signed with the secret key, or None when it is invalid.
 
-    Args:
-        token: JWT token to decode.
-
-    Returns:
-        Decoded token data or None if invalid.
+    With ``verify_exp`` false an expired token still decodes.
     """
     try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[ALGORITHM])
-        return payload
+        return jwt.decode(
+            token,
+            settings.SECRET_KEY,
+            algorithms=[ALGORITHM],
+            options={"verify_exp": verify_exp},
+        )
     except JWTError:
         return None
 

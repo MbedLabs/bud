@@ -14,6 +14,7 @@ from tenacity import (
 
 from app.db import database as db
 from app.models import TestResult, TestRun
+from app.services.bloom_publish import bloom_post
 from app.services.integration_secrets import decrypt_integration_secret
 from app.services.run_events import record_test_run_event
 
@@ -89,15 +90,16 @@ def _left_out(tally: dict) -> str:
     reraise=True,
 )
 async def _post_to_bloom_with_retry(bloom_url: str, bloom_token: str, payload_results: list[dict]):
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        response = await client.post(
-            f"{bloom_url}/api/campaigns/sync-results",
-            json={"results": payload_results},
-            headers={"Authorization": f"Bearer {bloom_token}"},
-        )
-        if response.status_code >= 500:
-            response.raise_for_status()
-        return response
+    response = await bloom_post(
+        bloom_url,
+        bloom_token,
+        "/api/campaigns/sync-results",
+        {"results": payload_results},
+        30.0,
+    )
+    if response.status_code >= 500:
+        response.raise_for_status()
+    return response
 
 
 def _suite_reference(data: dict, synced: int) -> dict | None:
