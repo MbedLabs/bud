@@ -12,7 +12,7 @@ from sqlalchemy import Integer, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.auth import get_current_active_entity
-from app.core.run_access import require_mutating_user, require_run_access
+from app.core.run_access import load_run, require_mutating_user, require_run_access
 from app.core.runner_auth import authenticate_runner_token
 from app.core.runner_keys import mark_used, resolve_key
 from app.db import get_db
@@ -85,10 +85,7 @@ async def upload_results(
         await require_mutating_user(db, _current_entity)
 
     if target_run_id is not None:
-        target_run = await db.get(TestRun, target_run_id)
-        if target_run is None:
-            raise HTTPException(status_code=404, detail="Test run not found")
-        await require_run_access(db, _current_entity, target_run, mutate=True)
+        await load_run(db, _current_entity, target_run_id, mutate=True)
 
     # AUTO-ALIGNMENT: Create a TestRun if results are uploaded without one
     if not target_run_id:
@@ -209,12 +206,7 @@ async def get_results_for_run(
     _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
 ):
     """Get all results for a test run."""
-    # Verify test run exists
-    run_result = await db.execute(select(TestRun).where(TestRun.id == run_id))
-    test_run = run_result.scalar_one_or_none()
-    if test_run is None:
-        raise HTTPException(status_code=404, detail="Test run not found")
-    await require_run_access(db, _current_entity, test_run)
+    await load_run(db, _current_entity, run_id)
 
     result = await db.execute(
         select(

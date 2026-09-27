@@ -6,6 +6,7 @@ import { formatDateTime } from '../test/date-utils'
 import { useDebounced } from '../hooks/useDebounced'
 import { safeExternalUrl } from '../lib/externalLink'
 import { Search, Filter, ChevronLeft, ChevronRight, PlayCircle, Server, X, ExternalLink } from 'lucide-react'
+import RunStatusBadge from '../components/RunStatusBadge'
 
 const EMPTY_TEST_RUNS: TestRun[] = []
 
@@ -283,7 +284,7 @@ export default function TestRuns() {
                     )}
                   </td>
                   <td className="px-5 py-3.5 whitespace-nowrap">
-                    <StatusBadge status={run.status} />
+                    <RunStatusBadge status={run.status} />
                   </td>
                   <td className="px-5 py-3.5 whitespace-nowrap text-xs">
                     <span className="text-emerald-600 dark:text-emerald-400">{run.passed_tests} passed</span>
@@ -349,22 +350,6 @@ export default function TestRuns() {
         )}
       </div>
     </div>
-  )
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const config: Record<string, string> = {
-    Pending: 'bg-yellow-500/10 text-yellow-700 dark:text-yellow-400',
-    Running: 'bg-amber-500/10 text-amber-800 dark:text-amber-300',
-    Completed: 'bg-amber-500/10 text-amber-800 dark:text-amber-300',
-    Failed: 'bg-red-500/10 text-red-700 dark:text-red-400',
-    Cancelled: 'bg-muted text-muted-foreground',
-  }
-
-  return (
-    <span className={`px-2 py-0.5 rounded-md text-[11px] font-semibold ${config[status] || config.Pending}`}>
-      {status}
-    </span>
   )
 }
 

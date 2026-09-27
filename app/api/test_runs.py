@@ -14,7 +14,7 @@ from sqlalchemy.orm import selectinload
 from app.api.auth import get_current_active_entity, require_role
 from app.api.uploads import get_upload_root
 from app.core.access import readable_products, scope_condition
-from app.core.run_access import require_mutating_user, require_run_access
+from app.core.run_access import load_run, require_mutating_user
 from app.db import get_db
 from app.models import Artifact, Runner, TestRun, TestRunEvent
 from app.models.user import User, UserRole
@@ -115,6 +115,13 @@ async def create_test_run(
     return TestRunResponse.from_orm_with_runner(test_run)
 
 
+async def _run_rows(db: AsyncSession, entity, run_id: int, model, *order_by) -> list:
+    """The run's rows of the model in the order given, after the run access check."""
+    await load_run(db, entity, run_id)
+    result = await db.execute(select(model).where(model.test_run_id == run_id).order_by(*order_by))
+    return list(result.scalars().all())
+
+
 @router.get("/{run_id}/events", response_model=list[TestRunEventResponse])
 async def get_test_run_events(
     run_id: int,
@@ -124,18 +131,15 @@ async def get_test_run_events(
     """
     Get system-reported execution and integration events for a test run.
     """
-    run_result = await db.execute(select(TestRun).where(TestRun.id == run_id))
-    test_run = run_result.scalar_one_or_none()
-    if test_run is None:
-        raise HTTPException(status_code=404, detail="Test run not found")
-    await require_run_access(db, _current_entity, test_run)
-
-    result = await db.execute(
-        select(TestRunEvent)
-        .where(TestRunEvent.test_run_id == run_id)
-        .order_by(TestRunEvent.sequence, TestRunEvent.created_at, TestRunEvent.id)
+    return await _run_rows(
+        db,
+        _current_entity,
+        run_id,
+        TestRunEvent,
+        TestRunEvent.sequence,
+        TestRunEvent.created_at,
+        TestRunEvent.id,
     )
-    return result.scalars().all()
 
 
 @router.get("/{run_id}/artifacts", response_model=list[ArtifactResponse])
@@ -145,18 +149,7 @@ async def get_test_run_artifacts(
     _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
 ):
     """List the artifacts uploaded against a test run."""
-    run_result = await db.execute(select(TestRun).where(TestRun.id == run_id))
-    test_run = run_result.scalar_one_or_none()
-    if test_run is None:
-        raise HTTPException(status_code=404, detail="Test run not found")
-    await require_run_access(db, _current_entity, test_run)
-
-    result = await db.execute(
-        select(Artifact)
-        .where(Artifact.test_run_id == run_id)
-        .order_by(Artifact.created_at, Artifact.id)
-    )
-    return result.scalars().all()
+    return await _run_rows(db, _current_entity, run_id, Artifact, Artifact.created_at, Artifact.id)
 
 
 @router.get("", response_model=TestRunList)
@@ -430,14 +423,7 @@ async def get_test_run(
     """
     Get a test run by ID.
     """
-    result = await db.execute(
-        select(TestRun).options(selectinload(TestRun.runner)).where(TestRun.id == run_id)
-    )
-    test_run = result.scalar_one_or_none()
-
-    if not test_run:
-        raise HTTPException(status_code=404, detail="Test run not found")
-    await require_run_access(db, _current_entity, test_run)
+    test_run = await load_run(db, _current_entity, run_id, options=(selectinload(TestRun.runner),))
 
     return TestRunResponse.from_orm_with_runner(test_run)
 
@@ -453,12 +439,7 @@ async def update_test_run(
     """
     Update a test run with results or status.
     """
-    result = await db.execute(select(TestRun).where(TestRun.id == run_id))
-    test_run = result.scalar_one_or_none()
-
-    if not test_run:
-        raise HTTPException(status_code=404, detail="Test run not found")
-    await require_run_access(db, _current_entity, test_run, mutate=True)
+    test_run = await load_run(db, _current_entity, run_id, mutate=True)
 
     # Update fields
     if data.status is not None:
@@ -518,10 +499,7 @@ async def publish_run_to_bloom(
         raise HTTPException(status_code=403, detail="A Test Station cannot publish to Bloom")
     await require_mutating_user(db, current_user)
 
-    test_run = (await db.execute(select(TestRun).where(TestRun.id == run_id))).scalar_one_or_none()
-    if not test_run:
-        raise HTTPException(status_code=404, detail="Test run not found")
-    await require_run_access(db, current_user, test_run, mutate=True)
+    test_run = await load_run(db, current_user, run_id, mutate=True)
 
     if test_run.status != "Completed":
         raise HTTPException(

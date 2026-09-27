@@ -8,6 +8,7 @@ import {
 import { useAuth } from '../contexts/AuthContext'
 import { APP_VERSION } from '../api/client'
 import PoweredByEmbedLabs from './PoweredByEmbedLabs'
+import { useDarkMode } from '../hooks/useDarkMode'
 
 const getBloomUrl = (): string | null => {
   const runtimeUrl = window.runtimeConfig?.BLOOM_APP_URL
@@ -28,26 +29,6 @@ const navigation = [
   { name: 'Custom Run', href: '/custom-run', icon: ListChecks },
   { name: 'Test Stations', href: '/test-stations', icon: Server },
 ]
-
-function useDarkMode() {
-  const [dark, setDark] = useState(() => {
-    const stored = localStorage.getItem('bud-theme')
-    if (stored) return stored === 'dark'
-    return window.matchMedia('(prefers-color-scheme: dark)').matches
-  })
-
-  useEffect(() => {
-    const root = document.documentElement
-    if (dark) {
-      root.classList.add('dark')
-    } else {
-      root.classList.remove('dark')
-    }
-    localStorage.setItem('bud-theme', dark ? 'dark' : 'light')
-  }, [dark])
-
-  return [dark, setDark] as const
-}
 
 export default function Layout() {
   const location = useLocation()

@@ -32,7 +32,11 @@ from app.services.mail_service import (
     send_email_change_email,
     send_invite_email,
 )
-from app.services.token_service import create_user_token, invalidate_tokens
+from app.services.token_service import (
+    cancel_pending_email_change,
+    create_user_token,
+    invalidate_tokens,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -339,11 +343,7 @@ async def reject_email_change(
     user = await _get_user_or_404(db, user_id)
     if not user.pending_email:
         raise HTTPException(status_code=400, detail="No pending email change")
-    user.pending_email = None
-    user.email_change_status = None
-    user.email_change_requested_at = None
-    await invalidate_tokens(db, user.id, purpose=UserTokenPurpose.email_change)
-    await db.flush()
+    await cancel_pending_email_change(db, user)
     await record_audit_event(
         db,
         "user.email_change_rejected",

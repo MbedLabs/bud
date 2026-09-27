@@ -5,15 +5,14 @@ from __future__ import annotations
 from typing import Optional, Union
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.auth import get_current_active_entity
 from app.api.company_logo import load_report_logo
 from app.api.test_runs import _scope_conditions
-from app.core.run_access import require_run_access
+from app.core.run_access import load_run
 from app.db import get_db
 from app.models import Runner, TestRun
 from app.models.user import User
@@ -90,16 +89,12 @@ async def test_run_report(
     current_entity: Union[User, Runner] = Depends(get_current_active_entity),
 ):
     """A single run: its identity, its outcome pie chart, and every result it recorded."""
-    run = (
-        await db.execute(
-            select(TestRun)
-            .where(TestRun.id == run_id)
-            .options(selectinload(TestRun.runner), selectinload(TestRun.product))
-        )
-    ).scalar_one_or_none()
-    if run is None:
-        raise HTTPException(status_code=404, detail="Test run not found")
-    await require_run_access(db, current_entity, run)
+    run = await load_run(
+        db,
+        current_entity,
+        run_id,
+        options=(selectinload(TestRun.runner), selectinload(TestRun.product)),
+    )
 
     await record_audit_event(
         db,

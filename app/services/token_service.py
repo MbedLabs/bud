@@ -151,3 +151,10 @@ async def invalidate_tokens(db: AsyncSession, user_id: int, *, purpose: UserToke
 async def invalidate_all_refresh_tokens(db: AsyncSession, user_id: int) -> None:
     """Revoke every unused refresh token for a user (all active sessions)."""
     await invalidate_tokens(db, user_id, purpose=UserTokenPurpose.refresh)
+
+
+async def cancel_pending_email_change(db: AsyncSession, user) -> None:
+    """Forget the user's pending email change and burn its confirmation tokens."""
+    user.clear_pending_email_change()
+    await invalidate_tokens(db, user.id, purpose=UserTokenPurpose.email_change)
+    await db.flush()
