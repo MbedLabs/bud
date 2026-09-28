@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.auth import get_current_user, require_role
 from app.core.config import settings
 from app.core.observability import request_id_var
+from app.core.timestamps import second_utc
 from app.db.database import get_db
 from app.models.access_request import AccessRequest
 from app.models.user import User, UserRole
@@ -149,7 +150,7 @@ async def request_access(
                 requester_email=current_user.email,
                 resource=resource,
                 project="",
-                requested_at=row.created_at.strftime("%Y-%m-%d %H:%M UTC"),
+                requested_at=second_utc(row.created_at),
                 request_id=request_id_var.get(),
                 review_link=_review_link(),
             )

@@ -135,6 +135,10 @@ class RunnerApiKeyResponse(BaseModel):
     created_at: datetime
     last_used_at: Optional[datetime] = None
 
+    @field_serializer("created_at", "last_used_at")
+    def serialize_dt(self, dt: Optional[datetime], _info):
+        return f"{dt.isoformat()}Z" if dt else None
+
     class Config:
         from_attributes = True
 
@@ -545,6 +549,10 @@ class NotificationChannelResponse(BaseModel):
     enabled: bool
     has_secret: bool
     created_at: datetime
+
+    @field_serializer("created_at")
+    def serialize_dt(self, dt: datetime, _info):
+        return f"{dt.isoformat()}Z"
 
 
 class NotificationChannelCreate(BaseModel):
