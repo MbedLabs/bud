@@ -8,9 +8,11 @@ import typing
 
 from pydantic import BaseModel
 
+import app.api
 import app.schemas
 
-SUFFIXES = ("Response", "Summary", "Item", "Entry")
+PACKAGES = (app.schemas, app.api)
+SUFFIXES = ("Response", "Summary", "Item", "Entry", "Created")
 
 
 def _is_datetime(annotation) -> bool:
@@ -21,16 +23,23 @@ def _is_datetime(annotation) -> bool:
 
 def _response_models():
     seen = {}
-    for module_info in pkgutil.iter_modules(app.schemas.__path__):
-        module = importlib.import_module(f"app.schemas.{module_info.name}")
-        for name, cls in inspect.getmembers(module, inspect.isclass):
-            if issubclass(cls, BaseModel) and name.endswith(SUFFIXES):
-                seen[f"{cls.__module__}.{name}"] = cls
+    for package in PACKAGES:
+        for module_info in pkgutil.iter_modules(package.__path__):
+            module = importlib.import_module(f"{package.__name__}.{module_info.name}")
+            for name, cls in inspect.getmembers(module, inspect.isclass):
+                if (
+                    issubclass(cls, BaseModel)
+                    and cls.__module__ == module.__name__
+                    and name.endswith(SUFFIXES)
+                ):
+                    seen[f"{cls.__module__}.{name}"] = cls
     return seen
 
 
 def test_the_scan_finds_the_response_models():
-    assert len(_response_models()) > 20
+    models = _response_models()
+    assert len(models) > 20
+    assert any(name.startswith("app.api.") for name in models)
 
 
 def test_every_response_timestamp_has_the_utc_serializer():
