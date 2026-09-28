@@ -6,7 +6,7 @@
 #
 aiofiles==25.1.0
     # via bud-app-backend (pyproject.toml)
-alembic==1.19.2
+alembic==1.20.0
     # via bud-app-backend (pyproject.toml)
 annotated-doc==0.0.5
     # via fastapi
@@ -55,7 +55,7 @@ email-validator==2.3.0
     # via pydantic
 fastapi==0.141.1
     # via bud-app-backend (pyproject.toml)
-greenlet==3.5.5
+greenlet==3.5.6
     # via
     #   bud-app-backend (pyproject.toml)
     #   sqlalchemy
@@ -131,7 +131,7 @@ six==1.17.0
     #   python-dateutil
 slowapi==0.1.10
     # via bud-app-backend (pyproject.toml)
-sqlalchemy==2.0.52
+sqlalchemy==2.0.54
     # via
     #   alembic
     #   bud-app-backend (pyproject.toml)
