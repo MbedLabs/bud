@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
-import { isAxiosError } from 'axios'
 import { useQueryClient } from '@tanstack/react-query'
 import { authApi, User } from '../api/client'
 import {
@@ -20,10 +19,6 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
-
-function endsSession(error: unknown): boolean {
-  return isAxiosError(error) && (error.response?.status === 401 || error.response?.status === 403)
-}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient()
@@ -59,11 +54,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setAuthToken(session.access_token)
         applyUser(session.user)
       }
-    } catch (error) {
-      if (endsSession(error)) {
-        clearAuthToken()
-        applyUser(null)
-      }
+    } catch {
+      clearAuthToken()
+      applyUser(null)
     } finally {
       setIsLoading(false)
     }

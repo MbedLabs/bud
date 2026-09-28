@@ -105,15 +105,13 @@ describe('query cache and the signed-in user', () => {
     expect(client.getQueryData(['cached', 1])).toBeUndefined()
   })
 
-  it('is kept, and the user signed in, when the session check fails for another reason', async () => {
+  it('is emptied and the login page loaded when the session check fails', async () => {
     const client = new QueryClient()
     await signedIn(client)
     vi.mocked(authApi.getMe).mockRejectedValueOnce(new Error('offline'))
     fireEvent.click(screen.getByText('Check session'))
-    await waitFor(() => expect(authApi.getMe).toHaveBeenCalled())
-    expect(location.href).toBe('')
-    expect(screen.getByText('reader@example.com')).toBeInTheDocument()
-    expect(client.getQueryData(['cached', 1])).toEqual([{ id: 1 }])
+    await waitFor(() => expect(location.href).toBe('/login'))
+    expect(client.getQueryData(['cached', 1])).toBeUndefined()
   })
 
   it('is kept when the session check confirms the same user', async () => {
@@ -165,7 +163,7 @@ describe('query cache and the signed-in user', () => {
     await waitFor(() => expect(location.href).toBe('/login'))
   })
 
-  it('keeps a stored token when the first session check cannot reach the server', async () => {
+  it('drops a stored token, without a reload, when the first session check fails', async () => {
     setAuthToken('stored-token')
     vi.mocked(authApi.getMe).mockRejectedValueOnce(new Error('offline'))
     render(
@@ -177,7 +175,7 @@ describe('query cache and the signed-in user', () => {
     )
     await waitFor(() => expect(authApi.getMe).toHaveBeenCalled())
     expect(await screen.findByText('Signed out')).toBeInTheDocument()
-    expect(getAuthToken()).toBe('stored-token')
+    expect(getAuthToken()).toBeNull()
     expect(location.href).toBe('')
   })
 
