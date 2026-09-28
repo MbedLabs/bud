@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Suspense } from 'react'
-import { Outlet, Link, useLocation, useNavigate } from 'react-router'
+import { Outlet, Link, useLocation } from 'react-router'
 import {
   LayoutDashboard, ListChecks, PlayCircle, Server, Settings, Sun, Moon,
   LogOut, ChevronDown, ChevronLeft, ChevronRight, Users, ExternalLink, ScrollText,
@@ -32,7 +32,6 @@ const navigation = [
 
 export default function Layout() {
   const location = useLocation()
-  const navigate = useNavigate()
   const { user, logout } = useAuth()
   const [dark, setDark] = useDarkMode()
   const [userMenuOpen, setUserMenuOpen] = useState(false)
@@ -65,9 +64,12 @@ export default function Layout() {
     ? 'bg-red-500/10 text-red-400'
     : 'bg-green-500/10 text-green-400'
 
+  const [signingOut, setSigningOut] = useState(false)
+
   const handleLogout = () => {
-    logout()
-    navigate('/login')
+    if (signingOut) return
+    setSigningOut(true)
+    logout().catch(() => setSigningOut(false))
   }
 
   const userInitials = user?.full_name
@@ -262,10 +264,11 @@ export default function Layout() {
                     <div className="py-1">
                       <button
                         onClick={handleLogout}
+                        disabled={signingOut}
                         className="w-full flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
                       >
                         <LogOut className="h-4 w-4" />
-                        Sign out
+                        {signingOut ? 'Signing out...' : 'Sign out'}
                       </button>
                     </div>
                   </div>
