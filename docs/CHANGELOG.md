@@ -18,7 +18,7 @@
 
 ### Fixed
 
-- Signing out, and a session the server has ended, now reload the page, and a tab reloads when it next renews its session and finds it belongs to another user signed in from another tab. Nothing cached for the previous user stays in memory, and signing in empties the cache as well. A session check that fails for any other reason (the server unreachable or answering with an error) no longer signs the user out. Before, the next user in the same tab could be shown data cached for the previous one for up to five minutes.
+- Signing out, and a session check that fails while a user is signed in, now reload the page, and a tab reloads when it next renews its session and finds it belongs to another user signed in from another tab. Nothing cached for the previous user stays in memory, and signing in empties the cache as well. Before, the next user in the same tab could be shown data cached for the previous one for up to five minutes.
 - A database error while committing a request, such as a constraint violation, is answered with 409 or 500 and the request id; the commit now runs before the response is built instead of after it had started.
 - Orphan cleanup measured its grace period from a UTC time read as local time, so on a host not running in UTC it was off by the UTC offset.
 - User and runner API key timestamps in API responses carry the UTC marker (`Z`); without it the Users page showed the time of an email change request shifted by the viewer's UTC offset.
