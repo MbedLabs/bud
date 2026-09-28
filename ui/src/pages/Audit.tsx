@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { auditApi, type AuditFilters } from '../api/client'
+import { formatDateTime } from '../test/date-utils'
 
 const PAGE_SIZE = 50
 
@@ -112,7 +113,7 @@ export default function AuditPage() {
             {(data?.items ?? []).map((event) => (
               <tr key={event.id} className="border-t border-border align-top">
                 <td className="px-4 py-2 text-muted-foreground whitespace-nowrap">
-                  {event.occurred_at.replace('T', ' ').slice(0, 19)}
+                  {formatDateTime(event.occurred_at)}
                 </td>
                 <td className="px-4 py-2 text-foreground">
                   {event.actor_name ?? (event.actor_user_id != null ? `User ${event.actor_user_id}` : event.actor_type)}

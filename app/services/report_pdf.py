@@ -30,6 +30,8 @@ from reportlab.platypus import (
     TableStyle,
 )
 
+from app.core.timestamps import second_utc
+
 ASSETS = Path(__file__).resolve().parent.parent / "assets"
 BUD_LOGO = ASSETS / "bud-logo.png"
 # Optional: drop an EmbedLabs logo here and the footer picks it up automatically.
@@ -401,7 +403,7 @@ def _header(request: ReportRequest, styles: dict[str, ParagraphStyle], company_l
         Paragraph(f"<b>{request.title}</b>", styles["title"]),
         Paragraph(request.subtitle, styles["subtitle"]),
         Paragraph(
-            f"Generated {generated.strftime('%Y-%m-%d %H:%M')} UTC"
+            f"Generated {second_utc(generated)}"
             + (f" &middot; Bud {request.app_version}" if request.app_version else ""),
             styles["subtitle"],
         ),
@@ -485,11 +487,11 @@ def _run_facts(run: RunDetail, styles: dict[str, ParagraphStyle]) -> Table:
         ["Product", value(run.product)],
         [
             "Started",
-            value(run.started_at.strftime("%Y-%m-%d %H:%M UTC") if run.started_at else None),
+            value(second_utc(run.started_at) or None),
         ],
         [
             "Completed",
-            value(run.completed_at.strftime("%Y-%m-%d %H:%M UTC") if run.completed_at else None),
+            value(second_utc(run.completed_at) or None),
         ],
         [
             "Duration",

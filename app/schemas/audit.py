@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Any, List, Optional
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_serializer
 
 
 class AuditEventResponse(BaseModel):
@@ -25,6 +25,10 @@ class AuditEventResponse(BaseModel):
     user_agent: Optional[str] = None
     outcome: str
     details: Optional[dict[str, Any]] = None
+
+    @field_serializer("occurred_at")
+    def serialize_dt(self, dt: Optional[datetime], _info):
+        return f"{dt.isoformat()}Z" if dt else None
 
 
 class AuditEventPage(BaseModel):
