@@ -10,6 +10,8 @@
  * getting it wrong either logs everyone out on reload or flashes protected
  * content at someone who is not signed in.
  */
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { AxiosError } from 'axios'
 import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -30,7 +32,7 @@ vi.mock('../api/client', async (importOriginal) => {
 
 const { AuthProvider, useAuth } = await import('../contexts/AuthContext')
 const ProtectedRoute = (await import('../components/ProtectedRoute')).default
-const { getAuthToken, setAuthToken } = await import('../lib/tokenStorage')
+const { getAuthToken, setAuthToken, setSessionUserId } = await import('../lib/tokenStorage')
 
 /** Shows which of the three states the provider settled on. */
 function Probe() {
@@ -52,24 +54,43 @@ function state(): string {
   return screen.getByTestId('state').textContent ?? ''
 }
 
+const originalLocation = window.location
+
 beforeEach(() => {
   vi.clearAllMocks()
   sessionStorage.clear()
+  setSessionUserId(null)
+  Object.defineProperty(window, 'location', {
+    configurable: true,
+    writable: true,
+    value: {
+      pathname: '/',
+      href: '',
+      replace(url: string) {
+        this.href = url
+      },
+    },
+  })
   authApi.getMe.mockResolvedValue(user)
   authApi.refresh.mockResolvedValue({ access_token: 'from-cookie', token_type: 'bearer', user })
   authApi.login.mockResolvedValue({ access_token: 'from-login', token_type: 'bearer', user })
   authApi.logout.mockResolvedValue(undefined)
 })
 
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  Object.defineProperty(window, 'location', { configurable: true, writable: true, value: originalLocation })
+})
 
 describe('restoring a session on load', () => {
   it('uses the stored token and asks who it belongs to', async () => {
     setAuthToken('stored-token')
     render(
-      <AuthProvider>
-        <Probe />
-      </AuthProvider>,
+      <QueryClientProvider client={new QueryClient()}>
+        <AuthProvider>
+          <Probe />
+        </AuthProvider>
+      </QueryClientProvider>,
     )
 
     await waitFor(() => expect(state()).toBe(`signed in as ${user.email}`))
@@ -80,9 +101,11 @@ describe('restoring a session on load', () => {
 
   it('falls back to the refresh cookie when the tab has no token', async () => {
     render(
-      <AuthProvider>
-        <Probe />
-      </AuthProvider>,
+      <QueryClientProvider client={new QueryClient()}>
+        <AuthProvider>
+          <Probe />
+        </AuthProvider>
+      </QueryClientProvider>,
     )
 
     await waitFor(() => expect(state()).toBe(`signed in as ${user.email}`))
@@ -94,9 +117,11 @@ describe('restoring a session on load', () => {
   it('settles on signed out when there is neither', async () => {
     authApi.refresh.mockRejectedValue(new Error('no cookie'))
     render(
-      <AuthProvider>
-        <Probe />
-      </AuthProvider>,
+      <QueryClientProvider client={new QueryClient()}>
+        <AuthProvider>
+          <Probe />
+        </AuthProvider>
+      </QueryClientProvider>,
     )
 
     await waitFor(() => expect(state()).toBe('signed out'))
@@ -105,11 +130,13 @@ describe('restoring a session on load', () => {
 
   it('discards a token the server no longer recognises', async () => {
     setAuthToken('revoked-token')
-    authApi.getMe.mockRejectedValue(new Error('401'))
+    authApi.getMe.mockRejectedValue(Object.assign(new AxiosError('Unauthorized'), { response: { status: 401 } }))
     render(
-      <AuthProvider>
-        <Probe />
-      </AuthProvider>,
+      <QueryClientProvider client={new QueryClient()}>
+        <AuthProvider>
+          <Probe />
+        </AuthProvider>
+      </QueryClientProvider>,
     )
 
     await waitFor(() => expect(state()).toBe('signed out'))
@@ -122,9 +149,11 @@ describe('signing in and out', () => {
   it('keeps the token the login returned', async () => {
     authApi.refresh.mockRejectedValue(new Error('no cookie'))
     render(
-      <AuthProvider>
-        <Probe />
-      </AuthProvider>,
+      <QueryClientProvider client={new QueryClient()}>
+        <AuthProvider>
+          <Probe />
+        </AuthProvider>
+      </QueryClientProvider>,
     )
     await waitFor(() => expect(state()).toBe('signed out'))
 
@@ -138,9 +167,11 @@ describe('signing in and out', () => {
     setAuthToken('stored-token')
     authApi.logout.mockRejectedValue(new Error('network down'))
     render(
-      <AuthProvider>
-        <Probe />
-      </AuthProvider>,
+      <QueryClientProvider client={new QueryClient()}>
+        <AuthProvider>
+          <Probe />
+        </AuthProvider>
+      </QueryClientProvider>,
     )
     await waitFor(() => expect(state()).toBe(`signed in as ${user.email}`))
 
@@ -154,9 +185,11 @@ describe('signing in and out', () => {
   it('revokes the refresh token server-side on a normal sign out', async () => {
     setAuthToken('stored-token')
     render(
-      <AuthProvider>
-        <Probe />
-      </AuthProvider>,
+      <QueryClientProvider client={new QueryClient()}>
+        <AuthProvider>
+          <Probe />
+        </AuthProvider>
+      </QueryClientProvider>,
     )
     await waitFor(() => expect(state()).toBe(`signed in as ${user.email}`))
 
@@ -170,21 +203,23 @@ describe('signing in and out', () => {
 describe('the protected-route guard', () => {
   function renderGuarded() {
     return render(
-      <AuthProvider>
-        <MemoryRouter initialEntries={['/']}>
-          <Routes>
-            <Route
-              path="/"
-              element={
-                <ProtectedRoute>
-                  <p>the dashboard</p>
-                </ProtectedRoute>
-              }
-            />
-            <Route path="/login" element={<p>the login screen</p>} />
-          </Routes>
-        </MemoryRouter>
-      </AuthProvider>,
+      <QueryClientProvider client={new QueryClient()}>
+        <AuthProvider>
+          <MemoryRouter initialEntries={['/']}>
+            <Routes>
+              <Route
+                path="/"
+                element={
+                  <ProtectedRoute>
+                    <p>the dashboard</p>
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="/login" element={<p>the login screen</p>} />
+            </Routes>
+          </MemoryRouter>
+        </AuthProvider>
+      </QueryClientProvider>,
     )
   }
 

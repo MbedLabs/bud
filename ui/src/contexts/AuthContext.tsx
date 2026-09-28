@@ -1,6 +1,14 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
+import { isAxiosError } from 'axios'
+import { useQueryClient } from '@tanstack/react-query'
 import { authApi, User } from '../api/client'
-import { clearAuthToken, getAuthToken, setAuthToken } from '../lib/tokenStorage'
+import {
+  clearAuthToken,
+  getAuthToken,
+  getSessionUserId,
+  setAuthToken,
+  setSessionUserId,
+} from '../lib/tokenStorage'
 
 interface AuthContextType {
   user: User | null
@@ -13,52 +21,75 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
+function endsSession(error: unknown): boolean {
+  return isAxiosError(error) && (error.response?.status === 401 || error.response?.status === 403)
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const queryClient = useQueryClient()
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
+  const applyUser = useCallback(
+    (next: User | null) => {
+      const previous = getSessionUserId()
+      if (previous !== null && previous !== (next?.id ?? null)) {
+        clearAuthToken()
+        queryClient.clear()
+        setSessionUserId(null)
+        setUser(null)
+        window.location.replace('/login')
+        return
+      }
+      if (previous === null && next !== null) {
+        queryClient.clear()
+      }
+      setSessionUserId(next?.id ?? null)
+      setUser(next)
+    },
+    [queryClient],
+  )
+
   const loadUser = useCallback(async () => {
-    const token = getAuthToken()
-    if (!token) {
-      try {
+    try {
+      if (getAuthToken()) {
+        applyUser(await authApi.getMe())
+      } else {
         const session = await authApi.refresh()
         setAuthToken(session.access_token)
-        setUser(session.user)
-      } catch {
-        clearAuthToken()
-        setUser(null)
-      } finally {
-        setIsLoading(false)
+        applyUser(session.user)
       }
-      return
-    }
-    try {
-      const userData = await authApi.getMe()
-      setUser(userData)
-    } catch {
-      clearAuthToken()
-      setUser(null)
+    } catch (error) {
+      if (endsSession(error)) {
+        clearAuthToken()
+        applyUser(null)
+      }
     } finally {
       setIsLoading(false)
     }
-  }, [])
+  }, [applyUser])
+
+  const loadStarted = useRef(false)
 
   useEffect(() => {
+    if (loadStarted.current) return
+    loadStarted.current = true
     loadUser()
   }, [loadUser])
 
   const login = async (email: string, password: string) => {
     const response = await authApi.login(email, password)
+    setSessionUserId(null)
     setAuthToken(response.access_token)
-    setUser(response.user)
+    applyUser(response.user)
   }
 
   const logout = async () => {
     try {
-      await authApi.logout() // revoke the refresh token server-side + clear the cookie
+      await authApi.logout()
     } finally {
       clearAuthToken()
-      setUser(null)
+      applyUser(null)
     }
   }
 

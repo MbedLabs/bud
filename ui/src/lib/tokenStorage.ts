@@ -19,3 +19,13 @@ export function setAuthToken(token: string): void {
 export function clearAuthToken(): void {
   getSessionStorage()?.removeItem(TOKEN_KEY)
 }
+
+let sessionUserId: number | null = null
+
+export function getSessionUserId(): number | null {
+  return sessionUserId
+}
+
+export function setSessionUserId(id: number | null): void {
+  sessionUserId = id
+}
