@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_serializer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -53,6 +53,10 @@ class AccessRequestResponse(BaseModel):
     requester_email: Optional[str] = None
     already_requested: bool = False
     mail_sent: Optional[bool] = None
+
+    @field_serializer("created_at", "decided_at")
+    def serialize_dt(self, dt: Optional[datetime], _info):
+        return f"{dt.isoformat()}Z" if dt else None
 
 
 class AccessDecision(BaseModel):
