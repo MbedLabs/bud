@@ -2,7 +2,7 @@
 
 from app.models.access_request import AccessRequest
 from app.models.audit import AuditEvent
-from app.models.groups import Group, GroupMembership, GroupProductGrant
+from app.models.groups import Group, GroupMembership
 from app.models.models import (
     Artifact,
     CompanyLogo,
@@ -27,7 +27,6 @@ __all__ = [
     "Product",
     "Group",
     "GroupMembership",
-    "GroupProductGrant",
     "CompanyLogo",
     "NotificationChannel",
     "NotificationDelivery",

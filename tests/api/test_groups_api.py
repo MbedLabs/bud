@@ -1,7 +1,7 @@
-"""Groups over HTTP: the admin API, the role an admin group gives, and product scoping.
+"""Groups over HTTP: the admin API, the role a group gives, and that groups hide nothing.
 
-A viewer in no group reads every product exactly as before; a viewer in groups reads
-only the products those groups grant; a member of an admin group is an administrator.
+A group carries the Developer or Viewer role and never Administrator; a member holds the
+higher of their own role and their groups' roles; every user reads every product.
 """
 
 from datetime import datetime
@@ -13,6 +13,16 @@ from app.main import app
 from app.models import Artifact, Product, Runner
 from app.models import TestRun as RunModel
 from app.models.user import User, UserRole
+
+ADMIN = User(
+    id=1,
+    email="tester@example.com",
+    full_name="Tester",
+    hashed_password="x",
+    role=UserRole.admin,
+    is_active=True,
+    session_version=1,
+)
 
 
 async def _seed(db_session):
@@ -72,10 +82,11 @@ def _run_names(client):
 
 @pytest.mark.asyncio
 async def test_group_admin_api(client, db_session):
-    first, _, viewer, _, _ = await _seed(db_session)
+    _, _, viewer, _, _ = await _seed(db_session)
 
     created = client.post("/api/groups", json={"name": "Lab", "role": "viewer"})
     assert created.status_code == 201, created.text
+    assert "grants" not in created.json()
     group_id = created.json()["id"]
     assert client.post("/api/groups", json={"name": "Lab"}).status_code == 400
 
@@ -90,35 +101,20 @@ async def test_group_admin_api(client, db_session):
     )
     assert client.post(f"/api/groups/{group_id}/members", json={"user_id": 999}).status_code == 404
 
-    granted = client.post(f"/api/groups/{group_id}/grants", json={"product_id": first.id})
-    assert granted.status_code == 201
-    assert granted.json()["grants"][0]["product_name"] == "Gateway"
-    assert (
-        client.post(f"/api/groups/{group_id}/grants", json={"product_id": first.id}).status_code
-        == 400
-    )
-    assert (
-        client.post(f"/api/groups/{group_id}/grants", json={"product_id": 999}).status_code == 404
-    )
-    everything = client.post(f"/api/groups/{group_id}/grants", json={})
-    assert {g["product_id"] for g in everything.json()["grants"]} == {first.id, None}
-    assert client.post(f"/api/groups/{group_id}/grants", json={}).status_code == 400
-
-    grant_id = everything.json()["grants"][0]["id"]
-    assert len(client.delete(f"/api/groups/{group_id}/grants/{grant_id}").json()["grants"]) == 1
-    assert client.delete(f"/api/groups/{group_id}/grants/9999").status_code == 404
-
     renamed = client.patch(
-        f"/api/groups/{group_id}", json={"name": "Lab A", "role": "admin", "description": "Bench"}
+        f"/api/groups/{group_id}",
+        json={"name": "Lab A", "role": "developer", "description": "Bench"},
     )
     assert (renamed.json()["name"], renamed.json()["role"], renamed.json()["description"]) == (
         "Lab A",
-        "admin",
+        "developer",
         "Bench",
     )
     client.post("/api/groups", json={"name": "Other"})
     assert client.patch(f"/api/groups/{group_id}", json={"name": "Other"}).status_code == 400
     assert [g["name"] for g in client.get("/api/groups").json()] == ["Lab A", "Other"]
+
+    assert client.post(f"/api/groups/{group_id}/grants", json={}).status_code in {404, 405}
 
     assert client.delete(f"/api/groups/{group_id}/members/{viewer.id}").json()["members"] == []
     assert client.delete(f"/api/groups/{group_id}/members/{viewer.id}").status_code == 404
@@ -127,89 +123,62 @@ async def test_group_admin_api(client, db_session):
 
 
 @pytest.mark.asyncio
-async def test_viewer_scope_follows_the_groups(client, db_session):
-    first, second, viewer, runs, artifact = await _seed(db_session)
-    group_id = client.post("/api/groups", json={"name": "Gateway team"}).json()["id"]
-
-    _as(viewer)
-    assert _run_names(client) == ["gateway-suite", "loose-suite", "sensor-suite"]
-    assert client.get("/api/groups").status_code == 403
-
-    _as(
-        User(
-            id=1,
-            email="tester@example.com",
-            full_name="Tester",
-            hashed_password="x",
-            role=UserRole.admin,
-            is_active=True,
-            session_version=1,
-        )
-    )
-    client.post(f"/api/groups/{group_id}/members", json={"user_id": viewer.id})
-    client.post(f"/api/groups/{group_id}/grants", json={"product_id": first.id})
-
-    _as(viewer)
-    assert _run_names(client) == ["gateway-suite"]
-    assert client.get(f"/api/test-runs/{runs[0].id}").status_code == 200
-    assert client.get(f"/api/test-runs/{runs[1].id}").status_code == 404
-    assert client.get(f"/api/test-runs/{runs[2].id}").status_code == 404
-    assert [p["name"] for p in client.get("/api/products").json()] == ["Gateway"]
-    assert client.get(f"/api/products/{second.id}").status_code == 404
-    assert client.get(f"/api/products/{first.id}").status_code == 200
-    assert client.get("/api/test-runs/stats").json()["total_runs"] == 1
-    assert client.get("/api/test-runs/filter-options").json()["suites"] == ["gateway-suite"]
-    assert client.get(f"/api/uploads/info/{artifact.id}").status_code == 404
-    stations = client.get("/api/runners/status").json()["runners"]
-    assert stations[0]["current_run"]["name"] == "gateway-suite"
-    assert client.get("/api/auth/me").json()["role"] == "viewer"
-    assert client.patch(f"/api/test-runs/{runs[0].id}", json={"name": "x"}).status_code == 403
+async def test_a_group_never_carries_administrator(client, db_session):
+    await _seed(db_session)
+    assert client.post("/api/groups", json={"name": "Leads", "role": "admin"}).status_code == 422
+    group_id = client.post("/api/groups", json={"name": "Leads"}).json()["id"]
+    assert client.patch(f"/api/groups/{group_id}", json={"role": "admin"}).status_code == 422
+    assert client.get("/api/groups").json()[0]["role"] == "viewer"
 
 
 @pytest.mark.asyncio
-async def test_all_products_grant_and_admin_group(client, db_session):
-    _, _, viewer, runs, artifact = await _seed(db_session)
-    viewers = client.post("/api/groups", json={"name": "Everything"}).json()["id"]
-    client.post(f"/api/groups/{viewers}/members", json={"user_id": viewer.id})
-    client.post(f"/api/groups/{viewers}/grants", json={})
-    empty = client.post("/api/groups", json={"name": "Nothing"}).json()["id"]
-    client.post(f"/api/groups/{empty}/members", json={"user_id": viewer.id})
+async def test_groups_hide_nothing(client, db_session):
+    first, second, viewer, runs, artifact = await _seed(db_session)
+    group_id = client.post("/api/groups", json={"name": "Gateway team"}).json()["id"]
+    client.post(f"/api/groups/{group_id}/members", json={"user_id": viewer.id})
 
     _as(viewer)
     assert _run_names(client) == ["gateway-suite", "loose-suite", "sensor-suite"]
+    for run in runs:
+        assert client.get(f"/api/test-runs/{run.id}").status_code == 200
+    assert [p["name"] for p in client.get("/api/products").json()] == ["Gateway", "Sensor"]
+    assert client.get(f"/api/products/{second.id}").status_code == 200
+    assert client.get("/api/test-runs/stats").json()["total_runs"] == 3
+    assert client.get("/api/test-runs/filter-options").json()["suites"] == [
+        "gateway-suite",
+        "loose-suite",
+        "sensor-suite",
+    ]
     assert client.get(f"/api/uploads/info/{artifact.id}").status_code == 200
+    stations = client.get("/api/runners/status").json()["runners"]
+    assert stations[0]["current_run"]["name"] == "gateway-suite"
+    assert client.get("/api/groups").status_code == 403
 
-    _as(
-        User(
-            id=1,
-            email="tester@example.com",
-            full_name="Tester",
-            hashed_password="x",
-            role=UserRole.admin,
-            is_active=True,
-            session_version=1,
-        )
-    )
-    client.delete(f"/api/groups/{viewers}")
-    _as(viewer)
-    assert _run_names(client) == []
-    assert client.get("/api/test-runs/stats").json()["total_runs"] == 0
 
-    _as(
-        User(
-            id=1,
-            email="tester@example.com",
-            full_name="Tester",
-            hashed_password="x",
-            role=UserRole.admin,
-            is_active=True,
-            session_version=1,
-        )
-    )
-    client.patch(f"/api/groups/{empty}", json={"role": "admin"})
+@pytest.mark.asyncio
+async def test_the_higher_role_of_user_and_groups_decides(client, db_session):
+    _, _, viewer, runs, _ = await _seed(db_session)
+    viewers = client.post("/api/groups", json={"name": "Readers"}).json()["id"]
+    developers = client.post("/api/groups", json={"name": "Testers", "role": "developer"}).json()[
+        "id"
+    ]
+    client.post(f"/api/groups/{viewers}/members", json={"user_id": viewer.id})
+
     _as(viewer)
-    assert client.get("/api/auth/me").json()["role"] == "admin"
-    assert _run_names(client) == ["gateway-suite", "loose-suite", "sensor-suite"]
-    assert client.get("/api/groups").status_code == 200
+    assert client.get("/api/auth/me").json()["role"] == "viewer"
+    assert client.patch(f"/api/test-runs/{runs[1].id}", json={"name": "x"}).status_code == 403
+
+    _as(ADMIN)
+    client.post(f"/api/groups/{developers}/members", json={"user_id": viewer.id})
+    _as(viewer)
+    assert client.get("/api/auth/me").json()["role"] == "developer"
     renamed = client.patch(f"/api/test-runs/{runs[1].id}", json={"name": "sensor-suite-2"})
     assert renamed.status_code == 200, renamed.text
+    assert client.delete(f"/api/test-runs/{runs[1].id}").status_code == 403
+    assert client.get("/api/groups").status_code == 403
+
+    _as(ADMIN)
+    client.delete(f"/api/groups/{developers}")
+    _as(viewer)
+    assert client.get("/api/auth/me").json()["role"] == "viewer"
+    assert client.patch(f"/api/test-runs/{runs[1].id}", json={"name": "y"}).status_code == 403

@@ -1,4 +1,4 @@
-"""Groups API (admin only): groups, their members and their product grants."""
+"""Groups API (admin only): groups, the role they carry and their members."""
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
@@ -8,13 +8,10 @@ from sqlalchemy.orm import selectinload
 
 from app.api.auth import require_role
 from app.db.database import get_db
-from app.models import Product
-from app.models.groups import Group, GroupMembership, GroupProductGrant
+from app.models.groups import Group, GroupMembership
 from app.models.user import User, UserRole
 from app.schemas.groups import (
     GroupCreate,
-    GroupGrantAdd,
-    GroupGrantResponse,
     GroupMemberAdd,
     GroupMemberResponse,
     GroupResponse,
@@ -31,7 +28,7 @@ async def _load(db: AsyncSession, group_id: int) -> Group:
     group = (
         await db.execute(
             select(Group)
-            .options(selectinload(Group.members), selectinload(Group.grants))
+            .options(selectinload(Group.members))
             .where(Group.id == group_id)
             .execution_options(populate_existing=True)
         )
@@ -45,11 +42,6 @@ async def _response(db: AsyncSession, group: Group) -> GroupResponse:
     user_ids = [m.user_id for m in group.members]
     users = {
         u.id: u for u in (await db.execute(select(User).where(User.id.in_(user_ids)))).scalars()
-    }
-    product_ids = [g.product_id for g in group.grants if g.product_id is not None]
-    products = {
-        p.id: p.name
-        for p in (await db.execute(select(Product).where(Product.id.in_(product_ids)))).scalars()
     }
     return GroupResponse(
         id=group.id,
@@ -65,12 +57,6 @@ async def _response(db: AsyncSession, group: Group) -> GroupResponse:
             for m in group.members
             if m.user_id in users
         ],
-        grants=[
-            GroupGrantResponse(
-                id=g.id, product_id=g.product_id, product_name=products.get(g.product_id)
-            )
-            for g in group.grants
-        ],
         created_at=group.created_at,
         updated_at=group.updated_at,
     )
@@ -80,13 +66,9 @@ async def _response(db: AsyncSession, group: Group) -> GroupResponse:
 async def list_groups(
     db: AsyncSession = Depends(get_db, scope="function"), _admin: User = Depends(require_admin)
 ):
-    """Every group with its members and product grants."""
+    """Every group with its role and members."""
     groups = (
-        await db.execute(
-            select(Group)
-            .options(selectinload(Group.members), selectinload(Group.grants))
-            .order_by(Group.name)
-        )
+        await db.execute(select(Group).options(selectinload(Group.members)).order_by(Group.name))
     ).scalars()
     return [await _response(db, g) for g in groups]
 
@@ -97,7 +79,7 @@ async def create_group(
     db: AsyncSession = Depends(get_db, scope="function"),
     _admin: User = Depends(require_admin),
 ):
-    """Create a group with a role and no members or grants yet."""
+    """Create a group carrying the Developer or Viewer role, with no members yet."""
     group = Group(name=data.name.strip(), description=data.description, role=data.role)
     db.add(group)
     try:
@@ -214,66 +196,6 @@ async def remove_member(
         target_type="group",
         target_id=group_id,
         details={"user_id": membership.user_id},
-    )
-    await db.flush()
-    return await _response(db, await _load(db, group_id))
-
-
-@router.post("/{group_id}/grants", response_model=GroupResponse, status_code=201)
-async def add_grant(
-    group_id: int,
-    data: GroupGrantAdd,
-    db: AsyncSession = Depends(get_db, scope="function"),
-    _admin: User = Depends(require_admin),
-):
-    """Grant a group one product, or every product when no product is given."""
-    await _load(db, group_id)
-    if data.product_id is not None and await db.get(Product, data.product_id) is None:
-        raise HTTPException(status_code=404, detail="Product not found")
-    exists = await db.scalar(
-        select(GroupProductGrant.id).where(
-            GroupProductGrant.group_id == group_id,
-            (
-                GroupProductGrant.product_id.is_(None)
-                if data.product_id is None
-                else GroupProductGrant.product_id == data.product_id
-            ),
-        )
-    )
-    if exists is not None:
-        raise HTTPException(status_code=400, detail="The group already has this grant")
-    db.add(GroupProductGrant(group_id=group_id, product_id=data.product_id))
-    await record_audit_event(
-        db,
-        "group.grant_added",
-        target_type="group",
-        target_id=group_id,
-        product_id=data.product_id,
-        details={"all_products": data.product_id is None},
-    )
-    await db.flush()
-    return await _response(db, await _load(db, group_id))
-
-
-@router.delete("/{group_id}/grants/{grant_id}", response_model=GroupResponse)
-async def remove_grant(
-    group_id: int,
-    grant_id: int,
-    db: AsyncSession = Depends(get_db, scope="function"),
-    _admin: User = Depends(require_admin),
-):
-    """Revoke one product grant of a group."""
-    grant = await db.get(GroupProductGrant, grant_id)
-    if grant is None or grant.group_id != group_id:
-        raise HTTPException(status_code=404, detail="Grant not found")
-    await db.delete(grant)
-    await record_audit_event(
-        db,
-        "group.grant_removed",
-        target_type="group",
-        target_id=group_id,
-        product_id=grant.product_id,
-        details={"all_products": grant.product_id is None},
     )
     await db.flush()
     return await _response(db, await _load(db, group_id))

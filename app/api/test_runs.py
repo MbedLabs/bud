@@ -13,7 +13,6 @@ from sqlalchemy.orm import selectinload
 
 from app.api.auth import get_current_active_entity, require_role
 from app.api.uploads import get_upload_root
-from app.core.access import readable_products, scope_condition
 from app.core.run_access import load_run, require_mutating_user
 from app.db import get_db
 from app.models import Artifact, Runner, TestRun, TestRunEvent
@@ -189,12 +188,6 @@ async def list_test_runs(
         if runner_account and runner_account != _current_entity.account:
             raise HTTPException(status_code=403, detail="Runner cannot list another runner's runs")
         conditions.append(TestRun.runner_id == _current_entity.id)
-    else:
-        product_limit = scope_condition(
-            await readable_products(db, _current_entity), TestRun.product_id
-        )
-        if product_limit is not None:
-            conditions.append(product_limit)
 
     if status:
         conditions.append(TestRun.status == status)
@@ -287,13 +280,7 @@ async def _scope_conditions(
                 status_code=403, detail="Runner cannot read another runner's statistics"
             )
         conditions.append(TestRun.runner_id == current_entity.id)
-    else:
-        product_limit = scope_condition(
-            await readable_products(db, current_entity), TestRun.product_id
-        )
-        if product_limit is not None:
-            conditions.append(product_limit)
-    if runner_account and not isinstance(current_entity, Runner):
+    elif runner_account:
         runner_result = await db.execute(select(Runner.id).where(Runner.account == runner_account))
         runner_id = runner_result.scalar_one_or_none()
         if runner_id is None:

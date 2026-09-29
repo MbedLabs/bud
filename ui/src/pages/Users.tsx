@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Check, Copy, Eye, Mail, Shield, Trash2, UserPlus, X } from 'lucide-react'
-import { extractApiErrorMessage, InviteUserResponse, User, usersApi } from '../api/client'
+import { Check, Code2, Copy, Eye, Mail, Shield, Trash2, UserPlus, X } from 'lucide-react'
+import { extractApiErrorMessage, InviteUserResponse, User, UserRole, usersApi } from '../api/client'
 import UserGroups from '../components/UserGroups'
 import { useAuth } from '../contexts/AuthContext'
 import AccessRequestsPanel from '../components/AccessRequestsPanel'
@@ -9,6 +9,7 @@ import { formatDateTime } from '../test/date-utils'
 
 const ROLE_CONFIG = {
   admin: { label: 'Admin', color: 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400', icon: Shield },
+  developer: { label: 'Developer', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400', icon: Code2 },
   viewer: { label: 'Viewer', color: 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400', icon: Eye },
 }
 
@@ -168,10 +169,24 @@ export default function UsersPage() {
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold ${roleConf.color}`}>
-                      <roleConf.icon className="h-3 w-3" />
-                      {roleConf.label}
-                    </span>
+                    {currentUser?.role === 'admin' && u.role !== 'admin' ? (
+                      <select
+                        value={u.role}
+                        onChange={(e) =>
+                          updateMutation.mutate({ id: u.id, data: { role: e.target.value as UserRole } })
+                        }
+                        aria-label={`Role of ${u.full_name}`}
+                        className="px-2 py-1 bg-background border border-input rounded text-xs text-foreground"
+                      >
+                        <option value="viewer">Viewer</option>
+                        <option value="developer">Developer</option>
+                      </select>
+                    ) : (
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold ${roleConf.color}`}>
+                        <roleConf.icon className="h-3 w-3" />
+                        {roleConf.label}
+                      </span>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     <span
@@ -368,13 +383,13 @@ function InviteUserModal({
   error,
 }: {
   onClose: () => void
-  onSubmit: (data: { email: string; full_name: string; role?: 'admin' | 'viewer' }) => Promise<InviteUserResponse>
+  onSubmit: (data: { email: string; full_name: string; role?: UserRole }) => Promise<InviteUserResponse>
   isLoading: boolean
   error: string | null
 }) {
   const [email, setEmail] = useState('')
   const [fullName, setFullName] = useState('')
-  const [role, setRole] = useState<'admin' | 'viewer'>('viewer')
+  const [role, setRole] = useState<UserRole>('viewer')
   const [inviteLink, setInviteLink] = useState<string | null>(null)
   const [invitedEmail, setInvitedEmail] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
@@ -472,11 +487,12 @@ function InviteUserModal({
             <label className="block text-sm font-medium text-foreground mb-1">Role</label>
             <select
               value={role}
-              onChange={(e) => setRole(e.target.value as 'admin' | 'viewer')}
+              onChange={(e) => setRole(e.target.value as UserRole)}
               title="Role"
               className="w-full px-3 py-2 bg-background border border-input rounded-lg text-sm text-foreground"
             >
               <option value="viewer">Viewer</option>
+              <option value="developer">Developer</option>
               <option value="admin">Admin</option>
             </select>
           </div>

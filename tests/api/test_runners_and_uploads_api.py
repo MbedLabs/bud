@@ -521,7 +521,7 @@ async def test_runner_upload_without_run_id_is_rejected(client, db_session):
 
 @pytest.mark.asyncio
 async def test_admin_may_upload_unassociated_artifact(client, db_session):
-    """Only admins may upload artifacts without a run_id (the contrast to the
+    """An administrator may upload an artifact without a run_id (the contrast to the
     runner restriction above)."""
     admin = User(
         id=4242,

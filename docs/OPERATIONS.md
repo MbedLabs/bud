@@ -44,6 +44,21 @@ Two independent token lifetimes, tunable via environment variables (no code chan
   usable for heartbeat/results while its `last_heartbeat` is within
   `RUNNER_HEARTBEAT_TIMEOUT`. This is separate from user sessions above.
 
+## Roles
+
+- **Viewer** reads everything and changes nothing. The Viewer role is meant for internal
+  viewers.
+- **Developer** is Viewer plus the work of running tests: create runs, upload results and
+  artifacts, edit runs, publish a run to Bloom, and queue custom runs on the Test Stations.
+- **Administrator** can do everything, including users, groups, products, settings, Test
+  Stations and their keys, the audit log, and deleting runs and artifacts. Administrator is
+  chosen when a user is created or invited; an existing user is never promoted to it, and an
+  administrator's role is never changed.
+
+Administrators set a user's role to Viewer or Developer on the Users page. A group gives its
+members the Developer or Viewer role; a member holds the higher of their own role and their
+groups' roles. Every user sees every product.
+
 ## Logs
 
 Bud writes logs to stdout so any container log driver or shipper picks them up.

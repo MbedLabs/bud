@@ -229,3 +229,102 @@ async def test_viewer_is_read_only(client, db_session, operation):
         app.dependency_overrides.pop(get_uploader_entity, None)
 
     assert response.status_code == 403
+
+
+def _write_as(client, user, run, operation):
+    """Send one write as the user and return the response."""
+
+    async def override():
+        return user
+
+    app.dependency_overrides[get_current_active_entity] = override
+    app.dependency_overrides[get_current_user] = override
+    app.dependency_overrides[get_uploader_entity] = override
+    try:
+        if operation == "product-create":
+            return client.post("/api/products", json={"name": f"{user.email}-product"})
+        if operation == "run-create":
+            return client.post(
+                "/api/test-runs",
+                json={"test_case_list": "suite", "test_suite_name": "developer-run"},
+            )
+        if operation == "run-patch":
+            return client.patch(f"/api/test-runs/{run.id}", json={"name": "renamed-run"})
+        if operation == "run-delete":
+            return client.delete(f"/api/test-runs/{run.id}")
+        if operation == "results-upload":
+            return client.post(
+                "/api/results",
+                json={
+                    "test_run_id": run.id,
+                    "results": [{"test_class": "Dev", "test_method": "writes", "passed": True}],
+                },
+            )
+        if operation == "artifact-upload":
+            return client.post(
+                "/api/uploads",
+                files={"file": ("log.txt", b"log", "text/plain")},
+            )
+        if operation == "custom-run":
+            return client.post("/api/test-runs/custom", json={"test_paths": ["suite.Case"]})
+        return client.post(f"/api/test-runs/{run.id}/publish-to-bloom")
+    finally:
+        app.dependency_overrides.pop(get_current_active_entity, None)
+        app.dependency_overrides.pop(get_current_user, None)
+        app.dependency_overrides.pop(get_uploader_entity, None)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("operation", "allowed"),
+    [
+        ("product-create", False),
+        ("run-create", True),
+        ("run-patch", True),
+        ("run-delete", False),
+        ("results-upload", True),
+        ("artifact-upload", True),
+        ("custom-run", True),
+        ("publish", True),
+    ],
+)
+async def test_developer_writes_runs_but_not_administration(client, db_session, operation, allowed):
+    _, _, run_a, _, _ = await _seed_runner_runs(db_session)
+    developer = User(
+        id=45,
+        email="developer@example.com",
+        full_name="Dev Eloper",
+        hashed_password="x",
+        role=UserRole.developer,
+        is_active=True,
+    )
+    db_session.add(developer)
+    await db_session.commit()
+
+    response = _write_as(client, developer, run_a, operation)
+
+    if allowed:
+        assert response.status_code != 403, response.text
+    else:
+        assert response.status_code == 403, response.text
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("operation", ["artifact-upload", "custom-run", "publish"])
+async def test_viewer_cannot_upload_queue_or_publish(client, db_session, operation):
+    _, _, run_a, _, _ = await _seed_runner_runs(db_session)
+    viewer = User(
+        id=46,
+        email="viewer-writes@example.com",
+        full_name="View Er",
+        hashed_password="x",
+        role=UserRole.viewer,
+        is_active=True,
+    )
+    db_session.add(viewer)
+    await db_session.commit()
+
+    response = _write_as(client, viewer, run_a, operation)
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Developer privileges required"
