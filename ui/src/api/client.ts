@@ -86,11 +86,13 @@ api.interceptors.response.use(
   },
 )
 
+export type UserRole = 'admin' | 'developer' | 'viewer'
+
 export interface User {
   id: number
   email: string
   full_name: string
-  role: 'admin' | 'viewer'
+  role: UserRole
   is_active: boolean
   invited_at?: string | null
   last_invite_sent_at?: string | null
@@ -223,7 +225,7 @@ export const authApi = {
   },
 }
 
-export type GroupRole = 'admin' | 'viewer'
+export type GroupRole = 'developer' | 'viewer'
 
 export interface Group {
   id: number
@@ -231,19 +233,8 @@ export interface Group {
   description: string | null
   role: GroupRole
   members: { user_id: number; email: string; full_name: string }[]
-  grants: { id: number; product_id: number | null; product_name: string | null }[]
   created_at: string
   updated_at: string
-}
-
-export interface Product {
-  id: number
-  name: string
-  description: string | null
-}
-
-export const productsApi = {
-  list: async () => (await api.get<Product[]>('/products')).data,
 }
 
 export const groupsApi = {
@@ -259,10 +250,6 @@ export const groupsApi = {
     (await api.post<Group>(`/groups/${id}/members`, { user_id: userId })).data,
   removeMember: async (id: number, userId: number) =>
     (await api.delete<Group>(`/groups/${id}/members/${userId}`)).data,
-  addGrant: async (id: number, productId: number | null) =>
-    (await api.post<Group>(`/groups/${id}/grants`, { product_id: productId })).data,
-  removeGrant: async (id: number, grantId: number) =>
-    (await api.delete<Group>(`/groups/${id}/grants/${grantId}`)).data,
 }
 
 export type AccessResourceType = 'test-run' | 'product'
@@ -341,15 +328,15 @@ export const usersApi = {
     const response = await api.get<User[]>('/users')
     return response.data
   },
-  create: async (data: { email: string; full_name: string; password: string; role?: 'admin' | 'viewer' }): Promise<User> => {
+  create: async (data: { email: string; full_name: string; password: string; role?: UserRole }): Promise<User> => {
     const response = await api.post<User>('/users', data)
     return response.data
   },
-  invite: async (data: { email: string; full_name: string; role?: 'admin' | 'viewer' }): Promise<InviteUserResponse> => {
+  invite: async (data: { email: string; full_name: string; role?: UserRole }): Promise<InviteUserResponse> => {
     const response = await api.post<InviteUserResponse>('/users/invite', data)
     return response.data
   },
-  update: async (id: number, data: { full_name?: string; role?: 'admin' | 'viewer'; is_active?: boolean }): Promise<User> => {
+  update: async (id: number, data: { full_name?: string; role?: UserRole; is_active?: boolean }): Promise<User> => {
     const response = await api.patch<User>(`/users/${id}`, data)
     return response.data
   },

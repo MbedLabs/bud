@@ -16,6 +16,7 @@ from app.db.database import Base
 
 class UserRole(str, enum.Enum):
     admin = "admin"
+    developer = "developer"
     viewer = "viewer"
 
 

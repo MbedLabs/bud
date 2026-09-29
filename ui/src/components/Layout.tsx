@@ -62,7 +62,9 @@ export default function Layout() {
 
   const roleBadgeColor = user?.role === 'admin'
     ? 'bg-red-500/10 text-red-400'
-    : 'bg-green-500/10 text-green-400'
+    : user?.role === 'developer'
+      ? 'bg-blue-500/10 text-blue-400'
+      : 'bg-green-500/10 text-green-400'
 
   const [signingOut, setSigningOut] = useState(false)
 
