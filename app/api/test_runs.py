@@ -479,14 +479,10 @@ async def update_test_run(
 async def publish_run_to_bloom(
     run_id: int,
     db: AsyncSession = Depends(get_db, scope="function"),
-    current_user: User = Depends(get_current_active_entity),
+    current_user: User = Depends(require_role(UserRole.admin, UserRole.developer)),
 ):
     """Send this run's report documents to Bloom as a Report (RPT) document."""
-    if isinstance(current_user, Runner):
-        raise HTTPException(status_code=403, detail="A Test Station cannot publish to Bloom")
-    await require_mutating_user(db, current_user)
-
-    test_run = await load_run(db, current_user, run_id, mutate=True)
+    test_run = await load_run(db, current_user, run_id)
 
     if test_run.status != "Completed":
         raise HTTPException(

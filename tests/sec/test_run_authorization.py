@@ -276,19 +276,19 @@ def _write_as(client, user, run, operation):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    ("operation", "allowed"),
+    ("operation", "status"),
     [
-        ("product-create", False),
-        ("run-create", True),
-        ("run-patch", True),
-        ("run-delete", False),
-        ("results-upload", True),
-        ("artifact-upload", True),
-        ("custom-run", True),
-        ("publish", True),
+        ("product-create", 403),
+        ("run-create", 403),
+        ("run-patch", 403),
+        ("run-delete", 403),
+        ("results-upload", 403),
+        ("artifact-upload", 403),
+        ("custom-run", 422),
+        ("publish", 409),
     ],
 )
-async def test_developer_writes_runs_but_not_administration(client, db_session, operation, allowed):
+async def test_developer_queues_custom_runs_and_publishes_only(client, db_session, operation, status):
     _, _, run_a, _, _ = await _seed_runner_runs(db_session)
     developer = User(
         id=45,
@@ -303,15 +303,19 @@ async def test_developer_writes_runs_but_not_administration(client, db_session, 
 
     response = _write_as(client, developer, run_a, operation)
 
-    if allowed:
-        assert response.status_code != 403, response.text
-    else:
-        assert response.status_code == 403, response.text
+    assert response.status_code == status, response.text
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("operation", ["artifact-upload", "custom-run", "publish"])
-async def test_viewer_cannot_upload_queue_or_publish(client, db_session, operation):
+@pytest.mark.parametrize(
+    ("operation", "detail"),
+    [
+        ("artifact-upload", "Only admins may upload artifacts"),
+        ("custom-run", "Insufficient permissions."),
+        ("publish", "Insufficient permissions."),
+    ],
+)
+async def test_viewer_cannot_upload_queue_or_publish(client, db_session, operation, detail):
     _, _, run_a, _, _ = await _seed_runner_runs(db_session)
     viewer = User(
         id=46,
@@ -327,4 +331,4 @@ async def test_viewer_cannot_upload_queue_or_publish(client, db_session, operati
     response = _write_as(client, viewer, run_a, operation)
 
     assert response.status_code == 403
-    assert response.json()["detail"] == "Developer privileges required"
+    assert response.json()["detail"] == detail

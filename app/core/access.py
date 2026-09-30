@@ -1,7 +1,7 @@
 """What a Bud user may do: the highest of their own role and the roles of their groups.
 
-Viewer reads everything, Developer also writes runs, results and artifacts, Administrator
-holds everything. Access is not scoped by products or stations.
+Viewer reads everything, Developer also queues custom runs and publishes a run to Bloom,
+Administrator holds everything. Access is not scoped by products or stations.
 """
 
 from sqlalchemy import select
@@ -11,7 +11,6 @@ from app.models.groups import Group, GroupMembership
 from app.models.user import User, UserRole
 
 ROLE_RANK = {UserRole.viewer: 0, UserRole.developer: 1, UserRole.admin: 2}
-WRITER_ROLES = (UserRole.developer, UserRole.admin)
 
 
 async def effective_role(db: AsyncSession, user: User) -> UserRole:
