@@ -19,11 +19,10 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.api.auth import get_current_active_entity
-from app.core.run_access import require_mutating_user
+from app.api.auth import get_current_active_entity, require_role
 from app.db import get_db
 from app.models import Runner, TestRun
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.schemas import (
     CatalogEntryResponse,
     ClaimedRunCompletion,
@@ -68,12 +67,9 @@ async def get_test_catalog(
 async def create_custom_run(
     data: CustomRunRequest,
     db: AsyncSession = Depends(get_db, scope="function"),
-    current_user: User = Depends(get_current_active_entity),
+    current_user: User = Depends(require_role(UserRole.admin, UserRole.developer)),
 ):
     """Queue a run for each Test Station the selection touches."""
-    if isinstance(current_user, Runner):
-        raise HTTPException(status_code=403, detail="A Test Station cannot queue runs for the lab")
-    await require_mutating_user(db, current_user)
 
     requested: list[str] = []
     for path in data.test_paths:

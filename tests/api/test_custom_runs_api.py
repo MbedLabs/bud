@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 
 import pytest
 
-from app.api.auth import get_current_active_entity
+from app.api.auth import get_current_active_entity, get_current_user
 from app.api.results import get_uploader_entity
 from app.main import app
 from app.models import Runner, TestResult, TestRun
@@ -350,14 +350,18 @@ class TestQueueingACustomRun:
     async def test_a_bench_cannot_queue_work_for_the_lab(self, client, lab):
         benches = await lab()
         _as_runner(benches["a"])
+        user_override = app.dependency_overrides.pop(get_current_user, None)
         try:
             response = client.post(
                 "/api/test-runs/custom", json={"test_paths": ["boot_suite.BootTest"]}
             )
         finally:
             _clear()
+            if user_override is not None:
+                app.dependency_overrides[get_current_user] = user_override
 
         assert response.status_code == 403
+        assert response.json()["detail"] == "User privileges required."
 
     def test_requires_authentication(self, unauthenticated_client):
         response = unauthenticated_client.post(

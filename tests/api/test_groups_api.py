@@ -166,14 +166,16 @@ async def test_the_higher_role_of_user_and_groups_decides(client, db_session):
 
     _as(viewer)
     assert client.get("/api/auth/me").json()["role"] == "viewer"
-    assert client.patch(f"/api/test-runs/{runs[1].id}", json={"name": "x"}).status_code == 403
+    assert client.post("/api/test-runs/custom", json={"test_paths": ["a.B"]}).status_code == 403
 
     _as(ADMIN)
     client.post(f"/api/groups/{developers}/members", json={"user_id": viewer.id})
     _as(viewer)
     assert client.get("/api/auth/me").json()["role"] == "developer"
-    renamed = client.patch(f"/api/test-runs/{runs[1].id}", json={"name": "sensor-suite-2"})
-    assert renamed.status_code == 200, renamed.text
+    queued = client.post("/api/test-runs/custom", json={"test_paths": ["a.B"]})
+    assert queued.status_code == 422, queued.text
+    assert queued.json()["detail"].startswith("None of the selected test cases can be run")
+    assert client.patch(f"/api/test-runs/{runs[1].id}", json={"name": "x"}).status_code == 403
     assert client.delete(f"/api/test-runs/{runs[1].id}").status_code == 403
     assert client.get("/api/groups").status_code == 403
 
@@ -181,4 +183,4 @@ async def test_the_higher_role_of_user_and_groups_decides(client, db_session):
     client.delete(f"/api/groups/{developers}")
     _as(viewer)
     assert client.get("/api/auth/me").json()["role"] == "viewer"
-    assert client.patch(f"/api/test-runs/{runs[1].id}", json={"name": "y"}).status_code == 403
+    assert client.post("/api/test-runs/custom", json={"test_paths": ["a.B"]}).status_code == 403

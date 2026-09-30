@@ -17,7 +17,6 @@ from sqlalchemy.orm import selectinload
 from app.api.auth import get_current_active_entity, get_current_user
 from app.core.access import effective_role
 from app.core.config import settings
-from app.core.run_access import require_mutating_user
 from app.db import get_db
 from app.models import Artifact, Runner, TestRun
 from app.models.user import User, UserRole
@@ -98,9 +97,12 @@ async def _get_accessible_artifact(
 async def _validate_runner_upload_run(
     db: AsyncSession, current_entity: Union[User, Runner], run_id: Optional[int]
 ) -> None:
-    """Let developers and administrators upload, and keep a runner to its own test runs."""
-    if isinstance(current_entity, User):
-        await require_mutating_user(db, current_entity)
+    """Prevent a runner from attaching an artifact to another runner's test run."""
+    if (
+        isinstance(current_entity, User)
+        and await effective_role(db, current_entity) != UserRole.admin
+    ):
+        raise HTTPException(status_code=403, detail="Only admins may upload artifacts")
     if run_id is None:
         if isinstance(current_entity, Runner):
             raise HTTPException(

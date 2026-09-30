@@ -169,24 +169,10 @@ export default function UsersPage() {
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    {currentUser?.role === 'admin' && u.role !== 'admin' ? (
-                      <select
-                        value={u.role}
-                        onChange={(e) =>
-                          updateMutation.mutate({ id: u.id, data: { role: e.target.value as UserRole } })
-                        }
-                        aria-label={`Role of ${u.full_name}`}
-                        className="px-2 py-1 bg-background border border-input rounded text-xs text-foreground"
-                      >
-                        <option value="viewer">Viewer</option>
-                        <option value="developer">Developer</option>
-                      </select>
-                    ) : (
-                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold ${roleConf.color}`}>
-                        <roleConf.icon className="h-3 w-3" />
-                        {roleConf.label}
-                      </span>
-                    )}
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold ${roleConf.color}`}>
+                      <roleConf.icon className="h-3 w-3" />
+                      {roleConf.label}
+                    </span>
                   </td>
                   <td className="px-4 py-3">
                     <span
