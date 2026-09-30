@@ -557,6 +557,8 @@ function formatEventStatus(status: string): string {
 
 interface AssertionShape {
   passed?: boolean
+  skipped?: boolean
+  info?: boolean
   message?: string
   assertion_type?: string
   expected?: unknown
@@ -705,6 +707,7 @@ function groupResultsByTestCase(results: TestResult[]): TestCaseGroup[] {
         durationSeconds: result.duration_seconds,
         methodErrorMessage: result.error_message,
       })
+      if (assertion.skipped || assertion.info) return
       group.assertionCount += 1
       if (passed) group.passedAssertions += 1
       else group.failedAssertions += 1
@@ -752,19 +755,22 @@ function ResultDetail({ assertions }: { assertions: AssertionViewModel[] }) {
 
 function AssertionRow({ assertion, index }: { assertion: AssertionViewModel; index: number }) {
   const passed = assertion.passed !== false
+  const neutral = assertion.skipped === true || assertion.info === true
   const expected = assertion.expected
   const actual = assertion.actual
   const message = assertion.message || '(no message)'
   const assertionType = assertion.assertion_type || inferAssertionType(assertion)
   return (
     <div className={`border-l-2 py-2 pl-3 pr-2 text-xs ${
-      passed
-        ? 'border-emerald-500/50 bg-emerald-500/[0.02]'
-        : 'border-red-500/70 bg-red-500/[0.03]'
+      neutral
+        ? 'border-border bg-transparent'
+        : passed
+          ? 'border-emerald-500/50 bg-emerald-500/[0.02]'
+          : 'border-red-500/70 bg-red-500/[0.03]'
     }`}>
       <div className="flex items-start gap-2">
         {passed ? (
-          <CheckCircle className="h-3.5 w-3.5 text-emerald-500 mt-0.5 shrink-0" />
+          <CheckCircle className={`h-3.5 w-3.5 mt-0.5 shrink-0 ${neutral ? 'text-foreground' : 'text-emerald-500'}`} />
         ) : (
           <XCircle className="h-3.5 w-3.5 text-red-500 mt-0.5 shrink-0" />
         )}
@@ -772,9 +778,11 @@ function AssertionRow({ assertion, index }: { assertion: AssertionViewModel; ind
           <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
             <span className="font-mono text-[11px] text-muted-foreground">#{index}</span>
             <span className={`text-[11px] font-semibold ${
-              passed
-                ? 'text-emerald-700 dark:text-emerald-400'
-                : 'text-red-700 dark:text-red-400'
+              neutral
+                ? 'text-foreground'
+                : passed
+                  ? 'text-emerald-700 dark:text-emerald-400'
+                  : 'text-red-700 dark:text-red-400'
             }`}>
               {assertionType}
             </span>

@@ -403,6 +403,32 @@ describe('the run list', () => {
 })
 
 describe('a run in detail', () => {
+  it('shows skipped and information entries in neutral colour, outside the check count', async () => {
+    vi.mocked(client.resultsApi.list).mockResolvedValue([
+      {
+        ...testResult,
+        assertions: [
+          { assertion_type: 'AssertEqual', passed: true, actual: '3', expected: '3' },
+          { assertion_type: 'Skip', passed: true, skipped: true, message: 'No probe on this bench' },
+          { assertion_type: 'Log', passed: true, info: true, code_context: 'Log    probing' },
+        ],
+      },
+    ] as never)
+    renderAt('/runs/:id', '/runs/42', <TestRunDetail />)
+    await screen.findByText(testRun.name)
+
+    expect(screen.getByText('1 / 1 passed')).toBeTruthy()
+    fireEvent.click(screen.getAllByText(testResult.test_class)[0].closest('button') as HTMLElement)
+    const skip = await screen.findByText('Skip')
+    expect(skip.className).toContain('text-foreground')
+    expect(skip.className).not.toMatch(/emerald|red/)
+    expect(screen.getByText('No probe on this bench')).toBeTruthy()
+    const log = screen.getByText('Log')
+    expect(log.className).toContain('text-foreground')
+    expect(log.className).not.toMatch(/emerald|red/)
+    expect(screen.getByText('1 check')).toBeTruthy()
+  })
+
   it('groups results by test class, the level the run counters use', async () => {
     renderAt('/runs/:id', '/runs/42', <TestRunDetail />)
 
