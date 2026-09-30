@@ -14,6 +14,7 @@
 
 ### Changed
 
+- Run page and PDF reports: a skipped assertion and an information entry (a Robot keyword that checks nothing) are not counted as assertions; the run page shows them in neutral colour, the reports leave them out.
 - Times written for people are given to the second, in UTC: the start, completion and generation times on PDF reports and the time in access-request emails.
 
 ### Fixed

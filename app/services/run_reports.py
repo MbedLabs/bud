@@ -41,6 +41,8 @@ def _assertion_details(results: list[TestResult]) -> list[AssertionDetail]:
         assertions = result.assertions if isinstance(result.assertions, list) else []
         for index, raw in enumerate(assertions, start=1):
             assertion = raw if isinstance(raw, dict) else {}
+            if assertion.get("info") is True or assertion.get("skipped") is True:
+                continue
             passed_value = assertion.get("passed")
             passed = passed_value if isinstance(passed_value, bool) else None
             source = str(assertion.get("source_file") or "")
@@ -165,6 +167,8 @@ async def build_summary_report(
         day_outcome = day_outcomes.setdefault(day_key, Outcome())
         assertions = raw_assertions if isinstance(raw_assertions, list) else []
         for raw in assertions:
+            if isinstance(raw, dict) and (raw.get("info") is True or raw.get("skipped") is True):
+                continue
             value = raw.get("passed") if isinstance(raw, dict) else None
             passed = value if isinstance(value, bool) else None
             for target in (overall, suite_outcome, station_outcome, day_outcome):
