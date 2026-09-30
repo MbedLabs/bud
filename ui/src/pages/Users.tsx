@@ -303,7 +303,7 @@ export default function UsersPage() {
         />
       )}
       <AccessRequestsPanel />
-      <UserGroups />
+      {currentUser?.role === 'admin' && <UserGroups />}
     </div>
   )
 }
