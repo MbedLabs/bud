@@ -8,7 +8,7 @@ from typing import List, Optional, Union
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from sqlalchemy import Integer, func, select
+from sqlalchemy import Integer, case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.auth import get_current_active_entity
@@ -150,13 +150,17 @@ async def upload_results(
             select(
                 TestResult.test_class,
                 func.min(TestResult.passed.cast(Integer)).label("all_passed"),
+                func.min(
+                    case((TestResult.test_metadata["skipped"].as_boolean().is_(True), 1), else_=0)
+                ).label("all_skipped"),
             )
             .where(TestResult.test_run_id == target_run_id)
             .group_by(TestResult.test_class)
         )
         rows = class_stats.fetchall()
         total = len(rows)
-        passed = sum(1 for r in rows if r.all_passed == 1)
+        skipped = sum(1 for r in rows if r.all_skipped == 1)
+        passed = sum(1 for r in rows if r.all_passed == 1 and r.all_skipped != 1)
 
         # Duration stays as the sum across all method rows.
         dur_res = await db.execute(
@@ -168,7 +172,9 @@ async def upload_results(
 
         test_run.total_tests = total
         test_run.passed_tests = passed
-        test_run.failed_tests = total - passed
+        test_run.failed_tests = total - passed - skipped
+        if skipped:
+            test_run.skipped_tests = skipped
         test_run.duration_seconds = duration
 
         # Ensure completion status
@@ -183,7 +189,11 @@ async def upload_results(
             stage="results",
             status="completed",
             title="Results uploaded",
-            message=f"{len(created_results)} method results accepted. {test_run.total_tests} test case(s): {test_run.passed_tests} passed, {test_run.failed_tests} failed.",
+            message=(
+                f"{len(created_results)} method results accepted. {test_run.total_tests} test case(s): "
+                f"{test_run.passed_tests} passed, {test_run.failed_tests} failed"
+                + (f", {skipped} skipped." if skipped else ".")
+            ),
         )
 
     await db.commit()

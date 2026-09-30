@@ -126,6 +126,23 @@ class TestRunStatisticsFromResults:
         assert run["passed_tests"] == 1, "ClassA has a failing method"
         assert run["failed_tests"] == 1
 
+    def test_a_class_whose_results_are_all_skipped_counts_as_skipped(self, client):
+        response = client.post(
+            "/api/results",
+            json={
+                "test_suite_name": "Robot",
+                "results": [
+                    _result("Suite.Boots", "Boots", True),
+                    _result("Suite.Flashes", "Flashes", True, metadata={"skipped": True}),
+                    _result("Suite.Fails", "Fails", False),
+                ],
+            },
+        )
+        run_id = response.json()["test_run_id"]
+
+        run = client.get(f"/api/test-runs/{run_id}").json()
+        assert (run["total_tests"], run["passed_tests"], run["failed_tests"], run["skipped_tests"]) == (3, 1, 1, 1)
+
     def test_duration_is_summed_across_every_method(self, client):
         response = client.post(
             "/api/results",

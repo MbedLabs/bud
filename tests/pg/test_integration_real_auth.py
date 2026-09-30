@@ -60,3 +60,26 @@ def test_real_login_then_db_backed_write_and_read(client):
     listed = client.get("/api/products", headers=headers)
     assert listed.status_code == 200
     assert any(p["id"] == product_id for p in listed.json())
+
+
+def test_a_test_case_whose_results_are_all_skipped_counts_as_skipped(client):
+    headers = {"Authorization": f"Bearer {_login(client)}"}
+    results = [
+        {"test_class": "Suite.Boots", "test_method": "Boots", "passed": True, "duration_seconds": 1},
+        {
+            "test_class": "Suite.Flashes",
+            "test_method": "Flashes",
+            "passed": True,
+            "duration_seconds": 0,
+            "metadata": {"skipped": True},
+        },
+        {"test_class": "Suite.Fails", "test_method": "Fails", "passed": False, "duration_seconds": 1},
+    ]
+    uploaded = client.post(
+        "/api/results",
+        json={"test_suite_name": unique_name("Robot"), "results": results},
+        headers=headers,
+    )
+    assert uploaded.status_code in (200, 201), uploaded.text
+    run = client.get(f"/api/test-runs/{uploaded.json()['test_run_id']}", headers=headers).json()
+    assert (run["total_tests"], run["passed_tests"], run["failed_tests"], run["skipped_tests"]) == (3, 1, 1, 1)
