@@ -6,7 +6,7 @@
 #
 aiofiles==25.1.0
     # via bud-app-backend (pyproject.toml)
-alembic==1.19.2
+alembic==1.20.0
     # via bud-app-backend (pyproject.toml)
 annotated-doc==0.0.5
     # via fastapi
@@ -23,9 +23,9 @@ bcrypt==3.2.2
     # via
     #   bud-app-backend (pyproject.toml)
     #   passlib
-boto3==1.43.101
+boto3==1.43.103
     # via bud-app-backend (pyproject.toml)
-botocore==1.43.101
+botocore==1.43.103
     # via
     #   boto3
     #   s3transfer
@@ -55,7 +55,7 @@ email-validator==2.3.0
     # via pydantic
 fastapi==0.141.1
     # via bud-app-backend (pyproject.toml)
-greenlet==3.5.5
+greenlet==3.5.6
     # via
     #   bud-app-backend (pyproject.toml)
     #   sqlalchemy
@@ -69,7 +69,7 @@ httptools==0.8.0
     # via uvicorn
 httpx==0.28.1
     # via bud-app-backend (pyproject.toml)
-idna==3.19
+idna==3.20
     # via
     #   anyio
     #   email-validator
@@ -80,7 +80,7 @@ jmespath==1.1.0
     #   botocore
 limits==5.8.0
     # via slowapi
-mako==1.4.1
+mako==1.4.3
     # via alembic
 markupsafe==3.0.3
     # via mako
@@ -131,7 +131,7 @@ six==1.17.0
     #   python-dateutil
 slowapi==0.1.10
     # via bud-app-backend (pyproject.toml)
-sqlalchemy==2.0.52
+sqlalchemy==2.0.54
     # via
     #   alembic
     #   bud-app-backend (pyproject.toml)
@@ -157,7 +157,7 @@ typing-inspection==0.4.4
     #   pydantic-settings
 urllib3==2.8.0
     # via botocore
-uvicorn==0.52.4
+uvicorn==0.53.0
     # via bud-app-backend (pyproject.toml)
 uvloop==0.22.1
     # via uvicorn
