@@ -77,10 +77,7 @@ jobs:
           bandit -r app/ -ll
           # Blocking: a vulnerable *pinned* dependency fails CI. We audit the
           # locked closure (constraints.txt), not the ambient runner tooling.
-          # Reviewed ignore: PYSEC-2026-1325 is an ecdsa timing side-channel with
-          # no fix release, pulled in transitively by python-jose. Bud signs JWTs
-          # with HS256 (symmetric), so the affected ES* code path is never used.
-          pip-audit -r constraints.txt --ignore-vuln PYSEC-2026-1325
+          pip-audit -r constraints.txt
 
       # The documented fresh-install path: alembic alone must build the full
       # schema on a truly EMPTY database, from explicit DDL. No create_all

@@ -6,8 +6,8 @@ import secrets
 from datetime import datetime, timedelta
 from typing import Optional
 
+import jwt
 from fastapi.security import OAuth2PasswordBearer
-from jose import JWTError, jwt
 from passlib.context import CryptContext
 
 from app.core.config import settings
@@ -71,7 +71,7 @@ def decode_access_token(token: str, verify_exp: bool = True) -> Optional[dict]:
             algorithms=[ALGORITHM],
             options={"verify_exp": verify_exp},
         )
-    except JWTError:
+    except jwt.PyJWTError:
         return None
 
 

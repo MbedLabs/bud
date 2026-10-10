@@ -21,7 +21,7 @@ dependencies = [
     "sqlalchemy>=2.0.0",
     "greenlet>=3.0.0",
     "asyncpg>=0.29.0",
-    "python-jose[cryptography]>=3.3.0",
+    "PyJWT>=2.15.1",
     "cryptography>=50.0.0",
     "passlib[bcrypt]>=1.7.4",
     "bcrypt<4",
