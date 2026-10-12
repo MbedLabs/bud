@@ -105,7 +105,7 @@ export default function Layout() {
                 to={item.href}
                 className={`flex items-center ${sidebarCollapsed ? 'justify-center px-2' : 'gap-2.5 px-3'} py-2 rounded-lg text-sm font-medium transition-all duration-200 group ${
                   isActive
-                    ? 'bg-sidebar-active text-white shadow-sm'
+                    ? 'bg-sidebar-active text-white shadow-xs'
                     : 'text-lime-100/70 hover:bg-sidebar-hover hover:text-white'
                 }`}
                 title={sidebarCollapsed ? item.name : undefined}
@@ -128,7 +128,7 @@ export default function Layout() {
               to="/users"
               className={`flex items-center ${sidebarCollapsed ? 'justify-center px-2' : 'gap-2.5 px-3'} py-2 rounded-lg text-sm font-medium transition-all duration-200 group ${
                 location.pathname === '/users'
-                  ? 'bg-sidebar-active text-white shadow-sm'
+                  ? 'bg-sidebar-active text-white shadow-xs'
                   : 'text-lime-100/70 hover:bg-sidebar-hover hover:text-white'
               }`}
               title={sidebarCollapsed ? 'Users' : undefined}
@@ -147,7 +147,7 @@ export default function Layout() {
               to="/audit"
               className={`flex items-center ${sidebarCollapsed ? 'justify-center px-2' : 'gap-2.5 px-3'} py-2 rounded-lg text-sm font-medium transition-all duration-200 group ${
                 location.pathname === '/audit'
-                  ? 'bg-sidebar-active text-white shadow-sm'
+                  ? 'bg-sidebar-active text-white shadow-xs'
                   : 'text-lime-100/70 hover:bg-sidebar-hover hover:text-white'
               }`}
               title={sidebarCollapsed ? 'Audit log' : undefined}
@@ -207,7 +207,7 @@ export default function Layout() {
       <button
         type="button"
         onClick={() => setSidebarCollapsed((c) => !c)}
-        className="fixed z-[35] top-4 flex h-8 w-8 -translate-x-1/2 items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow-md transition-[left,background-color,color,box-shadow] duration-200 hover:bg-accent hover:text-foreground dark:bg-card dark:hover:bg-accent"
+        className="fixed z-35 top-4 flex h-8 w-8 -translate-x-1/2 items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow-md transition-[left,background-color,color,box-shadow] duration-200 hover:bg-accent hover:text-foreground dark:bg-card dark:hover:bg-accent"
         style={{ left: sidebarCollapsed ? SIDEBAR_EDGE.collapsed : SIDEBAR_EDGE.expanded }}
         aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
@@ -246,7 +246,7 @@ export default function Layout() {
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
                   className="flex items-center gap-2 p-1 rounded-lg hover:bg-accent transition-colors"
                 >
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-bud-orange flex items-center justify-center text-white text-xs font-bold">
+                  <div className="w-8 h-8 rounded-full bg-linear-to-br/srgb from-primary to-bud-orange flex items-center justify-center text-white text-xs font-bold">
                     {userInitials}
                   </div>
                   <span className="text-sm text-foreground font-medium hidden sm:block max-w-[120px] truncate">

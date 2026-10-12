@@ -9,6 +9,7 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/test/vitest-setup.ts'],
+    css: { include: [/index\.css/] },
     globals: true,
     // The first case in a file pays for transforming the whole app graph, and
     // v8 instrumentation makes that slower still; the 5s default sits close

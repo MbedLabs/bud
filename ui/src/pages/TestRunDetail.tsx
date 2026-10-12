@@ -170,8 +170,8 @@ export default function TestRunDetail() {
             <div
               className={`h-full rounded-full transition-all duration-700 ${
                 parseFloat(passRate) >= 80
-                  ? 'bg-gradient-to-r from-emerald-500 to-emerald-400'
-                  : 'bg-gradient-to-r from-amber-500 to-amber-400'
+                  ? 'bg-linear-to-r/srgb from-emerald-500 to-emerald-400'
+                  : 'bg-linear-to-r/srgb from-amber-500 to-amber-400'
               }`}
               style={{ width: `${passRate}%` }}
             />
@@ -204,7 +204,7 @@ export default function TestRunDetail() {
               <dt className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
                 Bloom suite
               </dt>
-              <dd className="text-sm text-foreground mt-1 break-words">
+              <dd className="text-sm text-foreground mt-1 wrap-break-word">
                 {safeExternalUrl(run.bloom_artefact_url) ? (
                   <a
                     href={safeExternalUrl(run.bloom_artefact_url) as string}
@@ -765,8 +765,8 @@ function AssertionRow({ assertion, index }: { assertion: AssertionViewModel; ind
       neutral
         ? 'border-border bg-transparent'
         : passed
-          ? 'border-emerald-500/50 bg-emerald-500/[0.02]'
-          : 'border-red-500/70 bg-red-500/[0.03]'
+          ? 'border-emerald-500/50 bg-emerald-500/2'
+          : 'border-red-500/70 bg-red-500/3'
     }`}>
       <div className="flex items-start gap-2">
         {passed ? (
@@ -824,7 +824,7 @@ function AssertionRow({ assertion, index }: { assertion: AssertionViewModel; ind
               <summary className="cursor-pointer text-[11px] text-muted-foreground hover:text-foreground">
                 trace
               </summary>
-              <pre className="mt-1 text-[11px] leading-relaxed text-foreground bg-background border border-border rounded-md p-2 overflow-x-auto whitespace-pre-wrap break-words">
+              <pre className="mt-1 text-[11px] leading-relaxed text-foreground bg-background border border-border rounded-md p-2 overflow-x-auto whitespace-pre-wrap wrap-break-word">
                 {assertion.traceback}
               </pre>
             </details>
@@ -847,7 +847,7 @@ function DetailItem({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <dt className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">{label}</dt>
-      <dd className="text-sm text-foreground mt-1 break-words">{value}</dd>
+      <dd className="text-sm text-foreground mt-1 wrap-break-word">{value}</dd>
     </div>
   )
 }
@@ -880,7 +880,7 @@ function SummaryCard({ label, tests, assertions, icon: Icon, gradient, iconColor
             </span>
           </div>
         </div>
-        <div className={`p-2.5 rounded-lg bg-gradient-to-br ${gradient}`}>
+        <div className={`p-2.5 rounded-lg bg-linear-to-br/srgb ${gradient}`}>
           <Icon className={`h-5 w-5 ${iconColor}`} />
         </div>
       </div>
