@@ -113,7 +113,7 @@ export default function TestStations() {
         </div>
       ) : runners.length === 0 ? (
         <div className="bg-card rounded-lg border border-border shadow-elegant p-16 text-center">
-          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary/10 to-lime-500/10 flex items-center justify-center mx-auto mb-5">
+          <div className="w-20 h-20 rounded-2xl bg-linear-to-br/srgb from-primary/10 to-lime-500/10 flex items-center justify-center mx-auto mb-5">
             <Server className="h-10 w-10 text-primary/40" />
           </div>
           <h3 className="text-lg font-semibold text-foreground mb-2">No Test Stations Registered</h3>
@@ -165,7 +165,7 @@ export default function TestStations() {
       )}
       {renaming && (
         <div
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50"
+          className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50"
           onClick={() => setRenaming(null)}
         >
           <form
@@ -297,7 +297,7 @@ function TestStationCard({
       {/* Top accent bar */}
       <div className={`h-1 rounded-t-lg ${
         runner.is_online
-          ? 'bg-gradient-to-r from-primary via-bud-forest to-bud-orange'
+          ? 'bg-linear-to-r/srgb from-primary via-bud-forest to-bud-orange'
           : 'bg-muted'
       }`} />
 

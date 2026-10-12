@@ -290,7 +290,7 @@ export default function Dashboard() {
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 ml-4 flex-shrink-0">
+                  <div className="flex items-center gap-3 ml-4 shrink-0">
                     <RunStatusBadge status={run.status} />
                     <div className="text-xs text-muted-foreground">
                       {run.passed_tests}/{run.total_tests} passed
@@ -363,7 +363,7 @@ function FilterSelect({ label, value, onChange, options, placeholder }: {
       <select
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="rounded-md border border-input bg-background px-2.5 py-1.5 text-sm text-foreground transition-colors hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring"
+        className="rounded-md border border-input bg-background px-2.5 py-1.5 text-sm text-foreground transition-colors hover:bg-accent focus:outline-hidden focus:ring-2 focus:ring-ring"
       >
         {placeholder && <option value="">{placeholder}</option>}
         {options.map((option) => (
@@ -446,7 +446,7 @@ function StatCard({ title, value, icon: Icon, gradient, subtitle, subtitleTone =
             }`}>{subtitle}</p>
           )}
         </div>
-        <div className={`p-2.5 rounded-lg bg-gradient-to-br ${gradient}`}>
+        <div className={`p-2.5 rounded-lg bg-linear-to-br/srgb ${gradient}`}>
           <Icon className="h-5 w-5 text-white" />
         </div>
       </div>

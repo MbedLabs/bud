@@ -308,7 +308,7 @@ export default function Settings() {
                 dark ? 'bg-primary' : 'bg-muted'
               }`}
             >
-              <span className={`inline-flex h-5 w-5 items-center justify-center rounded-full bg-white shadow-sm transition-transform duration-200 ${
+              <span className={`inline-flex h-5 w-5 items-center justify-center rounded-full bg-white shadow-xs transition-transform duration-200 ${
                 dark ? 'translate-x-6' : 'translate-x-1'
               }`}>
                 {dark ? <Moon className="h-3 w-3 text-primary" /> : <Sun className="h-3 w-3 text-amber-500" />}
@@ -331,7 +331,7 @@ export default function Settings() {
               <select
                 value={timezone}
                 onChange={(e) => handleTimezoneChange(e.target.value)}
-                className="w-full bg-background border border-input rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                className="w-full bg-background border border-input rounded-md px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-primary/20"
               >
                 {COMMON_TIMEZONES.map((tz) => (
                   <option key={tz.value} value={tz.value}>
