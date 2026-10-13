@@ -3,6 +3,7 @@
 Bud TMP is a test management and execution platform for automated software, hardware, and system testing. It gives teams one place to monitor Test Stations, inspect runs and assertions, retain artifacts, and connect execution evidence to Bloom PLM.
 
 > **Release:** 1.1.0 public beta
+> **Next version:** 1.2.0 (in preparation)
 
 ## What Bud provides
 

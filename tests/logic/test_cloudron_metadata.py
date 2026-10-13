@@ -20,7 +20,10 @@ def test_cloudron_metadata_uses_canonical_product_positioning():
     assert manifest["tagline"] == "Automated software, hardware and system testing"
     assert description == (
         "Bud TMP by EmbedLabs provides test management and execution for automated "
-        "software, hardware and system testing."
+        "software, hardware and system testing.\n\n"
+        "Manage Test Stations and execution requests, collect results and artifacts, "
+        "generate reports, and publish completed run reports to Bloom PLM. Manage users "
+        "and policy groups, customize report branding, and receive run notifications."
     )
     assert "embedded" not in json.dumps(manifest).lower()
     assert "embedded" not in description.lower()
