@@ -2,15 +2,16 @@ import type { ReactNode } from 'react'
 import { ArrowUpDown, ChevronDown, ChevronUp, X } from 'lucide-react'
 
 /** A sortable table column with its current direction. */
-export function AccessHeader<F extends string>({ field, sortField, sortDir, onSort, children }: {
+export function AccessHeader<F extends string>({ field, sortField, sortDir, onSort, children, className = 'text-left font-medium px-4 py-2' }: {
   field: F
-  sortField: F
+  sortField: F | null
   sortDir: 'asc' | 'desc'
   onSort: (field: F) => void
   children: ReactNode
+  className?: string
 }) {
-  return <th aria-sort={sortField === field ? sortDir === 'asc' ? 'ascending' : 'descending' : 'none'} className="text-left font-medium px-4 py-2">
-    <button type="button" onClick={() => onSort(field)} className="flex items-center gap-1 hover:text-foreground transition-colors">
+  return <th aria-sort={sortField === field ? sortDir === 'asc' ? 'ascending' : 'descending' : 'none'} className={className} onClick={() => onSort(field)}>
+    <button type="button" className="flex items-center gap-1 hover:text-foreground transition-colors">
       {children}
       {sortField === field ? sortDir === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" /> : <ArrowUpDown className="h-3 w-3 opacity-30" />}
     </button>
