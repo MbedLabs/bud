@@ -46,19 +46,24 @@ beforeEach(() => vi.clearAllMocks())
 afterEach(cleanup)
 
 describe('Run notifications settings', () => {
-  it('lists a channel with its format, filter and URL prefix, never the full URL', async () => {
+  it('lists channels without technical metadata or endpoint prefixes', async () => {
     renderIt()
     expect(await screen.findByText('qa-results')).toBeTruthy()
-    expect(screen.getByText(/slack · Failures only · https:\/\/hooks\.slack\.com/)).toBeTruthy()
+    expect(screen.getByText('Slack · Failures only')).toBeTruthy()
+    expect(screen.queryByText(/hooks.slack.com|stored encrypted|Workflows or connector/)).toBeNull()
+    expect(screen.getByLabelText('Webhook URL').getAttribute('autocomplete')).toBe('off')
+    expect(screen.getByLabelText('Signing secret (optional)').getAttribute('autocomplete')).toBe('new-password')
   })
 
   it('adds a channel', async () => {
     renderIt()
     await screen.findByText('qa-results')
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'lab' } })
-    fireEvent.change(screen.getByLabelText('Format'), { target: { value: 'teams' } })
+    fireEvent.click(screen.getByRole('combobox', { name: 'Format' }))
+    fireEvent.click(screen.getByRole('option', { name: 'Microsoft Teams' }))
     fireEvent.change(screen.getByLabelText('Webhook URL'), { target: { value: 'https://example.com/hook' } })
-    fireEvent.change(screen.getByLabelText('Post'), { target: { value: 'first_failure' } })
+    fireEvent.click(screen.getByRole('combobox', { name: 'Post' }))
+    fireEvent.click(screen.getByRole('option', { name: 'First failure after a green run' }))
     fireEvent.click(screen.getByText('Add channel'))
     await waitFor(() =>
       expect(api.notificationsApi.createChannel).toHaveBeenCalledWith({
@@ -77,6 +82,31 @@ describe('Run notifications settings', () => {
     fireEvent.click(await screen.findByTitle('Send a test message to qa-results'))
     expect(await screen.findByText('Test message delivered to qa-results.')).toBeTruthy()
     expect(api.notificationsApi.testChannel).toHaveBeenCalledWith(4)
+  })
+
+  it('supports keyboard selection, cancellation and short format options', async () => {
+    renderIt()
+    await screen.findByText('qa-results')
+    const picker = screen.getByRole('combobox', { name: 'Format' })
+    fireEvent.click(picker)
+    expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual(['Microsoft Teams', 'Slack', 'Discord', 'JSON'])
+    fireEvent.keyDown(picker, { key: 'End' })
+    fireEvent.keyDown(picker, { key: 'Enter' })
+    expect(picker.textContent).toContain('JSON')
+    expect(screen.queryByRole('listbox')).toBeNull()
+    fireEvent.keyDown(picker, { key: 'Home' })
+    fireEvent.keyDown(picker, { key: 'Escape' })
+    expect(picker.textContent).toContain('JSON')
+    fireEvent.keyDown(picker, { key: 's' })
+    fireEvent.keyDown(picker, { key: 'Enter' })
+    expect(picker.textContent).toContain('Slack')
+    fireEvent.keyDown(picker, { key: 'ArrowDown' })
+    fireEvent.keyDown(picker, { key: 'ArrowUp' })
+    fireEvent.keyDown(picker, { key: 'Enter' })
+    expect(picker.textContent).toContain('Slack')
+    fireEvent.click(picker)
+    fireEvent.blur(picker, { relatedTarget: screen.getByLabelText('Name') })
+    expect(screen.queryByRole('listbox')).toBeNull()
   })
 
   it('reports a test message the channel refused', async () => {
