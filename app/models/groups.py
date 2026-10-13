@@ -1,7 +1,7 @@
-"""Groups: named sets of users that carry the Developer or Viewer role.
+"""Groups of the 1.2.0 development builds: named sets of users carrying a role.
 
-A member holds the higher of their own role and the roles of their groups. A group never
-carries Administrator: that is a user's own role, set when the user is created.
+No access check reads these tables; access is given by the policy groups in
+`app/models/access.py`. The rows are kept until their removal is confirmed.
 """
 
 from datetime import datetime

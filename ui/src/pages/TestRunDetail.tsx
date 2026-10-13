@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useParams, Link } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
 import {
+  accessRequestsApi,
   artifactsApi,
   extractApiErrorMessage,
   reportsApi,
@@ -27,6 +28,8 @@ import { safeExternalUrl } from '../lib/externalLink'
 import { ArrowLeft, CheckCircle, XCircle, Clock, AlertCircle, Activity, ChevronDown, ChevronRight, UploadCloud, RefreshCw, Radio, GitBranch, Filter, X, Paperclip, FileText, Download, ExternalLink, Bell } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import AccessDenied from '../components/AccessDenied'
+import { useAuth } from '../contexts/AuthContext'
+import { can } from '../lib/access'
 import { isAccessDenied } from '../lib/accessDenied'
 import RunStatusBadge from '../components/RunStatusBadge'
 import PdfReportButton from '../components/PdfReportButton'
@@ -358,7 +361,7 @@ export default function TestRunDetail() {
 
       <RunArtifacts artifacts={artifacts} isLoading={artifactsLoading} />
 
-      <PublishToBloom runId={runId} status={run.status} />
+      <PublishSection runId={runId} status={run.status} />
     </div>
   )
 }
@@ -927,6 +930,59 @@ function OutcomeFilterChip({ label }: { label: string }) {
  * PLM every night, and a project holding a year of them is harder to read than
  * one holding none.
  */
+function PublishSection({ runId, status }: { runId: number; status: string }) {
+  const { user } = useAuth()
+  return can(user, 'bloom_publish.execute') ? (
+    <PublishToBloom runId={runId} status={status} />
+  ) : (
+    <RequestPublishing runId={runId} />
+  )
+}
+
+/**
+ * Where the Publish button would be for someone without Publish to Bloom: they ask for it,
+ * and an Admin or access manager grants it by giving a group that holds it.
+ */
+function RequestPublishing({ runId }: { runId: number }) {
+  const queryClient = useQueryClient()
+  const params = { resource_type: 'publish-to-bloom' as const, resource_ref: String(runId) }
+  const queryKey = ['access-request', params.resource_type, params.resource_ref]
+  const { data: existing } = useQuery({ queryKey, queryFn: () => accessRequestsApi.mine(params) })
+  const create = useMutation({
+    mutationFn: () => accessRequestsApi.create(params),
+    onSuccess: (created) => queryClient.setQueryData(queryKey, created),
+  })
+  const request = create.data ?? existing ?? null
+
+  return (
+    <div className="bg-card rounded-lg shadow-elegant overflow-hidden">
+      <div className="px-5 py-4 border-b border-border">
+        <h3 className="text-sm font-semibold text-foreground">Publish to Bloom</h3>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          Publishing to Bloom is not part of your access. Ask for it and an administrator or access manager decides.
+        </p>
+      </div>
+      <div className="p-5 flex flex-wrap items-center gap-3">
+        {request === null && (
+          <button
+            onClick={() => create.mutate()}
+            disabled={create.isPending}
+            className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 disabled:opacity-50"
+          >
+            Request access
+          </button>
+        )}
+        {request?.status === 'pending' && <span className="text-sm text-foreground">Access requested.</span>}
+        {request?.status === 'granted' && (
+          <span className="text-sm text-foreground">Granted. Reload the page to publish.</span>
+        )}
+        {request?.status === 'refused' && <span className="text-sm text-foreground">The request was refused.</span>}
+        {create.isError && <span className="text-sm text-red-500">{extractApiErrorMessage(create.error)}</span>}
+      </div>
+    </div>
+  )
+}
+
 function PublishToBloom({ runId, status }: { runId: number; status: string }) {
   const [result, setResult] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)

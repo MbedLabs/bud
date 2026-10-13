@@ -4,11 +4,8 @@ import pytest
 
 
 @pytest.mark.asyncio
-async def test_an_html_report_is_accepted_and_served_as_a_download(client):
-    uploaded = client.post(
-        "/api/uploads",
-        files={"file": ("log.html", b"<html><script>alert(1)</script></html>", "text/html")},
-    )
+async def test_an_html_report_is_accepted_and_served_as_a_download(client, station_upload):
+    uploaded = station_upload("log.html", b"<html><script>alert(1)</script></html>", "text/html")
     assert uploaded.status_code == 201, uploaded.text
     assert uploaded.json()["content_type"] == "text/html"
 

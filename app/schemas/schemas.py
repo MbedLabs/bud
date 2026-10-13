@@ -419,10 +419,27 @@ class UnassignedTest(BaseModel):
     reason: str
 
 
+class ExecutionRequestResponse(BaseModel):
+    """A queued selection and its optional station-created execution link."""
+
+    id: int
+    name: str
+    runner_account: str
+    selected_tests: List[str]
+    state: str
+    run_id: Optional[int] = None
+    source_metadata: dict
+    created_at: datetime
+
+    @field_serializer("created_at")
+    def serialize_dt(self, dt: datetime, _info):
+        return f"{dt.isoformat()}Z"
+
+
 class CustomRunResponse(BaseModel):
     """What was queued, and what could not be."""
 
-    runs: List[TestRunResponse]
+    requests: List[ExecutionRequestResponse]
     unassigned: List[UnassignedTest]
 
 

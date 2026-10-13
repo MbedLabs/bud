@@ -1,6 +1,8 @@
 """Run-finished notifications: summary, renderers, filters, delivery, once per run and channel."""
 
 import json
+from datetime import datetime
+from uuid import uuid4
 
 import httpx
 import pytest
@@ -118,6 +120,37 @@ def test_outcome_colours():
     assert _summary().outcome == "failed"
     assert _summary(failed=0, failed_tests=[]).outcome == "passed"
     assert _summary(passed=0, failed=0, failed_tests=[]).outcome == "neutral"
+
+
+@pytest.mark.asyncio
+async def test_station_failure_without_results_reaches_failure_channels(db_session):
+    run = await _run(db_session, passed=0, failed=0)
+    run.runner_exit_code = 1
+    await db_session.commit()
+    failures = await _channel(db_session, run_filter="failures")
+    assert await notify.channel_wants_run(db_session, failures, run)
+    summary = await notify.build_summary(db_session, run)
+    assert summary.outcome == "failed"
+    assert summary.passed == summary.failed == 0
+    for render in notify.RENDERERS.values():
+        assert "Station exit" in json.dumps(render(summary)) or render == notify.render_json
+
+
+@pytest.mark.asyncio
+async def test_claim_notifications_wait_for_the_terminal_station_answer(db_session):
+    await _channel(db_session, "json", run_filter="all", name="all")
+    await _channel(db_session, "json", run_filter="failures", name="failures")
+    run = await _run(db_session, passed=2, failed=0)
+    run.claim_id = str(uuid4())
+    await db_session.commit()
+    assert await notify.notify_run_finished(run.id, wait=wait_none()) == 0
+    assert _Recorder.posts == []
+    run.claim_acknowledged_at = datetime.utcnow()
+    run.runner_exit_code = 1
+    await db_session.commit()
+    assert await notify.notify_run_finished(run.id, wait=wait_none()) == 2
+    assert all(post["body"]["outcome"] == "failed" for post in _Recorder.posts)
+    assert await notify.notify_run_finished(run.id, wait=wait_none()) == 0
 
 
 def test_failed_list_is_capped_with_more():

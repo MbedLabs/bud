@@ -1,8 +1,9 @@
-"""Access requests: a signed-in user who is refused a resource asks the administrators.
+"""Access requests: a signed-in user asks for access to a resource or for Publish to Bloom.
 
 The request names the resource only by the type and id the user already saw in the
 address; nothing about the resource is looked up or disclosed. One
-request per user and resource per 24 hours; the administrators are emailed and the
+request per user and resource per 24 hours. Admins and holders of access management are
+emailed and decide; granting Publish to Bloom gives the requester a group holding it. The
 request, its grant or its refusal are recorded in the audit log.
 """
 
@@ -14,7 +15,9 @@ from pydantic import BaseModel, Field, field_serializer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.auth import get_current_user, require_role
+from app.api.auth import get_current_user, require_permission
+from app.api.groups import give_group, load_group
+from app.core.access import effective_permissions, group_permissions
 from app.core.config import settings
 from app.core.observability import request_id_var
 from app.core.timestamps import second_utc
@@ -26,11 +29,12 @@ from app.services.mail_service import MailConfigurationError, send_access_reques
 
 router = APIRouter()
 
-require_admin = require_role(UserRole.admin)
+require_admin = require_permission("access", "manage")
 
 REQUEST_WINDOW = timedelta(hours=24)
 
-ResourceType = Literal["test-run", "product"]
+ResourceType = Literal["test-run", "product", "publish-to-bloom"]
+PUBLISH_TO_BLOOM = "publish-to-bloom"
 
 
 class AccessRequestCreate(BaseModel):
@@ -60,9 +64,10 @@ class AccessRequestResponse(BaseModel):
 
 
 class AccessDecision(BaseModel):
-    """An administrator's answer to a pending request."""
+    """The answer to a pending request; a grant of Publish to Bloom names the group given."""
 
     decision: Literal["granted", "refused"]
+    group_id: Optional[int] = None
 
 
 def _response(row: AccessRequest, user: Optional[User] = None, **extra) -> AccessRequestResponse:
@@ -101,8 +106,8 @@ async def _recent_request(
 
 
 def _review_link() -> str:
-    """Where an administrator grants the access: the users page, groups and product grants."""
-    return f"{settings.APP_BASE_URL.rstrip('/')}/users"
+    """Return the administrator's access-review page."""
+    return f"{settings.APP_BASE_URL.rstrip('/')}/access"
 
 
 @router.post("", response_model=AccessRequestResponse, status_code=201)
@@ -134,15 +139,11 @@ async def request_access(
         details={"access_request_id": row.id},
     )
 
-    admins = (
-        (
-            await db.execute(
-                select(User).where(User.role == UserRole.admin, User.is_active.is_(True))
-            )
-        )
-        .scalars()
-        .all()
-    )
+    admins = [
+        user
+        for user in (await db.execute(select(User).where(User.is_active.is_(True)))).scalars()
+        if user.role == UserRole.admin or "access.manage" in await effective_permissions(db, user)
+    ]
     resource = data.resource_ref
     mail_sent = bool(admins)
     for admin in admins:
@@ -205,6 +206,24 @@ async def decide_access_request(
         raise HTTPException(status_code=404, detail="Access request not found")
     if row.status != "pending":
         raise HTTPException(status_code=409, detail="This request was already answered")
+    group_id = None
+    if data.decision == "granted" and (
+        data.group_id is not None or row.resource_type == PUBLISH_TO_BLOOM
+    ):
+        if data.group_id is None:
+            raise HTTPException(
+                status_code=422, detail="Choose the group that gives Publish to Bloom"
+            )
+        group = await load_group(db, data.group_id)
+        if row.resource_type == PUBLISH_TO_BLOOM and (
+            "bloom_publish.execute" not in group_permissions(group)
+        ):
+            raise HTTPException(status_code=422, detail="This group does not give Publish to Bloom")
+        requester = await db.get(User, row.user_id)
+        if requester is None:
+            raise HTTPException(status_code=404, detail="User not found")
+        await give_group(db, admin, group, requester)
+        group_id = group.id
     row.status = data.decision
     row.decided_by_user_id = admin.id
     row.decided_at = datetime.utcnow()
@@ -216,6 +235,7 @@ async def decide_access_request(
         details={
             "access_request_id": row.id,
             "requester_user_id": row.user_id,
+            "group_id": group_id,
         },
     )
     requester = await db.get(User, row.user_id)

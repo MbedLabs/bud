@@ -8,14 +8,14 @@ from sqlalchemy import delete, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.auth import get_current_user, require_role
+from app.api.auth import get_current_user, require_permission
 from app.core.config import settings
 from app.core.deps import get_current_runner, limiter, require_runner_api_key
 from app.core.runner_keys import mark_used, mint_key
 from app.core.security import generate_runner_token, get_password_hash, verify_password
 from app.db import get_db
 from app.models import Runner, RunnerApiKey, TestRun
-from app.models.user import User, UserRole
+from app.models.user import User
 from app.schemas import (
     RunnerApiKeyCreate,
     RunnerApiKeyCreated,
@@ -233,7 +233,7 @@ async def _require_station_name_free(db: AsyncSession, name: str, exclude_runner
 async def create_runner_api_key(
     data: RunnerApiKeyCreate,
     db: AsyncSession = Depends(get_db, scope="function"),
-    admin: User = Depends(require_role(UserRole.admin)),
+    admin: User = Depends(require_permission("stations", "manage")),
 ):
     """Mint an enrolment key for a Test Station."""
     if data.station_name:
@@ -269,7 +269,7 @@ async def create_runner_api_key(
 @router.get("/api-keys", response_model=List[RunnerApiKeyResponse])
 async def list_runner_api_keys(
     db: AsyncSession = Depends(get_db, scope="function"),
-    _admin: User = Depends(require_role(UserRole.admin)),
+    _admin: User = Depends(require_permission("stations", "manage")),
 ):
     """List every enrolment key and the station it is pinned to, if any."""
     result = await db.execute(
@@ -295,7 +295,7 @@ async def list_runner_api_keys(
 async def delete_runner_api_key(
     key_id: int,
     db: AsyncSession = Depends(get_db, scope="function"),
-    _admin: User = Depends(require_role(UserRole.admin)),
+    _admin: User = Depends(require_permission("stations", "manage")),
 ):
     """Revoke an enrolment key."""
     record = await db.get(RunnerApiKey, key_id)
@@ -336,7 +336,7 @@ async def rename_runner(
     account: str,
     data: RunnerRename,
     db: AsyncSession = Depends(get_db, scope="function"),
-    _admin: User = Depends(require_role(UserRole.admin)),
+    _admin: User = Depends(require_permission("stations", "manage")),
 ):
     """Rename a Test Station.
 
@@ -374,7 +374,7 @@ async def rename_runner(
 async def delete_runner(
     account: str,
     db: AsyncSession = Depends(get_db, scope="function"),
-    _admin: User = Depends(require_role(UserRole.admin)),
+    _admin: User = Depends(require_permission("stations", "manage")),
 ):
     """Delete a Test Station. Requires an authenticated administrator."""
     result = await db.execute(select(Runner).where(Runner.account == account))

@@ -6,7 +6,6 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.access import effective_role
 from app.models import Runner, TestRun
 from app.models.user import User, UserRole
 
@@ -14,8 +13,8 @@ RunPrincipal = Union[User, Runner]
 
 
 async def require_mutating_user(db: AsyncSession, user: User) -> None:
-    """Let only administrators change runs, results and artifacts."""
-    if await effective_role(db, user) != UserRole.admin:
+    """Let only users whose base role is Admin change runs, results and artifacts."""
+    if user.role != UserRole.admin:
         raise HTTPException(status_code=403, detail="Administrator privileges required")
 
 

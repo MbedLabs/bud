@@ -15,7 +15,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.auth import get_current_active_entity, get_current_user
-from app.core.access import effective_role
 from app.core.config import settings
 from app.db import get_db
 from app.models import Artifact, Runner, TestRun
@@ -73,7 +72,8 @@ def _can_runner_access_artifact(runner: Runner, artifact: Artifact) -> bool:
 
 
 async def _can_user_delete_artifact(db: AsyncSession, user: User) -> bool:
-    return await effective_role(db, user) == UserRole.admin
+    """Deleting evidence is fixed to the Admin base role."""
+    return user.role == UserRole.admin
 
 
 async def _get_accessible_artifact(
@@ -97,12 +97,9 @@ async def _get_accessible_artifact(
 async def _validate_runner_upload_run(
     db: AsyncSession, current_entity: Union[User, Runner], run_id: Optional[int]
 ) -> None:
-    """Prevent a runner from attaching an artifact to another runner's test run."""
-    if (
-        isinstance(current_entity, User)
-        and await effective_role(db, current_entity) != UserRole.admin
-    ):
-        raise HTTPException(status_code=403, detail="Only admins may upload artifacts")
+    """Only a station uploads evidence, and only to one of its own test runs."""
+    if isinstance(current_entity, User):
+        raise HTTPException(status_code=403, detail="Only stations can upload artifacts")
     if run_id is None:
         if isinstance(current_entity, Runner):
             raise HTTPException(

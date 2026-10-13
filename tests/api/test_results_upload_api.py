@@ -20,21 +20,25 @@ def _result(test_class="SmokeTests", test_method="test_boot", passed=True, **ove
 
 
 class TestUploadingResults:
-    def test_uploads_against_an_existing_run(self, client):
-        run_id = client.post(
+    def test_uploads_against_an_existing_run(self, client, station_request):
+        run_id = station_request(
+            "POST",
             "/api/test-runs",
             json={"test_suite_name": "Nightly", "test_case_list": "SmokeTests"},
         ).json()["id"]
 
-        response = client.post("/api/results", json={"test_run_id": run_id, "results": [_result()]})
+        response = station_request(
+            "POST", "/api/results", json={"test_run_id": run_id, "results": [_result()]}
+        )
         assert response.status_code == 201, response.text
         body = response.json()
         assert body["test_run_id"] == run_id
         assert body["count"] == 1
 
-    def test_creates_a_run_when_none_is_supplied(self, client):
+    def test_creates_a_run_when_none_is_supplied(self, client, station_request):
         """A station can post results without having opened a run first."""
-        response = client.post(
+        response = station_request(
+            "POST",
             "/api/results",
             json={"test_suite_name": "Ad-hoc suite", "results": [_result()]},
         )
@@ -46,13 +50,16 @@ class TestUploadingResults:
         assert "Ad-hoc suite" in created.json()["name"]
 
     @pytest.mark.asyncio
-    async def test_the_auto_created_run_is_named_after_the_product(self, client, db_session):
+    async def test_the_auto_created_run_is_named_after_the_product(
+        self, client, station_request, db_session
+    ):
         product = Product(name="Gateway ECU")
         db_session.add(product)
         await db_session.commit()
         await db_session.refresh(product)
 
-        response = client.post(
+        response = station_request(
+            "POST",
             "/api/results",
             json={
                 "product_id": product.id,
@@ -65,12 +72,15 @@ class TestUploadingResults:
         assert "Gateway ECU" in name
         assert "Regression" in name
 
-    def test_uploading_to_an_unknown_run_is_404(self, client):
-        response = client.post("/api/results", json={"test_run_id": 99999, "results": [_result()]})
+    def test_uploading_to_an_unknown_run_is_404(self, client, station_request):
+        response = station_request(
+            "POST", "/api/results", json={"test_run_id": 99999, "results": [_result()]}
+        )
         assert response.status_code == 404
 
-    def test_accepts_a_failing_result_with_its_traceback(self, client):
-        response = client.post(
+    def test_accepts_a_failing_result_with_its_traceback(self, client, station_request):
+        response = station_request(
+            "POST",
             "/api/results",
             json={
                 "test_suite_name": "Failures",
@@ -85,8 +95,9 @@ class TestUploadingResults:
         )
         assert response.status_code == 201, response.text
 
-    def test_accepts_assertions_and_metadata(self, client):
-        response = client.post(
+    def test_accepts_assertions_and_metadata(self, client, station_request):
+        response = station_request(
+            "POST",
             "/api/results",
             json={
                 "test_suite_name": "Rich",
@@ -100,15 +111,19 @@ class TestUploadingResults:
         )
         assert response.status_code == 201, response.text
 
-    def test_rejects_a_payload_with_no_results_field(self, client):
-        assert client.post("/api/results", json={"test_suite_name": "x"}).status_code == 422
+    def test_rejects_a_payload_with_no_results_field(self, client, station_request):
+        assert (
+            station_request("POST", "/api/results", json={"test_suite_name": "x"}).status_code
+            == 422
+        )
 
 
 class TestRunStatisticsFromResults:
     """The run's counters are aggregated at the test-class level, not per method."""
 
-    def test_a_class_passes_only_when_every_method_passes(self, client):
-        response = client.post(
+    def test_a_class_passes_only_when_every_method_passes(self, client, station_request):
+        response = station_request(
+            "POST",
             "/api/results",
             json={
                 "test_suite_name": "Mixed",
@@ -126,8 +141,9 @@ class TestRunStatisticsFromResults:
         assert run["passed_tests"] == 1, "ClassA has a failing method"
         assert run["failed_tests"] == 1
 
-    def test_a_class_whose_results_are_all_skipped_counts_as_skipped(self, client):
-        response = client.post(
+    def test_a_class_whose_results_are_all_skipped_counts_as_skipped(self, client, station_request):
+        response = station_request(
+            "POST",
             "/api/results",
             json={
                 "test_suite_name": "Robot",
@@ -141,10 +157,16 @@ class TestRunStatisticsFromResults:
         run_id = response.json()["test_run_id"]
 
         run = client.get(f"/api/test-runs/{run_id}").json()
-        assert (run["total_tests"], run["passed_tests"], run["failed_tests"], run["skipped_tests"]) == (3, 1, 1, 1)
+        assert (
+            run["total_tests"],
+            run["passed_tests"],
+            run["failed_tests"],
+            run["skipped_tests"],
+        ) == (3, 1, 1, 1)
 
-    def test_duration_is_summed_across_every_method(self, client):
-        response = client.post(
+    def test_duration_is_summed_across_every_method(self, client, station_request):
+        response = station_request(
+            "POST",
             "/api/results",
             json={
                 "test_suite_name": "Timed",
@@ -157,33 +179,38 @@ class TestRunStatisticsFromResults:
         run = client.get(f"/api/test-runs/{response.json()['test_run_id']}").json()
         assert run["duration_seconds"] == pytest.approx(4.0)
 
-    def test_uploading_completes_the_run(self, client):
-        run_id = client.post(
-            "/api/test-runs", json={"test_suite_name": "ToComplete", "test_case_list": "C"}
+    def test_uploading_completes_the_run(self, client, station_request):
+        run_id = station_request(
+            "POST", "/api/test-runs", json={"test_suite_name": "ToComplete", "test_case_list": "C"}
         ).json()["id"]
         assert client.get(f"/api/test-runs/{run_id}").json()["status"] == "Running"
 
-        client.post("/api/results", json={"test_run_id": run_id, "results": [_result()]})
+        station_request(
+            "POST", "/api/results", json={"test_run_id": run_id, "results": [_result()]}
+        )
 
         completed = client.get(f"/api/test-runs/{run_id}").json()
         assert completed["status"] == "Completed"
         assert completed["completed_at"] is not None
 
-    def test_uploading_records_an_event(self, client):
-        run_id = client.post(
-            "/api/test-runs", json={"test_suite_name": "Evented", "test_case_list": "C"}
+    def test_uploading_records_an_event(self, client, station_request):
+        run_id = station_request(
+            "POST", "/api/test-runs", json={"test_suite_name": "Evented", "test_case_list": "C"}
         ).json()["id"]
         before = len(client.get(f"/api/test-runs/{run_id}/events").json())
 
-        client.post("/api/results", json={"test_run_id": run_id, "results": [_result()]})
+        station_request(
+            "POST", "/api/results", json={"test_run_id": run_id, "results": [_result()]}
+        )
         after = client.get(f"/api/test-runs/{run_id}/events").json()
         assert len(after) > before
         assert any("Results uploaded" in event["title"] for event in after)
 
 
 class TestReadingResults:
-    def test_lists_the_results_of_a_run(self, client):
-        response = client.post(
+    def test_lists_the_results_of_a_run(self, client, station_request):
+        response = station_request(
+            "POST",
             "/api/results",
             json={
                 "test_suite_name": "Listed",
@@ -200,9 +227,9 @@ class TestReadingResults:
         assert client.get("/api/results/99999").status_code == 404
 
     @pytest.mark.asyncio
-    async def test_fetches_one_result(self, client, db_session):
-        response = client.post(
-            "/api/results", json={"test_suite_name": "Single", "results": [_result()]}
+    async def test_fetches_one_result(self, client, station_request, db_session):
+        response = station_request(
+            "POST", "/api/results", json={"test_suite_name": "Single", "results": [_result()]}
         )
         run_id = response.json()["test_run_id"]
         result_id = (

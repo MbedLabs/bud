@@ -1,5 +1,5 @@
 import { lazy } from 'react'
-import { Routes, Route, Link } from 'react-router'
+import { Routes, Route, Link, Navigate } from 'react-router'
 import Layout from './components/Layout'
 import ProtectedRoute from './components/ProtectedRoute'
 import Login from './pages/Login'
@@ -9,6 +9,7 @@ import ForgotPassword from './pages/ForgotPassword'
 import ResetPassword from './pages/ResetPassword'
 import ConfirmEmailChange from './pages/ConfirmEmailChange'
 import Setup from './pages/Setup'
+import { useAuth } from './contexts/AuthContext'
 
 /* v8 ignore start -- these thunks hold no logic, and React only invokes them
    when a lazy route renders, which renderToString never does. Their one real
@@ -21,8 +22,15 @@ const TestRunDetail = lazy(() => import('./pages/TestRunDetail'))
 const TestRuns = lazy(() => import('./pages/TestRuns'))
 const TestStations = lazy(() => import('./pages/TestStations'))
 const Users = lazy(() => import('./pages/Users'))
+const Access = lazy(() => import('./pages/Access'))
 const Audit = lazy(() => import('./pages/Audit'))
 /* v8 ignore stop */
+
+/** Account-management route for the Admin base role. */
+function UsersRoute() {
+  const { user } = useAuth()
+  return user?.role === 'admin' ? <Users /> : <Navigate to="/" replace />
+}
 
 function NotFound() {
   return (
@@ -56,7 +64,8 @@ function App() {
           <Route path="runs/:id" element={<TestRunDetail />} />
           <Route path="test-stations" element={<TestStations />} />
           <Route path="settings" element={<Settings />} />
-          <Route path="users" element={<Users />} />
+          <Route path="users" element={<UsersRoute />} />
+          <Route path="access" element={<Access />} />
           <Route path="audit" element={<Audit />} />
           <Route path="*" element={<NotFound />} />
         </Route>

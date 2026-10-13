@@ -3,15 +3,27 @@ Auth API endpoints: login, get current user, update profile.
 Also provides shared auth dependencies used across the app.
 """
 
+import io
 import logging
 from datetime import datetime
 from typing import Optional, Union
 
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
+from fastapi import (
+    APIRouter,
+    Cookie,
+    Depends,
+    File,
+    HTTPException,
+    Request,
+    Response,
+    UploadFile,
+    status,
+)
+from PIL import Image, ImageOps, UnidentifiedImageError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.access import effective_role
+from app.core.access import effective_permissions
 from app.core.config import settings
 from app.core.deps import limiter
 from app.core.security import (
@@ -171,11 +183,10 @@ async def get_current_user(
 
 
 def require_role(*roles: UserRole):
-    async def role_checker(
-        current_user: User = Depends(get_current_user),
-        db: AsyncSession = Depends(get_db, scope="function"),
-    ) -> User:
-        if await effective_role(db, current_user) not in roles:
+    """Let only users whose own base role is one of ``roles`` through."""
+
+    async def role_checker(current_user: User = Depends(get_current_user)) -> User:
+        if current_user.role not in roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Insufficient permissions.",
@@ -185,10 +196,28 @@ def require_role(*roles: UserRole):
     return role_checker
 
 
+def require_permission(resource: str, action: str):
+    """Let only users holding ``resource.action`` through their base role or groups."""
+    permission = f"{resource}.{action}"
+
+    async def permission_checker(
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db, scope="function"),
+    ) -> User:
+        if permission not in await effective_permissions(db, current_user):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient permissions.",
+            )
+        return current_user
+
+    return permission_checker
+
+
 async def user_view(db: AsyncSession, user: User) -> UserResponse:
-    """The user as the API reports them: with the role their groups give them."""
+    """The user as the API reports them to themselves: base role and effective permissions."""
     return UserResponse.model_validate(user).model_copy(
-        update={"role": await effective_role(db, user)}
+        update={"permissions": sorted(await effective_permissions(db, user))}
     )
 
 
@@ -349,7 +378,71 @@ async def update_me(
 
     await db.flush()
     await db.refresh(current_user)
-    return UserResponse.model_validate(current_user)
+    return await user_view(db, current_user)
+
+
+PICTURE_FORMATS = {"image/png": "PNG", "image/jpeg": "JPEG", "image/webp": "WEBP"}
+MAX_PICTURE_BYTES = 2_000_000
+MAX_PICTURE_PIXELS = 16_000_000
+
+
+@router.get("/me/picture")
+async def get_profile_picture(current_user: User = Depends(get_current_user)):
+    """Return the signed-in account's stored profile image."""
+    if not current_user.profile_picture:
+        raise HTTPException(status_code=404, detail="No profile picture is set.")
+    return Response(
+        current_user.profile_picture,
+        media_type="image/png",
+        headers={"Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff"},
+    )
+
+
+@router.put("/me/picture", response_model=UserResponse)
+async def set_profile_picture(
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db, scope="function"),
+    current_user: User = Depends(get_current_user),
+):
+    """Validate, normalize and store the signed-in account's profile image."""
+    expected_format = PICTURE_FORMATS.get(file.content_type)
+    if expected_format is None:
+        raise HTTPException(status_code=415, detail="Use a PNG, JPEG or WebP picture.")
+    data = await file.read(MAX_PICTURE_BYTES + 1)
+    if len(data) > MAX_PICTURE_BYTES:
+        raise HTTPException(status_code=413, detail="The picture must be at most 2 MB.")
+    try:
+        with Image.open(io.BytesIO(data)) as source:
+            if source.format != expected_format:
+                raise HTTPException(
+                    status_code=415, detail="The picture format does not match its type."
+                )
+            if source.width * source.height > MAX_PICTURE_PIXELS:
+                raise ValueError("Picture dimensions are too large")
+            source.load()
+            picture = ImageOps.exif_transpose(source).convert("RGBA")
+            picture.thumbnail((256, 256), Image.Resampling.LANCZOS)
+            picture.info.clear()
+            output = io.BytesIO()
+            picture.save(output, format="PNG")
+    except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError):
+        raise HTTPException(status_code=422, detail="The picture is invalid or too large.")
+    current_user.profile_picture = output.getvalue()
+    await db.flush()
+    await db.refresh(current_user)
+    return await user_view(db, current_user)
+
+
+@router.delete("/me/picture", response_model=UserResponse)
+async def delete_profile_picture(
+    db: AsyncSession = Depends(get_db, scope="function"),
+    current_user: User = Depends(get_current_user),
+):
+    """Remove the signed-in account's stored profile image."""
+    current_user.profile_picture = None
+    await db.flush()
+    await db.refresh(current_user)
+    return await user_view(db, current_user)
 
 
 @router.post("/me/email", response_model=GenericMessageResponse)

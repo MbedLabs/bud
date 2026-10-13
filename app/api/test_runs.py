@@ -11,9 +11,9 @@ from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.api.auth import get_current_active_entity, require_role
+from app.api.auth import get_current_active_entity, require_permission, require_role
 from app.api.uploads import get_upload_root
-from app.core.run_access import load_run, require_mutating_user
+from app.core.run_access import load_run
 from app.db import get_db
 from app.models import Artifact, Runner, TestRun, TestRunEvent
 from app.models.user import User, UserRole
@@ -55,23 +55,12 @@ async def create_test_run(
     db: AsyncSession = Depends(get_db, scope="function"),
     _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
 ):
-    """Create a new test run."""
-    if isinstance(_current_entity, Runner):
-        if data.runner_account and data.runner_account != _current_entity.account:
-            raise HTTPException(
-                status_code=403, detail="Runner cannot create runs for another runner"
-            )
-        runner_id = _current_entity.id
-    else:
-        await require_mutating_user(db, _current_entity)
-        runner_id = None
-
-    if isinstance(_current_entity, User) and data.runner_account:
-        result = await db.execute(select(Runner).where(Runner.account == data.runner_account))
-        runner = result.scalar_one_or_none()
-        if runner is None:
-            raise HTTPException(status_code=404, detail="Runner not found")
-        runner_id = runner.id
+    """Record a test run reported by its authenticated station."""
+    if not isinstance(_current_entity, Runner):
+        raise HTTPException(status_code=403, detail="Only stations can create test runs")
+    if data.runner_account and data.runner_account != _current_entity.account:
+        raise HTTPException(status_code=403, detail="Runner cannot create runs for another runner")
+    runner_id = _current_entity.id
 
     test_run = TestRun(
         name=data.test_suite_name,
@@ -326,8 +315,22 @@ async def get_test_run_stats(
             test_pass_rate=0.0,
         )
 
-    passed_run = and_(TestRun.status == "Completed", TestRun.failed_tests == 0)
-    failed_run = or_(TestRun.status == "Failed", TestRun.failed_tests > 0)
+    execution_failed = or_(
+        TestRun.runner_exit_code != 0,
+        and_(TestRun.runner_error.is_not(None), TestRun.runner_error != ""),
+    )
+    outcome_ready = or_(TestRun.claim_id.is_(None), TestRun.claim_acknowledged_at.is_not(None))
+    passed_run = and_(
+        outcome_ready,
+        TestRun.status == "Completed",
+        TestRun.failed_tests == 0,
+        or_(TestRun.runner_exit_code.is_(None), TestRun.runner_exit_code == 0),
+        or_(TestRun.runner_error.is_(None), TestRun.runner_error == ""),
+    )
+    failed_run = and_(
+        outcome_ready,
+        or_(TestRun.status == "Failed", TestRun.failed_tests > 0, execution_failed),
+    )
 
     query = select(
         func.count(TestRun.id),
@@ -423,9 +426,9 @@ async def update_test_run(
     db: AsyncSession = Depends(get_db, scope="function"),
     _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
 ):
-    """
-    Update a test run with results or status.
-    """
+    """Record execution updates reported by the run's authenticated station."""
+    if not isinstance(_current_entity, Runner):
+        raise HTTPException(status_code=403, detail="Only stations can update test runs")
     test_run = await load_run(db, _current_entity, run_id, mutate=True)
 
     # Update fields
@@ -479,7 +482,7 @@ async def update_test_run(
 async def publish_run_to_bloom(
     run_id: int,
     db: AsyncSession = Depends(get_db, scope="function"),
-    current_user: User = Depends(require_role(UserRole.admin, UserRole.developer)),
+    current_user: User = Depends(require_permission("bloom_publish", "execute")),
 ):
     """Send this run's report documents to Bloom as a Report (RPT) document."""
     test_run = await load_run(db, current_user, run_id)

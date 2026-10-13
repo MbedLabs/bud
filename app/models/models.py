@@ -95,6 +95,9 @@ class TestRun(Base):
     name: Mapped[str] = mapped_column(String(255))
     test_case_list: Mapped[str] = mapped_column(String(500))
     status: Mapped[str] = mapped_column(String(50), default="Pending")
+    record_kind: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="execution", server_default="execution"
+    )
 
     # Test software repository
     url_test_software: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)

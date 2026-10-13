@@ -1,14 +1,33 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const group = {
-  id: 3,
-  name: 'Gateway team',
+const results = { id: 1, name: 'Results' }
+const customRuns = { id: 2, name: 'Custom runs' }
+
+const defaultGroup = {
+  id: 2,
+  name: 'Test Operators',
+  description: 'See results, queue custom runs and publish to Bloom.',
+  is_default: true,
+  system_key: 'test_operators',
+  policies: [results, customRuns],
+  permissions: ['custom_runs.create', 'evidence.view'],
+  members: [],
+  created_at: '',
+  updated_at: '',
+}
+
+const customGroup = {
+  id: 9,
+  name: 'Bench crew',
   description: 'Bench A',
-  role: 'viewer',
-  members: [{ user_id: 7, email: 'val@example.com', full_name: 'Val Viewer' }],
+  is_default: false,
+  system_key: null,
+  policies: [results],
+  permissions: ['evidence.view'],
+  members: [{ user_id: 7, email: 'val@example.com', full_name: 'Val Viewer', role: 'viewer' }],
   created_at: '',
   updated_at: '',
 }
@@ -17,16 +36,23 @@ vi.mock('../api/client', () => ({
   extractApiErrorMessage: (error: { message?: string }, fallback: string) => error?.message || fallback,
   groupsApi: {
     list: vi.fn(),
-    create: vi.fn().mockResolvedValue(group),
-    update: vi.fn().mockResolvedValue(group),
+    create: vi.fn().mockResolvedValue({}),
+    update: vi.fn().mockResolvedValue({}),
+    duplicate: vi.fn().mockResolvedValue({}),
     remove: vi.fn().mockResolvedValue(undefined),
-    addMember: vi.fn().mockResolvedValue(group),
-    removeMember: vi.fn().mockResolvedValue(group),
+    addMember: vi.fn().mockResolvedValue({}),
+    removeMember: vi.fn().mockResolvedValue({}),
   },
-  usersApi: {
+  policiesApi: {
     list: vi.fn().mockResolvedValue([
-      { id: 7, email: 'val@example.com', full_name: 'Val Viewer' },
-      { id: 8, email: 'ada@example.com', full_name: 'Ada Admin' },
+      { ...results, description: null, permissions: {}, is_default: true, system_key: 'results' },
+      { ...customRuns, description: null, permissions: {}, is_default: true, system_key: 'custom_runs' },
+    ]),
+  },
+  accessApi: {
+    users: vi.fn().mockResolvedValue([
+      { id: 7, email: 'val@example.com', full_name: 'Val Viewer', role: 'viewer', groups: [], permissions: [] },
+      { id: 8, email: 'dee@example.com', full_name: 'Dee Developer', role: 'developer', groups: [], permissions: [] },
     ]),
   },
 }))
@@ -45,73 +71,75 @@ function renderIt() {
 
 beforeEach(() => {
   vi.clearAllMocks()
-  vi.mocked(api.groupsApi.list).mockResolvedValue([group] as never)
+  vi.mocked(api.groupsApi.list).mockResolvedValue([defaultGroup, customGroup] as never)
 })
 afterEach(cleanup)
 
-describe('User groups', () => {
-  it('lists a group with its members and no product controls', async () => {
+describe('Groups', () => {
+  it('defines policy bundles without member controls', async () => {
     renderIt()
-    expect(await screen.findByText('Gateway team')).toBeTruthy()
-    expect(screen.getByText('Bench A')).toBeTruthy()
-    expect(screen.getByText('val@example.com')).toBeTruthy()
-    expect(screen.queryByText('Products')).toBeNull()
-    expect(screen.queryByLabelText('Grant a product to Gateway team')).toBeNull()
+    expect(await screen.findByText('Bench crew')).toBeTruthy()
+    expect(screen.queryByText('val@example.com')).toBeNull()
+    expect(screen.getByText('Results, Custom runs')).toBeTruthy()
+    expect(screen.queryByText('Choose people')).toBeNull()
+    expect(api.accessApi.users).not.toHaveBeenCalled()
+    expect(screen.queryByText('Read')).toBeNull()
+    expect(screen.queryByText('Write')).toBeNull()
   })
 
-  it('offers only the Developer and Viewer roles', async () => {
+  it('keeps default groups read-only but lets them be duplicated', async () => {
     renderIt()
-    await screen.findByText('Gateway team')
-    for (const label of ['Group role', 'Role of Gateway team']) {
-      const options = Array.from((screen.getByLabelText(label) as HTMLSelectElement).options).map((o) => o.value)
-      expect(options).toEqual(['viewer', 'developer'])
-    }
+    await screen.findByText('Test Operators')
+    expect(screen.getByText('Default')).toBeTruthy()
+    expect(screen.queryByLabelText('Edit Test Operators')).toBeNull()
+    expect(screen.queryByLabelText('Delete Test Operators')).toBeNull()
+    fireEvent.click(screen.getByLabelText('Duplicate Test Operators'))
+    await waitFor(() => expect(api.groupsApi.duplicate).toHaveBeenCalledWith(2))
   })
 
-  it('creates a developer group', async () => {
+  it('creates a group from policies', async () => {
     renderIt()
-    await screen.findByText('Gateway team')
-    fireEvent.change(screen.getByLabelText('Group name'), { target: { value: 'Testers' } })
-    fireEvent.change(screen.getByLabelText('Group role'), { target: { value: 'developer' } })
+    await screen.findByText('Bench crew')
     fireEvent.click(screen.getByRole('button', { name: 'New group' }))
-    await waitFor(() => expect(api.groupsApi.create).toHaveBeenCalledWith({ name: 'Testers', role: 'developer' }))
-    await waitFor(() => expect((screen.getByLabelText('Group name') as HTMLInputElement).value).toBe(''))
+    const dialog = await screen.findByRole('dialog', { name: 'New group' })
+    fireEvent.change(within(dialog).getByLabelText('Group name'), { target: { value: 'Night shift' } })
+    fireEvent.click(within(dialog).getByLabelText('Custom runs'))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save group' }))
+    await waitFor(() =>
+      expect(api.groupsApi.create).toHaveBeenCalledWith({ name: 'Night shift', description: null, policy_ids: [2] }),
+    )
   })
 
-  it('changes the role and the members', async () => {
+  it('edits a custom group policy bundle', async () => {
     renderIt()
-    await screen.findByText('Gateway team')
-    fireEvent.change(screen.getByLabelText('Role of Gateway team'), { target: { value: 'developer' } })
-    await waitFor(() => expect(api.groupsApi.update).toHaveBeenCalledWith(3, { role: 'developer' }))
+    await screen.findByText('Bench crew')
+    fireEvent.click(screen.getByLabelText('Edit Bench crew'))
+    const dialog = await screen.findByRole('dialog', { name: 'Edit group' })
+    fireEvent.click(within(dialog).getByLabelText('Custom runs'))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save group' }))
+    await waitFor(() =>
+      expect(api.groupsApi.update).toHaveBeenCalledWith(9, {
+        name: 'Bench crew',
+        description: 'Bench A',
+        policy_ids: [1, 2],
+      }),
+    )
 
-    fireEvent.change(screen.getByLabelText('Add a member to Gateway team'), { target: { value: '8' } })
-    await waitFor(() => expect(api.groupsApi.addMember).toHaveBeenCalledWith(3, 8))
-    fireEvent.click(screen.getByLabelText('Remove Val Viewer from Gateway team'))
-    await waitFor(() => expect(api.groupsApi.removeMember).toHaveBeenCalledWith(3, 7))
+    expect(api.groupsApi.addMember).not.toHaveBeenCalled()
+    expect(api.groupsApi.removeMember).not.toHaveBeenCalled()
   })
 
-  it('says when a group has no members', async () => {
-    vi.mocked(api.groupsApi.list).mockResolvedValue([{ ...group, members: [] }] as never)
+  it('deletes through the confirmation dialog and shows a failure', async () => {
     renderIt()
-    expect(await screen.findByText('No members.')).toBeTruthy()
-  })
-
-  it('deletes after confirming and shows a failure', async () => {
-    window.confirm = () => false
-    renderIt()
-    await screen.findByText('Gateway team')
-    fireEvent.click(screen.getByLabelText('Delete Gateway team'))
+    await screen.findByText('Bench crew')
+    fireEvent.click(screen.getByLabelText('Delete Bench crew'))
+    const dialog = await screen.findByRole('dialog', { name: 'Delete group' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
     expect(api.groupsApi.remove).not.toHaveBeenCalled()
 
-    window.confirm = () => true
-    vi.mocked(api.groupsApi.remove).mockRejectedValueOnce(new Error('Group not found'))
-    fireEvent.click(screen.getByLabelText('Delete Gateway team'))
-    expect(await screen.findByText('Group not found')).toBeTruthy()
-  })
-
-  it('says when there are no groups', async () => {
-    vi.mocked(api.groupsApi.list).mockResolvedValue([])
-    renderIt()
-    expect(await screen.findByText('No groups yet.')).toBeTruthy()
+    vi.mocked(api.groupsApi.remove).mockRejectedValueOnce(new Error('You can only give access that you hold yourself'))
+    fireEvent.click(screen.getByLabelText('Delete Bench crew'))
+    fireEvent.click(within(await screen.findByRole('dialog', { name: 'Delete group' })).getByRole('button', { name: 'Delete' }))
+    expect(await screen.findByText('You can only give access that you hold yourself')).toBeTruthy()
   })
 })

@@ -96,11 +96,12 @@ async def test_runner_cannot_create_run_for_another_runner(client, db_session):
 
 
 @pytest.mark.asyncio
-async def test_runner_can_only_list_its_own_runs(client, db_session):
+@pytest.mark.parametrize("sort_by", ["name", "runner_account", "duration_seconds"])
+async def test_runner_can_only_list_its_own_runs(client, db_session, sort_by):
     runner_a, _, run_a, run_b, _ = await _seed_runner_runs(db_session)
     _override_entity(runner_a)
     try:
-        response = client.get("/api/test-runs")
+        response = client.get("/api/test-runs", params={"sort_by": sort_by, "sort_dir": "asc"})
     finally:
         _clear_entity_overrides()
 
@@ -310,7 +311,7 @@ async def test_developer_queues_custom_runs_and_publishes_only(client, db_sessio
 @pytest.mark.parametrize(
     ("operation", "detail"),
     [
-        ("artifact-upload", "Only admins may upload artifacts"),
+        ("artifact-upload", "Only stations can upload artifacts"),
         ("custom-run", "Insufficient permissions."),
         ("publish", "Insufficient permissions."),
     ],

@@ -11,9 +11,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from tenacity import wait_fixed
 
-from app.api.auth import require_role
+from app.api.auth import require_permission
 from app.db import get_db
-from app.models import NotificationChannel, SystemSetting, UserRole
+from app.models import NotificationChannel, SystemSetting
 from app.models.user import User
 from app.schemas import (
     NotificationChannelCreate,
@@ -50,7 +50,7 @@ def _origin(url: str) -> tuple[str, str, int | None]:
 @router.get("", response_model=List[SystemSettingResponse])
 async def get_settings(
     db: AsyncSession = Depends(get_db, scope="function"),
-    _admin: User = Depends(require_role(UserRole.admin)),
+    _admin: User = Depends(require_permission("settings", "view")),
 ):
     """
     Get all system settings. Restricted to admins.
@@ -67,7 +67,7 @@ async def get_settings(
 async def get_setting(
     key: str,
     db: AsyncSession = Depends(get_db, scope="function"),
-    _admin: User = Depends(require_role(UserRole.admin)),
+    _admin: User = Depends(require_permission("settings", "view")),
 ):
     """
     Get a specific system setting.
@@ -85,7 +85,7 @@ async def update_setting(
     key: str,
     data: SystemSettingUpdate,
     db: AsyncSession = Depends(get_db, scope="function"),
-    _admin: User = Depends(require_role(UserRole.admin)),
+    _admin: User = Depends(require_permission("settings", "edit")),
 ):
     """
     Create or update a system setting.
@@ -118,7 +118,7 @@ async def update_setting(
 @router.get("/integrations/PLM", response_model=PLMIntegrationSettings)
 async def get_plm_integration(
     db: AsyncSession = Depends(get_db, scope="function"),
-    _admin: User = Depends(require_role(UserRole.admin)),
+    _admin: User = Depends(require_permission("settings", "view")),
 ):
     """
     Get PLM integration settings (Bloom).
@@ -142,7 +142,7 @@ async def get_plm_integration(
 async def update_plm_integration(
     data: PLMIntegrationSettingsUpdate,
     db: AsyncSession = Depends(get_db, scope="function"),
-    _admin: User = Depends(require_role(UserRole.admin)),
+    _admin: User = Depends(require_permission("settings", "edit")),
 ):
     """
     Update PLM integration settings.
@@ -276,7 +276,7 @@ async def _name_taken(db: AsyncSession, name: str, exclude_id: int | None = None
 @router.get("/notifications/channels", response_model=List[NotificationChannelResponse])
 async def list_notification_channels(
     db: AsyncSession = Depends(get_db, scope="function"),
-    _admin: User = Depends(require_role(UserRole.admin)),
+    _admin: User = Depends(require_permission("settings", "view")),
 ):
     """List the channels finished runs are posted to."""
     channels = (
@@ -291,7 +291,7 @@ async def list_notification_channels(
 async def create_notification_channel(
     data: NotificationChannelCreate,
     db: AsyncSession = Depends(get_db, scope="function"),
-    _admin: User = Depends(require_role(UserRole.admin)),
+    _admin: User = Depends(require_permission("settings", "edit")),
 ):
     """Add a channel; its URL and secret are stored encrypted and never returned."""
     url = _webhook_url(data.url.strip())
@@ -325,7 +325,7 @@ async def update_notification_channel(
     channel_id: int,
     data: NotificationChannelUpdate,
     db: AsyncSession = Depends(get_db, scope="function"),
-    _admin: User = Depends(require_role(UserRole.admin)),
+    _admin: User = Depends(require_permission("settings", "edit")),
 ):
     """Change a channel; a URL or secret is replaced only when given."""
     channel = await _get_channel_or_404(db, channel_id)
@@ -361,7 +361,7 @@ async def update_notification_channel(
 async def delete_notification_channel(
     channel_id: int,
     db: AsyncSession = Depends(get_db, scope="function"),
-    _admin: User = Depends(require_role(UserRole.admin)),
+    _admin: User = Depends(require_permission("settings", "edit")),
 ):
     """Remove a channel and its delivery history."""
     channel = await _get_channel_or_404(db, channel_id)
@@ -381,7 +381,7 @@ async def delete_notification_channel(
 async def test_notification_channel(
     channel_id: int,
     db: AsyncSession = Depends(get_db, scope="function"),
-    _admin: User = Depends(require_role(UserRole.admin)),
+    _admin: User = Depends(require_permission("settings", "edit")),
 ):
     """Post a sample run summary to the channel so the administrator sees it in the tool."""
     channel = await _get_channel_or_404(db, channel_id)

@@ -57,6 +57,11 @@ class DeliveryFailed(Exception):
     """A delivery attempt that the receiver did not accept."""
 
 
+def _execution_failed(run) -> bool:
+    """Whether the station's terminal answer reports unsuccessful execution."""
+    return run.runner_exit_code not in (None, 0) or bool(run.runner_error)
+
+
 @dataclass
 class RunSummary:
     """What one finished run looks like in a notification, independent of the format."""
@@ -76,11 +81,13 @@ class RunSummary:
     bloom_sync_error: Optional[str] = None
     failed_tests: list = field(default_factory=list)
     more_failed: int = 0
+    runner_exit_code: Optional[int] = None
+    runner_error: Optional[str] = None
 
     @property
     def outcome(self) -> str:
-        """``failed`` when any test failed, ``passed`` when some passed, else ``neutral``."""
-        if self.failed > 0:
+        """The outcome of the station's execution and its method evidence."""
+        if self.failed > 0 or _execution_failed(self):
             return "failed"
         if self.passed > 0:
             return "passed"
@@ -119,13 +126,18 @@ def _duration(seconds: Optional[float]) -> str:
 
 def _facts(summary: RunSummary) -> list:
     """The label/value pairs every format shows."""
-    return [
+    facts = [
         ("Product", summary.product or "n/a"),
         ("Station", summary.station or "n/a"),
         ("Software under test", summary.software_under_test or "n/a"),
         ("Started by", summary.started_by),
         ("Duration", _duration(summary.duration_seconds)),
     ]
+    if summary.runner_exit_code is not None:
+        facts.append(("Station exit", str(summary.runner_exit_code)))
+    if summary.runner_error:
+        facts.append(("Execution error", summary.runner_error))
+    return facts
 
 
 def render_json(summary: RunSummary) -> dict:
@@ -385,6 +397,8 @@ async def build_summary(session: AsyncSession, run: TestRun) -> RunSummary:
         bloom_sync_error=(sync_failure.message or sync_failure.title) if sync_failure else None,
         failed_tests=[_clip(name, 80) for name in failed_classes[:MAX_FAILED_LISTED]],
         more_failed=max(0, len(failed_classes) - MAX_FAILED_LISTED),
+        runner_exit_code=run.runner_exit_code,
+        runner_error=run.runner_error,
     )
 
 
@@ -406,14 +420,18 @@ async def _previous_run_was_green(session: AsyncSession, run: TestRun) -> bool:
     ).scalar_one_or_none()
     if previous is None:
         return True
-    return (previous.failed_tests or 0) == 0 and (previous.total_tests or 0) > 0
+    return (
+        (previous.failed_tests or 0) == 0
+        and (previous.total_tests or 0) > 0
+        and not _execution_failed(previous)
+    )
 
 
 async def channel_wants_run(
     session: AsyncSession, channel: NotificationChannel, run: TestRun
 ) -> bool:
     """Apply the channel's filter: all runs, failures only, or the first failure after green."""
-    failed = (run.failed_tests or 0) > 0
+    failed = (run.failed_tests or 0) > 0 or _execution_failed(run)
     if channel.run_filter == "failures":
         return failed
     if channel.run_filter == "first_failure":
@@ -482,6 +500,8 @@ async def notify_run_finished(test_run_id: int, *, wait: Optional[Callable] = No
                 )
             ).scalar_one_or_none()
             if run is None:
+                return 0
+            if run.claim_id is not None and run.claim_acknowledged_at is None:
                 return 0
             channels = (
                 (

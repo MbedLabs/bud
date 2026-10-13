@@ -78,6 +78,9 @@ class UserResponse(BaseModel):
     email_change_requested_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
+    has_profile_picture: bool = False
+    profile_picture_url: str | None = None
+    permissions: list[str] = []
 
     @field_serializer(
         "invited_at",

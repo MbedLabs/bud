@@ -7,14 +7,14 @@ from fastapi.responses import Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.auth import get_current_active_entity, require_role
+from app.api.auth import get_current_active_entity, require_permission
 from app.db import get_db
-from app.models import CompanyLogo, UserRole
+from app.models import CompanyLogo
 from app.services.audit import record_audit_event
 
 router = APIRouter()
 
-require_admin = require_role(UserRole.admin)
+require_admin = require_permission("settings", "edit")
 ALLOWED_LOGO_TYPES = {"image/png", "image/jpeg", "image/gif", "image/webp"}
 MAX_LOGO_BYTES = 2_000_000
 

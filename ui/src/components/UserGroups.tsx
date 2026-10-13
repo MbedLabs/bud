@@ -1,193 +1,162 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Trash2, Users as UsersIcon, X } from 'lucide-react'
+import { Copy, Eye, Pencil, Plus, Trash2 } from 'lucide-react'
 import {
   extractApiErrorMessage,
   groupsApi,
-  usersApi,
+  policiesApi,
   type Group,
-  type GroupRole,
+  type Policy,
 } from '../api/client'
+import ConfirmDialog from './ConfirmDialog'
+import { AccessHeader, AccessModal } from './AccessTable'
 
 const inputClass =
   'px-3 py-2 bg-background border border-input rounded-md text-sm text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-ring focus:border-ring transition-colors'
 
 /**
- * Admin list of user groups. A group carries the Developer or Viewer role; a member holds
- * the higher of their own role and their groups' roles.
+ * Groups: named bundles of policies given to users. Default groups are read-only and can
+ * be duplicated; custom policy bundles are edited here.
  */
 export default function UserGroups() {
   const queryClient = useQueryClient()
-  const [name, setName] = useState('')
-  const [role, setRole] = useState<GroupRole>('viewer')
+  const [editing, setEditing] = useState<Group | 'new' | null>(null)
+  const [viewing, setViewing] = useState<Group | null>(null)
+  const [sortField, setSortField] = useState<'name' | 'policies'>('name')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
+  const [deleting, setDeleting] = useState<Group | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const { data: groups } = useQuery({ queryKey: ['groups'], queryFn: groupsApi.list })
-  const { data: users } = useQuery({ queryKey: ['users'], queryFn: usersApi.list })
+  const { data: policies } = useQuery({ queryKey: ['policies'], queryFn: policiesApi.list })
 
-  const refresh = () => queryClient.invalidateQueries({ queryKey: ['groups'] })
-  const onError = (err: unknown) => setError(extractApiErrorMessage(err, 'The change was not saved.'))
   const change = useMutation({
     mutationFn: (action: () => Promise<unknown>) => action(),
-    onSuccess: () => {
+    onSuccess: (result) => {
       setError(null)
-      refresh()
+      if (editing === null && result && typeof result === 'object' && 'id' in result) setEditing(result as Group)
+      else setEditing(null)
+      setDeleting(null)
+      queryClient.invalidateQueries({ queryKey: ['groups'] })
+      queryClient.invalidateQueries({ queryKey: ['access-users'] })
     },
-    onError,
+    onError: (failure) => setError(extractApiErrorMessage(failure, 'Could not change the group')),
   })
+  const run = (action: () => Promise<unknown>) => change.mutate(action)
 
-  const create = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!name.trim()) return
-    change.mutate(async () => {
-      await groupsApi.create({ name: name.trim(), role })
-      setName('')
-    })
+  const policyNames = (group: Group) => group.policies.map((policy) => policy.name).join(', ') || 'None'
+  const sorted = [...(groups ?? [])].sort((a, b) => {
+    const value = (group: Group) => sortField === 'name' ? group.name : policyNames(group)
+    return value(a).localeCompare(value(b)) * (sortDir === 'asc' ? 1 : -1) || a.id - b.id
+  })
+  const toggleSort = (field: typeof sortField) => {
+    setSortDir(field === sortField && sortDir === 'asc' ? 'desc' : 'asc')
+    setSortField(field)
   }
-
   return (
-    <section className="mt-10">
-      <div className="flex items-center gap-2 mb-1">
-        <UsersIcon className="h-4 w-4 text-primary" />
-        <h3 className="text-base font-semibold text-foreground">Groups</h3>
+    <section>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-semibold text-foreground">Groups</h2>
+        <button onClick={() => setEditing('new')} className="inline-flex items-center gap-1.5 px-3 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary/90"><Plus className="h-4 w-4" /> New group</button>
       </div>
-      <p className="text-sm text-muted-foreground mb-4">
-        A group gives its members the Developer or Viewer role. A member holds the higher of their own
-        role and their groups' roles.
-      </p>
+      {error && !editing && !deleting && <div role="alert" className="mb-4 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">{error}</div>}
+      <div className="border border-border rounded-xl overflow-x-auto"><table className="w-full text-sm">
+        <thead className="bg-muted/50 text-muted-foreground"><tr>
+          {(['name', 'policies'] as const).map((field) => <AccessHeader key={field} field={field} sortField={sortField} sortDir={sortDir} onSort={toggleSort}>{field === 'name' ? 'Name' : 'Policies'}</AccessHeader>)}
+          <th className="px-4 py-2" />
+        </tr></thead>
+        <tbody>{sorted.map((group) => <tr key={group.id} className="border-t border-border">
+          <td className="px-4 py-2 text-foreground font-medium">{group.name}{group.is_default && <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase bg-muted text-muted-foreground">Default</span>}</td>
+          <td className="px-4 py-2 text-muted-foreground">{policyNames(group)}</td>
+          <td className="px-4 py-2"><div className="flex items-center justify-end gap-1">
+            <button onClick={() => setViewing(group)} aria-label={`View ${group.name}`} title={`View ${group.name}`} className="p-1 rounded text-muted-foreground hover:text-foreground"><Eye className="h-3.5 w-3.5" /></button>
+            {group.is_default ? <button onClick={() => run(() => groupsApi.duplicate(group.id))} disabled={change.isPending} aria-label={`Duplicate ${group.name}`} title={`Duplicate ${group.name}`} className="p-1 rounded text-muted-foreground hover:text-foreground"><Copy className="h-3.5 w-3.5" /></button> : <>
+              <button onClick={() => setEditing(group)} aria-label={`Edit ${group.name}`} title={`Edit ${group.name}`} className="p-1 rounded text-muted-foreground hover:text-foreground"><Pencil className="h-3.5 w-3.5" /></button>
+              <button onClick={() => setDeleting(group)} aria-label={`Delete ${group.name}`} title={`Delete ${group.name}`} className="p-1 rounded text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
+            </>}
+          </div></td>
+        </tr>)}</tbody>
+      </table></div>
+      {viewing && <GroupEditor group={viewing} policies={policies ?? []} readOnly isPending={false} error={null} onCancel={() => setViewing(null)} onSave={() => undefined} />}
 
-      <form onSubmit={create} className="flex flex-wrap items-end gap-2 mb-4">
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Group name"
-          aria-label="Group name"
-          className={inputClass}
+      {editing && (
+        <GroupEditor
+          group={editing === 'new' ? null : editing}
+          policies={policies ?? []}
+          isPending={change.isPending}
+          error={error}
+          onCancel={() => {
+            setEditing(null)
+            setError(null)
+          }}
+          onSave={(data) =>
+            run(() =>
+              editing === 'new'
+                ? groupsApi.create({ ...data, name: data.name ?? '' })
+                : groupsApi.update(editing.id, data),
+            )
+          }
         />
-        <RoleSelect value={role} onChange={setRole} label="Group role" />
-        <button
-          type="submit"
-          disabled={!name.trim() || change.isPending}
-          className="px-4 py-2 bg-gradient-button text-white text-sm font-medium rounded-lg hover:opacity-90 disabled:opacity-50"
-        >
-          New group
-        </button>
-      </form>
-      {error && <p className="text-sm text-destructive mb-3">{error}</p>}
-
-      {groups && groups.length === 0 && (
-        <p className="text-sm text-muted-foreground">No groups yet.</p>
       )}
-      <div className="space-y-3">
-        {groups?.map((group) => (
-          <GroupCard
-            key={group.id}
-            group={group}
-            users={users ?? []}
-            run={(action) => change.mutate(action)}
-          />
-        ))}
-      </div>
+      {deleting && (
+        <ConfirmDialog
+          title="Delete group"
+          body={`Delete ${deleting.name}? Its members keep their base role and their other groups.`}
+          confirmLabel="Delete"
+          pendingLabel="Deleting…"
+          isPending={change.isPending}
+          error={error ?? ''}
+          onConfirm={() => run(() => groupsApi.remove(deleting.id))}
+          onCancel={() => {
+            setDeleting(null)
+            setError(null)
+          }}
+        />
+      )}
     </section>
   )
 }
 
-/** The role a group carries: Developer or Viewer. */
-function RoleSelect({
-  value,
-  onChange,
-  label,
-}: {
-  value: GroupRole
-  onChange: (role: GroupRole) => void
-  label: string
-}) {
-  return (
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value as GroupRole)}
-      aria-label={label}
-      className={inputClass}
-    >
-      <option value="viewer">Viewer</option>
-      <option value="developer">Developer</option>
-    </select>
-  )
-}
-
-function GroupCard({
+function GroupEditor({
   group,
-  users,
-  run,
+  policies,
+  readOnly = false,
+  isPending,
+  error,
+  onCancel,
+  onSave,
 }: {
-  group: Group
-  users: { id: number; full_name: string; email: string }[]
-  run: (action: () => Promise<unknown>) => void
+  group: Group | null
+  policies: Policy[]
+  readOnly?: boolean
+  isPending: boolean
+  error: string | null
+  onCancel: () => void
+  onSave: (data: { name?: string; description?: string | null; policy_ids: number[] }) => void
 }) {
-  const memberIds = new Set(group.members.map((m) => m.user_id))
-  const candidates = users.filter((u) => !memberIds.has(u.id))
+  const [name, setName] = useState(group?.name ?? '')
+  const [description, setDescription] = useState(group?.description ?? '')
+  const [selected, setSelected] = useState<Set<number>>(new Set(group?.policies.map((policy) => policy.id)))
+
+  const toggle = (id: number) =>
+    setSelected((current) => {
+      const next = new Set(current)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
 
   return (
-    <div className="rounded-lg border border-border bg-card p-4">
-      <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-        <div>
-          <p className="text-sm font-semibold text-foreground">{group.name}</p>
-          {group.description && <p className="text-xs text-muted-foreground">{group.description}</p>}
-        </div>
-        <div className="flex items-center gap-2">
-          <RoleSelect
-            value={group.role}
-            onChange={(next) => run(() => groupsApi.update(group.id, { role: next }))}
-            label={`Role of ${group.name}`}
-          />
-          <button
-            onClick={() => {
-              if (window.confirm(`Delete the group ${group.name}? Its members keep only their own role.`)) {
-                run(() => groupsApi.remove(group.id))
-              }
-            }}
-            aria-label={`Delete ${group.name}`}
-            className="p-2 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
-        </div>
-      </div>
-
-      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">Members</p>
-      <ul className="space-y-1 mb-2">
-        {group.members.length === 0 && <li className="text-sm text-muted-foreground">No members.</li>}
-        {group.members.map((m) => (
-          <li key={m.user_id} className="flex items-center justify-between text-sm text-foreground">
-            <span>
-              {m.full_name} <span className="text-muted-foreground">{m.email}</span>
-            </span>
-            <button
-              onClick={() => run(() => groupsApi.removeMember(group.id, m.user_id))}
-              aria-label={`Remove ${m.full_name} from ${group.name}`}
-              className="p-1 text-muted-foreground hover:text-destructive"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          </li>
-        ))}
-      </ul>
-      <select
-        value=""
-        onChange={(e) => {
-          const userId = Number(e.target.value)
-          if (userId) run(() => groupsApi.addMember(group.id, userId))
-        }}
-        aria-label={`Add a member to ${group.name}`}
-        className={`${inputClass} w-full md:w-1/2`}
-      >
-        <option value="">Add a user...</option>
-        {candidates.map((u) => (
-          <option key={u.id} value={u.id}>
-            {u.full_name} ({u.email})
-          </option>
-        ))}
-      </select>
-    </div>
+    <AccessModal title={readOnly ? 'View group' : group ? 'Edit group' : 'New group'} onClose={onCancel}>
+      {error && <div role="alert" className="mb-4 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">{error}</div>}
+      <form className="space-y-4" onSubmit={(event) => { event.preventDefault(); if (!readOnly) onSave({ name: name.trim(), description: description.trim() || null, policy_ids: [...selected] }) }}>
+        <label className="block text-sm font-medium text-foreground">Name<input value={name} onChange={(event) => setName(event.target.value)} aria-label="Group name" required readOnly={readOnly} className={`${inputClass} w-full`} /></label>
+        <label className="block text-sm font-medium text-foreground">Description<input value={description} onChange={(event) => setDescription(event.target.value)} aria-label="Group description" readOnly={readOnly} className={`${inputClass} w-full`} /></label>
+        <fieldset><legend className="text-sm font-medium text-foreground mb-2">Policies</legend>
+          <div className="space-y-1.5 max-h-64 overflow-y-auto">{policies.map((policy) => <label key={policy.id} className="flex items-start gap-2 text-sm text-foreground"><input type="checkbox" checked={selected.has(policy.id)} disabled={readOnly} onChange={() => toggle(policy.id)} className="mt-0.5" /><span>{policy.name}{policy.description && <span className="block text-xs text-muted-foreground">{policy.description}</span>}</span></label>)}</div>
+        </fieldset>
+        {!readOnly && <button type="submit" disabled={!name.trim() || isPending} className="w-full py-2 bg-gradient-button text-white text-sm font-medium rounded-lg hover:opacity-90 disabled:opacity-50">{isPending ? 'Saving…' : 'Save group'}</button>}
+      </form>
+    </AccessModal>
   )
 }

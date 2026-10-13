@@ -44,20 +44,54 @@ Two independent token lifetimes, tunable via environment variables (no code chan
   usable for heartbeat/results while its `last_heartbeat` is within
   `RUNNER_HEARTBEAT_TIMEOUT`. This is separate from user sessions above.
 
-## Roles
+## Roles, policies and groups
+
+Every user has a base role, chosen when they are invited:
 
 - **Viewer** reads everything and changes nothing. The Viewer role is meant for internal
   viewers.
-- **Developer** is Viewer plus the work of running tests: create runs, upload results and
-  artifacts, edit runs, publish a run to Bloom, and queue custom runs on the Test Stations.
-- **Administrator** can do everything, including users, groups, products, settings, Test
-  Stations and their keys, the audit log, and deleting runs and artifacts. Administrator is
-  chosen when a user is created or invited; an existing user is never promoted to it, and an
-  administrator's role is never changed.
+- **Developer** is Viewer plus queuing custom runs on the Test Stations and publishing a
+  run's report to Bloom.
+- **Admin** holds every permission. Admin is chosen when a user is created or invited; an
+  existing user is never promoted to it, and an Admin's role is never changed. Managing
+  users and their accounts, deleting runs and artifacts, and confirming an Admin's own email
+  change stay with the Admin base role and are never given through a group.
 
-Administrators set a user's role to Viewer or Developer on the Users page. A group gives its
-members the Developer or Viewer role; a member holds the higher of their own role and their
-groups' roles. Every user sees every product.
+A **policy** is the set of rights for one area of Bud: Results, Custom runs, Publish to
+Bloom, Stations, Products, Settings and integrations, Audit log and Access management. A
+**group** is a named bundle of policies. A user can have several groups; their access is
+the base role's allowance plus every policy of every group. A group only adds.
+
+Bud ships five groups: Results Viewers, Test Operators (Results, Custom runs, Publish to
+Bloom), Station Managers (Results, Stations), Access Managers (Station Managers plus Access
+management) and Application Administrators (every policy). Shipped groups and policies cannot be
+changed; duplicate one to make an editable copy. A group that manages stations is given
+only to users with the Admin or Developer base role. Only an Admin gives Application Administrators and
+edits policies. Someone with Access management gives, creates and edits only groups whose
+policies they hold themselves.
+
+Access is not scoped by products or stations: every user sees every product.
+
+**Access** in the sidebar has Assignments for group rosters, Groups for policy bundles,
+Policies for Read/Write controls and Requests for access requests. Users is a separate
+account-management page. A user without Publish to Bloom finds
+Request access in its place on a run; Admins and Access managers are emailed and grant it
+by giving a group that holds Publish to Bloom.
+
+Test Stations create execution records, report their status and counters, and submit raw
+results using their station credentials. These submissions are limited to the station's
+own runs. Human sessions, including Administrator, cannot submit those execution records.
+Users request queued work through **Custom Run**.
+
+A custom-run request contains the selected test classes and assigned Test Station.
+It appears in the station's request queue and links to an execution record after
+that station claims it. Queued requests are excluded from run reports and dashboard
+execution totals. The station executes the selection in its local test workspace,
+uploads results and artifacts, and acknowledges completion with its process exit
+code. Dashboard totals and completion notifications wait for that acknowledgement; an
+unavailable selected class or another execution error counts as a failed run even
+when no test results were produced. Completion retries retain the original terminal
+answer and do not record it twice.
 
 ## Logs
 

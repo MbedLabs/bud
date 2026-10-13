@@ -236,8 +236,10 @@ export const RESPONSES: Record<string, unknown> = {
   'testRunsApi.getEvents': [testRunEvent],
   'testRunsApi.getArtifacts': [artifact],
   'catalogApi.list': { entries: catalogEntries, total: catalogEntries.length },
+  'executionRequestsApi.list': [],
+  'executionRequestsApi.get': { id: 90, name: 'Custom request', runner_account: 'station-01', state: 'queued', run_id: null, selected_tests: ['a.B'], source_metadata: {}, created_at: '' },
   'customRunsApi.create': {
-    runs: [{ ...testRun, id: 90, name: 'Custom run - Nightly', status: 'Pending', selected_tests: ['demo_voltage.VoltageTest'] }],
+    requests: [{ id: 90, name: 'Custom run - Nightly', runner_account: testRun.runner_account, state: 'queued', run_id: null, selected_tests: ['demo_voltage.VoltageTest'], source_metadata: {}, created_at: testRun.created_at }],
     unassigned: [],
   },
   // The blob a download resolves to; `saveBlob` is stubbed in the page tests.

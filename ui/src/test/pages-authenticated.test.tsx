@@ -393,6 +393,8 @@ describe('the run list', () => {
     )
   })
 
+
+
   it('says so when the run list cannot be loaded', async () => {
     vi.mocked(client.testRunsApi.list).mockRejectedValue(new Error('backend unreachable'))
     renderAt('/runs', '/runs', <TestRuns />)
@@ -400,6 +402,8 @@ describe('the run list', () => {
     await waitFor(() => expect(document.body.textContent).toMatch(/error|failed|unable/i))
     expect(screen.queryByText(testRun.name)).toBeNull()
   })
+
+
 })
 
 describe('a run in detail', () => {
@@ -454,6 +458,48 @@ describe('a run in detail', () => {
     expect(screen.getAllByText('3').length).toBeGreaterThan(0)
     expect(screen.getAllByText(testRun.status).length).toBeGreaterThan(0)
     expect(screen.getAllByText(testRun.runner_account as string).length).toBeGreaterThan(0)
+  })
+
+  it('offers Publish to Bloom to whoever holds it', async () => {
+    renderAt('/runs/:id', '/runs/42', <TestRunDetail />)
+    await screen.findByText(testRun.name)
+    expect(screen.getByRole('button', { name: 'Publish report' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Request access' })).toBeNull()
+  })
+
+  it('offers Request access where Publish would be for a reader', async () => {
+    const reader = user as { role: string; permissions?: string[] }
+    reader.role = 'viewer'
+    reader.permissions = ['evidence.view']
+    RESPONSES['accessRequestsApi.mine'] = null
+    RESPONSES['accessRequestsApi.create'] = {
+      id: 3,
+      resource_type: 'publish-to-bloom',
+      resource_ref: '42',
+      status: 'pending',
+      created_at: '2026-10-12T09:00:00Z',
+      decided_at: null,
+      requester_name: null,
+      requester_email: null,
+      already_requested: false,
+      mail_sent: true,
+    }
+    try {
+      renderAt('/runs/:id', '/runs/42', <TestRunDetail />)
+      await screen.findByText(testRun.name)
+      expect(screen.queryByRole('button', { name: 'Publish report' })).toBeNull()
+      fireEvent.click(await screen.findByRole('button', { name: 'Request access' }))
+      await waitFor(() =>
+        expect(client.accessRequestsApi.create).toHaveBeenCalledWith({
+          resource_type: 'publish-to-bloom',
+          resource_ref: '42',
+        }),
+      )
+      expect(await screen.findByText('Access requested.')).toBeTruthy()
+    } finally {
+      reader.role = 'admin'
+      delete reader.permissions
+    }
   })
 
   it('downloads a PDF for this run alone', async () => {
@@ -590,11 +636,12 @@ describe('a page inside the shell does not title itself', () => {
   it.each([
     ['Test Stations', () => <TestStations />],
     ['Users', () => <Users />],
-  ])('%s renders no heading of its own', async (_name, render) => {
+  ])('%s renders no page heading of its own', async (_name, render) => {
     const { container } = renderAt('/x', '/x', render())
     await settle()
 
-    expect(container.querySelector('h1, h2')).toBeNull()
+    expect(container.querySelector('h1')).toBeNull()
+    expect(Array.from(container.querySelectorAll('h2')).map((heading) => heading.textContent)).toEqual(_name === 'Test Stations' ? ['Execution requests'] : [])
   })
 })
 
@@ -885,5 +932,22 @@ describe('users', () => {
     const [id, email] = vi.mocked(client.usersApi.startEmailChange).mock.calls[0]
     expect(id).toBe(otherUser.id)
     expect(email).toBe('grace.hopper@example.com')
+  })
+})
+
+
+describe('station execution requests', () => {
+  it('keeps queued selections separate from links to created executions', async () => {
+    vi.mocked(client.executionRequestsApi.list).mockResolvedValue([
+      { id: 501, name: 'Queued selection', runner_account: 'station-01', selected_tests: ['suite.Smoke'], state: 'queued', run_id: null, source_metadata: {}, created_at: '2026-10-06T10:00:00Z' },
+      { id: 502, name: 'Claimed selection', runner_account: 'station-01', selected_tests: ['suite.Smoke'], state: 'claimed', run_id: 701, source_metadata: {}, created_at: '2026-10-06T10:00:01Z' },
+    ])
+    renderAt('/stations', '/stations', <TestStations />)
+    expect(await screen.findByRole('heading', { name: 'Execution requests', level: 2 })).toBeTruthy()
+    const queued = (await screen.findByText('Queued selection')).closest('li') as HTMLElement
+    const claimed = (await screen.findByText('Claimed selection')).closest('li') as HTMLElement
+    expect(within(queued).queryByRole('link')).toBeNull()
+    expect(within(queued).getByText('Queued')).toBeTruthy()
+    expect(within(claimed).getByRole('link', { name: 'Open execution' }).getAttribute('href')).toBe('/runs/701')
   })
 })
