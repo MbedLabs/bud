@@ -393,7 +393,28 @@ describe('the run list', () => {
     )
   })
 
-
+  it('sorts through the server, resets the page and keeps sorting with filters and pagination', async () => {
+    vi.mocked(client.testRunsApi.list).mockResolvedValue({ runs: [testRun], total: 45 })
+    renderAt('/runs', '/runs', <TestRuns />)
+    await screen.findByText(testRun.name)
+    fireEvent.click(screen.getByTitle('Next page'))
+    await waitFor(() => expect((lastCall(client.testRunsApi.list)[0] as { offset: number }).offset).toBe(20))
+    const name = screen.getByRole('columnheader', { name: 'Name' })
+    fireEvent.click(within(name).getByRole('button', { name: 'Name' }))
+    await waitFor(() => expect(lastCall(client.testRunsApi.list)[0]).toEqual(expect.objectContaining({ sort_by: 'name', sort_dir: 'asc', offset: 0, latest_per_suite: true })))
+    expect(name.getAttribute('aria-sort')).toBe('ascending')
+    fireEvent.click(within(name).getByRole('button', { name: 'Name' }))
+    await waitFor(() => expect(lastCall(client.testRunsApi.list)[0]).toEqual(expect.objectContaining({ sort_by: 'name', sort_dir: 'desc' })))
+    expect(name.getAttribute('aria-sort')).toBe('descending')
+    fireEvent.change(screen.getByPlaceholderText(/search test runs/i), { target: { value: 'Nightly' } })
+    await waitFor(() => expect(lastCall(client.testRunsApi.list)[0]).toEqual(expect.objectContaining({ q: 'Nightly', sort_by: 'name', sort_dir: 'desc', offset: 0 })))
+    fireEvent.click(screen.getByTitle('Next page'))
+    await waitFor(() => expect(lastCall(client.testRunsApi.list)[0]).toEqual(expect.objectContaining({ q: 'Nightly', sort_by: 'name', sort_dir: 'desc', offset: 20 })))
+    for (const [label, field] of [['Status', 'status'], ['Test Station', 'runner_account'], ['Duration', 'duration_seconds'], ['Started At', 'started_at'], ['Completed At', 'completed_at']]) {
+      fireEvent.click(screen.getByRole('button', { name: label }))
+      await waitFor(() => expect(lastCall(client.testRunsApi.list)[0]).toEqual(expect.objectContaining({ q: 'Nightly', sort_by: field, sort_dir: 'asc', offset: 0 })))
+    }
+  })
 
   it('says so when the run list cannot be loaded', async () => {
     vi.mocked(client.testRunsApi.list).mockRejectedValue(new Error('backend unreachable'))
@@ -403,7 +424,12 @@ describe('the run list', () => {
     expect(screen.queryByText(testRun.name)).toBeNull()
   })
 
-
+  it('restores shared run sorting and station filters from the URL', async () => {
+    renderAt('/runs', '/runs?sort=name&dir=desc&station=bench-01', <TestRuns />)
+    await screen.findByText(testRun.name)
+    await waitFor(() => expect(lastCall(client.testRunsApi.list)[0]).toEqual(expect.objectContaining({ sort_by: 'name', sort_dir: 'desc', runner_account: 'bench-01' })))
+    expect(screen.getByRole('columnheader', { name: 'Name' }).getAttribute('aria-sort')).toBe('descending')
+  })
 })
 
 describe('a run in detail', () => {

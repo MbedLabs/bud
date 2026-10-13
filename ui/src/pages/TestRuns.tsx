@@ -7,10 +7,14 @@ import { useDebounced } from '../hooks/useDebounced'
 import { safeExternalUrl } from '../lib/externalLink'
 import { Search, Filter, ChevronLeft, ChevronRight, PlayCircle, Server, X, ExternalLink } from 'lucide-react'
 import RunStatusBadge from '../components/RunStatusBadge'
+import { AccessHeader } from '../components/AccessTable'
 
 const EMPTY_TEST_RUNS: TestRun[] = []
 
 const STATUS_OPTIONS = ['Pending', 'Running', 'Completed', 'Cancelled'] as const
+type SortField = 'name' | 'status' | 'runner_account' | 'duration_seconds' | 'started_at' | 'completed_at'
+const SORT_FIELDS: SortField[] = ['name', 'status', 'runner_account', 'duration_seconds', 'started_at', 'completed_at']
+const headerClass = 'px-5 py-3 text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider'
 
 export default function TestRuns() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -20,6 +24,17 @@ export default function TestRuns() {
   const [stationFilter, setStationFilter] = useState<string>(searchParams.get('station') || '')
   const [locationFilter, setLocationFilter] = useState<string>(searchParams.get('location') || '')
   const [filtersOpen, setFiltersOpen] = useState(false)
+  const requestedSort = searchParams.get('sort') as SortField | null
+  const sortField = requestedSort && SORT_FIELDS.includes(requestedSort) ? requestedSort : null
+  const sortDir = searchParams.get('dir') === 'desc' ? 'desc' : 'asc'
+  const toggleSort = (field: SortField) => {
+    setPage(1)
+    setSearchParams((previous) => {
+      previous.set('sort', field)
+      previous.set('dir', field === sortField && sortDir === 'asc' ? 'desc' : 'asc')
+      return previous
+    }, { replace: true })
+  }
   const limit = 20
 
   const hasActiveFilters = Boolean(statusFilter || stationFilter || locationFilter || search)
@@ -31,7 +46,7 @@ export default function TestRuns() {
   const { data, isLoading, error } = useQuery({
     queryKey: [
       'testRuns',
-      { page, limit, status: statusFilter, station: stationFilter, location: locationFilter, q: debouncedSearch },
+      { page, limit, status: statusFilter, station: stationFilter, location: locationFilter, q: debouncedSearch, sortField, sortDir },
     ],
     queryFn: () =>
       testRunsApi.list({
@@ -42,6 +57,8 @@ export default function TestRuns() {
         runner_account: stationFilter || undefined,
         location: locationFilter || undefined,
         q: debouncedSearch || undefined,
+        sort_by: sortField ?? undefined,
+        sort_dir: sortField ? sortDir : undefined,
       }),
     placeholderData: (previous) => previous,
   })
@@ -237,27 +254,15 @@ export default function TestRuns() {
           <table className="min-w-full divide-y divide-border">
             <thead>
               <tr className="bg-muted/50">
-                <th className="px-5 py-3 text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                  Name
-                </th>
-                <th className="px-5 py-3 text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                  Status
-                </th>
+                <AccessHeader field="name" sortField={sortField} sortDir={sortDir} onSort={toggleSort} className={headerClass}>Name</AccessHeader>
+                <AccessHeader field="status" sortField={sortField} sortDir={sortDir} onSort={toggleSort} className={headerClass}>Status</AccessHeader>
                 <th className="px-5 py-3 text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
                   Results
                 </th>
-                <th className="px-5 py-3 text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                  Test Station
-                </th>
-                <th className="px-5 py-3 text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                  Duration
-                </th>
-                <th className="px-5 py-3 text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                  Started At
-                </th>
-                <th className="px-5 py-3 text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                  Completed At
-                </th>
+                <AccessHeader field="runner_account" sortField={sortField} sortDir={sortDir} onSort={toggleSort} className={headerClass}>Test Station</AccessHeader>
+                <AccessHeader field="duration_seconds" sortField={sortField} sortDir={sortDir} onSort={toggleSort} className={headerClass}>Duration</AccessHeader>
+                <AccessHeader field="started_at" sortField={sortField} sortDir={sortDir} onSort={toggleSort} className={headerClass}>Started At</AccessHeader>
+                <AccessHeader field="completed_at" sortField={sortField} sortDir={sortDir} onSort={toggleSort} className={headerClass}>Completed At</AccessHeader>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">

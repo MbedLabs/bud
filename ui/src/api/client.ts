@@ -640,6 +640,8 @@ export const testRunsApi = {
     return response.data
   },
   list: async (params?: {
+    sort_by?: 'name' | 'status' | 'runner_account' | 'duration_seconds' | 'started_at' | 'completed_at'
+    sort_dir?: 'asc' | 'desc'
     status?: string
     limit?: number
     offset?: number

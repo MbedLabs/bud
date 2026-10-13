@@ -3,7 +3,7 @@ Test runs API endpoints.
 """
 
 from datetime import datetime, timedelta
-from typing import Optional, Union
+from typing import Literal, Optional, Union
 
 import httpx
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
@@ -88,7 +88,7 @@ async def create_test_run(
             if data.test_case_list
             else None
         ),
-        event_metadata={"runner_account": data.runner_account} if data.runner_account else None,
+        event_metadata=({"runner_account": data.runner_account} if data.runner_account else None),
     )
     await db.commit()
     await db.refresh(test_run)
@@ -165,6 +165,16 @@ async def list_test_runs(
         False,
         description="When true, return only the latest run for each test suite name.",
     ),
+    sort_by: Literal[
+        "name",
+        "status",
+        "runner_account",
+        "duration_seconds",
+        "started_at",
+        "completed_at",
+        "created_at",
+    ] = Query("created_at"),
+    sort_dir: Literal["asc", "desc"] = Query("desc"),
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_db, scope="function"),
@@ -234,14 +244,22 @@ async def list_test_runs(
     count_query = select(func.count(TestRun.id)).where(*conditions)
     total = (await db.execute(count_query)).scalar()
 
-    query = (
-        select(TestRun)
-        .options(selectinload(TestRun.runner))
-        .where(*conditions)
-        .order_by(TestRun.created_at.desc(), TestRun.id.desc())
-        .offset(offset)
-        .limit(limit)
-    )
+    query = select(TestRun).options(selectinload(TestRun.runner)).where(*conditions)
+    columns = {
+        "name": TestRun.name,
+        "status": TestRun.status,
+        "runner_account": Runner.account,
+        "duration_seconds": TestRun.duration_seconds,
+        "started_at": TestRun.started_at,
+        "completed_at": TestRun.completed_at,
+        "created_at": TestRun.created_at,
+    }
+    if sort_by == "runner_account":
+        query = query.outerjoin(Runner, TestRun.runner_id == Runner.id)
+    column = columns[sort_by]
+    ordering = column.asc() if sort_dir == "asc" else column.desc()
+    tie_breaker = TestRun.id.asc() if sort_dir == "asc" else TestRun.id.desc()
+    query = query.order_by(ordering.nullslast(), tie_breaker).offset(offset).limit(limit)
     runs = (await db.execute(query)).scalars().all()
 
     return TestRunList(
@@ -288,10 +306,14 @@ async def _scope_conditions(
 @router.get("/stats", response_model=TestRunStats)
 async def get_test_run_stats(
     days: Optional[int] = Query(
-        None, ge=1, le=3650, description="Only count runs created within the last N days."
+        None,
+        ge=1,
+        le=3650,
+        description="Only count runs created within the last N days.",
     ),
     runner_account: Optional[str] = Query(
-        None, description="Only count runs executed by this Bud runner account (Test Station)."
+        None,
+        description="Only count runs executed by this Bud runner account (Test Station).",
     ),
     suite: Optional[str] = Query(None, description="Only count runs for this test suite name."),
     db: AsyncSession = Depends(get_db, scope="function"),
@@ -360,19 +382,22 @@ async def get_test_run_stats(
         passed_runs=passed_runs,
         failed_runs=failed_runs,
         in_progress_runs=max(total_runs - decided_runs, 0),
-        run_pass_rate=round(passed_runs / decided_runs * 100, 1) if decided_runs else 0.0,
+        run_pass_rate=(round(passed_runs / decided_runs * 100, 1) if decided_runs else 0.0),
         total_tests=total_tests,
         passed_tests=passed_tests,
         failed_tests=failed_tests,
         skipped_tests=skipped_tests,
-        test_pass_rate=round(passed_tests / total_tests * 100, 1) if total_tests else 0.0,
+        test_pass_rate=(round(passed_tests / total_tests * 100, 1) if total_tests else 0.0),
     )
 
 
 @router.get("/filter-options", response_model=TestRunFilterOptions)
 async def get_test_run_filter_options(
     days: Optional[int] = Query(
-        None, ge=1, le=3650, description="Only consider runs created within the last N days."
+        None,
+        ge=1,
+        le=3650,
+        description="Only consider runs created within the last N days.",
     ),
     db: AsyncSession = Depends(get_db, scope="function"),
     _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
