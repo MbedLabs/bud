@@ -22,6 +22,7 @@ from app.api import (
     custom_runs,
     groups,
     health,
+    policies,
     products,
     reports,
     results,
@@ -32,6 +33,7 @@ from app.api import (
     uploads,
 )
 from app.api import users as users_api
+from app.core.access import seed_default_access
 from app.core.config import settings as app_settings
 from app.core.deps import limiter
 from app.core.observability import (
@@ -68,6 +70,13 @@ async def seed_admin_user():
             admin.role = UserRole.admin
             admin.is_active = True
 
+        await session.commit()
+
+
+async def seed_access_defaults() -> None:
+    """Create the shipped policies and groups that are missing."""
+    async with db.async_session_maker() as session:
+        await seed_default_access(session)
         await session.commit()
 
 
@@ -149,6 +158,7 @@ async def lifespan(app: FastAPI):
         await migrate_user_columns()
         await migrate_user_roles_to_viewer()
         await migrate_execution_columns()
+        await seed_access_defaults()
     if app_settings.AUTO_SEED_ADMIN:
         await seed_admin_user()
 
@@ -281,6 +291,8 @@ app.include_router(
     access_requests_api.router, prefix="/api/access-requests", tags=["Access requests"]
 )
 app.include_router(groups.router, prefix="/api/groups", tags=["Groups"])
+app.include_router(groups.access_router, prefix="/api/access", tags=["Access"])
+app.include_router(policies.router, prefix="/api/policies", tags=["Policies"])
 app.include_router(products.router, prefix="/api/products", tags=["Products"])
 # Before the test-runs and runners routers: its paths sit under both prefixes
 # (/test-runs/custom, /runners/claim-run) and registering it first keeps the

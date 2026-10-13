@@ -2,9 +2,7 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check, Code2, Copy, Eye, Mail, Shield, Trash2, UserPlus, X } from 'lucide-react'
 import { extractApiErrorMessage, InviteUserResponse, User, UserRole, usersApi } from '../api/client'
-import UserGroups from '../components/UserGroups'
 import { useAuth } from '../contexts/AuthContext'
-import AccessRequestsPanel from '../components/AccessRequestsPanel'
 import { formatDateTime } from '../test/date-utils'
 
 const ROLE_CONFIG = {
@@ -288,8 +286,6 @@ export default function UsersPage() {
           }
         />
       )}
-      <AccessRequestsPanel />
-      {currentUser?.role === 'admin' && <UserGroups />}
     </div>
   )
 }

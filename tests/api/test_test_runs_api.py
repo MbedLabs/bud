@@ -9,7 +9,7 @@ from app.models import TestRun
 
 
 @pytest.mark.asyncio
-async def test_create_test_run_persists_test_software_metadata(client, db_session):
+async def test_create_test_run_persists_test_software_metadata(client, station_request, db_session):
     payload = {
         "test_case_list": "Bud_Test_Suite.HIL_TEST_CASES",
         "test_suite_name": "Nightly Firmware Validation",
@@ -21,7 +21,7 @@ async def test_create_test_run_persists_test_software_metadata(client, db_sessio
         "status": "Running",
     }
 
-    response = client.post("/api/test-runs", json=payload)
+    response = station_request("POST", "/api/test-runs", json=payload)
     assert response.status_code == 201, response.text
 
     run_id = response.json()["id"]

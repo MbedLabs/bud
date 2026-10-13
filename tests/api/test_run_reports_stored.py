@@ -156,8 +156,11 @@ class TestWhatAFinishedRunLeaves:
 
 class TestReachingItThroughTheApi:
     @pytest.mark.asyncio
-    async def test_marking_a_run_completed_stores_its_reports(self, client, db_session):
+    async def test_marking_a_run_completed_stores_its_reports(
+        self, client, station_request, test_station, db_session
+    ):
         run = TestRun(
+            runner_id=test_station.id,
             name="api-completed-suite",
             test_case_list="Suite.CASES",
             status="Running",
@@ -169,7 +172,9 @@ class TestReachingItThroughTheApi:
         await db_session.commit()
         await db_session.refresh(run)
 
-        response = client.patch(f"/api/test-runs/{run.id}", json={"status": "Completed"})
+        response = station_request(
+            "PATCH", f"/api/test-runs/{run.id}", json={"status": "Completed"}
+        )
         assert response.status_code == 200, response.text
 
         listed = client.get(f"/api/test-runs/{run.id}/artifacts")
@@ -181,8 +186,11 @@ class TestReachingItThroughTheApi:
         ]
 
     @pytest.mark.asyncio
-    async def test_a_run_still_running_has_no_reports_yet(self, client, db_session):
+    async def test_a_run_still_running_has_no_reports_yet(
+        self, client, station_request, test_station, db_session
+    ):
         run = TestRun(
+            runner_id=test_station.id,
             name="api-running-suite",
             test_case_list="Suite.CASES",
             status="Pending",
@@ -192,7 +200,7 @@ class TestReachingItThroughTheApi:
         await db_session.commit()
         await db_session.refresh(run)
 
-        client.patch(f"/api/test-runs/{run.id}", json={"status": "Running"})
+        station_request("PATCH", f"/api/test-runs/{run.id}", json={"status": "Running"})
 
         listed = client.get(f"/api/test-runs/{run.id}/artifacts")
         assert listed.json() == []

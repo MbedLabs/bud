@@ -12,7 +12,7 @@ from sqlalchemy import Integer, case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.auth import get_current_active_entity
-from app.core.run_access import load_run, require_mutating_user, require_run_access
+from app.core.run_access import load_run, require_run_access
 from app.core.runner_auth import authenticate_runner_token
 from app.core.runner_keys import mark_used, resolve_key
 from app.db import get_db
@@ -77,12 +77,11 @@ async def upload_results(
     db: AsyncSession = Depends(get_db, scope="function"),
     _current_entity: Union[User, Runner] = Depends(get_uploader_entity),
 ):
-    """Upload test results."""
+    """Record raw execution results submitted by their authenticated station."""
+    if not isinstance(_current_entity, Runner):
+        raise HTTPException(status_code=403, detail="Only stations can submit test results")
     target_run_id = data.test_run_id
     target_product_id = data.product_id
-
-    if isinstance(_current_entity, User):
-        await require_mutating_user(db, _current_entity)
 
     if target_run_id is not None:
         await load_run(db, _current_entity, target_run_id, mutate=True)
@@ -102,7 +101,7 @@ async def upload_results(
         run_name = f"{product_name} - {suite_name}"
 
         new_run = TestRun(
-            runner_id=_current_entity.id if isinstance(_current_entity, Runner) else None,
+            runner_id=_current_entity.id,
             product_id=target_product_id,
             status="Completed",
             name=run_name,

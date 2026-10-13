@@ -44,14 +44,14 @@ def _keys(client):
     return sorted(o["Key"] for o in client.list_objects_v2(Bucket=BUCKET).get("Contents", []))
 
 
-def _upload(client, name="trace.txt", data=b"evidence"):
-    response = client.post("/api/uploads", files={"file": (name, io.BytesIO(data), "text/plain")})
+def _upload(station_upload, name="trace.txt", data=b"evidence"):
+    response = station_upload(name, io.BytesIO(data))
     assert response.status_code == 201, response.text
     return response.json()
 
 
-def test_upload_and_download_through_the_bucket(client, s3):
-    artifact = _upload(client)
+def test_upload_and_download_through_the_bucket(client, s3, station_upload):
+    artifact = _upload(station_upload)
     stored = uploads.get_upload_root() / artifact["filename"]
     assert _keys(s3) == [f"bud/{artifact['filename']}"] and stored.exists()
 
@@ -70,20 +70,18 @@ def test_upload_and_download_through_the_bucket(client, s3):
     assert client.delete(f"/api/uploads/{artifact['id']}").status_code == 204
 
 
-def test_without_the_mirror_only_the_bucket_holds_it(client, s3, monkeypatch):
+def test_without_the_mirror_only_the_bucket_holds_it(client, s3, monkeypatch, station_upload):
     monkeypatch.setattr(settings, "STORAGE_LOCAL_MIRROR", False)
-    artifact = _upload(client)
+    artifact = _upload(station_upload)
     assert not (uploads.get_upload_root() / artifact["filename"]).exists()
     assert client.get(f"/api/uploads/{artifact['id']}").content == b"evidence"
     assert client.delete(f"/api/uploads/{artifact['id']}").status_code == 204
     assert _keys(s3) == []
 
 
-def test_a_refused_upload_leaves_nothing(client, s3, monkeypatch):
+def test_a_refused_upload_leaves_nothing(client, s3, monkeypatch, station_upload):
     monkeypatch.setattr(settings, "S3_BUCKET", "no-such-bucket")
-    response = client.post(
-        "/api/uploads", files={"file": ("t.txt", io.BytesIO(b"x"), "text/plain")}
-    )
+    response = station_upload("t.txt", io.BytesIO(b"x"))
     assert response.status_code == 503
     assert [p for p in uploads.get_upload_root().iterdir() if p.is_file()] == []
 

@@ -34,6 +34,7 @@ dependencies = [
     "tenacity>=8.0.0",
     "alembic>=1.18.0",
     "reportlab>=4.0.0",
+    "Pillow>=12.3.0",
 ]
 
 [project.optional-dependencies]

@@ -58,7 +58,7 @@ async def test_a_request_emails_the_administrators_once_a_day(
     assert mine.json()["id"] == first.json()["id"]
     boss_mail = [mail for mail in sent_mail if mail["to_email"] == "boss@example.com"]
     assert len(boss_mail) == 1
-    assert boss_mail[0]["review_link"].endswith("/users")
+    assert boss_mail[0]["review_link"].endswith("/access")
     assert boss_mail[0]["request_id"] == first.headers["x-request-id"]
     events = (
         (

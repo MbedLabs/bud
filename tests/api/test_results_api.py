@@ -11,9 +11,12 @@ from app.models import TestResult, TestRun, TestRunEvent
 
 
 @pytest.mark.asyncio
-async def test_upload_results_persists_assertions_and_updates_counters(client, db_session):
+async def test_upload_results_persists_assertions_and_updates_counters(
+    client, station_request, test_station, db_session
+):
     # Seed a TestRun that uploaded results will attach to.
     run = TestRun(
+        runner_id=test_station.id,
         name="CI-1-abcdef",
         test_case_list="Bud_Test_Suite.HIL_TEST_CASES",
         status="Running",
@@ -65,7 +68,7 @@ async def test_upload_results_persists_assertions_and_updates_counters(client, d
         ],
     }
 
-    response = client.post("/api/results", json=payload)
+    response = station_request("POST", "/api/results", json=payload)
 
     assert response.status_code == 201, response.text
     body = response.json()
@@ -110,9 +113,10 @@ async def test_upload_results_persists_assertions_and_updates_counters(client, d
 
 
 @pytest.mark.asyncio
-async def test_upload_results_two_classes_mixed(client, db_session):
+async def test_upload_results_two_classes_mixed(client, station_request, test_station, db_session):
     """Two test classes: one all-pass, one mixed → total 2, passed 1, failed 1."""
     run = TestRun(
+        runner_id=test_station.id,
         name="CI-2-multi",
         test_case_list="Bud_Test_Suite.MULTI",
         status="Running",
@@ -152,7 +156,7 @@ async def test_upload_results_two_classes_mixed(client, db_session):
         ],
     }
 
-    response = client.post("/api/results", json=payload)
+    response = station_request("POST", "/api/results", json=payload)
     assert response.status_code == 201, response.text
 
     await db_session.refresh(run)
@@ -162,7 +166,9 @@ async def test_upload_results_two_classes_mixed(client, db_session):
 
 
 @pytest.mark.asyncio
-async def test_upload_results_without_test_run_id_still_accepts_assertions(client, db_session):
+async def test_upload_results_without_test_run_id_still_accepts_assertions(
+    client, station_request, test_station, db_session
+):
     """A sanity check that assertions JSON round-trips even for detached uploads."""
     payload = {
         "results": [
@@ -175,7 +181,7 @@ async def test_upload_results_without_test_run_id_still_accepts_assertions(clien
         ]
     }
 
-    response = client.post("/api/results", json=payload)
+    response = station_request("POST", "/api/results", json=payload)
     assert response.status_code == 201, response.text
     body = response.json()
     assert body["count"] == 1
@@ -190,7 +196,7 @@ async def test_upload_results_without_test_run_id_still_accepts_assertions(clien
 
 @pytest.mark.asyncio
 async def test_upload_results_without_test_run_id_persists_test_software_metadata(
-    client, db_session
+    client, station_request, db_session
 ):
     payload = {
         "test_suite_name": "Nightly Firmware Validation",
@@ -207,7 +213,7 @@ async def test_upload_results_without_test_run_id_persists_test_software_metadat
         ],
     }
 
-    response = client.post("/api/results", json=payload)
+    response = station_request("POST", "/api/results", json=payload)
     assert response.status_code == 201, response.text
 
     run_id = response.json()["test_run_id"]

@@ -88,7 +88,15 @@ api.interceptors.response.use(
 
 export type UserRole = 'admin' | 'developer' | 'viewer'
 
-export interface User {
+export interface ProfilePerson {
+  id?: number
+  full_name: string
+  profile_picture_url?: string | null
+  has_profile_picture?: boolean
+  updated_at?: string
+}
+
+export interface User extends ProfilePerson {
   id: number
   email: string
   full_name: string
@@ -104,6 +112,9 @@ export interface User {
   email_change_requested_at?: string | null
   created_at: string
   updated_at: string
+  permissions?: string[]
+  has_profile_picture?: boolean
+  profile_picture_url?: string | null
 }
 
 export interface InviteUserResponse {
@@ -178,6 +189,27 @@ export const authApi = {
     const response = await api.put<User>('/auth/me', data)
     return response.data
   },
+  setProfilePicture: async (file: File): Promise<User> => {
+    const form = new FormData()
+    form.append('file', file)
+    const response = await api.put<User>('/auth/me/picture', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    return response.data
+  },
+  fetchProfilePicture: async (): Promise<Blob | null> => {
+    try {
+      const response = await api.get('/auth/me/picture', { responseType: 'blob' })
+      return response.data as Blob
+    } catch (error) {
+      if ((error as { response?: { status?: number } }).response?.status === 404) return null
+      throw error
+    }
+  },
+  deleteProfilePicture: async (): Promise<User> => {
+    const response = await api.delete<User>('/auth/me/picture')
+    return response.data
+  },
   requestEmailChange: async (
     currentPassword: string,
     newEmail: string,
@@ -225,24 +257,44 @@ export const authApi = {
   },
 }
 
-export type GroupRole = 'developer' | 'viewer'
+export interface PolicyRef {
+  id: number
+  name: string
+}
+
+export interface GroupMember {
+  user_id: number
+  email: string
+  full_name: string
+  role: UserRole
+  profile_picture_url?: string | null
+}
 
 export interface Group {
   id: number
   name: string
   description: string | null
-  role: GroupRole
-  members: { user_id: number; email: string; full_name: string }[]
+  is_default: boolean
+  system_key: string | null
+  policies: PolicyRef[]
+  permissions: string[]
+  members: GroupMember[]
   created_at: string
   updated_at: string
 }
 
+export interface GroupInput {
+  name?: string
+  description?: string | null
+  policy_ids?: number[]
+}
+
 export const groupsApi = {
   list: async () => (await api.get<Group[]>('/groups')).data,
-  create: async (data: { name: string; role: GroupRole; description?: string }) =>
-    (await api.post<Group>('/groups', data)).data,
-  update: async (id: number, data: { name?: string; role?: GroupRole; description?: string | null }) =>
-    (await api.patch<Group>(`/groups/${id}`, data)).data,
+  get: async (id: number) => (await api.get<Group>(`/groups/${id}`)).data,
+  create: async (data: GroupInput & { name: string }) => (await api.post<Group>('/groups', data)).data,
+  update: async (id: number, data: GroupInput) => (await api.patch<Group>(`/groups/${id}`, data)).data,
+  duplicate: async (id: number) => (await api.post<Group>(`/groups/${id}/duplicate`)).data,
   remove: async (id: number) => {
     await api.delete(`/groups/${id}`)
   },
@@ -252,7 +304,57 @@ export const groupsApi = {
     (await api.delete<Group>(`/groups/${id}/members/${userId}`)).data,
 }
 
-export type AccessResourceType = 'test-run' | 'product'
+export type PermissionMatrix = Record<string, string[]>
+
+export interface Policy {
+  id: number
+  name: string
+  description: string | null
+  permissions: PermissionMatrix
+  is_default: boolean
+  system_key: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface CatalogueResource {
+  resource: string
+  actions: string[]
+}
+
+export interface PolicyInput {
+  name?: string
+  description?: string | null
+  permissions?: PermissionMatrix
+}
+
+export const policiesApi = {
+  list: async () => (await api.get<Policy[]>('/policies')).data,
+  catalogue: async () => (await api.get<CatalogueResource[]>('/policies/catalogue')).data,
+  create: async (data: PolicyInput & { name: string }) => (await api.post<Policy>('/policies', data)).data,
+  update: async (id: number, data: PolicyInput) => (await api.patch<Policy>(`/policies/${id}`, data)).data,
+  duplicate: async (id: number) => (await api.post<Policy>(`/policies/${id}/duplicate`)).data,
+  remove: async (id: number) => {
+    await api.delete(`/policies/${id}`)
+  },
+}
+
+export interface AccessUser {
+  id: number
+  email: string
+  full_name: string
+  role: UserRole
+  is_active: boolean
+  groups: PolicyRef[]
+  permissions: string[]
+  profile_picture_url?: string | null
+}
+
+export const accessApi = {
+  users: async () => (await api.get<AccessUser[]>('/access/users')).data,
+}
+
+export type AccessResourceType = 'test-run' | 'product' | 'publish-to-bloom'
 
 export interface AccessRequestInfo {
   id: number
@@ -279,8 +381,13 @@ export const accessRequestsApi = {
     (await api.get<AccessRequestInfo | null>('/access-requests/mine', { params })).data,
   list: async (params: { status?: string } = {}) =>
     (await api.get<AccessRequestInfo[]>('/access-requests', { params })).data,
-  decide: async (id: number, decision: 'granted' | 'refused') =>
-    (await api.post<AccessRequestInfo>(`/access-requests/${id}/decision`, { decision })).data,
+  decide: async (id: number, decision: 'granted' | 'refused', groupId?: number) =>
+    (
+      await api.post<AccessRequestInfo>(`/access-requests/${id}/decision`, {
+        decision,
+        ...(groupId === undefined ? {} : { group_id: groupId }),
+      })
+    ).data,
 }
 
 export interface AuditEvent {
@@ -455,8 +562,24 @@ export interface UnassignedTest {
 }
 
 export interface CustomRunResult {
-  runs: TestRun[]
+  requests: ExecutionRequest[]
   unassigned: UnassignedTest[]
+}
+
+export interface ExecutionRequest {
+  id: number
+  name: string
+  runner_account: string
+  selected_tests: string[]
+  state: 'queued' | 'claimed'
+  run_id: number | null
+  source_metadata: Record<string, unknown>
+  created_at: string
+}
+
+export const executionRequestsApi = {
+  list: async (): Promise<ExecutionRequest[]> => (await api.get<ExecutionRequest[]>('/execution-requests')).data,
+  get: async (id: number): Promise<ExecutionRequest> => (await api.get<ExecutionRequest>(`/execution-requests/${id}`)).data,
 }
 
 export interface Artifact {
