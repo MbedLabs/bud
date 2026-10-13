@@ -8,12 +8,13 @@ import {
   type NotificationFormat,
   type NotificationRunFilter,
 } from '../api/client'
+import Select from './Select'
 
 const FORMATS: { value: NotificationFormat; label: string }[] = [
-  { value: 'teams', label: 'Microsoft Teams (Workflows or connector, read from the URL)' },
+  { value: 'teams', label: 'Microsoft Teams' },
   { value: 'slack', label: 'Slack' },
   { value: 'discord', label: 'Discord' },
-  { value: 'json', label: 'JSON (n8n, scripts, any endpoint)' },
+  { value: 'json', label: 'JSON' },
 ]
 
 const FILTERS: { value: NotificationRunFilter; label: string }[] = [
@@ -89,18 +90,12 @@ export default function NotificationChannels() {
   })
 
   return (
-    <div className="bg-card rounded-lg border border-border shadow-elegant overflow-hidden">
-      <div className="px-5 py-4 border-b border-border flex items-center gap-2 bg-muted/30">
+    <div className="bg-card rounded-lg border border-border shadow-elegant">
+      <div className="px-5 py-4 border-b border-border flex items-center gap-2 bg-muted/30 rounded-t-lg">
         <Bell className="h-4 w-4 text-primary" />
         <h3 className="text-sm font-semibold text-foreground">Run notifications</h3>
       </div>
       <div className="p-5 space-y-4">
-        <p className="text-xs text-muted-foreground">
-          When a run finishes, Bud posts its result and a link to the run to these channels. Create an
-          incoming webhook in Teams, Slack or Discord, or use any endpoint that accepts JSON. The URL
-          and secret are stored encrypted and never shown again.
-        </p>
-
         {message && (
           <p className={`text-xs ${message.ok ? 'text-emerald-600' : 'text-destructive'}`} role="status">
             {message.text}
@@ -117,9 +112,8 @@ export default function NotificationChannels() {
               <li key={channel.id} className="flex items-center gap-3 px-3 py-2 text-sm">
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-foreground">{channel.name}</p>
-                  <p className="text-[11px] text-muted-foreground font-mono truncate">
-                    {channel.format} · {FILTERS.find((f) => f.value === channel.run_filter)?.label ?? channel.run_filter} ·{' '}
-                    {channel.url_prefix}
+                  <p className="text-xs text-muted-foreground">
+                    {FORMATS.find((option) => option.value === channel.format)?.label} · {FILTERS.find((option) => option.value === channel.run_filter)?.label}
                   </p>
                 </div>
                 <label className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -157,6 +151,7 @@ export default function NotificationChannels() {
         )}
 
         <form
+          autoComplete="off"
           onSubmit={(e) => {
             e.preventDefault()
             create.mutate()
@@ -169,27 +164,19 @@ export default function NotificationChannels() {
           </div>
           <div>
             <label htmlFor="channel-format" className={labelClass}>Format</label>
-            <select id="channel-format" value={format} onChange={(e) => setFormat(e.target.value as NotificationFormat)} className={inputClass}>
-              {FORMATS.map((f) => (
-                <option key={f.value} value={f.value}>{f.label}</option>
-              ))}
-            </select>
+            <Select id="channel-format" label="Format" value={format} onChange={setFormat} options={FORMATS} />
           </div>
           <div className="sm:col-span-2">
             <label htmlFor="channel-url" className={labelClass}>Webhook URL</label>
-            <input id="channel-url" type="url" value={url} onChange={(e) => setUrl(e.target.value)} required placeholder="https://..." className={`${inputClass} font-mono`} />
+            <input id="channel-url" name="notification-webhook-url" type="url" autoComplete="off" value={url} onChange={(e) => setUrl(e.target.value)} required placeholder="https://..." className={`${inputClass} font-mono`} />
           </div>
           <div>
             <label htmlFor="channel-secret" className={labelClass}>Signing secret (optional)</label>
-            <input id="channel-secret" type="password" value={secret} onChange={(e) => setSecret(e.target.value)} placeholder="HMAC secret for X-Bud-Signature" className={`${inputClass} font-mono`} />
+            <input id="channel-secret" name="notification-signing-secret" type="password" autoComplete="new-password" value={secret} onChange={(e) => setSecret(e.target.value)} className={inputClass} />
           </div>
           <div>
             <label htmlFor="channel-filter" className={labelClass}>Post</label>
-            <select id="channel-filter" value={runFilter} onChange={(e) => setRunFilter(e.target.value as NotificationRunFilter)} className={inputClass}>
-              {FILTERS.map((f) => (
-                <option key={f.value} value={f.value}>{f.label}</option>
-              ))}
-            </select>
+            <Select id="channel-filter" label="Post" value={runFilter} onChange={setRunFilter} options={FILTERS} />
           </div>
           <div className="sm:col-span-2 flex justify-end">
             <button
