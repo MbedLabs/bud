@@ -23,7 +23,7 @@ export default function AccessPolicies({ canEdit }: { canEdit: boolean }) {
   const queryClient = useQueryClient()
   const [editing, setEditing] = useState<Policy | 'new' | null>(null)
   const [viewing, setViewing] = useState<Policy | null>(null)
-  const [sortField, setSortField] = useState<'name' | 'scope' | 'permissions'>('name')
+  const [sortField, setSortField] = useState<'name' | 'permissions'>('name')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
   const [deleting, setDeleting] = useState<Policy | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -44,7 +44,6 @@ export default function AccessPolicies({ canEdit }: { canEdit: boolean }) {
   })
   const run = (action: () => Promise<unknown>) => change.mutate(action)
 
-  const scope = (policy: Policy) => Object.keys(policy.permissions).map((resource) => RESOURCE_LABELS[resource] ?? resource).join(', ')
   const summaries = (policy: Policy) => {
     const entries = Object.entries(policy.permissions).map(([resource, actions]) => {
       const labels = [...new Set(actions.map((action) => ACTION_LABELS[action] ?? action))]
@@ -55,7 +54,7 @@ export default function AccessPolicies({ canEdit }: { canEdit: boolean }) {
     return entries.map((entry) => `${RESOURCE_LABELS[entry.resource] ?? entry.resource}: ${entry.rights}`)
   }
   const sorted = [...(policies ?? [])].sort((a, b) => {
-    const value = (policy: Policy) => sortField === 'name' ? policy.name : sortField === 'scope' ? scope(policy) : summaries(policy).join(', ')
+    const value = (policy: Policy) => sortField === 'name' ? policy.name : summaries(policy).join(', ')
     return value(a).localeCompare(value(b)) * (sortDir === 'asc' ? 1 : -1) || a.id - b.id
   })
   const toggleSort = (field: typeof sortField) => {
@@ -73,12 +72,11 @@ export default function AccessPolicies({ canEdit }: { canEdit: boolean }) {
       <div className="border border-border rounded-xl overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-muted/50 text-muted-foreground"><tr>
-            {(['name', 'scope', 'permissions'] as const).map((field) => <AccessHeader key={field} field={field} sortField={sortField} sortDir={sortDir} onSort={toggleSort}>{field.charAt(0).toUpperCase() + field.slice(1)}</AccessHeader>)}
+            {(['name', 'permissions'] as const).map((field) => <AccessHeader key={field} field={field} sortField={sortField} sortDir={sortDir} onSort={toggleSort}>{field.charAt(0).toUpperCase() + field.slice(1)}</AccessHeader>)}
             <th className="px-4 py-2" />
           </tr></thead>
           <tbody>{sorted.map((policy) => <tr key={policy.id} className="border-t border-border">
             <td className="px-4 py-2 text-foreground font-medium">{policy.name}{policy.is_default && <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase bg-muted text-muted-foreground">Default</span>}</td>
-            <td className="px-4 py-2 text-muted-foreground"><div>App</div><div className="mt-1 max-w-64 text-xs">{scope(policy)}</div></td>
             <td className="px-4 py-2 text-muted-foreground">{summaries(policy).map((summary) => <div key={summary}>{summary}</div>)}</td>
             <td className="px-4 py-2"><div className="flex items-center justify-end gap-1">
               <button onClick={() => setViewing(policy)} aria-label={`View ${policy.name}`} title={`View ${policy.name}`} className="p-1 rounded text-muted-foreground hover:text-foreground"><Eye className="h-3.5 w-3.5" /></button>
