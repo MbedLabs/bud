@@ -80,6 +80,7 @@ mako==1.4.3
     # via alembic
 markupsafe==3.0.4
     # via mako
+opentelemetry-api==1.45.1
 packaging==26.3
     # via limits
 passlib==1.7.4
