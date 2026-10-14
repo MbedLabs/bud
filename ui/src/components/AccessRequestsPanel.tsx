@@ -1,3 +1,4 @@
+import ProfilePicture from './ProfilePicture'
 import SelectField from './SelectField'
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -45,8 +46,12 @@ export default function AccessRequestsPanel() {
           const groupId = chosen[request.id] ?? fallback?.id
           return (
             <li key={request.id} className="py-3 flex flex-wrap items-center justify-between gap-3 text-sm">
-              <span className="text-foreground">
-                {request.requester_name} ({request.requester_email}) asks for {describe(request)}
+              <span className="inline-flex items-center gap-2 text-foreground">
+                {request.requester_name && <ProfilePicture user={{
+                  full_name: request.requester_name,
+                  profile_picture_url: request.requester_profile_picture_url ?? null,
+                }} className="w-6 h-6" />}
+                <span>{request.requester_name} ({request.requester_email}) asks for {describe(request)}</span>
               </span>
               <span className="flex flex-wrap items-center gap-2">
                 {isPublish && (

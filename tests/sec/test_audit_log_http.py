@@ -1,8 +1,10 @@
 """The audit log records security-relevant events with who, where and the outcome."""
 
+import io
 import json
 
 from fastapi.routing import APIRoute
+from PIL import Image
 from sqlalchemy import select
 
 from app.core.security import get_password_hash
@@ -132,3 +134,55 @@ def test_no_endpoint_changes_or_deletes_an_audit_event():
     }
 
     assert methods == {"GET"}
+
+
+async def test_actor_and_users_pictures_follow_their_accounts_without_widening_access(
+    unauthenticated_client, db_session, fresh_auth_rate_limits
+):
+    admin = await _user(db_session, "picture-admin@example.com", UserRole.admin)
+    member = await _user(db_session, "picture-member@example.com")
+    plain = await _user(db_session, "picture-none@example.com")
+    admin_headers = _login(unauthenticated_client, admin.email)
+    member_headers = _login(unauthenticated_client, member.email)
+    _login(unauthenticated_client, plain.email)
+
+    def upload(headers, color):
+        """Upload a small PNG as the authenticated account's own picture."""
+        data = io.BytesIO()
+        Image.new("RGB", (2, 2), color=color).save(data, format="PNG")
+        result = unauthenticated_client.put(
+            "/api/auth/me/picture",
+            headers=headers,
+            files={"file": ("picture.png", data.getvalue(), "image/png")},
+        )
+        assert result.status_code == 200, result.text
+        return result.json()["profile_picture_url"]
+
+    admin_picture = upload(admin_headers, "red")
+    member_picture = upload(member_headers, "blue")
+    assert admin_picture != member_picture
+    for path in ("/api/audit", "/api/users"):
+        assert unauthenticated_client.get(path).status_code == 401
+        assert unauthenticated_client.get(path, headers=member_headers).status_code == 403
+
+    for color in ("blue", "green", None):
+        if color is None:
+            removed = unauthenticated_client.delete("/api/auth/me/picture", headers=member_headers)
+            assert removed.status_code == 200
+            next_picture = None
+        else:
+            next_picture = upload(member_headers, color)
+        page = unauthenticated_client.get(
+            "/api/audit", params={"action": "auth.login"}, headers=admin_headers
+        )
+        assert page.status_code == 200
+        actors = {item["actor_user_id"]: item for item in page.json()["items"]}
+        assert actors[admin.id]["actor_profile_picture_url"] == admin_picture
+        assert actors[member.id]["actor_profile_picture_url"] == next_picture
+        assert actors[plain.id]["actor_profile_picture_url"] is None
+        listed = unauthenticated_client.get("/api/users", headers=admin_headers)
+        assert listed.status_code == 200
+        users = {item["id"]: item for item in listed.json()}
+        assert users[admin.id]["profile_picture_url"] == admin_picture
+        assert users[member.id]["profile_picture_url"] == next_picture
+        assert users[plain.id]["profile_picture_url"] is None

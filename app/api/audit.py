@@ -61,7 +61,7 @@ async def list_audit_events(
     total = await db.scalar(select(func.count(AuditEvent.id)).where(*conditions))
     rows = (
         await db.execute(
-            select(AuditEvent, User.full_name)
+            select(AuditEvent, User)
             .outerjoin(User, User.id == AuditEvent.actor_user_id)
             .where(*conditions)
             .order_by(AuditEvent.occurred_at.desc(), AuditEvent.id.desc())
@@ -70,8 +70,9 @@ async def list_audit_events(
         )
     ).all()
     items = []
-    for event, actor_name in rows:
+    for event, actor in rows:
         item = AuditEventResponse.model_validate(event)
-        item.actor_name = actor_name
+        item.actor_name = actor.full_name if actor else None
+        item.actor_profile_picture_url = actor.profile_picture_url if actor else None
         items.append(item)
     return AuditEventPage(items=items, total=total or 0)

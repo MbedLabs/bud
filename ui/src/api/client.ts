@@ -365,6 +365,7 @@ export interface AccessRequestInfo {
   decided_at: string | null
   requester_name: string | null
   requester_email: string | null
+  requester_profile_picture_url?: string | null
   already_requested: boolean
   mail_sent: boolean | null
 }
@@ -395,6 +396,7 @@ export interface AuditEvent {
   occurred_at: string
   actor_user_id: number | null
   actor_name: string | null
+  actor_profile_picture_url?: string | null
   actor_type: string
   action: string
   target_type: string | null
