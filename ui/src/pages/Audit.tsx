@@ -1,3 +1,4 @@
+import DateField from '../components/DateField'
 import SelectField from '../components/SelectField'
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
@@ -78,21 +79,19 @@ export default function AuditPage() {
         </label>
         <label className="text-sm text-muted-foreground">
           From
-          <input
-            aria-label="From"
-            type="date"
+          <DateField
+            label="From"
             value={since}
-            onChange={(e) => { setSince(e.target.value); resetPage() }}
+            onChange={(next) => { setSince(next); resetPage() }}
             className="block mt-1 px-2 py-1.5 border border-border rounded-lg bg-background text-foreground"
           />
         </label>
         <label className="text-sm text-muted-foreground">
           Until
-          <input
-            aria-label="Until"
-            type="date"
+          <DateField
+            label="Until"
             value={until}
-            onChange={(e) => { setUntil(e.target.value); resetPage() }}
+            onChange={(next) => { setUntil(next); resetPage() }}
             className="block mt-1 px-2 py-1.5 border border-border rounded-lg bg-background text-foreground"
           />
         </label>

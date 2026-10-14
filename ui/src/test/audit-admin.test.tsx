@@ -5,7 +5,7 @@ import { selectValue } from './select-value'
  * event group and outcome.
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const page = {
@@ -42,7 +42,10 @@ function renderPage() {
   )
 }
 
-beforeEach(() => vi.clearAllMocks())
+beforeEach(() => {
+  vi.clearAllMocks()
+  vi.mocked(api.auditApi.list).mockResolvedValue(page)
+})
 afterEach(cleanup)
 
 describe('Audit log admin screen', () => {
@@ -67,4 +70,23 @@ describe('Audit log admin screen', () => {
       ),
     )
   })
+  it('keeps literal date bounds and resets pagination when a date is selected or cleared', async () => {
+    vi.mocked(api.auditApi.list).mockResolvedValue({ ...page, total: 60 })
+    renderPage()
+    await screen.findByText('Ada Admin')
+    fireEvent.change(screen.getByLabelText('From'), { target: { value: '2024-02-28' } })
+    await waitFor(() => expect((screen.getByRole('button', { name: 'Older' }) as HTMLButtonElement).disabled).toBe(false))
+    fireEvent.click(screen.getByRole('button', { name: 'Older' }))
+    await waitFor(() => expect(api.auditApi.list).toHaveBeenLastCalledWith(expect.objectContaining({ since: '2024-02-28', offset: 50 })))
+    fireEvent.click(screen.getByRole('button', { name: 'Choose date for From' }))
+    const dateLabel = new Intl.DateTimeFormat(navigator.language, { dateStyle: 'full', calendar: 'gregory' }).format(new Date(2024, 1, 29))
+    fireEvent.click(screen.getByRole('button', { name: dateLabel }))
+    await waitFor(() => expect(api.auditApi.list).toHaveBeenLastCalledWith(expect.objectContaining({ since: '2024-02-29', offset: 0 })))
+    fireEvent.change(screen.getByLabelText('Until'), { target: { value: '2024-03-01' } })
+    await waitFor(() => expect(api.auditApi.list).toHaveBeenLastCalledWith(expect.objectContaining({ since: '2024-02-29', until: '2024-03-01' })))
+    fireEvent.click(screen.getByRole('button', { name: 'Choose date for From' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Clear' }))
+    await waitFor(() => expect(api.auditApi.list).toHaveBeenLastCalledWith(expect.objectContaining({ since: undefined, until: '2024-03-01', offset: 0 })))
+  })
+
 })

@@ -99,7 +99,7 @@ export default function Select<V extends string>({ id, label, title, value, onCh
       <span className="min-w-0 whitespace-normal break-words">{options[selectedIndex]?.label}</span>
       <ChevronDown className="h-4 w-4 shrink-0" />
     </button>
-    {open && createPortal(<div ref={list} id={`${listId}-list`} role="listbox" aria-label={label} aria-labelledby={labelledBy} style={position} className="fixed z-[100] overflow-y-auto rounded-md border border-border bg-card p-1 text-foreground shadow-elegant">
+    {open && createPortal(<div ref={list} id={`${listId}-list`} role="listbox" aria-label={label} aria-labelledby={labelledBy} style={position} className="themed-scrollbar fixed z-[100] overflow-y-auto rounded-md border border-border bg-card p-1 text-foreground shadow-elegant">
       {options.map((option, index) => <button type="button" role="option" id={`${listId}-${index}`} key={`${option.value}-${index}`} data-value={option.value}
         aria-selected={option.value === value} aria-disabled={option.disabled || undefined} disabled={option.disabled} tabIndex={-1}
         className={`block w-full whitespace-normal break-words rounded px-2 py-1.5 text-left text-sm disabled:opacity-50 ${index === active ? 'bg-primary/10 text-primary' : 'hover:bg-accent'}`}
