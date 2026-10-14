@@ -32,11 +32,11 @@ export default function PoweredByEmbedLabs({
         href="https://www.embedlabs.net"
         target="_blank"
         rel="noopener noreferrer"
-        className="block w-full max-w-full overflow-hidden whitespace-nowrap text-[10px] text-lime-200/50 hover:text-lime-50 transition-colors"
+        className="block w-full max-w-full overflow-hidden whitespace-nowrap text-xs text-lime-200/50 hover:text-lime-50 transition-colors"
       >
         Powered by EmbedLabs
       </a>
-      <p className="text-[10px] text-lime-200/30 mt-1">
+      <p className="text-xs text-lime-200/30 mt-1">
         v{version}
       </p>
     </div>

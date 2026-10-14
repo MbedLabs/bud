@@ -1,3 +1,4 @@
+import SelectField from '../components/SelectField'
 import { useState, useEffect, useRef } from 'react'
 import { Sun, Moon, Monitor, Info, ExternalLink, Link as LinkIcon, Save, Loader2, Globe, HelpCircle, Mail, Image as ImageIcon, X } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -413,7 +414,7 @@ export default function Settings() {
           <div className="space-y-2">
             <p className="text-sm font-medium text-foreground">Display Timezone</p>
             <div className="max-w-sm mt-3">
-              <select
+              <SelectField
                 value={timezone}
                 onChange={(e) => handleTimezoneChange(e.target.value)}
                 className="w-full bg-background border border-input rounded-md px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-primary/20"
@@ -423,7 +424,7 @@ export default function Settings() {
                     {tz.label}
                   </option>
                 ))}
-              </select>
+              </SelectField>
             </div>
           </div>
           <p className="text-[10px] text-muted-foreground italic">

@@ -1,3 +1,4 @@
+import SelectField from '../components/SelectField'
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check, Code2, Copy, Eye, Mail, Shield, Trash2, UserPlus, X } from 'lucide-react'
@@ -467,7 +468,7 @@ function InviteUserModal({
           </div>
           <div>
             <label className="block text-sm font-medium text-foreground mb-1">Role</label>
-            <select
+            <SelectField
               value={role}
               onChange={(e) => setRole(e.target.value as UserRole)}
               title="Role"
@@ -476,7 +477,7 @@ function InviteUserModal({
               <option value="viewer">Viewer</option>
               <option value="developer">Developer</option>
               <option value="admin">Admin</option>
-            </select>
+            </SelectField>
           </div>
           <button
             type="submit"

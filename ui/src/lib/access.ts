@@ -19,7 +19,7 @@ export const RESOURCE_LABELS: Record<string, string> = {
   products: 'Products',
   stations: 'Test Stations',
   custom_runs: 'Custom runs',
-  bloom_publish: 'Publish to Bloom',
+  bloom_publish: 'Reports publishing',
   settings: 'Settings and integrations',
   audit: 'Audit log',
   access: 'Access',

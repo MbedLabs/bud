@@ -1,3 +1,4 @@
+import SelectField from '../components/SelectField'
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -156,7 +157,7 @@ export default function CustomRun() {
             <label htmlFor="custom-run-station" className="sr-only">
               Test Station
             </label>
-            <select
+            <SelectField
               id="custom-run-station"
               value={pinned}
               onChange={(event) => {
@@ -172,7 +173,7 @@ export default function CustomRun() {
                   {station.account}
                 </option>
               ))}
-            </select>
+            </SelectField>
           </div>
           <div>
             <label htmlFor="custom-run-name" className="sr-only">
