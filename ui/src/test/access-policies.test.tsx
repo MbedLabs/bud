@@ -126,7 +126,7 @@ describe('Policies', () => {
     fireEvent.click(screen.getByRole('button', { name: 'New policy' }))
     const dialog = await screen.findByRole('dialog', { name: 'New policy' })
     fireEvent.change(within(dialog).getByLabelText('Policy name'), { target: { value: 'Operations' } })
-    for (const label of ['Read Reports', 'Write Custom runs', 'Write Publish to Bloom', 'Write Settings and integrations']) fireEvent.click(within(dialog).getByLabelText(label))
+    for (const label of ['Read Reports', 'Write Custom runs', 'Write Reports publishing', 'Write Settings and integrations']) fireEvent.click(within(dialog).getByLabelText(label))
     expect((within(dialog).getByLabelText('Write Runs, results and artifacts') as HTMLInputElement).disabled).toBe(true)
     fireEvent.click(within(dialog).getByRole('button', { name: 'Save policy' }))
     await waitFor(() => expect(api.policiesApi.create).toHaveBeenCalledWith({ name: 'Operations', description: null, permissions: { reports: ['export'], custom_runs: ['create'], bloom_publish: ['execute'], settings: ['edit'] } }))

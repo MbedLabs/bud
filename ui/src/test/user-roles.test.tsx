@@ -66,7 +66,7 @@ describe('user roles', () => {
     renderIt()
     await screen.findByText('Val')
     fireEvent.click(screen.getByRole('button', { name: 'Invite User' }))
-    const role = screen.getByTitle('Role') as HTMLSelectElement
-    expect(Array.from(role.options).map((o) => o.value)).toEqual(['viewer', 'developer', 'admin'])
+    fireEvent.click(screen.getByRole('combobox', { name: 'Role' }))
+    expect(screen.getAllByRole('option').map((option) => option.getAttribute('data-value'))).toEqual(['viewer', 'developer', 'admin'])
   })
 })

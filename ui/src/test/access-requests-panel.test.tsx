@@ -1,3 +1,4 @@
+import { selectValue } from './select-value'
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
@@ -62,11 +63,13 @@ describe('Access requests', () => {
   it('grants Publish to Bloom by giving Test Operators unless another publishing group is chosen', async () => {
     renderIt()
     expect(await screen.findByText(/asks for Publish to Bloom \(from run 42\)/)).toBeTruthy()
-    const select = (await screen.findByLabelText('Group to give Val Viewer')) as HTMLSelectElement
-    await waitFor(() => expect(Array.from(select.options).map((o) => o.text)).toEqual(['Test Operators', 'Publishers']))
+    const select = await screen.findByRole('combobox', { name: 'Group to give Val Viewer' })
+    fireEvent.click(select)
+    expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual(['Test Operators', 'Publishers'])
+    fireEvent.keyDown(select, { key: 'Escape' })
     fireEvent.click(screen.getByRole('button', { name: 'Grant' }))
     await waitFor(() => expect(api.accessRequestsApi.decide).toHaveBeenCalledWith(5, 'granted', 2))
-    fireEvent.change(select, { target: { value: '9' } })
+    selectValue(select, '9')
     fireEvent.click(screen.getByRole('button', { name: 'Grant' }))
     await waitFor(() => expect(api.accessRequestsApi.decide).toHaveBeenLastCalledWith(5, 'granted', 9))
   })

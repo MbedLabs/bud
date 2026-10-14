@@ -74,7 +74,7 @@ DEFAULT_POLICIES: tuple[DefaultPolicy, ...] = (
     ),
     DefaultPolicy(
         "publish_to_bloom",
-        "Publish to Bloom",
+        "Reports publishing",
         "Publish a completed run's report to Bloom.",
         {"bloom_publish": ["execute"]},
     ),
@@ -219,6 +219,9 @@ async def seed_default_access(db: AsyncSession) -> None:
             )
             db.add(policy)
             policies[default.key] = policy
+    for policy in policies.values():
+        if policy.system_key == "publish_to_bloom" and policy.name == "Publish to Bloom":
+            policy.name = "Reports publishing"
     await db.flush()
     groups = (
         (await db.execute(select(AccessGroup).where(AccessGroup.system_key.is_not(None))))

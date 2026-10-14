@@ -1,3 +1,4 @@
+import SelectField from '../components/SelectField'
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router'
@@ -80,8 +81,8 @@ export default function Dashboard() {
     <div className="space-y-6 animate-fade-in">
       {/* Filters */}
       <div className="bg-card rounded-lg border border-border shadow-elegant p-4">
-        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 md:flex-1">
+        <div className="flex flex-col gap-3">
+          <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,12rem),1fr))]">
             <FilterSelect
               label="Time range"
               value={days === undefined ? 'all' : String(days)}
@@ -106,7 +107,7 @@ export default function Dashboard() {
               options={suiteOptions.map(name => ({ value: name, label: name }))}
             />
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
             <PdfReportButton
               fetchReport={() => reportsApi.testRuns(filters)}
               title="Download a PDF report for the current filters"
@@ -358,9 +359,9 @@ function FilterSelect({ label, value, onChange, options, placeholder }: {
   placeholder?: string
 }) {
   return (
-    <label className="flex flex-col gap-1">
+    <label className="flex min-w-0 flex-col gap-1">
       <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">{label}</span>
-      <select
+      <SelectField
         value={value}
         onChange={(event) => onChange(event.target.value)}
         className="rounded-md border border-input bg-background px-2.5 py-1.5 text-sm text-foreground transition-colors hover:bg-accent focus:outline-hidden focus:ring-2 focus:ring-ring"
@@ -369,7 +370,7 @@ function FilterSelect({ label, value, onChange, options, placeholder }: {
         {options.map((option) => (
           <option key={option.value} value={option.value}>{option.label}</option>
         ))}
-      </select>
+      </SelectField>
     </label>
   )
 }

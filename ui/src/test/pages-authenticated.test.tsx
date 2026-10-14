@@ -1,3 +1,4 @@
+import { selectValue } from './select-value'
 // @vitest-environment jsdom
 /**
  * Every signed-in screen, rendered with real data and driven the way a user
@@ -160,7 +161,7 @@ describe('the dashboard', () => {
     await screen.findByText('Total Test Runs')
 
     const windows = screen.getAllByRole('combobox')
-    fireEvent.change(windows[0], { target: { value: '7' } })
+    selectValue(windows[0], '7')
 
     await waitFor(() => {
       const [params] = lastCall(client.testRunsApi.stats) as [{ days?: number }]

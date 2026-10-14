@@ -1,10 +1,11 @@
+import { selectValue } from './select-value'
 // @vitest-environment jsdom
 /**
  * The admin audit log screen: it lists events newest first and filters them by
  * event group and outcome.
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const page = {
@@ -58,8 +59,8 @@ describe('Audit log admin screen', () => {
   it('filters by event group and outcome from the first page', async () => {
     renderPage()
     await screen.findByText('Ada Admin')
-    fireEvent.change(screen.getByLabelText('Events'), { target: { value: 'auth.' } })
-    fireEvent.change(screen.getByLabelText('Outcome'), { target: { value: 'failure' } })
+    selectValue(screen.getByRole('combobox', { name: 'Events' }), 'auth.')
+    selectValue(screen.getByRole('combobox', { name: 'Outcome' }), 'failure')
     await waitFor(() =>
       expect(api.auditApi.list).toHaveBeenLastCalledWith(
         expect.objectContaining({ action: 'auth.', outcome: 'failure', offset: 0 }),

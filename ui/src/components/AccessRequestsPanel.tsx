@@ -1,3 +1,4 @@
+import SelectField from './SelectField'
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { accessRequestsApi, extractApiErrorMessage, groupsApi, type AccessRequestInfo } from '../api/client'
@@ -49,7 +50,7 @@ export default function AccessRequestsPanel() {
               </span>
               <span className="flex flex-wrap items-center gap-2">
                 {isPublish && (
-                  <select
+                  <SelectField
                     value={groupId ?? ''}
                     onChange={(event) => setChosen({ ...chosen, [request.id]: Number(event.target.value) })}
                     aria-label={`Group to give ${request.requester_name}`}
@@ -60,7 +61,7 @@ export default function AccessRequestsPanel() {
                         {group.name}
                       </option>
                     ))}
-                  </select>
+                  </SelectField>
                 )}
                 <button
                   onClick={() =>

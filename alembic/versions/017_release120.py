@@ -94,7 +94,7 @@ POLICIES = (
     ),
     (
         "publish_to_bloom",
-        "Publish to Bloom",
+        "Reports publishing",
         "Publish a completed run's report to Bloom.",
         {"bloom_publish": ["execute"]},
     ),

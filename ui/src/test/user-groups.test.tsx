@@ -81,7 +81,7 @@ describe('Groups', () => {
     expect(await screen.findByText('Bench crew')).toBeTruthy()
     expect(screen.queryByText('val@example.com')).toBeNull()
     expect(screen.getByText('Results, Custom runs')).toBeTruthy()
-    expect(screen.queryByText('Choose people')).toBeNull()
+    expect(screen.queryByText('Select members')).toBeNull()
     expect(api.accessApi.users).not.toHaveBeenCalled()
     expect(screen.queryByText('Read')).toBeNull()
     expect(screen.queryByText('Write')).toBeNull()

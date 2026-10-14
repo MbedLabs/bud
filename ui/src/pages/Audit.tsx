@@ -1,3 +1,4 @@
+import SelectField from '../components/SelectField'
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { auditApi, type AuditFilters } from '../api/client'
@@ -52,18 +53,18 @@ export default function AuditPage() {
       <div className="flex flex-wrap items-end gap-3">
         <label className="text-sm text-muted-foreground">
           Events
-          <select
+          <SelectField
             aria-label="Events"
             value={action}
             onChange={(e) => { setAction(e.target.value); resetPage() }}
             className="block mt-1 px-2 py-1.5 border border-border rounded-lg bg-background text-foreground"
           >
             {ACTION_GROUPS.map((g) => <option key={g.value} value={g.value}>{g.label}</option>)}
-          </select>
+          </SelectField>
         </label>
         <label className="text-sm text-muted-foreground">
           Outcome
-          <select
+          <SelectField
             aria-label="Outcome"
             value={outcome}
             onChange={(e) => { setOutcome(e.target.value); resetPage() }}
@@ -73,7 +74,7 @@ export default function AuditPage() {
             <option value="success">Success</option>
             <option value="failure">Failure</option>
             <option value="ignored">Ignored</option>
-          </select>
+          </SelectField>
         </label>
         <label className="text-sm text-muted-foreground">
           From

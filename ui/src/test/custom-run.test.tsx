@@ -1,3 +1,4 @@
+import { selectValue } from './select-value'
 // @vitest-environment jsdom
 /**
  * Building a custom run.
@@ -216,7 +217,7 @@ describe('queueing', () => {
     renderScreen()
     await screen.findByText('VoltageTest')
 
-    fireEvent.change(screen.getByLabelText(/test station/i), { target: { value: 'bench-01' } })
+    selectValue(screen.getByRole('combobox', { name: /test station/i }), 'bench-01')
     await waitFor(() =>
       expect(vi.mocked(client.catalogApi.list).mock.calls.slice(-1)[0]?.[0]).toEqual({
         runner_account: 'bench-01',

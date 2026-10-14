@@ -109,7 +109,7 @@ async def test_defaults_ship_and_are_read_only(client, db_session):
     assert all(g["is_default"] for g in groups)
     bundles = {g["name"]: sorted(p["name"] for p in g["policies"]) for g in groups}
     assert bundles["Results Viewers"] == ["Results"]
-    assert bundles["Test Operators"] == ["Custom runs", "Publish to Bloom", "Results"]
+    assert bundles["Test Operators"] == ["Custom runs", "Reports publishing", "Results"]
     assert bundles["Station Managers"] == ["Results", "Stations"]
     assert bundles["Access Managers"] == ["Access management", "Results", "Stations"]
     assert len(bundles["Application Administrators"]) == 8
@@ -117,7 +117,7 @@ async def test_defaults_ship_and_are_read_only(client, db_session):
     assert [p["name"] for p in policies] == [
         "Results",
         "Custom runs",
-        "Publish to Bloom",
+        "Reports publishing",
         "Stations",
         "Products",
         "Settings and integrations",
@@ -559,3 +559,26 @@ async def test_access_rosters_return_the_account_picture(client, db_session):
     person = next(item for item in client.get("/api/access/users").json() if item["id"] == developer.id)
     assert member["profile_picture_url"] == developer.profile_picture_url
     assert person["profile_picture_url"] == developer.profile_picture_url
+
+
+@pytest.mark.asyncio
+async def test_seed_renames_reports_publishing_without_replacing_policy_or_links(db_session):
+    from sqlalchemy import select
+
+    from app.core.access import seed_default_access
+
+    await seed_default_access(db_session)
+    policy = await db_session.scalar(select(Policy).where(Policy.system_key == "publish_to_bloom"))
+    policy.name = "Publish to Bloom"
+    policy_id, permissions = policy.id, dict(policy.permissions)
+    group = await db_session.scalar(select(AccessGroup).where(AccessGroup.system_key == "test_operators"))
+    group_id = group.id
+    await db_session.flush()
+    await seed_default_access(db_session)
+    await seed_default_access(db_session)
+    assert policy.id == policy_id
+    assert policy.name == "Reports publishing"
+    assert policy.permissions == permissions
+    assert group.id == group_id
+    await db_session.refresh(group, attribute_names=["policies"])
+    assert policy_id in [item.id for item in group.policies]
