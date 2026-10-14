@@ -129,3 +129,39 @@ async def test_only_known_resource_types_are_accepted(
     )
 
     assert response.status_code == 422
+
+
+async def test_reviewers_see_each_requesters_picture_and_no_other_identity_is_disclosed(
+    unauthenticated_client, db_session, sent_mail, fresh_auth_rate_limits
+):
+    admin_id = await _user(db_session, "picture-admin@example.com", UserRole.admin)
+    first_id = await _user(db_session, "picture-first@example.com")
+    second_id = await _user(db_session, "picture-second@example.com")
+    for user_id, picture in ((admin_id, b"admin"), (first_id, b"first"), (second_id, b"second")):
+        user = await db_session.get(User, user_id)
+        user.profile_picture = picture
+    await db_session.commit()
+    admin_headers = _login(unauthenticated_client, "picture-admin@example.com")
+    first_headers = _login(unauthenticated_client, "picture-first@example.com")
+    second_headers = _login(unauthenticated_client, "picture-second@example.com")
+    for headers in (first_headers, second_headers):
+        created = unauthenticated_client.post("/api/access-requests", json=REQUEST, headers=headers)
+        assert created.status_code == 201
+        assert created.json()["requester_profile_picture_url"] is None
+        mine = unauthenticated_client.get("/api/access-requests/mine", params=REQUEST, headers=headers)
+        assert mine.status_code == 200
+        assert mine.json()["requester_profile_picture_url"] is None
+        assert unauthenticated_client.get("/api/access-requests", headers=headers).status_code == 403
+    assert unauthenticated_client.get("/api/access-requests").status_code == 401
+    for picture in (b"first", b"replacement", None):
+        first = await db_session.get(User, first_id)
+        first.profile_picture = picture
+        await db_session.commit()
+        response = unauthenticated_client.get("/api/access-requests", headers=admin_headers)
+        assert response.status_code == 200
+        requesters = {item["requester_email"]: item for item in response.json()}
+        second = await db_session.get(User, second_id)
+        admin = await db_session.get(User, admin_id)
+        assert requesters[first.email]["requester_profile_picture_url"] == first.profile_picture_url
+        assert requesters[second.email]["requester_profile_picture_url"] == second.profile_picture_url
+        assert requesters[second.email]["requester_profile_picture_url"] != admin.profile_picture_url

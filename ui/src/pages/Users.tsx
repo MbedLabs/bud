@@ -1,3 +1,4 @@
+import ProfilePicture from '../components/ProfilePicture'
 import SelectField from '../components/SelectField'
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -143,9 +144,7 @@ export default function UsersPage() {
                 <tr key={u.id} className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-linear-to-br/srgb from-primary to-bud-orange flex items-center justify-center text-white text-xs font-bold">
-                        {u.full_name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)}
-                      </div>
+                      <ProfilePicture user={u} />
                       <div className="min-w-0">
                         <p className="text-sm font-medium text-foreground truncate">{u.full_name}</p>
                         <p className="text-xs text-muted-foreground truncate">{u.email}</p>

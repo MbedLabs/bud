@@ -124,6 +124,31 @@ describe('query cache and the signed-in user', () => {
     expect(client.getQueryData(['cached', 1])).toEqual([{ id: 1 }])
   })
 
+  it('refreshes identity views after picture replacement and removal while preserving unrelated data', async () => {
+    const client = new QueryClient()
+    const first = { ...reader, has_profile_picture: true, profile_picture_url: 'data:image/png;base64,b2xk' }
+    vi.mocked(authApi.login).mockResolvedValueOnce({ access_token: 'token', user: first } as never)
+    await signedIn(client)
+    const identityKeys = ['users', 'audit', 'groups', 'access-users', 'access-requests']
+    for (const next of [
+      { ...first, profile_picture_url: 'data:image/png;base64,bmV3' },
+      { ...reader, has_profile_picture: false, profile_picture_url: null },
+    ]) {
+      for (const key of identityKeys) client.setQueryData([key], [{ id: 2 }])
+      client.setQueryData(['test-runs'], [{ id: 42 }])
+      vi.mocked(authApi.getMe).mockResolvedValueOnce(next as never)
+      fireEvent.click(screen.getByText('Check session'))
+      await waitFor(() => {
+        for (const key of identityKeys) expect(client.getQueryState([key])?.isInvalidated).toBe(true)
+      })
+      expect(client.getQueryData(['cached', 1])).toEqual([{ id: 1 }])
+      expect(client.getQueryState(['test-runs'])?.isInvalidated).toBe(false)
+      expect(client.getQueryData(['test-runs'])).toEqual([{ id: 42 }])
+      expect(location.href).toBe('')
+      expect(getSessionUserId()).toBe(2)
+    }
+  })
+
   it('is emptied without a reload when someone signs in as another user', async () => {
     const client = new QueryClient()
     await signedIn(client)

@@ -243,3 +243,15 @@ def station_request(client, test_station):
             app.dependency_overrides.update(previous)
 
     return request
+
+
+@pytest.fixture
+def fresh_auth_rate_limits():
+    """Isolate the rate-limit counters around one real-auth HTTP scenario."""
+    from app.core.deps import limiter
+
+    limiter.reset()
+    try:
+        yield
+    finally:
+        limiter.reset()

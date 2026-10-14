@@ -15,6 +15,7 @@ class AuditEventResponse(BaseModel):
     occurred_at: datetime
     actor_user_id: Optional[int] = None
     actor_name: Optional[str] = None
+    actor_profile_picture_url: Optional[str] = None
     actor_type: str
     action: str
     target_type: Optional[str] = None

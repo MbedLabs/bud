@@ -1,3 +1,4 @@
+import ProfilePicture from '../components/ProfilePicture'
 import DateField from '../components/DateField'
 import SelectField from '../components/SelectField'
 import { useState } from 'react'
@@ -116,7 +117,16 @@ export default function AuditPage() {
                   {formatDateTime(event.occurred_at)}
                 </td>
                 <td className="px-4 py-2 text-foreground">
-                  {event.actor_name ?? (event.actor_user_id != null ? `User ${event.actor_user_id}` : event.actor_type)}
+                  {event.actor_name ? (
+                    <span className="inline-flex items-center gap-2">
+                      <ProfilePicture user={{
+                        id: event.actor_user_id ?? undefined,
+                        full_name: event.actor_name,
+                        profile_picture_url: event.actor_profile_picture_url ?? null,
+                      }} className="w-6 h-6" />
+                      {event.actor_name}
+                    </span>
+                  ) : (event.actor_user_id != null ? `User ${event.actor_user_id}` : event.actor_type)}
                 </td>
                 <td className="px-4 py-2 text-foreground font-mono text-xs">{event.action}</td>
                 <td className="px-4 py-2 text-muted-foreground">

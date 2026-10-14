@@ -8,6 +8,7 @@ import {
 import { useAuth } from '../contexts/AuthContext'
 import { can, canManageAccess } from '../lib/access'
 import { APP_VERSION } from '../api/client'
+import ProfilePicture from './ProfilePicture'
 import PoweredByEmbedLabs from './PoweredByEmbedLabs'
 import { useDarkMode } from '../hooks/useDarkMode'
 
@@ -74,10 +75,6 @@ export default function Layout() {
     setSigningOut(true)
     logout().catch(() => setSigningOut(false))
   }
-
-  const userInitials = user?.full_name
-    ? user.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
-    : 'U'
 
   return (
     <div className="h-screen flex overflow-hidden">
@@ -265,9 +262,7 @@ export default function Layout() {
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
                   className="flex items-center gap-2 p-1 rounded-lg hover:bg-accent transition-colors"
                 >
-                  <div className="w-8 h-8 rounded-full bg-linear-to-br/srgb from-primary to-bud-orange flex items-center justify-center text-white text-xs font-bold">
-                    {userInitials}
-                  </div>
+                  <ProfilePicture user={user} own />
                   <span className="text-sm text-foreground font-medium hidden sm:block max-w-[120px] truncate">
                     {user?.full_name}
                   </span>

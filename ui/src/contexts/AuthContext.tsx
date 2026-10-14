@@ -22,6 +22,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient()
+  const currentUser = useRef<User | null>(null)
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
@@ -32,6 +33,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         clearAuthToken()
         queryClient.clear()
         setSessionUserId(null)
+        currentUser.current = null
         setUser(null)
         window.location.replace('/login')
         return
@@ -39,7 +41,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (previous === null && next !== null) {
         queryClient.clear()
       }
+      const sameUser = currentUser.current?.id === next?.id && next !== null
+      if (sameUser && (
+        currentUser.current?.profile_picture_url !== next.profile_picture_url ||
+        currentUser.current?.has_profile_picture !== next.has_profile_picture
+      )) {
+        for (const key of ['users', 'audit', 'groups', 'access-users', 'access-requests']) {
+          void queryClient.invalidateQueries({ queryKey: [key] })
+        }
+      }
       setSessionUserId(next?.id ?? null)
+      currentUser.current = next
       setUser(next)
     },
     [queryClient],
