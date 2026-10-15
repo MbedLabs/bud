@@ -32,7 +32,7 @@ MAX_RESULT_ROWS = 2000
 
 def frontend_run_url(run_id: int) -> str | None:
     base = (settings.APP_BASE_URL or "").rstrip("/")
-    return f"{base}/test-runs/{run_id}" if base else None
+    return f"{base}/runs/{run_id}" if base else None
 
 
 def _assertion_details(results: list[TestResult]) -> list[AssertionDetail]:

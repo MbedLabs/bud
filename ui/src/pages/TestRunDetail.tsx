@@ -1,3 +1,4 @@
+import ReportRequests from '../components/ReportRequests'
 import { useMemo, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useParams, Link } from 'react-router'
@@ -361,6 +362,7 @@ export default function TestRunDetail() {
 
       <RunArtifacts artifacts={artifacts} isLoading={artifactsLoading} />
 
+      <ReportRequests runId={runId} />
       <PublishSection runId={runId} status={run.status} />
     </div>
   )

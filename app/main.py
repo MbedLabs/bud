@@ -24,6 +24,7 @@ from app.api import (
     health,
     policies,
     products,
+    report_requests,
     reports,
     results,
     runners,
@@ -46,6 +47,7 @@ from app.core.security import get_password_hash
 from app.db import database as db
 from app.models.user import User, UserRole
 from app.services.artifact_cleanup import reconcile_artifacts
+from app.services.report_requests import sync_report_requests
 
 setup_logging(level=app_settings.LOG_LEVEL, json_logs=bool(app_settings.LOG_JSON))
 logger = logging.getLogger(__name__)
@@ -178,10 +180,24 @@ async def lifespan(app: FastAPI):
                 logger.exception("Artifact cleanup pass failed")
             await asyncio.sleep(24 * 60 * 60)
 
+    async def report_request_loop() -> None:
+        """Collect Bloom requests once a minute while this app is running."""
+        while True:
+            await asyncio.sleep(60)
+            try:
+                async with db.async_session_maker() as session:
+                    await sync_report_requests(session)
+            except Exception:
+                logger.exception("Report-request collection failed; will retry")
+
+    request_task = asyncio.create_task(report_request_loop())
     cleanup_task = asyncio.create_task(cleanup_loop())
     try:
         yield
     finally:
+        request_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await request_task
         cleanup_task.cancel()
         with contextlib.suppress(asyncio.CancelledError):
             await cleanup_task
@@ -299,6 +315,7 @@ app.include_router(products.router, prefix="/api/products", tags=["Products"])
 # match deterministic rather than dependent on how the other routers evolve.
 app.include_router(custom_runs.router, prefix="/api", tags=["Custom Runs"])
 app.include_router(test_runs.router, prefix="/api/test-runs", tags=["Test Runs"])
+app.include_router(report_requests.router, prefix="/api/report-requests", tags=["Report requests"])
 app.include_router(results.router, prefix="/api/results", tags=["Results"])
 app.include_router(uploads.router, prefix="/api/uploads", tags=["Uploads"])
 app.include_router(runners.router, prefix="/api/runners", tags=["Runners"])

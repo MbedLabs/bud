@@ -157,6 +157,12 @@ The runner stores its machine identity and tokens under `~/.bud/`. Keep that dir
 
 See the [`bud-runner` documentation](https://github.com/MbedLabs/bud-runner) for execution and upload commands, and the [`budtestlibrary` documentation](https://github.com/MbedLabs/bud-test-library) for test authoring and assertions.
 
+## Report requests
+
+Bloom readers can request a report beside a linked Bud run. Bud collects those requests through the existing configured Bloom connection once a minute. Holders of Reports publishing see pending requests on the dashboard and run page; configured SMTP also emails active publishers. Successful publication closes matching requests in that Bloom project. Publishers can refuse with a reason, which returns to the reader. Failed publication keeps the request open.
+
+The configured integration credential exchanges report requests, including the reader's name and email, as well as test outcomes and published reports. Collection resumes after restart; unsent email is retried and successful recipients are recorded. A connection failure leaves the request persisted in Bloom for a later collection. Existing report publishing restrictions still apply: the run must be completed and identify one project through canonical Bloom test-case IDs. A request whose run cannot be published can be refused with a reason.
+
 ## Connect Bud to Bloom
 
 Bud and Bloom remain independently deployable. To synchronize linked test-case outcomes:
