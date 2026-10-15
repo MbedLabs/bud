@@ -194,3 +194,33 @@ def send_access_request_email(
             "access_request.html", {key: html.escape(value) for key, value in context.items()}
         ),
     )
+
+
+def send_report_request_email(
+    *,
+    to_email: str,
+    publisher_name: str,
+    requester_name: str,
+    requester_email: str,
+    project: str,
+    run_id: str,
+    review_link: str,
+) -> None:
+    """Tell a report publisher about a Bloom reader's pending request."""
+    context = {
+        "publisher_name": publisher_name,
+        "requester_name": requester_name,
+        "requester_email": requester_email,
+        "project": project,
+        "run_id": run_id,
+        "review_link": review_link,
+        "app_name": settings.BUD_APP_NAME,
+    }
+    send_email(
+        to_email=to_email,
+        subject=f"Report requested on {settings.BUD_APP_NAME}: run #{run_id}",
+        text_body=render_template("report_request.txt", context),
+        html_body=render_template(
+            "report_request.html", {key: html.escape(value) for key, value in context.items()}
+        ),
+    )

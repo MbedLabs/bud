@@ -1,3 +1,4 @@
+import ReportRequests from '../components/ReportRequests'
 import SelectField from '../components/SelectField'
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
@@ -79,6 +80,7 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6 animate-fade-in">
+      <ReportRequests />
       {/* Filters */}
       <div className="bg-card rounded-lg border border-border shadow-elegant p-4">
         <div className="flex flex-col gap-3">

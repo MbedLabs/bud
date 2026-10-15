@@ -15,7 +15,7 @@ from app.api.auth import get_current_active_entity, require_permission, require_
 from app.api.uploads import get_upload_root
 from app.core.run_access import load_run
 from app.db import get_db
-from app.models import Artifact, Runner, TestRun, TestRunEvent
+from app.models import Artifact, ReportRequest, Runner, TestRun, TestRunEvent
 from app.models.user import User, UserRole
 from app.schemas import (
     ArtifactResponse,
@@ -510,6 +510,16 @@ async def publish_run_to_bloom(
     current_user: User = Depends(require_permission("bloom_publish", "execute")),
 ):
     """Send this run's report documents to Bloom as a Report (RPT) document."""
+    return await publish_report(run_id, db, current_user)
+
+
+async def publish_report(
+    run_id: int,
+    db: AsyncSession,
+    current_user: User,
+    requested_project: str | None = None,
+):
+    """Publish a completed run, requiring the requested destination when supplied."""
     test_run = await load_run(db, current_user, run_id)
 
     if test_run.status != "Completed":
@@ -523,6 +533,11 @@ async def publish_run_to_bloom(
         project_prefix = project_prefix_for_tc_ids(tc_ids)
     except BloomProjectNotIdentifiable as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
+    if requested_project is not None and project_prefix != requested_project:
+        raise HTTPException(
+            status_code=409,
+            detail="This run's report belongs to a different Bloom project. Refuse this request with a reason.",
+        )
 
     try:
         bloom_url, bloom_token = await bloom_credentials(db)
@@ -576,6 +591,27 @@ async def publish_run_to_bloom(
     except httpx.RequestError as exc:
         raise HTTPException(status_code=502, detail=f"Could not reach Bloom: {exc}") from exc
 
+    requests = (
+        await db.scalars(
+            select(ReportRequest)
+            .where(
+                ReportRequest.bloom_url == bloom_url,
+                ReportRequest.run_id == run_id,
+                ReportRequest.project_prefix == project_prefix,
+                ReportRequest.status == "pending",
+            )
+            .with_for_update()
+        )
+    ).all()
+    for request in requests:
+        request.status = "delivered"
+        await record_audit_event(
+            db,
+            "report.published",
+            target_type="report_request",
+            target_id=request.id,
+            details={"run_id": run_id, "bloom_document_id": published.get("document_id")},
+        )
     await record_test_run_event(
         db,
         test_run_id=run_id,

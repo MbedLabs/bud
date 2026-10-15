@@ -1,4 +1,5 @@
 [1.2.0]
+* Receive Bloom report requests, notify report publishers, and publish or refuse with a reason.
 * Admin company logo on test-run PDF reports, alongside the EmbedLabs branding.
 * Saved profile pictures across user displays, with initials fallback and refresh after replacement or removal.
 

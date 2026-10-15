@@ -20,10 +20,12 @@ from app.models.models import (
     UploadAttempt,
     UploadLease,
 )
+from app.models.report_request import ReportRequest
 from app.models.user import User, UserRole
 from app.models.user_token import UserToken, UserTokenPurpose
 
 __all__ = [
+    "ReportRequest",
     "AccessGroup",
     "AccessGroupMember",
     "AccessRequest",
