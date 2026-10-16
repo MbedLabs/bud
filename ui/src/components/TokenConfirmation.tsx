@@ -21,7 +21,7 @@ export default function TokenConfirmation({
   missingTokenText,
   failureText,
   confirm,
-}: TokenConfirmationProps) {
+}: Readonly<TokenConfirmationProps>) {
   const token = useOneTimeToken()
 
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
@@ -51,7 +51,7 @@ export default function TokenConfirmation({
       }
     }
 
-    run()
+    void run()
     return () => {
       cancelled = true
     }

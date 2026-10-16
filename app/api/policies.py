@@ -4,6 +4,8 @@ Holders of access management read them; only an Admin creates, edits, duplicates
 deletes one. Default policies are read-only; duplicating one gives an editable copy.
 """
 
+from http import HTTPStatus
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -100,7 +102,11 @@ async def list_policies(
     return [_response(policy) for policy in policies]
 
 
-@router.get("/{policy_id}", response_model=PolicyResponse)
+@router.get(
+    "/{policy_id}",
+    response_model=PolicyResponse,
+    responses={404: {"description": HTTPStatus(404).phrase}},
+)
 async def get_policy(
     policy_id: int,
     db: AsyncSession = Depends(get_db, scope="function"),
@@ -110,7 +116,15 @@ async def get_policy(
     return _response(await _load(db, policy_id))
 
 
-@router.post("", response_model=PolicyResponse, status_code=201)
+@router.post(
+    "",
+    response_model=PolicyResponse,
+    status_code=201,
+    responses={
+        409: {"description": HTTPStatus(409).phrase},
+        422: {"description": HTTPStatus(422).phrase},
+    },
+)
 async def create_policy(
     data: PolicyCreate,
     db: AsyncSession = Depends(get_db, scope="function"),
@@ -135,7 +149,15 @@ async def create_policy(
     return _response(policy)
 
 
-@router.patch("/{policy_id}", response_model=PolicyResponse)
+@router.patch(
+    "/{policy_id}",
+    response_model=PolicyResponse,
+    responses={
+        404: {"description": HTTPStatus(404).phrase},
+        409: {"description": HTTPStatus(409).phrase},
+        422: {"description": HTTPStatus(422).phrase},
+    },
+)
 async def update_policy(
     policy_id: int,
     data: PolicyUpdate,
@@ -162,7 +184,15 @@ async def update_policy(
     return _response(policy)
 
 
-@router.post("/{policy_id}/duplicate", response_model=PolicyResponse, status_code=201)
+@router.post(
+    "/{policy_id}/duplicate",
+    response_model=PolicyResponse,
+    status_code=201,
+    responses={
+        404: {"description": HTTPStatus(404).phrase},
+        409: {"description": HTTPStatus(409).phrase},
+    },
+)
 async def duplicate_policy(
     policy_id: int,
     db: AsyncSession = Depends(get_db, scope="function"),
@@ -188,7 +218,14 @@ async def duplicate_policy(
     return _response(copy)
 
 
-@router.delete("/{policy_id}", status_code=204)
+@router.delete(
+    "/{policy_id}",
+    status_code=204,
+    responses={
+        404: {"description": HTTPStatus(404).phrase},
+        409: {"description": HTTPStatus(409).phrase},
+    },
+)
 async def delete_policy(
     policy_id: int,
     db: AsyncSession = Depends(get_db, scope="function"),

@@ -177,7 +177,8 @@ def test_renderer_shapes():
 
 def test_signature_is_hmac_sha256():
     signature = notify.sign("s3cr3t", b"{}")
-    assert signature.startswith("sha256=") and len(signature) == 7 + 64
+    assert signature.startswith("sha256=")
+    assert len(signature) == 7 + 64
 
 
 @pytest.mark.asyncio
@@ -236,7 +237,8 @@ async def test_delivery_retries_and_records_each_attempt(db_session):
     delivery = await notify.deliver(db_session, channel, _summary(), wait=wait_none())
     await db_session.commit()
 
-    assert delivery.delivered is True and delivery.attempt == 3
+    assert delivery.delivered is True
+    assert delivery.attempt == 3
     rows = (await db_session.execute(select(NotificationDelivery))).scalars().all()
     assert [(r.attempt, r.delivered, r.status_code) for r in rows] == [
         (1, False, 500),
@@ -253,7 +255,8 @@ async def test_delivery_gives_up_after_three_attempts(db_session):
     channel = await _channel(db_session)
     _Recorder.statuses = [500, 500, 500]
     delivery = await notify.deliver(db_session, channel, _summary(), wait=wait_none())
-    assert delivery.delivered is False and delivery.attempt == 3
+    assert delivery.delivered is False
+    assert delivery.attempt == 3
 
 
 @pytest.mark.asyncio
@@ -317,17 +320,20 @@ WORKFLOW_URLS = (
 def test_teams_connector_urls_get_a_message_card():
     summary = _summary(bloom_sync_error="Bloom returned HTTP 500.")
     card = notify.render_payload("teams", CONNECTOR_URL, summary)
-    assert card["@type"] == "MessageCard" and card["themeColor"] == "E01E5A"
+    assert card["@type"] == "MessageCard"
+    assert card["themeColor"] == "E01E5A"
     assert card["summary"] == summary.headline
     section = card["sections"][0]
     assert {f["name"] for f in section["facts"]} >= {"Product", "Station", "Duration"}
-    assert "test_a" in section["text"] and "Bloom returned HTTP 500." in section["text"]
+    assert "test_a" in section["text"]
+    assert "Bloom returned HTTP 500." in section["text"]
     assert [a["targets"][0]["uri"] for a in card["potentialAction"]] == [
         "https://bud.example.com/runs/7",
         "https://bloom.example.com/suites/3",
     ]
     bare = notify.render_teams_connector(_summary(failed_tests=[], run_url=None, bloom_url=None))
-    assert "text" not in bare["sections"][0] and bare["potentialAction"] == []
+    assert "text" not in bare["sections"][0]
+    assert bare["potentialAction"] == []
 
 
 def test_teams_workflow_urls_get_an_adaptive_card():
@@ -363,4 +369,5 @@ async def test_a_redirect_is_not_a_delivery(db_session):
     channel = await _channel(db_session)
     _Recorder.statuses = [302, 302, 302]
     delivery = await notify.deliver(db_session, channel, _summary(), wait=wait_none())
-    assert delivery.delivered is False and delivery.status_code == 302
+    assert delivery.delivered is False
+    assert delivery.status_code == 302

@@ -21,7 +21,7 @@ function formatDate(value: string): string {
  * resource only by what the address already says, and lets the user ask the
  * administrators for access once per day.
  */
-export default function AccessDenied({ resourceType, resourceRef }: AccessDeniedProps) {
+export default function AccessDenied({ resourceType, resourceRef }: Readonly<AccessDeniedProps>) {
   const queryClient = useQueryClient()
   const params = { resource_type: resourceType, resource_ref: resourceRef }
   const queryKey = ['access-request', resourceType, resourceRef]

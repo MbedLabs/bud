@@ -123,7 +123,8 @@ async def test_failed_mail_retries_and_remote_terminal_state_is_reconciled(db_se
     ):
         await sync_report_requests(db_session)
         row = (await db_session.scalars(select(ReportRequest))).one()
-        assert row.status == "pending" and not row.notified_user_ids
+        assert row.status == "pending"
+        assert not row.notified_user_ids
         await sync_report_requests(db_session)
         assert len(row.notified_user_ids) == 1
         current.update(status="delivered")

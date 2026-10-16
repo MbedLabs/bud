@@ -55,11 +55,14 @@ async def test_url_and_secret_are_write_only_and_encrypted(client, db_session):
     body = created.json()
     assert body["url_prefix"] == HOOK[:40] + "..."
     assert body["has_secret"] is True
-    assert "url" not in body and "secret" not in body and HOOK not in created.text
+    assert "url" not in body
+    assert "secret" not in body
+    assert HOOK not in created.text
 
     listed = client.get("/api/settings/notifications/channels")
     assert listed.status_code == 200
-    assert HOOK not in listed.text and "s3cr3t" not in listed.text
+    assert HOOK not in listed.text
+    assert "s3cr3t" not in listed.text
 
     stored = await db_session.get(NotificationChannel, body["id"])
     assert HOOK not in stored.url_encrypted

@@ -43,7 +43,7 @@ it('keeps failed decisions visible and prevents publishing unfinished runs', asy
   mock.post.mockRejectedValueOnce(new Error('offline'))
   show()
   fireEvent.click(await screen.findByRole('button', { name: 'Publish report' }))
-  await screen.findByRole('alert')
+  expect((await screen.findByRole('alert')).textContent).toBe('Could not complete the request')
   cleanup()
   mock.get.mockResolvedValue({ data: [{ ...row, run_status: 'Running' }] })
   show()
@@ -63,5 +63,5 @@ it('hides empty inboxes and denies nonpublishers without fetching identities', a
 it('shows an inbox load error', async () => {
   mock.get.mockRejectedValueOnce(new Error('offline'))
   show()
-  await screen.findByRole('alert')
+  expect((await screen.findByRole('alert')).textContent).toBe('Could not load report requests.')
 })

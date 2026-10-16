@@ -30,7 +30,7 @@ function moveMonth(date: Date, change: number): Date {
 }
 
 /** An editable date filter with an app-themed calendar popup. */
-export default function DateField({ label, value, onChange, className = '', placeholder, min, max, disabled = false }: {
+export default function DateField({ label, value, onChange, className = '', placeholder, min, max, disabled = false }: Readonly<{
   label: string
   value: string
   onChange: (value: string) => void
@@ -39,11 +39,11 @@ export default function DateField({ label, value, onChange, className = '', plac
   min?: string
   max?: string
   disabled?: boolean
-}) {
+}>) {
   const id = useId()
   const field = useRef<HTMLDivElement>(null)
   const input = useRef<HTMLInputElement>(null)
-  const popup = useRef<HTMLDivElement>(null)
+  const popup = useRef<HTMLDialogElement>(null)
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(value || dateValue(new Date()))
   const [month, setMonth] = useState(() => dateFromValue(value) ?? new Date())
@@ -150,7 +150,7 @@ export default function DateField({ label, value, onChange, className = '', plac
     if (!field.current?.contains(event.relatedTarget as Node | null) && !popup.current?.contains(event.relatedTarget as Node | null)) setOpen(false)
   }}>
     <div className={`flex items-center gap-2 focus-within:ring-2 focus-within:ring-ring focus-within:border-ring ${className.replace(/\bblock\b/g, '') || 'rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground'}`}>
-      <input ref={input} type="text" aria-label={label} aria-invalid={!!error || undefined} aria-describedby={error ? `${id}-error` : undefined} aria-haspopup="dialog" aria-expanded={open} aria-controls={open ? `${id}-calendar` : undefined}
+      <input ref={input} type="text" role="combobox" aria-label={label} aria-invalid={!!error || undefined} aria-describedby={error ? `${id}-error` : undefined} aria-haspopup="dialog" aria-expanded={open} aria-controls={open ? `${id}-calendar` : undefined}
         inputMode="numeric" autoComplete="off" disabled={disabled} value={text} placeholder={empty} className="min-w-0 w-full bg-transparent text-foreground placeholder:text-muted-foreground outline-none disabled:opacity-50"
         onChange={event => {
           const next = event.target.value
@@ -164,7 +164,7 @@ export default function DateField({ label, value, onChange, className = '', plac
       <button type="button" aria-label={`Choose date for ${label}`} disabled={disabled} aria-haspopup="dialog" aria-expanded={open} onClick={() => { if (open) setOpen(false); else show() }} className="shrink-0 rounded text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"><Calendar className="h-4 w-4" /></button>
     </div>
     {error && <p id={`${id}-error`} role="alert" className="mt-1 text-xs text-destructive">{error}</p>}
-    {open && createPortal(<div ref={popup} id={`${id}-calendar`} role="dialog" aria-label={`${label} calendar`} style={position} className="themed-scrollbar fixed z-[100] overflow-y-auto rounded-md border border-border bg-card p-3 text-foreground shadow-elegant"
+    {open && createPortal(<dialog open ref={popup} id={`${id}-calendar`} aria-label={`${label} calendar`} style={position} className="themed-scrollbar fixed z-[100] m-0 overflow-y-auto rounded-md border border-border bg-card p-3 text-foreground shadow-elegant"
       onKeyDown={event => { if (event.key === 'Escape') { event.preventDefault(); setOpen(false); input.current?.focus() } }}>
       <div className="mb-2 flex items-center justify-between gap-2">
         <button type="button" aria-label="Previous month" disabled={!!min && dateValue(previousEnd) < min} onClick={() => navigateMonth(-1)} className="rounded p-1 hover:bg-accent disabled:opacity-30"><ChevronLeft className="h-4 w-4" /></button>
@@ -183,6 +183,6 @@ export default function DateField({ label, value, onChange, className = '', plac
         <button type="button" onClick={() => commit('')} className="rounded px-2 py-1 hover:bg-accent">Clear</button>
         <button type="button" disabled={!allowed(dateValue(new Date()))} onClick={() => commit(dateValue(new Date()))} className="rounded px-2 py-1 text-primary hover:bg-accent disabled:opacity-30">Today</button>
       </div>
-    </div>, document.body)}
+    </dialog>, document.body)}
   </div>
 }

@@ -945,7 +945,7 @@ function PublishSection({ runId, status }: { runId: number; status: string }) {
  * Where the Publish button would be for someone without Publish to Bloom: they ask for it,
  * and an Admin or access manager grants it by giving a group that holds it.
  */
-function RequestPublishing({ runId }: { runId: number }) {
+function RequestPublishing({ runId }: Readonly<{ runId: number }>) {
   const queryClient = useQueryClient()
   const params = { resource_type: 'publish-to-bloom' as const, resource_ref: String(runId) }
   const queryKey = ['access-request', params.resource_type, params.resource_ref]

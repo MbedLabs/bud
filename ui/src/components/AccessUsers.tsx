@@ -22,7 +22,7 @@ export default function AccessUsers() {
 }
 
 /** A member's picture with its group-removal action on hover. */
-function MemberIdentity({ member, group, disabled, canRemove, onRemove }: { member: GroupMember; group: Group; disabled: boolean; canRemove: boolean; onRemove: () => void }) {
+function MemberIdentity({ member, group, disabled, canRemove, onRemove }: Readonly<{ member: GroupMember; group: Group; disabled: boolean; canRemove: boolean; onRemove: () => void }>) {
   const label = `Remove ${member.full_name} from ${group.name}`
   return <span className="inline-flex min-w-0 items-center gap-2 align-middle">
     <span className="group/image relative inline-flex shrink-0">
@@ -33,7 +33,7 @@ function MemberIdentity({ member, group, disabled, canRemove, onRemove }: { memb
 }
 
 /** A policy group's roster and unified checked people selection. */
-function GroupRoster({ group, people, canAssign, onChange }: { group: Group; people: AccessUser[]; canAssign: boolean; onChange: () => Promise<void> }) {
+function GroupRoster({ group, people, canAssign, onChange }: Readonly<{ group: Group; people: AccessUser[]; canAssign: boolean; onChange: () => Promise<void> }>) {
   const queryClient = useQueryClient()
   const [choosing, setChoosing] = useState(false)
   const [selected, setSelected] = useState<number[]>([])

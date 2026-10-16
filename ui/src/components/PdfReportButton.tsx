@@ -9,7 +9,7 @@ interface PdfReportButtonProps {
 }
 
 /** A button that downloads a PDF report and hands a failure to the page. */
-export default function PdfReportButton({ fetchReport, title, onError }: PdfReportButtonProps) {
+export default function PdfReportButton({ fetchReport, title, onError }: Readonly<PdfReportButtonProps>) {
   const [pending, setPending] = useState(false)
   return (
     <button

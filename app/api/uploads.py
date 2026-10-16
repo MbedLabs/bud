@@ -4,8 +4,9 @@ File uploads API endpoints.
 
 import logging
 import uuid
+from http import HTTPStatus
 from pathlib import Path
-from typing import Optional, Union
+from typing import Optional
 from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
@@ -79,7 +80,7 @@ async def _can_user_delete_artifact(db: AsyncSession, user: User) -> bool:
 async def _get_accessible_artifact(
     db: AsyncSession,
     artifact_id: int,
-    current_entity: Union[User, Runner],
+    current_entity: User | Runner,
 ) -> Artifact:
     result = await db.execute(
         select(Artifact).options(selectinload(Artifact.test_run)).where(Artifact.id == artifact_id)
@@ -95,7 +96,7 @@ async def _get_accessible_artifact(
 
 
 async def _validate_runner_upload_run(
-    db: AsyncSession, current_entity: Union[User, Runner], run_id: Optional[int]
+    db: AsyncSession, current_entity: User | Runner, run_id: int | None
 ) -> None:
     """Only a station uploads evidence, and only to one of its own test runs."""
     if isinstance(current_entity, User):
@@ -121,13 +122,18 @@ async def _validate_runner_upload_run(
         )
 
 
-@router.post("", response_model=ArtifactResponse, status_code=201)
+@router.post(
+    "",
+    response_model=ArtifactResponse,
+    status_code=201,
+    responses={403: {"description": HTTPStatus(403).phrase}},
+)
 async def upload_file(
     file: UploadFile = File(...),
     test_case: Optional[str] = Form(None),
     run_id: Optional[int] = Form(None),
     db: AsyncSession = Depends(get_db, scope="function"),
-    _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
+    _current_entity: User | Runner = Depends(get_current_active_entity),
 ):
     """Upload a file artifact (trace, log, etc.)."""
     await _validate_runner_upload_run(db, _current_entity, run_id)
@@ -208,11 +214,11 @@ async def upload_file(
     return artifact
 
 
-@router.get("/{artifact_id}")
+@router.get("/{artifact_id}", responses={503: {"description": HTTPStatus(503).phrase}})
 async def download_artifact(
     artifact_id: int,
     db: AsyncSession = Depends(get_db, scope="function"),
-    _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
+    _current_entity: User | Runner = Depends(get_current_active_entity),
 ):
     """
     Download an artifact by ID.
@@ -265,7 +271,7 @@ async def download_artifact(
 async def get_artifact_info(
     artifact_id: int,
     db: AsyncSession = Depends(get_db, scope="function"),
-    _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
+    _current_entity: User | Runner = Depends(get_current_active_entity),
 ):
     """
     Get artifact metadata without downloading.

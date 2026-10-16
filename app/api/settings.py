@@ -2,7 +2,8 @@
 Settings API endpoints.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
+from http import HTTPStatus
 from typing import List
 from urllib.parse import urlparse
 
@@ -196,7 +197,7 @@ async def update_plm_integration(
                 status_code=422,
                 detail="Bloom token must be a scoped blm_sync_ service credential.",
             )
-        rotated_at = datetime.utcnow()
+        rotated_at = datetime.now(timezone.utc).replace(tzinfo=None)
         updates.extend(
             [
                 ("bloom_token_encrypted", encrypt_integration_secret(data.bloom_token)),
@@ -287,7 +288,15 @@ async def list_notification_channels(
     return [_channel_response(c) for c in channels]
 
 
-@router.post("/notifications/channels", response_model=NotificationChannelResponse, status_code=201)
+@router.post(
+    "/notifications/channels",
+    response_model=NotificationChannelResponse,
+    status_code=201,
+    responses={
+        400: {"description": HTTPStatus(400).phrase},
+        422: {"description": HTTPStatus(422).phrase},
+    },
+)
 async def create_notification_channel(
     data: NotificationChannelCreate,
     db: AsyncSession = Depends(get_db, scope="function"),
@@ -320,7 +329,15 @@ async def create_notification_channel(
     return _channel_response(channel)
 
 
-@router.patch("/notifications/channels/{channel_id}", response_model=NotificationChannelResponse)
+@router.patch(
+    "/notifications/channels/{channel_id}",
+    response_model=NotificationChannelResponse,
+    responses={
+        400: {"description": HTTPStatus(400).phrase},
+        404: {"description": HTTPStatus(404).phrase},
+        422: {"description": HTTPStatus(422).phrase},
+    },
+)
 async def update_notification_channel(
     channel_id: int,
     data: NotificationChannelUpdate,
@@ -357,7 +374,11 @@ async def update_notification_channel(
     return _channel_response(channel)
 
 
-@router.delete("/notifications/channels/{channel_id}", status_code=204)
+@router.delete(
+    "/notifications/channels/{channel_id}",
+    status_code=204,
+    responses={404: {"description": HTTPStatus(404).phrase}},
+)
 async def delete_notification_channel(
     channel_id: int,
     db: AsyncSession = Depends(get_db, scope="function"),
@@ -377,7 +398,11 @@ async def delete_notification_channel(
     return Response(status_code=204)
 
 
-@router.post("/notifications/channels/{channel_id}/test", response_model=NotificationTestResult)
+@router.post(
+    "/notifications/channels/{channel_id}/test",
+    response_model=NotificationTestResult,
+    responses={404: {"description": HTTPStatus(404).phrase}},
+)
 async def test_notification_channel(
     channel_id: int,
     db: AsyncSession = Depends(get_db, scope="function"),

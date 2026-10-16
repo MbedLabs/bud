@@ -3,8 +3,9 @@ Test results API endpoints.
 """
 
 import logging
-from datetime import datetime
-from typing import List, Optional, Union
+from datetime import datetime, timezone
+from http import HTTPStatus
+from typing import List, Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
@@ -33,7 +34,7 @@ async def get_uploader_entity(
     db: AsyncSession = Depends(get_db, scope="function"),
     token: Optional[str] = Depends(oauth2_scheme_optional),
     x_api_key: Optional[str] = Header(None, alias="X-API-Key"),
-) -> Union[User, Runner]:
+) -> User | Runner:
     """Identifies the uploader via either:
     1. A valid JWT (User or Runner).
     2. The Test Station's own enrolment key, which names one station.
@@ -70,12 +71,12 @@ async def get_uploader_entity(
     )
 
 
-@router.post("", status_code=201)
+@router.post("", status_code=201, responses={403: {"description": HTTPStatus(403).phrase}})
 async def upload_results(
     data: ResultsUpload,
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db, scope="function"),
-    _current_entity: Union[User, Runner] = Depends(get_uploader_entity),
+    _current_entity: User | Runner = Depends(get_uploader_entity),
 ):
     """Record raw execution results submitted by their authenticated station."""
     if not isinstance(_current_entity, Runner):
@@ -110,7 +111,7 @@ async def upload_results(
             ref_test_software=data.ref_test_software or "main",
             url_software_under_test=data.url_software_under_test,
             ref_software_under_test=data.ref_software_under_test,
-            started_at=datetime.utcnow(),
+            started_at=datetime.now(timezone.utc).replace(tzinfo=None),
             completed_at=None,
         )
         db.add(new_run)
@@ -180,7 +181,7 @@ async def upload_results(
         if test_run.status != "Completed":
             test_run.status = "Completed"
         if not test_run.completed_at:
-            test_run.completed_at = datetime.utcnow()
+            test_run.completed_at = datetime.now(timezone.utc).replace(tzinfo=None)
 
         await record_test_run_event(
             db,
@@ -212,7 +213,7 @@ async def upload_results(
 async def get_results_for_run(
     run_id: int,
     db: AsyncSession = Depends(get_db, scope="function"),
-    _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
+    _current_entity: User | Runner = Depends(get_current_active_entity),
 ):
     """Get all results for a test run."""
     await load_run(db, _current_entity, run_id)
@@ -242,7 +243,7 @@ async def get_results_for_run(
 async def get_result(
     result_id: int,
     db: AsyncSession = Depends(get_db, scope="function"),
-    _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
+    _current_entity: User | Runner = Depends(get_current_active_entity),
 ):
     """
     Get a single test result by ID.

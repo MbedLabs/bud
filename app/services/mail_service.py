@@ -64,10 +64,10 @@ def send_email(
             f"(STARTTLS={settings.SMTP_STARTTLS}, SSL={settings.SMTP_SSL}): "
             f"{type(exc).__name__}: {exc}"
         )
-        logger.error("Mail delivery failed: %s", detail)
+        logger.error("Mail delivery failed (%s)", type(exc).__name__)
         raise MailDeliveryError(detail) from exc
 
-    logger.info("Sent email '%s' to %s", subject, to_email)
+    logger.info("Email sent")
 
 
 def _send_template(to_email: str, subject: str, template: str, context: dict[str, str]) -> None:

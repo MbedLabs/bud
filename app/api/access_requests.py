@@ -7,7 +7,8 @@ emailed and decide; granting Publish to Bloom gives the requester a group holdin
 request, its grant or its refusal are recorded in the audit log.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+from http import HTTPStatus
 from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
@@ -99,7 +100,8 @@ async def _recent_request(
             AccessRequest.user_id == user_id,
             AccessRequest.resource_type == resource_type,
             AccessRequest.resource_ref == resource_ref,
-            AccessRequest.created_at >= datetime.utcnow() - REQUEST_WINDOW,
+            AccessRequest.created_at
+            >= datetime.now(timezone.utc).replace(tzinfo=None) - REQUEST_WINDOW,
         )
         .order_by(AccessRequest.created_at.desc())
         .limit(1)
@@ -195,7 +197,16 @@ async def list_access_requests(
     return [_response(row, user) for row, user in (await db.execute(query)).all()]
 
 
-@router.post("/{request_id}/decision", response_model=AccessRequestResponse)
+@router.post(
+    "/{request_id}/decision",
+    response_model=AccessRequestResponse,
+    responses={
+        403: {"description": HTTPStatus(403).phrase},
+        404: {"description": HTTPStatus(404).phrase},
+        409: {"description": HTTPStatus(409).phrase},
+        422: {"description": HTTPStatus(422).phrase},
+    },
+)
 async def decide_access_request(
     request_id: int,
     data: AccessDecision,
@@ -228,7 +239,7 @@ async def decide_access_request(
         group_id = group.id
     row.status = data.decision
     row.decided_by_user_id = admin.id
-    row.decided_at = datetime.utcnow()
+    row.decided_at = datetime.now(timezone.utc).replace(tzinfo=None)
     await record_audit_event(
         db,
         f"access.{data.decision}",

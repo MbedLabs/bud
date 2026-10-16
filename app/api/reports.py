@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Optional, Union
+from typing import Optional
 from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, Query, Response
@@ -52,7 +52,7 @@ async def test_run_summary_report(
     ),
     suite: Optional[str] = Query(None, description="Only include runs for this test suite name."),
     db: AsyncSession = Depends(get_db, scope="function"),
-    current_entity: Union[User, Runner] = Depends(get_current_active_entity),
+    current_entity: User | Runner = Depends(get_current_active_entity),
 ):
     """A filtered test report: overall pie chart plus per-suite, per-station and per-day tables."""
     conditions = await _scope_conditions(
@@ -86,7 +86,7 @@ async def test_run_summary_report(
 async def test_run_report(
     run_id: int,
     db: AsyncSession = Depends(get_db, scope="function"),
-    current_entity: Union[User, Runner] = Depends(get_current_active_entity),
+    current_entity: User | Runner = Depends(get_current_active_entity),
 ):
     """A single run: its identity, its outcome pie chart, and every result it recorded."""
     run = await load_run(

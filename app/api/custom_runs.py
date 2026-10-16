@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import datetime
-from typing import Union
+from datetime import datetime, timezone
+from http import HTTPStatus
 from uuid import UUID
 
 from fastapi import (
@@ -49,7 +49,7 @@ async def get_test_catalog(
     ),
     suite: str | None = Query(None, description="Only test cases from this suite."),
     db: AsyncSession = Depends(get_db, scope="function"),
-    current_entity: Union[User, Runner] = Depends(get_current_active_entity),
+    current_entity: User | Runner = Depends(get_current_active_entity),
 ):
     """Every test case Bud has a record of, and the Test Stations it ran on."""
     if isinstance(current_entity, Runner):
@@ -157,7 +157,7 @@ async def _request_response(
 @router.get("/execution-requests", response_model=list[ExecutionRequestResponse])
 async def list_execution_requests(
     db: AsyncSession = Depends(get_db, scope="function"),
-    current_entity: Union[User, Runner] = Depends(get_current_active_entity),
+    current_entity: User | Runner = Depends(get_current_active_entity),
 ):
     """Read execution requests, scoped to its own requests for a station."""
     query = select(ExecutionRequest).order_by(
@@ -169,11 +169,15 @@ async def list_execution_requests(
     return [await _request_response(db, request) for request in requests]
 
 
-@router.get("/execution-requests/{request_id}", response_model=ExecutionRequestResponse)
+@router.get(
+    "/execution-requests/{request_id}",
+    response_model=ExecutionRequestResponse,
+    responses={404: {"description": HTTPStatus(404).phrase}},
+)
 async def get_execution_request(
     request_id: int,
     db: AsyncSession = Depends(get_db, scope="function"),
-    current_entity: Union[User, Runner] = Depends(get_current_active_entity),
+    current_entity: User | Runner = Depends(get_current_active_entity),
 ):
     """Read a request and its execution link without exposing another station's queue."""
     request = await db.get(ExecutionRequest, request_id)
@@ -209,7 +213,7 @@ async def _most_recent_source_run(db: AsyncSession, run_ids: list[int | None]) -
 async def claim_next_run(
     idempotency_key: UUID = Header(alias="Idempotency-Key"),
     db: AsyncSession = Depends(get_db, scope="function"),
-    current_entity: Union[User, Runner] = Depends(get_current_active_entity),
+    current_entity: User | Runner = Depends(get_current_active_entity),
 ):
     """Hand this Test Station its next queued run, if it has one."""
     if not isinstance(current_entity, Runner):
@@ -266,7 +270,7 @@ async def claim_next_run(
         selected_tests=request.selected_tests,
         runner_id=current_entity.id,
         status="Running",
-        started_at=datetime.utcnow(),
+        started_at=datetime.now(timezone.utc).replace(tzinfo=None),
         claim_id=claim_id,
         **request.source_metadata,
     )
@@ -310,7 +314,7 @@ async def complete_claimed_run(
     background_tasks: BackgroundTasks,
     idempotency_key: UUID = Header(alias="Idempotency-Key"),
     db: AsyncSession = Depends(get_db, scope="function"),
-    current_entity: Union[User, Runner] = Depends(get_current_active_entity),
+    current_entity: User | Runner = Depends(get_current_active_entity),
 ):
     """Record the station's terminal answer for a claimed execution."""
     if not isinstance(current_entity, Runner):
@@ -342,7 +346,7 @@ async def complete_claimed_run(
     if run.status not in {"Running", "Completed", "Cancelled"}:
         raise HTTPException(status_code=409, detail=f"Cannot complete a {run.status} claim")
 
-    finished_at = datetime.utcnow()
+    finished_at = datetime.now(timezone.utc).replace(tzinfo=None)
     if run.status != "Cancelled":
         run.status = "Completed"
     run.completed_at = run.completed_at or finished_at

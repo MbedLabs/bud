@@ -7,7 +7,7 @@ const STATUS_CLASSES: Record<string, string> = {
 }
 
 /** A test run's status as a coloured badge; ``large`` is the size used on the run page. */
-export default function RunStatusBadge({ status, large = false }: { status: string; large?: boolean }) {
+export default function RunStatusBadge({ status, large = false }: Readonly<{ status: string; large?: boolean }>) {
   return (
     <span
       className={`${large ? 'px-3 py-1.5 rounded-md text-xs' : 'px-2 py-0.5 rounded-md text-[11px]'} font-semibold ${STATUS_CLASSES[status] || STATUS_CLASSES.Pending}`}

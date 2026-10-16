@@ -7,6 +7,8 @@ recipients. Default groups are read-only; duplicating one gives an editable
 copy.
 """
 
+from http import HTTPStatus
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -35,6 +37,8 @@ from app.schemas.groups import (
     GroupUpdate,
 )
 from app.services.audit import record_audit_event
+
+A_GROUP_WITH_THIS_NAME_ALREADY_EXISTS = "A group with this name already exists"
 
 router = APIRouter()
 access_router = APIRouter()
@@ -170,7 +174,17 @@ async def list_groups(
     return [await _response(db, group) for group in groups]
 
 
-@router.post("", response_model=GroupResponse, status_code=201)
+@router.post(
+    "",
+    response_model=GroupResponse,
+    status_code=201,
+    responses={
+        403: {"description": HTTPStatus(403).phrase},
+        404: {"description": HTTPStatus(404).phrase},
+        409: {"description": HTTPStatus(409).phrase},
+        422: {"description": HTTPStatus(422).phrase},
+    },
+)
 async def create_group(
     data: GroupCreate,
     db: AsyncSession = Depends(get_db, scope="function"),
@@ -184,7 +198,7 @@ async def create_group(
     try:
         await db.flush()
     except IntegrityError:
-        raise HTTPException(status_code=409, detail="A group with this name already exists")
+        raise HTTPException(status_code=409, detail=A_GROUP_WITH_THIS_NAME_ALREADY_EXISTS)
     await record_audit_event(
         db,
         "group.created",
@@ -195,7 +209,11 @@ async def create_group(
     return await _response(db, await load_group(db, group.id))
 
 
-@router.get("/{group_id}", response_model=GroupResponse)
+@router.get(
+    "/{group_id}",
+    response_model=GroupResponse,
+    responses={404: {"description": HTTPStatus(404).phrase}},
+)
 async def get_group(
     group_id: int,
     db: AsyncSession = Depends(get_db, scope="function"),
@@ -205,7 +223,16 @@ async def get_group(
     return await _response(db, await load_group(db, group_id))
 
 
-@router.patch("/{group_id}", response_model=GroupResponse)
+@router.patch(
+    "/{group_id}",
+    response_model=GroupResponse,
+    responses={
+        403: {"description": HTTPStatus(403).phrase},
+        404: {"description": HTTPStatus(404).phrase},
+        409: {"description": HTTPStatus(409).phrase},
+        422: {"description": HTTPStatus(422).phrase},
+    },
+)
 async def update_group(
     group_id: int,
     data: GroupUpdate,
@@ -227,7 +254,7 @@ async def update_group(
     try:
         await db.flush()
     except IntegrityError:
-        raise HTTPException(status_code=409, detail="A group with this name already exists")
+        raise HTTPException(status_code=409, detail=A_GROUP_WITH_THIS_NAME_ALREADY_EXISTS)
     await record_audit_event(
         db,
         "group.updated",
@@ -238,7 +265,16 @@ async def update_group(
     return await _response(db, await load_group(db, group_id))
 
 
-@router.post("/{group_id}/duplicate", response_model=GroupResponse, status_code=201)
+@router.post(
+    "/{group_id}/duplicate",
+    response_model=GroupResponse,
+    status_code=201,
+    responses={
+        403: {"description": HTTPStatus(403).phrase},
+        404: {"description": HTTPStatus(404).phrase},
+        409: {"description": HTTPStatus(409).phrase},
+    },
+)
 async def duplicate_group(
     group_id: int,
     db: AsyncSession = Depends(get_db, scope="function"),
@@ -256,7 +292,7 @@ async def duplicate_group(
     try:
         await db.flush()
     except IntegrityError:
-        raise HTTPException(status_code=409, detail="A group with this name already exists")
+        raise HTTPException(status_code=409, detail=A_GROUP_WITH_THIS_NAME_ALREADY_EXISTS)
     await record_audit_event(
         db,
         "group.created",
@@ -267,7 +303,15 @@ async def duplicate_group(
     return await _response(db, await load_group(db, copy.id))
 
 
-@router.delete("/{group_id}", status_code=204)
+@router.delete(
+    "/{group_id}",
+    status_code=204,
+    responses={
+        403: {"description": HTTPStatus(403).phrase},
+        404: {"description": HTTPStatus(404).phrase},
+        409: {"description": HTTPStatus(409).phrase},
+    },
+)
 async def delete_group(
     group_id: int,
     db: AsyncSession = Depends(get_db, scope="function"),
@@ -284,7 +328,17 @@ async def delete_group(
     await db.flush()
 
 
-@router.post("/{group_id}/members", response_model=GroupResponse, status_code=201)
+@router.post(
+    "/{group_id}/members",
+    response_model=GroupResponse,
+    status_code=201,
+    responses={
+        403: {"description": HTTPStatus(403).phrase},
+        404: {"description": HTTPStatus(404).phrase},
+        409: {"description": HTTPStatus(409).phrase},
+        422: {"description": HTTPStatus(422).phrase},
+    },
+)
 async def add_member(
     group_id: int,
     data: GroupMemberAdd,
@@ -301,7 +355,14 @@ async def add_member(
     return await _response(db, await load_group(db, group_id))
 
 
-@router.delete("/{group_id}/members/{user_id}", response_model=GroupResponse)
+@router.delete(
+    "/{group_id}/members/{user_id}",
+    response_model=GroupResponse,
+    responses={
+        403: {"description": HTTPStatus(403).phrase},
+        404: {"description": HTTPStatus(404).phrase},
+    },
+)
 async def remove_member(
     group_id: int,
     user_id: int,

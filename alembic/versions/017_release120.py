@@ -4,7 +4,12 @@ import hashlib
 import json
 
 import sqlalchemy as sa
+
 from alembic import op
+
+SET_NULL = "SET NULL"
+TEST_RUNS_ID = "test_runs.id"
+USERS_ID = "users.id"
 
 revision = "017_release120"
 down_revision = "016_key_station_name"
@@ -188,7 +193,7 @@ def _create_notifications() -> None:
         sa.Column(
             "test_run_id",
             sa.Integer(),
-            sa.ForeignKey("test_runs.id", ondelete="CASCADE"),
+            sa.ForeignKey(TEST_RUNS_ID, ondelete="CASCADE"),
             nullable=True,
         ),
         sa.Column(
@@ -238,7 +243,7 @@ def _create_groups() -> None:
         sa.Column(
             "user_id",
             sa.Integer(),
-            sa.ForeignKey("users.id", ondelete="CASCADE"),
+            sa.ForeignKey(USERS_ID, ondelete="CASCADE"),
             nullable=False,
         ),
         sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
@@ -298,7 +303,7 @@ def _create_access_requests() -> None:
         sa.Column(
             "user_id",
             sa.Integer(),
-            sa.ForeignKey("users.id", ondelete="CASCADE"),
+            sa.ForeignKey(USERS_ID, ondelete="CASCADE"),
             nullable=False,
         ),
         sa.Column("resource_type", sa.String(length=30), nullable=False),
@@ -408,7 +413,7 @@ def _create_access_schema():
         sa.Column(
             "user_id",
             sa.Integer(),
-            sa.ForeignKey("users.id", ondelete="CASCADE"),
+            sa.ForeignKey(USERS_ID, ondelete="CASCADE"),
             primary_key=True,
         ),
         sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
@@ -618,13 +623,13 @@ def _create_request_schema():
         sa.Column(
             "requested_by_id",
             sa.Integer(),
-            sa.ForeignKey("users.id", ondelete="SET NULL"),
+            sa.ForeignKey(USERS_ID, ondelete=SET_NULL),
             nullable=True,
         ),
         sa.Column(
             "runner_id",
             sa.Integer(),
-            sa.ForeignKey("runners.id", ondelete="SET NULL"),
+            sa.ForeignKey("runners.id", ondelete=SET_NULL),
             nullable=True,
         ),
         sa.Column("runner_account", sa.String(100), nullable=False),
@@ -633,7 +638,7 @@ def _create_request_schema():
         sa.Column(
             "source_run_id",
             sa.Integer(),
-            sa.ForeignKey("test_runs.id", ondelete="SET NULL"),
+            sa.ForeignKey(TEST_RUNS_ID, ondelete=SET_NULL),
             nullable=True,
         ),
         sa.Column("source_metadata", sa.JSON(), nullable=False),
@@ -641,14 +646,14 @@ def _create_request_schema():
         sa.Column(
             "claimed_run_id",
             sa.Integer(),
-            sa.ForeignKey("test_runs.id"),
+            sa.ForeignKey(TEST_RUNS_ID),
             nullable=True,
             unique=True,
         ),
         sa.Column(
             "legacy_queue_run_id",
             sa.Integer(),
-            sa.ForeignKey("test_runs.id"),
+            sa.ForeignKey(TEST_RUNS_ID),
             nullable=True,
             unique=True,
         ),
