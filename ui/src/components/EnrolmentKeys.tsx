@@ -41,7 +41,7 @@ export default function EnrolmentKeys() {
       setCopied(false)
       setLabel('')
       setActionError('')
-      queryClient.invalidateQueries({ queryKey: ['runnerApiKeys'] })
+      void queryClient.invalidateQueries({ queryKey: ['runnerApiKeys'] })
     },
     onError: (error) => setActionError(extractApiErrorMessage(error, 'Could not create the key')),
   })
@@ -51,8 +51,8 @@ export default function EnrolmentKeys() {
     onSuccess: () => {
       setActionError('')
       setPendingRevoke(null)
-      queryClient.invalidateQueries({ queryKey: ['runnerApiKeys'] })
-      queryClient.invalidateQueries({ queryKey: ['testStations'] })
+      void queryClient.invalidateQueries({ queryKey: ['runnerApiKeys'] })
+      void queryClient.invalidateQueries({ queryKey: ['testStations'] })
     },
     onError: (error) => setActionError(extractApiErrorMessage(error, 'Could not revoke the key')),
   })

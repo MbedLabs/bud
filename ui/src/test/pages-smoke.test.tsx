@@ -9,6 +9,7 @@ import { testRunsApi } from '../api/client'
 import packageJson from '../../package.json'
 
 const loginMock = vi.hoisted(() => vi.fn())
+const logoutMock = vi.hoisted(() => vi.fn())
 
 vi.mock('../contexts/AuthContext', () => ({
   useAuth: () => ({
@@ -24,7 +25,7 @@ vi.mock('../contexts/AuthContext', () => ({
     isAuthenticated: true,
     isLoading: false,
     login: loginMock,
-    logout: vi.fn(),
+    logout: logoutMock,
   }),
 }))
 
@@ -79,6 +80,7 @@ function renderAt(path: string) {
 }
 
 beforeEach(() => {
+  logoutMock.mockReset().mockReturnValue(new Promise(() => {}))
   vi.clearAllMocks()
   localStorage.clear()
 })
@@ -116,6 +118,16 @@ describe('route smoke (Bud)', () => {
     renderAt('/reset-password')
     expect(screen.getByRole('heading', { name: /Reset Password/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Reset Password/i })).toBeDisabled()
+  })
+
+  it('shows the sign-out in progress and sends it once', async () => {
+    renderAt('/')
+    fireEvent.click(screen.getAllByText('Bud Tester')[0].closest('button') as HTMLElement)
+    fireEvent.click(screen.getByText('Sign out'))
+    const pending = await screen.findByText('Signing out...')
+    expect(pending.closest('button')).toBeDisabled()
+    fireEvent.click(pending)
+    expect(logoutMock).toHaveBeenCalledTimes(1)
   })
 
   it('shows the API detail when login fails', async () => {

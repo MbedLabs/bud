@@ -23,6 +23,21 @@ describe('summarizeAssertions', () => {
 
     expect(summarizeAssertions(rows as TestResult[])).toEqual({ total: 4, passed: 2, failed: 2 })
   })
+
+  it('leaves out skipped and information entries, which are not assertions', () => {
+    const rows: Partial<TestResult>[] = [
+      {
+        assertions: [
+          { passed: true },
+          { passed: true, skipped: true },
+          { passed: true, info: true },
+          { passed: false },
+        ],
+      },
+    ]
+
+    expect(summarizeAssertions(rows as TestResult[])).toEqual({ total: 2, passed: 1, failed: 1 })
+  })
 })
 
 describe('summarizeTestCases', () => {

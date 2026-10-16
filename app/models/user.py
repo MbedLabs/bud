@@ -2,13 +2,14 @@
 User model and role enum.
 """
 
+import base64
 import enum
 from datetime import datetime
 from typing import Optional
 
 from sqlalchemy import Boolean, DateTime
 from sqlalchemy import Enum as SaEnum
-from sqlalchemy import ForeignKey, Integer, String
+from sqlalchemy import ForeignKey, Integer, LargeBinary, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.database import Base
@@ -16,6 +17,7 @@ from app.db.database import Base
 
 class UserRole(str, enum.Enum):
     admin = "admin"
+    developer = "developer"
     viewer = "viewer"
 
 
@@ -46,9 +48,28 @@ class User(Base):
     pending_email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     email_change_status: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
     email_change_requested_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    profile_picture: Mapped[Optional[bytes]] = mapped_column(LargeBinary, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime,
         default=datetime.utcnow,
         onupdate=datetime.utcnow,
     )
+
+    @property
+    def has_profile_picture(self) -> bool:
+        """Whether the account has a stored profile image."""
+        return bool(self.profile_picture)
+
+    @property
+    def profile_picture_url(self) -> Optional[str]:
+        """The normalized account picture as a PNG data URL, or no picture."""
+        if not self.profile_picture:
+            return None
+        return "data:image/png;base64," + base64.b64encode(self.profile_picture).decode("ascii")
+
+    def clear_pending_email_change(self) -> None:
+        """Forget the pending email change."""
+        self.pending_email = None
+        self.email_change_status = None
+        self.email_change_requested_at = None

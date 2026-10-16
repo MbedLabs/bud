@@ -1,9 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link } from 'react-router'
-import { extractApiErrorMessage, testStationsApi } from '../api/client'
+import { executionRequestsApi, extractApiErrorMessage, testStationsApi } from '../api/client'
 import type { RunnerApiKey } from '../api/client'
 import { useAuth } from '../contexts/AuthContext'
+import { can } from '../lib/access'
 import ConfirmDialog from '../components/ConfirmDialog'
 import RowMenu from '../components/RowMenu'
 import EnrolmentKeys from '../components/EnrolmentKeys'
@@ -20,8 +21,13 @@ function isValidStationName(value: string): boolean {
 
 export default function TestStations() {
   const { user } = useAuth()
-  const isAdmin = user?.role === 'admin'
+  const canManageStations = can(user, 'stations.manage')
   const queryClient = useQueryClient()
+  const { data: requests } = useQuery({
+    queryKey: ['executionRequests'],
+    queryFn: () => executionRequestsApi.list(),
+    refetchInterval: 60_000,
+  })
 
   const [actionError, setActionError] = useState('')
   const [pendingRemoval, setPendingRemoval] = useState<string | null>(null)
@@ -39,7 +45,7 @@ export default function TestStations() {
   const { data: apiKeys } = useQuery({
     queryKey: ['runnerApiKeys'],
     queryFn: testStationsApi.listApiKeys,
-    enabled: isAdmin,
+    enabled: canManageStations,
   })
 
   const removeStation = useMutation({
@@ -47,8 +53,8 @@ export default function TestStations() {
     onSuccess: () => {
       setActionError('')
       setPendingRemoval(null)
-      queryClient.invalidateQueries({ queryKey: ['testStations'] })
-      queryClient.invalidateQueries({ queryKey: ['runnerApiKeys'] })
+      void queryClient.invalidateQueries({ queryKey: ['testStations'] })
+      void queryClient.invalidateQueries({ queryKey: ['runnerApiKeys'] })
     },
     onError: (error) =>
       setActionError(extractApiErrorMessage(error, 'Could not remove the Test Station')),
@@ -61,8 +67,8 @@ export default function TestStations() {
       setActionError('')
       setRenaming(null)
       setNewName('')
-      queryClient.invalidateQueries({ queryKey: ['testStations'] })
-      queryClient.invalidateQueries({ queryKey: ['runnerApiKeys'] })
+      void queryClient.invalidateQueries({ queryKey: ['testStations'] })
+      void queryClient.invalidateQueries({ queryKey: ['runnerApiKeys'] })
     },
     onError: (error) =>
       setActionError(extractApiErrorMessage(error, 'Could not rename the Test Station')),
@@ -73,7 +79,7 @@ export default function TestStations() {
     onSuccess: () => {
       setActionError('')
       setPendingKeyRevoke(null)
-      queryClient.invalidateQueries({ queryKey: ['runnerApiKeys'] })
+      void queryClient.invalidateQueries({ queryKey: ['runnerApiKeys'] })
     },
     onError: (error) =>
       setActionError(extractApiErrorMessage(error, 'Could not revoke the key')),
@@ -101,7 +107,7 @@ export default function TestStations() {
         </div>
       )}
 
-      {isAdmin && <EnrolmentKeys />}
+      {canManageStations && <EnrolmentKeys />}
 
       {isLoading ? (
         <div className="bg-card rounded-lg border border-border shadow-elegant p-8 text-center text-muted-foreground">
@@ -113,7 +119,7 @@ export default function TestStations() {
         </div>
       ) : runners.length === 0 ? (
         <div className="bg-card rounded-lg border border-border shadow-elegant p-16 text-center">
-          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary/10 to-lime-500/10 flex items-center justify-center mx-auto mb-5">
+          <div className="w-20 h-20 rounded-2xl bg-linear-to-br/srgb from-primary/10 to-lime-500/10 flex items-center justify-center mx-auto mb-5">
             <Server className="h-10 w-10 text-primary/40" />
           </div>
           <h3 className="text-lg font-semibold text-foreground mb-2">No Test Stations Registered</h3>
@@ -142,7 +148,7 @@ export default function TestStations() {
             <TestStationCard
               key={runner.account}
               runner={runner}
-              isAdmin={isAdmin}
+              canManageStations={canManageStations}
               hasKey={keyByAccount.has(runner.account)}
               onRemove={() => {
                 setActionError('')
@@ -163,9 +169,26 @@ export default function TestStations() {
           ))}
         </div>
       )}
+      <section className="rounded-lg border border-border bg-card p-4">
+        <h2 className="text-base font-semibold text-foreground">Execution requests</h2>
+        {requests?.length === 0 && <p className="text-sm text-muted-foreground">No execution requests.</p>}
+        <ul className="divide-y divide-border">
+          {requests?.map((request) => (
+            <li key={request.id} id={`request-${request.id}`} className="flex items-center justify-between gap-3 py-3 text-sm">
+              <div>
+                <p className="font-medium text-foreground">{request.name}</p>
+                <p className="text-muted-foreground">{request.runner_account} · {request.selected_tests.length} test cases</p>
+              </div>
+              {request.run_id === null ? <span className="text-muted-foreground">Queued</span> : (
+                <Link to={`/runs/${request.run_id}`} className="text-primary hover:underline">Open execution</Link>
+              )}
+            </li>
+          ))}
+        </ul>
+      </section>
       {renaming && (
         <div
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50"
+          className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50"
           onClick={() => setRenaming(null)}
         >
           <form
@@ -272,19 +295,19 @@ interface TestStationInfo {
 
 function TestStationCard({
   runner,
-  isAdmin,
+  canManageStations,
   hasKey,
   onRemove,
   onRename,
   onRevokeKey,
-}: {
+}: Readonly<{
   runner: TestStationInfo
-  isAdmin: boolean
+  canManageStations: boolean
   hasKey: boolean
   onRemove: () => void
   onRename: () => void
   onRevokeKey: () => void
-}) {
+}>) {
   return (
     <Link
       to={`/runs?station=${encodeURIComponent(runner.account)}`}
@@ -297,7 +320,7 @@ function TestStationCard({
       {/* Top accent bar */}
       <div className={`h-1 rounded-t-lg ${
         runner.is_online
-          ? 'bg-gradient-to-r from-primary via-bud-forest to-bud-orange'
+          ? 'bg-linear-to-r/srgb from-primary via-bud-forest to-bud-orange'
           : 'bg-muted'
       }`} />
 
@@ -332,7 +355,7 @@ function TestStationCard({
             </div>
           </div>
 
-          {isAdmin && (
+          {canManageStations && (
             <RowMenu
               label={`Actions for ${runner.account}`}
               actions={[
@@ -346,7 +369,7 @@ function TestStationCard({
           )}
         </div>
 
-        {isAdmin && !hasKey && (
+        {canManageStations && !hasKey && (
           <div className="mb-4 flex items-start gap-2 p-2.5 rounded-md bg-amber-500/10 border border-amber-500/30">
             <AlertTriangle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
             <p className="text-xs text-amber-700 dark:text-amber-400">

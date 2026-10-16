@@ -2,6 +2,8 @@ import type { TestResult } from '../api/client'
 
 interface AssertionShape {
   passed?: boolean
+  skipped?: boolean
+  info?: boolean
 }
 
 interface TestCaseCountsSource {
@@ -43,7 +45,7 @@ export function summarizeTestCases(
   }
 }
 
-/** Aggregates flattened assertion rows from persisted test results (used by TestRunDetail summary tiles). */
+/** Aggregates flattened assertion rows from persisted test results, leaving out skipped and information entries (used by TestRunDetail summary tiles). */
 export function summarizeAssertions(results: TestResult[]): {
   total: number
   passed: number
@@ -53,6 +55,7 @@ export function summarizeAssertions(results: TestResult[]): {
     (summary, result) => {
       const assertions = (result.assertions as AssertionShape[] | null) || []
       assertions.forEach((assertion) => {
+        if (assertion.skipped === true || assertion.info === true) return
         summary.total += 1
         if (assertion.passed !== false) summary.passed += 1
         else summary.failed += 1

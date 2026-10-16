@@ -16,6 +16,7 @@ from app.schemas.setup import (
     SetupCompletedResponse,
     SetupStatusResponse,
 )
+from app.services.audit import record_audit_event
 from app.services.mail_service import MailConfigurationError, send_admin_welcome_email
 
 logger = logging.getLogger(__name__)
@@ -33,7 +34,7 @@ async def _user_count(db: AsyncSession) -> int:
 
 
 @router.get("/setup/status", response_model=SetupStatusResponse)
-async def setup_status(db: AsyncSession = Depends(get_db)) -> SetupStatusResponse:
+async def setup_status(db: AsyncSession = Depends(get_db, scope="function")) -> SetupStatusResponse:
     """Report whether the instance still needs its first administrator."""
     return SetupStatusResponse(setup_required=await _user_count(db) == 0)
 
@@ -47,7 +48,7 @@ async def setup_status(db: AsyncSession = Depends(get_db)) -> SetupStatusRespons
 async def create_first_admin(
     request: Request,
     data: CreateFirstAdminRequest,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
 ) -> SetupCompletedResponse:
     """Create the first administrator, once, on an instance that has no users."""
     # Serialise concurrent attempts so two simultaneous requests cannot both see
@@ -73,6 +74,15 @@ async def create_first_admin(
         is_active=True,
     )
     db.add(admin)
+    await db.flush()
+    await record_audit_event(
+        db,
+        "setup.first_admin_created",
+        actor_type="anonymous",
+        target_type="user",
+        target_id=admin.id,
+        details={"email": admin.email},
+    )
     await db.commit()
 
     logger.info("First administrator created via setup flow: %s", data.email)
@@ -84,7 +94,7 @@ async def create_first_admin(
         send_admin_welcome_email(
             to_email=admin.email,
             full_name=admin.full_name,
-            login_link=f"{settings.FRONTEND_BASE_URL.rstrip('/')}/login",
+            login_link=f"{settings.APP_BASE_URL.rstrip('/')}/login",
         )
     except MailConfigurationError as exc:
         logger.warning("Administrator created but the confirmation email failed: %s", exc)

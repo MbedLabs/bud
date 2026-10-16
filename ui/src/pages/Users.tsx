@@ -1,11 +1,15 @@
+import ProfilePicture from '../components/ProfilePicture'
+import SelectField from '../components/SelectField'
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Check, Copy, Eye, Mail, Shield, Trash2, UserPlus, X } from 'lucide-react'
-import { extractApiErrorMessage, InviteUserResponse, User, usersApi } from '../api/client'
+import { Check, Code2, Copy, Eye, Mail, Shield, Trash2, UserPlus, X } from 'lucide-react'
+import { extractApiErrorMessage, InviteUserResponse, User, UserRole, usersApi } from '../api/client'
 import { useAuth } from '../contexts/AuthContext'
+import { formatDateTime } from '../test/date-utils'
 
 const ROLE_CONFIG = {
   admin: { label: 'Admin', color: 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400', icon: Shield },
+  developer: { label: 'Developer', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400', icon: Code2 },
   viewer: { label: 'Viewer', color: 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400', icon: Eye },
 }
 
@@ -26,7 +30,7 @@ export default function UsersPage() {
   const inviteMutation = useMutation({
     mutationFn: usersApi.invite,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] })
+      void queryClient.invalidateQueries({ queryKey: ['users'] })
     },
   })
 
@@ -38,7 +42,7 @@ export default function UsersPage() {
 
   const deleteMutation = useMutation({
     mutationFn: usersApi.delete,
-    onMutate: async (id: number) => {
+    onMutate: (id: number) => {
       setDeleteError(null)
       setPendingDeleteUserId(id)
     },
@@ -57,7 +61,7 @@ export default function UsersPage() {
     onSuccess: () => {
       setEmailChangeUser(null)
       setEmailActionError(null)
-      queryClient.invalidateQueries({ queryKey: ['users'] })
+      void queryClient.invalidateQueries({ queryKey: ['users'] })
     },
     onError: (error) => {
       setEmailActionError(extractApiErrorMessage(error, 'Failed to start email change'))
@@ -68,7 +72,7 @@ export default function UsersPage() {
     mutationFn: usersApi.approveEmailChange,
     onSuccess: () => {
       setEmailActionError(null)
-      queryClient.invalidateQueries({ queryKey: ['users'] })
+      void queryClient.invalidateQueries({ queryKey: ['users'] })
     },
     onError: (error) => {
       setEmailActionError(extractApiErrorMessage(error, 'Failed to approve email change'))
@@ -79,7 +83,7 @@ export default function UsersPage() {
     mutationFn: usersApi.rejectEmailChange,
     onSuccess: () => {
       setEmailActionError(null)
-      queryClient.invalidateQueries({ queryKey: ['users'] })
+      void queryClient.invalidateQueries({ queryKey: ['users'] })
     },
     onError: (error) => {
       setEmailActionError(extractApiErrorMessage(error, 'Failed to reject email change'))
@@ -140,9 +144,7 @@ export default function UsersPage() {
                 <tr key={u.id} className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-bud-orange flex items-center justify-center text-white text-xs font-bold">
-                        {u.full_name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)}
-                      </div>
+                      <ProfilePicture user={u} />
                       <div className="min-w-0">
                         <p className="text-sm font-medium text-foreground truncate">{u.full_name}</p>
                         <p className="text-xs text-muted-foreground truncate">{u.email}</p>
@@ -156,7 +158,7 @@ export default function UsersPage() {
                                 ? 'Waiting for admin approval'
                                 : 'Waiting for mailbox confirmation'}
                               {u.email_change_requested_at
-                                ? ` · ${new Date(u.email_change_requested_at).toLocaleString()}`
+                                ? ` · ${formatDateTime(u.email_change_requested_at)}`
                                 : ''}
                             </p>
                           </div>
@@ -294,13 +296,13 @@ function EmailChangeModal({
   onSubmit,
   isLoading,
   error,
-}: {
+}: Readonly<{
   user: User
   onClose: () => void
   onSubmit: (newEmail: string) => Promise<User>
   isLoading: boolean
   error: string | null
-}) {
+}>) {
   const [newEmail, setNewEmail] = useState(user.pending_email ?? '')
 
   return (
@@ -361,15 +363,15 @@ function InviteUserModal({
   onSubmit,
   isLoading,
   error,
-}: {
+}: Readonly<{
   onClose: () => void
-  onSubmit: (data: { email: string; full_name: string; role?: 'admin' | 'viewer' }) => Promise<InviteUserResponse>
+  onSubmit: (data: { email: string; full_name: string; role?: UserRole }) => Promise<InviteUserResponse>
   isLoading: boolean
   error: string | null
-}) {
+}>) {
   const [email, setEmail] = useState('')
   const [fullName, setFullName] = useState('')
-  const [role, setRole] = useState<'admin' | 'viewer'>('viewer')
+  const [role, setRole] = useState<UserRole>('viewer')
   const [inviteLink, setInviteLink] = useState<string | null>(null)
   const [invitedEmail, setInvitedEmail] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
@@ -465,15 +467,16 @@ function InviteUserModal({
           </div>
           <div>
             <label className="block text-sm font-medium text-foreground mb-1">Role</label>
-            <select
+            <SelectField
               value={role}
-              onChange={(e) => setRole(e.target.value as 'admin' | 'viewer')}
+              onChange={(e) => setRole(e.target.value as UserRole)}
               title="Role"
               className="w-full px-3 py-2 bg-background border border-input rounded-lg text-sm text-foreground"
             >
               <option value="viewer">Viewer</option>
+              <option value="developer">Developer</option>
               <option value="admin">Admin</option>
-            </select>
+            </SelectField>
           </div>
           <button
             type="submit"

@@ -1,17 +1,19 @@
+import ReportRequests from '../components/ReportRequests'
+import SelectField from '../components/SelectField'
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router'
 import {
-  extractApiErrorMessage,
   reportsApi,
-  saveBlob,
   testRunsApi,
   testStationsApi,
   type TestRunStatsFilters,
 } from '../api/client'
 import { formatDateTime } from '../test/date-utils'
-import { CheckCircle, XCircle, PlayCircle, Server, TrendingUp, Activity, Filter, X, FileDown, MinusCircle, Clock } from 'lucide-react'
+import { CheckCircle, XCircle, PlayCircle, Server, TrendingUp, Activity, Filter, X, MinusCircle, Clock } from 'lucide-react'
 import OutcomeDonut from '../components/OutcomeDonut'
+import RunStatusBadge from '../components/RunStatusBadge'
+import PdfReportButton from '../components/PdfReportButton'
 
 const DEFAULT_DAYS = 30
 
@@ -28,7 +30,6 @@ export default function Dashboard() {
   const [station, setStation] = useState('')
   const [suite, setSuite] = useState('')
   const [reportError, setReportError] = useState<string | null>(null)
-  const [reportPending, setReportPending] = useState(false)
 
   const filters: TestRunStatsFilters = {
     ...(days !== undefined && { days }),
@@ -79,10 +80,11 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6 animate-fade-in">
+      <ReportRequests />
       {/* Filters */}
       <div className="bg-card rounded-lg border border-border shadow-elegant p-4">
-        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 md:flex-1">
+        <div className="flex flex-col gap-3">
+          <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,12rem),1fr))]">
             <FilterSelect
               label="Time range"
               value={days === undefined ? 'all' : String(days)}
@@ -107,28 +109,12 @@ export default function Dashboard() {
               options={suiteOptions.map(name => ({ value: name, label: name }))}
             />
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={async () => {
-                setReportError(null)
-                setReportPending(true)
-                try {
-                  const { blob, filename } = await reportsApi.testRuns(filters)
-                  saveBlob(blob, filename)
-                } catch (error) {
-                  setReportError(extractApiErrorMessage(error, 'Could not generate the report'))
-                } finally {
-                  setReportPending(false)
-                }
-              }}
-              disabled={reportPending}
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <PdfReportButton
+              fetchReport={() => reportsApi.testRuns(filters)}
               title="Download a PDF report for the current filters"
-              className="inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-2.5 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <FileDown className="h-4 w-4" />
-              {reportPending ? 'Preparing…' : 'PDF report'}
-            </button>
+              onError={setReportError}
+            />
             <Filter className="h-4 w-4 text-muted-foreground" />
             <button
               type="button"
@@ -307,8 +293,8 @@ export default function Dashboard() {
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 ml-4 flex-shrink-0">
-                    <StatusBadge status={run.status} />
+                  <div className="flex items-center gap-3 ml-4 shrink-0">
+                    <RunStatusBadge status={run.status} />
                     <div className="text-xs text-muted-foreground">
                       {run.passed_tests}/{run.total_tests} passed
                     </div>
@@ -367,26 +353,26 @@ export default function Dashboard() {
 
 /** Labelled dropdown used by the dashboard filter bar. An empty value means "no
  *  filter", which is why the placeholder option carries an empty string. */
-function FilterSelect({ label, value, onChange, options, placeholder }: {
+function FilterSelect({ label, value, onChange, options, placeholder }: Readonly<{
   label: string
   value: string
   onChange: (value: string) => void
   options: { value: string; label: string }[]
   placeholder?: string
-}) {
+}>) {
   return (
-    <label className="flex flex-col gap-1">
+    <label className="flex min-w-0 flex-col gap-1">
       <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">{label}</span>
-      <select
+      <SelectField
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="rounded-md border border-input bg-background px-2.5 py-1.5 text-sm text-foreground transition-colors hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring"
+        className="rounded-md border border-input bg-background px-2.5 py-1.5 text-sm text-foreground transition-colors hover:bg-accent focus:outline-hidden focus:ring-2 focus:ring-ring"
       >
         {placeholder && <option value="">{placeholder}</option>}
         {options.map((option) => (
           <option key={option.value} value={option.value}>{option.label}</option>
         ))}
-      </select>
+      </SelectField>
     </label>
   )
 }
@@ -398,7 +384,7 @@ function FilterSelect({ label, value, onChange, options, placeholder }: {
  * reading of one value rather than the only one - the figure is always spelled
  * out beside it.
  */
-function PassRateMeter({ title, caption, rate }: { title: string; caption: string; rate: number }) {
+function PassRateMeter({ title, caption, rate }: Readonly<{ title: string; caption: string; rate: number }>) {
   const tone =
     rate >= 80
       ? 'text-emerald-600 dark:text-emerald-400'
@@ -441,14 +427,14 @@ function PassRateMeter({ title, caption, rate }: { title: string; caption: strin
   )
 }
 
-function StatCard({ title, value, icon: Icon, gradient, subtitle, subtitleTone = 'muted' }: {
+function StatCard({ title, value, icon: Icon, gradient, subtitle, subtitleTone = 'muted' }: Readonly<{
   title: string
   value: number | string
   icon: React.ComponentType<{ className?: string }>
   gradient: string
   subtitle?: string
   subtitleTone?: 'muted' | 'positive'
-}) {
+}>) {
   return (
     <div className="bg-card rounded-lg border border-border shadow-elegant hover:shadow-glow transition-shadow duration-300 p-5">
       <div className="flex items-start justify-between">
@@ -463,26 +449,10 @@ function StatCard({ title, value, icon: Icon, gradient, subtitle, subtitleTone =
             }`}>{subtitle}</p>
           )}
         </div>
-        <div className={`p-2.5 rounded-lg bg-gradient-to-br ${gradient}`}>
+        <div className={`p-2.5 rounded-lg bg-linear-to-br/srgb ${gradient}`}>
           <Icon className="h-5 w-5 text-white" />
         </div>
       </div>
     </div>
-  )
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const config: Record<string, string> = {
-    Pending: 'bg-yellow-500/10 text-yellow-700 dark:text-yellow-400',
-    Running: 'bg-amber-500/10 text-amber-800 dark:text-amber-300',
-    Completed: 'bg-amber-500/10 text-amber-800 dark:text-amber-300',
-    Failed: 'bg-red-500/10 text-red-700 dark:text-red-400',
-    Cancelled: 'bg-muted text-muted-foreground',
-  }
-
-  return (
-    <span className={`px-2 py-0.5 rounded-md text-[11px] font-semibold ${config[status] || config.Pending}`}>
-      {status}
-    </span>
   )
 }

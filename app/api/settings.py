@@ -2,25 +2,33 @@
 Settings API endpoints.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
+from http import HTTPStatus
 from typing import List
 from urllib.parse import urlparse
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from tenacity import wait_fixed
 
-from app.api.auth import require_role
+from app.api.auth import require_permission
 from app.db import get_db
-from app.models import SystemSetting, UserRole
+from app.models import NotificationChannel, SystemSetting
 from app.models.user import User
 from app.schemas import (
+    NotificationChannelCreate,
+    NotificationChannelResponse,
+    NotificationChannelUpdate,
+    NotificationTestResult,
     PLMIntegrationSettings,
     PLMIntegrationSettingsUpdate,
     SystemSettingResponse,
     SystemSettingUpdate,
 )
+from app.services.audit import record_audit_event
 from app.services.integration_secrets import encrypt_integration_secret
+from app.services.notify import send_test_message
 
 router = APIRouter()
 PROTECTED_SETTING_KEYS = {
@@ -42,8 +50,8 @@ def _origin(url: str) -> tuple[str, str, int | None]:
 
 @router.get("", response_model=List[SystemSettingResponse])
 async def get_settings(
-    db: AsyncSession = Depends(get_db),
-    _admin: User = Depends(require_role(UserRole.admin)),
+    db: AsyncSession = Depends(get_db, scope="function"),
+    _admin: User = Depends(require_permission("settings", "view")),
 ):
     """
     Get all system settings. Restricted to admins.
@@ -56,11 +64,13 @@ async def get_settings(
     return result.scalars().all()
 
 
-@router.get("/{key}", response_model=SystemSettingResponse)
+@router.get(
+    "/{key}", response_model=SystemSettingResponse, responses={404: {"description": "Not Found"}}
+)
 async def get_setting(
     key: str,
-    db: AsyncSession = Depends(get_db),
-    _admin: User = Depends(require_role(UserRole.admin)),
+    db: AsyncSession = Depends(get_db, scope="function"),
+    _admin: User = Depends(require_permission("settings", "view")),
 ):
     """
     Get a specific system setting.
@@ -73,12 +83,14 @@ async def get_setting(
     return setting
 
 
-@router.put("/{key}", response_model=SystemSettingResponse)
+@router.put(
+    "/{key}", response_model=SystemSettingResponse, responses={403: {"description": "Forbidden"}}
+)
 async def update_setting(
     key: str,
     data: SystemSettingUpdate,
-    db: AsyncSession = Depends(get_db),
-    _admin: User = Depends(require_role(UserRole.admin)),
+    db: AsyncSession = Depends(get_db, scope="function"),
+    _admin: User = Depends(require_permission("settings", "edit")),
 ):
     """
     Create or update a system setting.
@@ -97,6 +109,12 @@ async def update_setting(
         setting = SystemSetting(key=key, value=data.value, description=data.description)
         db.add(setting)
 
+    await record_audit_event(
+        db,
+        "setting.updated",
+        target_type="setting",
+        target_id=key,
+    )
     await db.commit()
     await db.refresh(setting)
     return setting
@@ -104,8 +122,8 @@ async def update_setting(
 
 @router.get("/integrations/PLM", response_model=PLMIntegrationSettings)
 async def get_plm_integration(
-    db: AsyncSession = Depends(get_db),
-    _admin: User = Depends(require_role(UserRole.admin)),
+    db: AsyncSession = Depends(get_db, scope="function"),
+    _admin: User = Depends(require_permission("settings", "view")),
 ):
     """
     Get PLM integration settings (Bloom).
@@ -125,11 +143,15 @@ async def get_plm_integration(
     )
 
 
-@router.post("/integrations/PLM", response_model=PLMIntegrationSettings)
+@router.post(
+    "/integrations/PLM",
+    response_model=PLMIntegrationSettings,
+    responses={422: {"description": "Unprocessable Content"}},
+)
 async def update_plm_integration(
     data: PLMIntegrationSettingsUpdate,
-    db: AsyncSession = Depends(get_db),
-    _admin: User = Depends(require_role(UserRole.admin)),
+    db: AsyncSession = Depends(get_db, scope="function"),
+    _admin: User = Depends(require_permission("settings", "edit")),
 ):
     """
     Update PLM integration settings.
@@ -183,7 +205,7 @@ async def update_plm_integration(
                 status_code=422,
                 detail="Bloom token must be a scoped blm_sync_ service credential.",
             )
-        rotated_at = datetime.utcnow()
+        rotated_at = datetime.now(timezone.utc).replace(tzinfo=None)
         updates.extend(
             [
                 ("bloom_token_encrypted", encrypt_integration_secret(data.bloom_token)),
@@ -202,5 +224,205 @@ async def update_plm_integration(
     legacy = await db.get(SystemSetting, "bloom_token")
     if legacy:
         await db.delete(legacy)
+    await record_audit_event(
+        db,
+        "integration.updated",
+        target_type="plm_integration",
+        details={"fields": sorted(data.model_fields_set)},
+    )
     await db.commit()
     return await get_plm_integration(db=db, _admin=_admin)
+
+
+def _webhook_url(url: str) -> str:
+    """An absolute HTTP(S) URL without embedded credentials, or a 422."""
+    parsed = urlparse(url)
+    if (
+        parsed.scheme not in {"http", "https"}
+        or not parsed.hostname
+        or parsed.username is not None
+        or parsed.password is not None
+    ):
+        raise HTTPException(status_code=422, detail="Webhook URL must be an absolute HTTP(S) URL.")
+    return url
+
+
+def _url_prefix(url: str) -> str:
+    """The part of a webhook URL that is safe to show again."""
+    return url[:40] + ("..." if len(url) > 40 else "")
+
+
+def _channel_response(channel: NotificationChannel) -> NotificationChannelResponse:
+    """Serialise a channel without its URL or secret."""
+    return NotificationChannelResponse(
+        id=channel.id,
+        name=channel.name,
+        format=channel.format,
+        url_prefix=channel.url_prefix,
+        run_filter=channel.run_filter,
+        enabled=channel.enabled,
+        has_secret=bool(channel.secret_encrypted),
+        created_at=channel.created_at,
+    )
+
+
+async def _get_channel_or_404(db: AsyncSession, channel_id: int) -> NotificationChannel:
+    """Load a channel or answer 404."""
+    channel = await db.get(NotificationChannel, channel_id)
+    if channel is None:
+        raise HTTPException(status_code=404, detail="Notification channel not found")
+    return channel
+
+
+async def _name_taken(db: AsyncSession, name: str, exclude_id: int | None = None) -> bool:
+    """Whether another channel already uses this name."""
+    query = select(NotificationChannel.id).where(NotificationChannel.name == name)
+    if exclude_id is not None:
+        query = query.where(NotificationChannel.id != exclude_id)
+    return (await db.execute(query)).scalar_one_or_none() is not None
+
+
+@router.get("/notifications/channels", response_model=List[NotificationChannelResponse])
+async def list_notification_channels(
+    db: AsyncSession = Depends(get_db, scope="function"),
+    _admin: User = Depends(require_permission("settings", "view")),
+):
+    """List the channels finished runs are posted to."""
+    channels = (
+        (await db.execute(select(NotificationChannel).order_by(NotificationChannel.name)))
+        .scalars()
+        .all()
+    )
+    return [_channel_response(c) for c in channels]
+
+
+@router.post(
+    "/notifications/channels",
+    response_model=NotificationChannelResponse,
+    status_code=201,
+    responses={
+        400: {"description": HTTPStatus(400).phrase},
+        422: {"description": HTTPStatus(422).phrase},
+    },
+)
+async def create_notification_channel(
+    data: NotificationChannelCreate,
+    db: AsyncSession = Depends(get_db, scope="function"),
+    _admin: User = Depends(require_permission("settings", "edit")),
+):
+    """Add a channel; its URL and secret are stored encrypted and never returned."""
+    url = _webhook_url(data.url.strip())
+    if await _name_taken(db, data.name):
+        raise HTTPException(status_code=400, detail="A channel with this name already exists")
+    channel = NotificationChannel(
+        name=data.name,
+        format=data.format,
+        url_encrypted=encrypt_integration_secret(url),
+        url_prefix=_url_prefix(url),
+        secret_encrypted=encrypt_integration_secret(data.secret) if data.secret else None,
+        run_filter=data.run_filter,
+        enabled=data.enabled,
+    )
+    db.add(channel)
+    await db.flush()
+    await record_audit_event(
+        db,
+        "notification_channel.created",
+        target_type="notification_channel",
+        target_id=channel.id,
+        details={"name": channel.name, "format": channel.format},
+    )
+    await db.commit()
+    await db.refresh(channel)
+    return _channel_response(channel)
+
+
+@router.patch(
+    "/notifications/channels/{channel_id}",
+    response_model=NotificationChannelResponse,
+    responses={
+        400: {"description": HTTPStatus(400).phrase},
+        404: {"description": HTTPStatus(404).phrase},
+        422: {"description": HTTPStatus(422).phrase},
+    },
+)
+async def update_notification_channel(
+    channel_id: int,
+    data: NotificationChannelUpdate,
+    db: AsyncSession = Depends(get_db, scope="function"),
+    _admin: User = Depends(require_permission("settings", "edit")),
+):
+    """Change a channel; a URL or secret is replaced only when given."""
+    channel = await _get_channel_or_404(db, channel_id)
+    if data.name is not None and data.name != channel.name:
+        if await _name_taken(db, data.name, exclude_id=channel.id):
+            raise HTTPException(status_code=400, detail="A channel with this name already exists")
+        channel.name = data.name
+    if data.format is not None:
+        channel.format = data.format
+    if data.url is not None:
+        url = _webhook_url(data.url.strip())
+        channel.url_encrypted = encrypt_integration_secret(url)
+        channel.url_prefix = _url_prefix(url)
+    if data.secret is not None:
+        channel.secret_encrypted = encrypt_integration_secret(data.secret) if data.secret else None
+    if data.run_filter is not None:
+        channel.run_filter = data.run_filter
+    if data.enabled is not None:
+        channel.enabled = data.enabled
+    await record_audit_event(
+        db,
+        "notification_channel.updated",
+        target_type="notification_channel",
+        target_id=channel.id,
+        details={"name": channel.name, "fields": sorted(data.model_fields_set)},
+    )
+    await db.commit()
+    await db.refresh(channel)
+    return _channel_response(channel)
+
+
+@router.delete(
+    "/notifications/channels/{channel_id}",
+    status_code=204,
+    responses={404: {"description": HTTPStatus(404).phrase}},
+)
+async def delete_notification_channel(
+    channel_id: int,
+    db: AsyncSession = Depends(get_db, scope="function"),
+    _admin: User = Depends(require_permission("settings", "edit")),
+):
+    """Remove a channel and its delivery history."""
+    channel = await _get_channel_or_404(db, channel_id)
+    await record_audit_event(
+        db,
+        "notification_channel.deleted",
+        target_type="notification_channel",
+        target_id=channel.id,
+        details={"name": channel.name},
+    )
+    await db.delete(channel)
+    await db.commit()
+    return Response(status_code=204)
+
+
+@router.post(
+    "/notifications/channels/{channel_id}/test",
+    response_model=NotificationTestResult,
+    responses={404: {"description": HTTPStatus(404).phrase}},
+)
+async def test_notification_channel(
+    channel_id: int,
+    db: AsyncSession = Depends(get_db, scope="function"),
+    _admin: User = Depends(require_permission("settings", "edit")),
+):
+    """Post a sample run summary to the channel so the administrator sees it in the tool."""
+    channel = await _get_channel_or_404(db, channel_id)
+    delivery = await send_test_message(db, channel, wait=wait_fixed(1))
+    await db.commit()
+    return NotificationTestResult(
+        delivered=bool(delivery and delivery.delivered),
+        attempts=delivery.attempt if delivery else 0,
+        status_code=delivery.status_code if delivery else None,
+        error=delivery.error if delivery else None,
+    )

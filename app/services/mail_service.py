@@ -1,3 +1,4 @@
+import html
 import logging
 import smtplib
 from email.message import EmailMessage
@@ -63,37 +64,38 @@ def send_email(
             f"(STARTTLS={settings.SMTP_STARTTLS}, SSL={settings.SMTP_SSL}): "
             f"{type(exc).__name__}: {exc}"
         )
-        logger.error("Mail delivery failed: %s", detail)
+        logger.error("Mail delivery failed (%s)", type(exc).__name__)
         raise MailDeliveryError(detail) from exc
 
-    logger.info("Sent email '%s' to %s", subject, to_email)
+    logger.info("Email sent")
+
+
+def _send_template(to_email: str, subject: str, template: str, context: dict[str, str]) -> None:
+    """Send the text and HTML versions of a template, with the app name in its context."""
+    context = {**context, "app_name": settings.BUD_APP_NAME}
+    send_email(
+        to_email=to_email,
+        subject=subject,
+        text_body=render_template(f"{template}.txt", context),
+        html_body=render_template(f"{template}.html", context),
+    )
 
 
 def send_invite_email(*, to_email: str, full_name: str, invite_link: str) -> None:
-    context = {
-        "full_name": full_name,
-        "invite_link": invite_link,
-        "app_name": settings.BUD_APP_NAME,
-    }
-    send_email(
-        to_email=to_email,
-        subject=f"You're invited to {settings.BUD_APP_NAME}",
-        text_body=render_template("invite.txt", context),
-        html_body=render_template("invite.html", context),
+    _send_template(
+        to_email,
+        f"You're invited to {settings.BUD_APP_NAME}",
+        "invite",
+        {"full_name": full_name, "invite_link": invite_link},
     )
 
 
 def send_verification_email(*, to_email: str, full_name: str, verification_link: str) -> None:
-    context = {
-        "full_name": full_name,
-        "verification_link": verification_link,
-        "app_name": settings.BUD_APP_NAME,
-    }
-    send_email(
-        to_email=to_email,
-        subject=f"Verify your email for {settings.BUD_APP_NAME}",
-        text_body=render_template("verify_email.txt", context),
-        html_body=render_template("verify_email.html", context),
+    _send_template(
+        to_email,
+        f"Verify your email for {settings.BUD_APP_NAME}",
+        "verify_email",
+        {"full_name": full_name, "verification_link": verification_link},
     )
 
 
@@ -106,18 +108,16 @@ def send_email_change_email(
     confirm_link: str,
 ) -> None:
     """Ask the approved new mailbox to confirm an administrator-controlled change."""
-    context = {
-        "full_name": full_name,
-        "old_email": old_email,
-        "new_email": new_email,
-        "confirm_link": confirm_link,
-        "app_name": settings.BUD_APP_NAME,
-    }
-    send_email(
-        to_email=to_email,
-        subject=f"Confirm your approved email change for {settings.BUD_APP_NAME}",
-        text_body=render_template("email_change.txt", context),
-        html_body=render_template("email_change.html", context),
+    _send_template(
+        to_email,
+        f"Confirm your approved email change for {settings.BUD_APP_NAME}",
+        "email_change",
+        {
+            "full_name": full_name,
+            "old_email": old_email,
+            "new_email": new_email,
+            "confirm_link": confirm_link,
+        },
     )
 
 
@@ -130,45 +130,97 @@ def send_email_change_authorization_email(
     confirm_link: str,
 ) -> None:
     """Ask the current administrator mailbox to authorize a login change."""
-    context = {
-        "full_name": full_name,
-        "old_email": old_email,
-        "new_email": new_email,
-        "confirm_link": confirm_link,
-        "app_name": settings.BUD_APP_NAME,
-    }
-    send_email(
-        to_email=to_email,
-        subject=f"Authorize your email change for {settings.BUD_APP_NAME}",
-        text_body=render_template("email_change_authorization.txt", context),
-        html_body=render_template("email_change_authorization.html", context),
+    _send_template(
+        to_email,
+        f"Authorize your email change for {settings.BUD_APP_NAME}",
+        "email_change_authorization",
+        {
+            "full_name": full_name,
+            "old_email": old_email,
+            "new_email": new_email,
+            "confirm_link": confirm_link,
+        },
     )
 
 
 def send_password_reset_email(*, to_email: str, full_name: str, reset_link: str) -> None:
-    context = {
-        "full_name": full_name,
-        "reset_link": reset_link,
-        "app_name": settings.BUD_APP_NAME,
-    }
-    send_email(
-        to_email=to_email,
-        subject=f"Reset your password for {settings.BUD_APP_NAME}",
-        text_body=render_template("reset_password.txt", context),
-        html_body=render_template("reset_password.html", context),
+    _send_template(
+        to_email,
+        f"Reset your password for {settings.BUD_APP_NAME}",
+        "reset_password",
+        {"full_name": full_name, "reset_link": reset_link},
     )
 
 
 def send_admin_welcome_email(*, to_email: str, full_name: str, login_link: str) -> None:
     """Confirm to the first administrator that their account exists."""
+    _send_template(
+        to_email,
+        f"You are the administrator of {settings.BUD_APP_NAME}",
+        "admin_welcome",
+        {"full_name": full_name, "login_link": login_link},
+    )
+
+
+def send_access_request_email(
+    *,
+    to_email: str,
+    admin_name: str,
+    requester_name: str,
+    requester_email: str,
+    resource: str,
+    project: str,
+    requested_at: str,
+    request_id: str,
+    review_link: str,
+) -> None:
+    """Tell an administrator that a user asks for access to a resource."""
     context = {
-        "full_name": full_name,
-        "login_link": login_link,
+        "admin_name": admin_name,
+        "requester_name": requester_name,
+        "requester_email": requester_email,
+        "resource": resource,
+        "project_part": f" in project {project}" if project else "",
+        "requested_at": requested_at,
+        "request_id": request_id,
+        "review_link": review_link,
         "app_name": settings.BUD_APP_NAME,
     }
     send_email(
         to_email=to_email,
-        subject=f"You are the administrator of {settings.BUD_APP_NAME}",
-        text_body=render_template("admin_welcome.txt", context),
-        html_body=render_template("admin_welcome.html", context),
+        subject=f"Access requested on {settings.BUD_APP_NAME}: {resource}",
+        text_body=render_template("access_request.txt", context),
+        html_body=render_template(
+            "access_request.html", {key: html.escape(value) for key, value in context.items()}
+        ),
+    )
+
+
+def send_report_request_email(
+    *,
+    to_email: str,
+    publisher_name: str,
+    requester_name: str,
+    requester_email: str,
+    project: str,
+    run_id: str,
+    review_link: str,
+) -> None:
+    """Tell a report publisher about a Bloom reader's pending request."""
+    context = {
+        "publisher_name": publisher_name,
+        "requester_name": requester_name,
+        "requester_email": requester_email,
+        "project": project,
+        "run_id": run_id,
+        "review_link": review_link,
+        "app_name": settings.BUD_APP_NAME,
+    }
+    send_email(
+        to_email=to_email,
+        subject=f"Report requested on {settings.BUD_APP_NAME}: run #{run_id}",
+        text_body=render_template("report_request.txt", context),
+        html_body=render_template(
+            "report_request.html", {key: html.escape(value) for key, value in context.items()}
+        ),
     )

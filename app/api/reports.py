@@ -2,20 +2,21 @@
 
 from __future__ import annotations
 
-from typing import Optional, Union
+from typing import Optional
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.auth import get_current_active_entity
+from app.api.company_logo import load_report_logo
 from app.api.test_runs import _scope_conditions
-from app.core.run_access import require_run_access
+from app.core.run_access import load_run
 from app.db import get_db
 from app.models import Runner, TestRun
 from app.models.user import User
+from app.services.audit import record_audit_event
 from app.services.report_pdf import render_report
 from app.services.run_reports import build_run_report, build_summary_report
 
@@ -50,8 +51,8 @@ async def test_run_summary_report(
         None, description="Only include runs executed by this Test Station."
     ),
     suite: Optional[str] = Query(None, description="Only include runs for this test suite name."),
-    db: AsyncSession = Depends(get_db),
-    current_entity: Union[User, Runner] = Depends(get_current_active_entity),
+    db: AsyncSession = Depends(get_db, scope="function"),
+    current_entity: User | Runner = Depends(get_current_active_entity),
 ):
     """A filtered test report: overall pie chart plus per-suite, per-station and per-day tables."""
     conditions = await _scope_conditions(
@@ -61,10 +62,17 @@ async def test_run_summary_report(
     # the statistics endpoint.
     conditions = conditions if conditions is not None else [TestRun.id.is_(None)]
 
+    await record_audit_event(
+        db,
+        "export.generated",
+        target_type="report",
+        details={"kind": "summary_pdf"},
+    )
     pdf = render_report(
         await build_summary_report(
             db, conditions, days=days, runner_account=runner_account, suite=suite
-        )
+        ),
+        await load_report_logo(db),
     )
     stem = "bud-test-report"
     if suite:
@@ -77,20 +85,24 @@ async def test_run_summary_report(
 @router.get("/test-runs/{run_id}.pdf")
 async def test_run_report(
     run_id: int,
-    db: AsyncSession = Depends(get_db),
-    current_entity: Union[User, Runner] = Depends(get_current_active_entity),
+    db: AsyncSession = Depends(get_db, scope="function"),
+    current_entity: User | Runner = Depends(get_current_active_entity),
 ):
     """A single run: its identity, its outcome pie chart, and every result it recorded."""
-    run = (
-        await db.execute(
-            select(TestRun)
-            .where(TestRun.id == run_id)
-            .options(selectinload(TestRun.runner), selectinload(TestRun.product))
-        )
-    ).scalar_one_or_none()
-    if run is None:
-        raise HTTPException(status_code=404, detail="Test run not found")
-    require_run_access(current_entity, run)
+    run = await load_run(
+        db,
+        current_entity,
+        run_id,
+        options=(selectinload(TestRun.runner), selectinload(TestRun.product)),
+    )
 
-    pdf = render_report(await build_run_report(db, run))
+    await record_audit_event(
+        db,
+        "export.generated",
+        target_type="test_run",
+        target_id=run.id,
+        product_id=run.product_id,
+        details={"kind": "run_pdf"},
+    )
+    pdf = render_report(await build_run_report(db, run), await load_report_logo(db))
     return _pdf_response(pdf, _safe_filename(f"bud-run-{run.id}-{run.name}"))

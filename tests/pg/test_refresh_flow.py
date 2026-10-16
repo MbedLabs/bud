@@ -52,7 +52,8 @@ def test_refresh_rotates_and_replayed_old_token_is_rejected(client):
     first = client.post("/api/auth/refresh")  # rotates: jar now holds a new token
     assert first.status_code == 200
     new_value = client.cookies.get(COOKIE)
-    assert new_value and new_value != old_value
+    assert new_value
+    assert new_value != old_value
 
     # Replaying the burned original refresh token must fail.
     client.cookies.clear()

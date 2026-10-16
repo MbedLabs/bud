@@ -170,3 +170,102 @@ async def test_sync_results_to_bloom_records_failed_event_on_401(_engine, monkey
     assert events[1].title == "Bloom sync failed"
     assert events[1].message == "Bloom returned HTTP 401."
     assert events[1].event_metadata == {"response": "unauthorized"}
+
+
+@pytest.mark.asyncio
+async def test_coalesce_counts_what_it_leaves_out():
+    results = [
+        SimpleNamespace(passed=True, error_message=None, created_at=None, test_metadata=None),
+        SimpleNamespace(passed=True, error_message=None, created_at=None, test_metadata={}),
+        SimpleNamespace(
+            passed=True,
+            error_message="not on this bench",
+            created_at=None,
+            test_metadata={"tc_id": "PRJ-TC-002", "skipped": True},
+        ),
+        SimpleNamespace(
+            passed=True, error_message=None, created_at=None, test_metadata={"tc_id": "PRJ-TC-003"}
+        ),
+    ]
+    tally: dict = {}
+    rows = await _coalesce_results_by_tc_id(async_iter(results), 8, tally)
+    assert [r["tc_id"] for r in rows] == ["PRJ-TC-003"]
+    assert tally == {"unidentified": 2, "skipped": 1}
+    assert bloom_sync_service._left_out(tally) == (
+        " 2 result(s) had no Bloom tc_id; 1 skipped result(s) were not sent."
+    )
+    assert bloom_sync_service._left_out({"unidentified": 0, "skipped": 0}) == ""
+
+
+async def _sync_events(run_id):
+    async with db_module.async_session_maker() as session:
+        return (
+            (
+                await session.execute(
+                    select(TestRunEvent)
+                    .where(TestRunEvent.test_run_id == run_id)
+                    .order_by(TestRunEvent.sequence)
+                )
+            )
+            .scalars()
+            .all()
+        )
+
+
+@pytest.mark.asyncio
+async def test_sync_events_name_the_results_left_out(_engine, monkeypatch):
+    monkeypatch.setattr(settings, "INTEGRATION_ENCRYPTION_KEY", Fernet.generate_key().decode())
+
+    class OkResponse:
+        status_code = 200
+
+        def json(self):
+            return {"updated": 1}
+
+    async def fake_post(bloom_url, bloom_token, payload_results):
+        return OkResponse()
+
+    monkeypatch.setattr(bloom_sync_service, "_post_to_bloom_with_retry", fake_post)
+
+    async with db_module.async_session_maker() as session:
+        session.add_all(
+            [
+                SystemSetting(key="bloom_url", value="https://bloom.example.com"),
+                SystemSetting(
+                    key="bloom_token_encrypted", value=encrypt_integration_secret("token")
+                ),
+            ]
+        )
+        only_untagged = TestRun(name="untagged", test_case_list="Robot", status="Completed")
+        mixed = TestRun(name="mixed", test_case_list="Robot", status="Completed")
+        session.add_all([only_untagged, mixed])
+        await session.flush()
+        session.add_all(
+            [
+                TestResult(
+                    test_run_id=only_untagged.id, test_class="Bench", test_method="a", passed=True
+                ),
+                TestResult(
+                    test_run_id=mixed.id,
+                    test_class="Bench",
+                    test_method="b",
+                    passed=True,
+                    test_metadata={"tc_id": "PRJ-TC-001"},
+                ),
+                TestResult(test_run_id=mixed.id, test_class="Bench", test_method="c", passed=True),
+            ]
+        )
+        await session.commit()
+        untagged_id, mixed_id = only_untagged.id, mixed.id
+
+    await bloom_sync_service.sync_results_to_bloom(untagged_id)
+    await bloom_sync_service.sync_results_to_bloom(mixed_id)
+
+    skipped = await _sync_events(untagged_id)
+    assert skipped[-1].message == (
+        "No result metadata included a Bloom tc_id to match. 1 result(s) had no Bloom tc_id."
+    )
+    completed = await _sync_events(mixed_id)
+    assert completed[-1].message == (
+        "Bloom updated 1 test case execution record(s). 1 result(s) had no Bloom tc_id."
+    )

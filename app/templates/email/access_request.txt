@@ -1,0 +1,12 @@
+Hello ${admin_name},
+
+${requester_name} (${requester_email}) asks for access to ${resource}${project_part} on ${app_name}.
+
+Requested: ${requested_at}
+Reference: ${request_id}
+
+Review the access: ${review_link}
+
+Grant it there, then mark the request granted or refused.
+
+(c) 2026 EmbedLabs. All rights reserved.

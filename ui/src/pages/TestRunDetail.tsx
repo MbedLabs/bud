@@ -1,8 +1,10 @@
+import ReportRequests from '../components/ReportRequests'
 import { useMemo, useState } from 'react'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useParams, Link } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
 import {
+  accessRequestsApi,
   artifactsApi,
   extractApiErrorMessage,
   reportsApi,
@@ -24,18 +26,19 @@ import {
 } from '../lib/testRunResultFilters'
 import { formatDateTime } from '../test/date-utils'
 import { safeExternalUrl } from '../lib/externalLink'
-import {
-  ArrowLeft, CheckCircle, XCircle, Clock, AlertCircle, Activity,
-  ChevronDown, ChevronRight, UploadCloud, RefreshCw, Radio, GitBranch,
-  Filter, X, FileDown, Paperclip, FileText, Download, ExternalLink,
-} from 'lucide-react'
+import { ArrowLeft, CheckCircle, XCircle, Clock, AlertCircle, Activity, ChevronDown, ChevronRight, UploadCloud, RefreshCw, Radio, GitBranch, Filter, X, Paperclip, FileText, Download, ExternalLink, Bell } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
+import AccessDenied from '../components/AccessDenied'
+import { useAuth } from '../contexts/AuthContext'
+import { can } from '../lib/access'
+import { isAccessDenied } from '../lib/accessDenied'
+import RunStatusBadge from '../components/RunStatusBadge'
+import PdfReportButton from '../components/PdfReportButton'
 
 export default function TestRunDetail() {
   const { id } = useParams<{ id: string }>()
   const runId = parseInt(id || '0')
   const [reportError, setReportError] = useState<string | null>(null)
-  const [reportPending, setReportPending] = useState(false)
   const [systemReportOpen, setSystemReportOpen] = useState(false)
   const [resultsFiltersOpen, setResultsFiltersOpen] = useState(false)
   const [outcomeFilters, setOutcomeFilters] = useState<OutcomeFilters>(EMPTY_OUTCOME_FILTERS)
@@ -70,6 +73,10 @@ export default function TestRunDetail() {
         <div className="text-muted-foreground">Loading...</div>
       </div>
     )
+  }
+
+  if (isAccessDenied(runError)) {
+    return <AccessDenied resourceType="test-run" resourceRef={id ?? ''} />
   }
 
   if (runError || !run) {
@@ -110,28 +117,12 @@ export default function TestRunDetail() {
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <button
-            type="button"
-            onClick={async () => {
-              setReportError(null)
-              setReportPending(true)
-              try {
-                const { blob, filename } = await reportsApi.testRun(runId)
-                saveBlob(blob, filename)
-              } catch (error) {
-                setReportError(extractApiErrorMessage(error, 'Could not generate the report'))
-              } finally {
-                setReportPending(false)
-              }
-            }}
-            disabled={reportPending}
+          <PdfReportButton
+            fetchReport={() => reportsApi.testRun(runId)}
             title="Download this run as a PDF report"
-            className="inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-2.5 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <FileDown className="h-4 w-4" />
-            {reportPending ? 'Preparing…' : 'PDF report'}
-          </button>
-          <StatusBadge status={run.status} />
+            onError={setReportError}
+          />
+          <RunStatusBadge status={run.status} large />
         </div>
       </div>
 
@@ -183,8 +174,8 @@ export default function TestRunDetail() {
             <div
               className={`h-full rounded-full transition-all duration-700 ${
                 parseFloat(passRate) >= 80
-                  ? 'bg-gradient-to-r from-emerald-500 to-emerald-400'
-                  : 'bg-gradient-to-r from-amber-500 to-amber-400'
+                  ? 'bg-linear-to-r/srgb from-emerald-500 to-emerald-400'
+                  : 'bg-linear-to-r/srgb from-amber-500 to-amber-400'
               }`}
               style={{ width: `${passRate}%` }}
             />
@@ -217,7 +208,7 @@ export default function TestRunDetail() {
               <dt className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
                 Bloom suite
               </dt>
-              <dd className="text-sm text-foreground mt-1 break-words">
+              <dd className="text-sm text-foreground mt-1 wrap-break-word">
                 {safeExternalUrl(run.bloom_artefact_url) ? (
                   <a
                     href={safeExternalUrl(run.bloom_artefact_url) as string}
@@ -371,7 +362,8 @@ export default function TestRunDetail() {
 
       <RunArtifacts artifacts={artifacts} isLoading={artifactsLoading} />
 
-      <PublishToBloom runId={runId} status={run.status} />
+      <ReportRequests runId={runId} />
+      <PublishSection runId={runId} status={run.status} />
     </div>
   )
 }
@@ -385,7 +377,7 @@ export default function TestRunDetail() {
  * because the endpoint is authenticated and a plain href arrives without a
  * token.
  */
-function RunArtifacts({ artifacts, isLoading }: { artifacts?: Artifact[]; isLoading: boolean }) {
+function RunArtifacts({ artifacts, isLoading }: Readonly<{ artifacts?: Artifact[]; isLoading: boolean }>) {
   const [downloading, setDownloading] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -477,7 +469,7 @@ function formatBytes(bytes: number): string {
   return `${value < 10 ? value.toFixed(1) : Math.round(value)} ${units[unit]}`
 }
 
-function RunEventTimeline({ events }: { events: TestRunEvent[] }) {
+function RunEventTimeline({ events }: Readonly<{ events: TestRunEvent[] }>) {
   return (
     <div className="divide-y divide-border">
       {events.map((event) => {
@@ -523,6 +515,7 @@ function getStageIcon(stage: string): LucideIcon {
     execution: Activity,
     results: UploadCloud,
     bloom_sync: RefreshCw,
+    notify: Bell,
   }
   return icons[stage] || Activity
 }
@@ -569,6 +562,8 @@ function formatEventStatus(status: string): string {
 
 interface AssertionShape {
   passed?: boolean
+  skipped?: boolean
+  info?: boolean
   message?: string
   assertion_type?: string
   expected?: unknown
@@ -586,10 +581,10 @@ interface AssertionShape {
 function ResultsTable({
   results,
   outcomeFilters,
-}: {
+}: Readonly<{
   results: TestResult[]
   outcomeFilters: OutcomeFilters
-}) {
+}>) {
   const [expandedCases, setExpandedCases] = useState<Record<string, boolean>>({})
   const testCases = useMemo(() => groupResultsByTestCase(results), [results])
   const visibleTestCases = useMemo(
@@ -717,6 +712,7 @@ function groupResultsByTestCase(results: TestResult[]): TestCaseGroup[] {
         durationSeconds: result.duration_seconds,
         methodErrorMessage: result.error_message,
       })
+      if (assertion.skipped || assertion.info) return
       group.assertionCount += 1
       if (passed) group.passedAssertions += 1
       else group.failedAssertions += 1
@@ -750,7 +746,7 @@ interface AssertionViewModel extends AssertionShape {
   methodErrorMessage: string | null
 }
 
-function ResultDetail({ assertions }: { assertions: AssertionViewModel[] }) {
+function ResultDetail({ assertions }: Readonly<{ assertions: AssertionViewModel[] }>) {
   return (
     <div className="space-y-2 pl-10">
       {assertions.length > 0 ? (
@@ -762,21 +758,24 @@ function ResultDetail({ assertions }: { assertions: AssertionViewModel[] }) {
   )
 }
 
-function AssertionRow({ assertion, index }: { assertion: AssertionViewModel; index: number }) {
+function AssertionRow({ assertion, index }: Readonly<{ assertion: AssertionViewModel; index: number }>) {
   const passed = assertion.passed !== false
+  const neutral = assertion.skipped === true || assertion.info === true
   const expected = assertion.expected
   const actual = assertion.actual
   const message = assertion.message || '(no message)'
   const assertionType = assertion.assertion_type || inferAssertionType(assertion)
   return (
     <div className={`border-l-2 py-2 pl-3 pr-2 text-xs ${
-      passed
-        ? 'border-emerald-500/50 bg-emerald-500/[0.02]'
-        : 'border-red-500/70 bg-red-500/[0.03]'
+      neutral
+        ? 'border-border bg-transparent'
+        : passed
+          ? 'border-emerald-500/50 bg-emerald-500/2'
+          : 'border-red-500/70 bg-red-500/3'
     }`}>
       <div className="flex items-start gap-2">
         {passed ? (
-          <CheckCircle className="h-3.5 w-3.5 text-emerald-500 mt-0.5 shrink-0" />
+          <CheckCircle className={`h-3.5 w-3.5 mt-0.5 shrink-0 ${neutral ? 'text-foreground' : 'text-emerald-500'}`} />
         ) : (
           <XCircle className="h-3.5 w-3.5 text-red-500 mt-0.5 shrink-0" />
         )}
@@ -784,9 +783,11 @@ function AssertionRow({ assertion, index }: { assertion: AssertionViewModel; ind
           <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
             <span className="font-mono text-[11px] text-muted-foreground">#{index}</span>
             <span className={`text-[11px] font-semibold ${
-              passed
-                ? 'text-emerald-700 dark:text-emerald-400'
-                : 'text-red-700 dark:text-red-400'
+              neutral
+                ? 'text-foreground'
+                : passed
+                  ? 'text-emerald-700 dark:text-emerald-400'
+                  : 'text-red-700 dark:text-red-400'
             }`}>
               {assertionType}
             </span>
@@ -828,7 +829,7 @@ function AssertionRow({ assertion, index }: { assertion: AssertionViewModel; ind
               <summary className="cursor-pointer text-[11px] text-muted-foreground hover:text-foreground">
                 trace
               </summary>
-              <pre className="mt-1 text-[11px] leading-relaxed text-foreground bg-background border border-border rounded-md p-2 overflow-x-auto whitespace-pre-wrap break-words">
+              <pre className="mt-1 text-[11px] leading-relaxed text-foreground bg-background border border-border rounded-md p-2 overflow-x-auto whitespace-pre-wrap wrap-break-word">
                 {assertion.traceback}
               </pre>
             </details>
@@ -847,41 +848,25 @@ function formatVal(v: unknown): string {
   return String(v)
 }
 
-function DetailItem({ label, value }: { label: string; value: string }) {
+function DetailItem({ label, value }: Readonly<{ label: string; value: string }>) {
   return (
     <div>
       <dt className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">{label}</dt>
-      <dd className="text-sm text-foreground mt-1 break-words">{value}</dd>
+      <dd className="text-sm text-foreground mt-1 wrap-break-word">{value}</dd>
     </div>
-  )
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const config: Record<string, string> = {
-    Pending: 'bg-yellow-500/10 text-yellow-700 dark:text-yellow-400',
-    Running: 'bg-amber-500/10 text-amber-800 dark:text-amber-300',
-    Completed: 'bg-amber-500/10 text-amber-800 dark:text-amber-300',
-    Failed: 'bg-red-500/10 text-red-700 dark:text-red-400',
-    Cancelled: 'bg-muted text-muted-foreground',
-  }
-
-  return (
-    <span className={`px-3 py-1.5 rounded-md text-xs font-semibold ${config[status] || config.Pending}`}>
-      {status}
-    </span>
   )
 }
 
 /** Reports the test-case count and the assertion count side by side, because a run
  *  summarised by only one of the two is ambiguous. */
-function SummaryCard({ label, tests, assertions, icon: Icon, gradient, iconColor }: {
+function SummaryCard({ label, tests, assertions, icon: Icon, gradient, iconColor }: Readonly<{
   label: string
   tests: number
   assertions: number
   icon: React.ComponentType<{ className?: string }>
   gradient: string
   iconColor: string
-}) {
+}>) {
   return (
     <div className="bg-card rounded-lg border border-border shadow-elegant p-4">
       <div className="flex items-center justify-between">
@@ -900,7 +885,7 @@ function SummaryCard({ label, tests, assertions, icon: Icon, gradient, iconColor
             </span>
           </div>
         </div>
-        <div className={`p-2.5 rounded-lg bg-gradient-to-br ${gradient}`}>
+        <div className={`p-2.5 rounded-lg bg-linear-to-br/srgb ${gradient}`}>
           <Icon className={`h-5 w-5 ${iconColor}`} />
         </div>
       </div>
@@ -908,7 +893,7 @@ function SummaryCard({ label, tests, assertions, icon: Icon, gradient, iconColor
   )
 }
 
-function ResultIcon({ status }: { status: string }) {
+function ResultIcon({ status }: Readonly<{ status: string }>) {
   switch (status) {
     case 'passed':
       return <CheckCircle className="h-4 w-4 text-emerald-500" />
@@ -931,7 +916,7 @@ function formatDuration(seconds: number): string {
   return `${hours}h ${mins}m`
 }
 
-function OutcomeFilterChip({ label }: { label: string }) {
+function OutcomeFilterChip({ label }: Readonly<{ label: string }>) {
   return (
     <span className="inline-flex items-center rounded-md border border-border bg-background px-2 py-0.5 text-xs font-medium text-foreground">
       {label}
@@ -947,7 +932,60 @@ function OutcomeFilterChip({ label }: { label: string }) {
  * PLM every night, and a project holding a year of them is harder to read than
  * one holding none.
  */
-function PublishToBloom({ runId, status }: { runId: number; status: string }) {
+function PublishSection({ runId, status }: { runId: number; status: string }) {
+  const { user } = useAuth()
+  return can(user, 'bloom_publish.execute') ? (
+    <PublishToBloom runId={runId} status={status} />
+  ) : (
+    <RequestPublishing runId={runId} />
+  )
+}
+
+/**
+ * Where the Publish button would be for someone without Publish to Bloom: they ask for it,
+ * and an Admin or access manager grants it by giving a group that holds it.
+ */
+function RequestPublishing({ runId }: Readonly<{ runId: number }>) {
+  const queryClient = useQueryClient()
+  const params = { resource_type: 'publish-to-bloom' as const, resource_ref: String(runId) }
+  const queryKey = ['access-request', params.resource_type, params.resource_ref]
+  const { data: existing } = useQuery({ queryKey, queryFn: () => accessRequestsApi.mine(params) })
+  const create = useMutation({
+    mutationFn: () => accessRequestsApi.create(params),
+    onSuccess: (created) => queryClient.setQueryData(queryKey, created),
+  })
+  const request = create.data ?? existing ?? null
+
+  return (
+    <div className="bg-card rounded-lg shadow-elegant overflow-hidden">
+      <div className="px-5 py-4 border-b border-border">
+        <h3 className="text-sm font-semibold text-foreground">Publish to Bloom</h3>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          Publishing to Bloom is not part of your access. Ask for it and an administrator or access manager decides.
+        </p>
+      </div>
+      <div className="p-5 flex flex-wrap items-center gap-3">
+        {request === null && (
+          <button
+            onClick={() => create.mutate()}
+            disabled={create.isPending}
+            className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 disabled:opacity-50"
+          >
+            Request access
+          </button>
+        )}
+        {request?.status === 'pending' && <span className="text-sm text-foreground">Access requested.</span>}
+        {request?.status === 'granted' && (
+          <span className="text-sm text-foreground">Granted. Reload the page to publish.</span>
+        )}
+        {request?.status === 'refused' && <span className="text-sm text-foreground">The request was refused.</span>}
+        {create.isError && <span className="text-sm text-red-500">{extractApiErrorMessage(create.error)}</span>}
+      </div>
+    </div>
+  )
+}
+
+function PublishToBloom({ runId, status }: Readonly<{ runId: number; status: string }>) {
   const [result, setResult] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const canPublish = status === 'Completed'

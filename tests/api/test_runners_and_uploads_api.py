@@ -317,7 +317,7 @@ async def test_runner_upload_with_unknown_run_returns_404(client, db_session):
 
 @pytest.mark.asyncio
 async def test_oversized_upload_streams_to_413_and_leaves_no_partial_file(
-    client, db_session, monkeypatch
+    station_upload, monkeypatch
 ):
     """The streamed upload path must reject past-cap bodies with 413 and clean up."""
     import app.api.uploads as uploads_module
@@ -328,10 +328,7 @@ async def test_oversized_upload_streams_to_413_and_leaves_no_partial_file(
     upload_root = uploads_module.get_upload_root()
     before = set(upload_root.glob("*")) if upload_root.exists() else set()
 
-    response = client.post(
-        "/api/uploads",
-        files={"file": ("too-big.txt", b"x" * 64, "text/plain")},
-    )
+    response = station_upload("too-big.txt", b"x" * 64)
 
     assert response.status_code == 413
     assert "File too large" in response.json()["detail"]
@@ -340,33 +337,29 @@ async def test_oversized_upload_streams_to_413_and_leaves_no_partial_file(
 
 
 @pytest.mark.asyncio
-async def test_upload_at_exact_file_limit_is_accepted(client, monkeypatch):
+async def test_upload_at_exact_file_limit_is_accepted(station_upload, monkeypatch):
     from app.core.config import settings as app_settings
 
     monkeypatch.setattr(app_settings, "MAX_UPLOAD_SIZE", 10)
     monkeypatch.setattr(app_settings, "MIN_UPLOAD_FREE_BYTES", 0)
 
-    response = client.post(
-        "/api/uploads",
-        files={"file": ("at-limit.txt", b"x" * 10, "text/plain")},
-    )
+    response = station_upload("at-limit.txt", b"x" * 10)
 
     assert response.status_code == 201
     assert response.json()["size_bytes"] == 10
 
 
 @pytest.mark.asyncio
-async def test_upload_rejects_invalid_display_metadata_before_writing(client):
-    response = client.post(
-        "/api/uploads",
-        files={"file": (("x" * 256) + ".txt", b"safe", "text/plain")},
-    )
+async def test_upload_rejects_invalid_display_metadata_before_writing(station_upload):
+    response = station_upload(("x" * 256) + ".txt", b"safe")
 
     assert response.status_code == 422
 
 
 @pytest.mark.asyncio
-async def test_upload_rejects_when_free_space_reserve_cannot_be_preserved(client, monkeypatch):
+async def test_upload_rejects_when_free_space_reserve_cannot_be_preserved(
+    station_upload, monkeypatch
+):
     import app.services.artifact_storage as storage_module
     from app.core.config import settings as app_settings
 
@@ -377,10 +370,7 @@ async def test_upload_rejects_when_free_space_reserve_cannot_be_preserved(client
         lambda _path: type("Usage", (), {"free": 1024})(),
     )
 
-    response = client.post(
-        "/api/uploads",
-        files={"file": ("trace.txt", b"data", "text/plain")},
-    )
+    response = station_upload("trace.txt", b"data")
 
     assert response.status_code == 507
     assert "free space" in response.json()["detail"].lower()
@@ -388,7 +378,7 @@ async def test_upload_rejects_when_free_space_reserve_cannot_be_preserved(client
 
 @pytest.mark.asyncio
 async def test_upload_endpoint_uses_remaining_per_run_capacity(
-    client, db_session, monkeypatch, tmp_path
+    station_request, test_station, db_session, monkeypatch, tmp_path
 ):
     import app.api.uploads as uploads_module
     from app.core.config import settings as app_settings
@@ -397,7 +387,9 @@ async def test_upload_endpoint_uses_remaining_per_run_capacity(
     monkeypatch.setattr(app_settings, "MIN_UPLOAD_FREE_BYTES", 0)
     monkeypatch.setattr(app_settings, "MAX_UPLOAD_SIZE", 25)
     monkeypatch.setattr(app_settings, "MAX_RUN_UPLOAD_BYTES", 250)
-    run = TestRun(name="quota-run", test_case_list="[]", status="Running")
+    run = TestRun(
+        name="quota-run", test_case_list="[]", status="Running", runner_id=test_station.id
+    )
     db_session.add(run)
     await db_session.flush()
     db_session.add(
@@ -412,7 +404,8 @@ async def test_upload_endpoint_uses_remaining_per_run_capacity(
     )
     await db_session.commit()
 
-    response = client.post(
+    response = station_request(
+        "POST",
         "/api/uploads",
         files={"file": ("trace.txt", b"x", "text/plain")},
         data={"run_id": str(run.id)},
@@ -424,7 +417,7 @@ async def test_upload_endpoint_uses_remaining_per_run_capacity(
 
 @pytest.mark.asyncio
 async def test_upload_endpoint_rejects_bytes_beyond_remaining_run_capacity(
-    client, db_session, monkeypatch, tmp_path
+    station_request, test_station, db_session, monkeypatch, tmp_path
 ):
     import app.api.uploads as uploads_module
     from app.core.config import settings as app_settings
@@ -433,7 +426,9 @@ async def test_upload_endpoint_rejects_bytes_beyond_remaining_run_capacity(
     monkeypatch.setattr(app_settings, "MIN_UPLOAD_FREE_BYTES", 0)
     monkeypatch.setattr(app_settings, "MAX_UPLOAD_SIZE", 25)
     monkeypatch.setattr(app_settings, "MAX_RUN_UPLOAD_BYTES", 250)
-    run = TestRun(name="quota-overflow", test_case_list="[]", status="Running")
+    run = TestRun(
+        name="quota-overflow", test_case_list="[]", status="Running", runner_id=test_station.id
+    )
     db_session.add(run)
     await db_session.flush()
     db_session.add(
@@ -448,7 +443,8 @@ async def test_upload_endpoint_rejects_bytes_beyond_remaining_run_capacity(
     )
     await db_session.commit()
 
-    response = client.post(
+    response = station_request(
+        "POST",
         "/api/uploads",
         files={"file": ("trace.txt", b"xx", "text/plain")},
         data={"run_id": str(run.id)},
@@ -520,36 +516,15 @@ async def test_runner_upload_without_run_id_is_rejected(client, db_session):
 
 
 @pytest.mark.asyncio
-async def test_admin_may_upload_unassociated_artifact(client, db_session):
-    """Only admins may upload artifacts without a run_id (the contrast to the
-    runner restriction above)."""
-    admin = User(
-        id=4242,
-        email="upload-admin@example.com",
-        full_name="Upload Admin",
-        hashed_password="not-used",
-        role=UserRole.admin,
-        is_active=True,
-        session_version=1,
+async def test_admin_cannot_upload_artifacts(client):
+    """Evidence comes from stations only; an Admin's upload is refused too."""
+    response = client.post(
+        "/api/uploads",
+        files={"file": ("artifact.txt", b"data", "text/plain")},
     )
 
-    from app.api.auth import get_current_active_entity
-    from app.main import app
-
-    async def override_entity():
-        return admin
-
-    app.dependency_overrides[get_current_active_entity] = override_entity
-    try:
-        response = client.post(
-            "/api/uploads",
-            files={"file": ("artifact.txt", b"data", "text/plain")},
-        )
-    finally:
-        app.dependency_overrides.pop(get_current_active_entity, None)
-
-    assert response.status_code == 201
-    assert response.json()["test_run_id"] is None
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Only stations can upload artifacts"
 
 
 @pytest.mark.asyncio

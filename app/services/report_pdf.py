@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from html import escape
 from io import BytesIO
 from pathlib import Path
@@ -29,6 +29,8 @@ from reportlab.platypus import (
     Table,
     TableStyle,
 )
+
+from app.core.timestamps import second_utc
 
 ASSETS = Path(__file__).resolve().parent.parent / "assets"
 BUD_LOGO = ASSETS / "bud-logo.png"
@@ -347,7 +349,10 @@ def _assertions_table(
 
 
 def _draw_footer(canvas, doc) -> None:
-    """ "Powered by EmbedLabs" on every page, with the page number."""
+    """ "Powered by EmbedLabs" on every page, with the page number.
+
+    Tamper-evidence branding, deployment-agnostic - always present. The
+    customer's own company logo lives on the header (top-left), not here."""
     canvas.saveState()
     width, _ = A4
     baseline = FOOTER_HEIGHT - 4 * mm
@@ -392,51 +397,76 @@ def _draw_footer(canvas, doc) -> None:
     canvas.restoreState()
 
 
-def _header(request: ReportRequest, styles: dict[str, ParagraphStyle]) -> list:
-    generated = request.generated_at or datetime.utcnow()
+def _header(request: ReportRequest, styles: dict[str, ParagraphStyle], company_logo=None) -> list:
+    generated = request.generated_at or datetime.now(timezone.utc).replace(tzinfo=None)
     meta = [
         Paragraph(f"<b>{request.title}</b>", styles["title"]),
         Paragraph(request.subtitle, styles["subtitle"]),
         Paragraph(
-            f"Generated {generated.strftime('%Y-%m-%d %H:%M')} UTC"
+            f"Generated {second_utc(generated)}"
             + (f" &middot; Bud {request.app_version}" if request.app_version else ""),
             styles["subtitle"],
         ),
     ]
 
+    # mask="auto" honours each logo's alpha channel; without it the artwork is
+    # composited onto an opaque box.
+    from reportlab.platypus import Image as PlatypusImage
+
+    cells: list = []
+    widths: list = []
+    align_cmds: list = []
+
+    # Customer company logo, top-left. Fit inside a box so a wide or tall logo
+    # is never cropped or pushed off the page edge.
+    if company_logo:
+        try:
+            ciw, cih = ImageReader(BytesIO(company_logo)).getSize()
+            ch = 12 * mm
+            cw = ch * (ciw / cih)
+            if cw > 45 * mm:
+                cw = 45 * mm
+                ch = cw * (cih / ciw)
+            # Pass a fresh BytesIO (a file-like), not the ImageReader: reportlab's
+            # Image runs os.path.splitext on its first arg and rejects an ImageReader.
+            cells.append(PlatypusImage(BytesIO(company_logo), width=cw, height=ch, mask="auto"))
+            widths.append(cw + 6)
+            align_cmds.append(("ALIGN", (0, 0), (0, 0), "LEFT"))
+        except Exception:  # noqa: BLE001 - a bad logo must never break the report
+            pass
+
+    cells.append(meta)
+    widths.append(None)
+
+    # Bud application mark, top-right.
     if BUD_LOGO.exists():
         logo = ImageReader(str(BUD_LOGO))
         iw, ih = logo.getSize()
         logo_height = 14 * mm
         logo_width = logo_height * (iw / ih)
-        from reportlab.platypus import Image as PlatypusImage
+        cells.append(
+            PlatypusImage(str(BUD_LOGO), width=logo_width, height=logo_height, mask="auto")
+        )
+        widths.append(logo_width + 4)
+        align_cmds.append(("ALIGN", (len(cells) - 1, 0), (len(cells) - 1, 0), "RIGHT"))
 
-        # mask="auto" honours the logo's alpha channel; without it the artwork
-        # is composited onto an opaque box.
-        banner = Table(
+    if len(cells) == 1:
+        return meta
+
+    banner = Table([cells], colWidths=widths, hAlign="LEFT")
+    banner.setStyle(
+        TableStyle(
             [
-                [
-                    meta,
-                    PlatypusImage(str(BUD_LOGO), width=logo_width, height=logo_height, mask="auto"),
-                ]
-            ],
-            colWidths=[None, logo_width + 4],
-            hAlign="LEFT",
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+                ("TOPPADDING", (0, 0), (-1, -1), 0),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+                *align_cmds,
+            ]
         )
-        banner.setStyle(
-            TableStyle(
-                [
-                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
-                    ("ALIGN", (1, 0), (1, 0), "RIGHT"),
-                    ("LEFTPADDING", (0, 0), (-1, -1), 0),
-                    ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-                    ("TOPPADDING", (0, 0), (-1, -1), 0),
-                    ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
-                ]
-            )
-        )
-        return [banner]
-    return meta
+    )
+    return [banner]
 
 
 def _run_facts(run: RunDetail, styles: dict[str, ParagraphStyle]) -> Table:
@@ -457,11 +487,11 @@ def _run_facts(run: RunDetail, styles: dict[str, ParagraphStyle]) -> Table:
         ["Product", value(run.product)],
         [
             "Started",
-            value(run.started_at.strftime("%Y-%m-%d %H:%M UTC") if run.started_at else None),
+            value(second_utc(run.started_at) or None),
         ],
         [
             "Completed",
-            value(run.completed_at.strftime("%Y-%m-%d %H:%M UTC") if run.completed_at else None),
+            value(second_utc(run.completed_at) or None),
         ],
         [
             "Duration",
@@ -490,7 +520,7 @@ def _run_facts(run: RunDetail, styles: dict[str, ParagraphStyle]) -> Table:
     return table
 
 
-def render_report(request: ReportRequest) -> bytes:
+def render_report(request: ReportRequest, company_logo=None) -> bytes:
     """Render a report to PDF bytes."""
     styles = _styles()
     buffer = BytesIO()
@@ -507,7 +537,7 @@ def render_report(request: ReportRequest) -> bytes:
     )
 
     story: list = []
-    story.extend(_header(request, styles))
+    story.extend(_header(request, styles, company_logo=company_logo))
     story.append(Spacer(1, 6 * mm))
 
     if request.filters:

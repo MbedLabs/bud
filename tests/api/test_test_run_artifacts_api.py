@@ -130,8 +130,9 @@ class TestListingARunsArtifacts:
         # rebuilds the path from it. Publishing it invites a client to try.
         assert "storage_path" not in item
 
-    def test_a_run_with_nothing_attached_is_an_empty_list(self, client):
-        run_id = client.post(
+    def test_a_run_with_nothing_attached_is_an_empty_list(self, client, station_request):
+        run_id = station_request(
+            "POST",
             "/api/test-runs",
             json={"test_suite_name": "Empty", "test_case_list": "SmokeTests"},
         ).json()["id"]
@@ -173,23 +174,32 @@ class TestWhatARunIsAllowedToUpload:
     def test_the_types_a_run_produces_are_accepted(self, content_type, why):
         assert content_type in settings.ALLOWED_UPLOAD_MIME_TYPES, why
 
-    def test_html_is_still_refused(self):
-        # Stored HTML served back from the API origin is the one shape that
-        # turns an artifact into a cross-site scripting vector.
-        assert "text/html" not in settings.ALLOWED_UPLOAD_MIME_TYPES
+    def test_html_is_accepted_only_as_a_sandboxed_download(self):
+        """Stored HTML served from the API origin would be a cross-site scripting
+        vector; it is accepted for Robot reports because every artifact download is an
+        attachment with a sandbox policy (see test_html_artifacts)."""
+        from app.api.uploads import ARTIFACT_DOWNLOAD_HEADERS
 
-    def test_an_upload_of_an_allowed_type_is_accepted(self, client, tmp_path, monkeypatch):
+        assert "text/html" in settings.ALLOWED_UPLOAD_MIME_TYPES
+        assert ARTIFACT_DOWNLOAD_HEADERS["Content-Security-Policy"] == "sandbox"
+        assert "text/javascript" not in settings.ALLOWED_UPLOAD_MIME_TYPES
+
+    def test_an_upload_of_an_allowed_type_is_accepted(
+        self, client, station_request, tmp_path, monkeypatch
+    ):
         monkeypatch.setattr(settings, "UPLOAD_DIR", str(tmp_path))
         from app.api import uploads
 
         monkeypatch.setattr(uploads, "_UPLOAD_ROOT", None)
 
-        run_id = client.post(
+        run_id = station_request(
+            "POST",
             "/api/test-runs",
             json={"test_suite_name": "Captures", "test_case_list": "SmokeTests"},
         ).json()["id"]
 
-        response = client.post(
+        response = station_request(
+            "POST",
             "/api/uploads",
             files={
                 "file": ("throughput.pcap", io.BytesIO(b"\xd4\xc3\xb2\xa1"), "application/x-pcapng")
@@ -204,18 +214,15 @@ class TestWhatARunIsAllowedToUpload:
         )
 
     def test_an_upload_of_a_refused_type_says_which_are_allowed(
-        self, client, tmp_path, monkeypatch
+        self, station_upload, tmp_path, monkeypatch
     ):
         monkeypatch.setattr(settings, "UPLOAD_DIR", str(tmp_path))
         from app.api import uploads
 
         monkeypatch.setattr(uploads, "_UPLOAD_ROOT", None)
 
-        response = client.post(
-            "/api/uploads",
-            files={"file": ("page.html", io.BytesIO(b"<b>x</b>"), "text/html")},
-            data={},
-        )
+        response = station_upload("page.js", io.BytesIO(b"alert(1)"), "text/javascript")
 
         assert response.status_code == 415
-        assert "text/html" in response.json()["detail"]
+        assert "text/javascript" in response.json()["detail"]
+        assert "text/plain" in response.json()["detail"]

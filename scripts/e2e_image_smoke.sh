@@ -182,12 +182,33 @@ log "Database-backed API call (list products)"
 curl -fsS "${BASE}/api/products" -H "Authorization: Bearer ${token}" >/dev/null \
   || fail "authenticated products listing failed"
 
+log "Enrolling a Test Station and creating its own test run"
+station_key="$(curl -fsS -X POST "${BASE}/api/runners/api-keys" \
+  -H "Authorization: Bearer ${token}" \
+  -H 'Content-Type: application/json' \
+  -d '{"label":"E2E evidence","station_name":"e2e-evidence"}' | json_field api_key)"
+station_token="$(curl -fsS -X POST "${BASE}/api/runners/register" \
+  -H "X-API-Key: ${station_key}" \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"e2e-evidence","password":"E2eStationPassword-1234567"}' | json_field token)"
+run_id="$(curl -fsS -X POST "${BASE}/api/test-runs" \
+  -H "Authorization: Bearer ${station_token}" \
+  -H 'Content-Type: application/json' \
+  -d '{"test_case_list":"[]","test_suite_name":"E2E artifact persistence"}' | json_field id)"
+[ -n "$run_id" ] || fail "station did not create a test run"
+
 log "Uploading a >1 MB artifact through nginx (exercises client_max_body_size)"
 upload_file="$(mktemp)"
 head -c 2097152 /dev/zero | tr '\0' 'A' > "$upload_file"   # 2 MiB, well over nginx's 1 MB default
 upload_sha="$(sha256sum "$upload_file" | awk '{print $1}')"
-artifact_id="$(curl -fsS -X POST "${BASE}/api/uploads" \
+human_upload_status="$(curl -sS -o /dev/null -w '%{http_code}' -X POST "${BASE}/api/uploads" \
   -H "Authorization: Bearer ${token}" \
+  -F "run_id=${run_id}" \
+  -F "file=@${upload_file};type=text/plain;filename=e2e.txt")"
+[ "$human_upload_status" = 403 ] || fail "human artifact upload returned ${human_upload_status}, expected 403"
+artifact_id="$(curl -fsS -X POST "${BASE}/api/uploads" \
+  -H "Authorization: Bearer ${station_token}" \
+  -F "run_id=${run_id}" \
   -F "file=@${upload_file};type=text/plain;filename=e2e.txt" | json_field id)"
 rm -f "$upload_file"
 [ -n "$artifact_id" ] || fail "upload did not return an artifact id"

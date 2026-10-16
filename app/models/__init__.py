@@ -1,7 +1,15 @@
 """Models package initialization."""
 
+from app.models.access import AccessGroup, AccessGroupMember, Policy
+from app.models.access_request import AccessRequest
+from app.models.audit import AuditEvent
+from app.models.execution_request import ExecutionRequest
+from app.models.groups import Group, GroupMembership
 from app.models.models import (
     Artifact,
+    CompanyLogo,
+    NotificationChannel,
+    NotificationDelivery,
     Product,
     Runner,
     RunnerApiKey,
@@ -12,11 +20,24 @@ from app.models.models import (
     UploadAttempt,
     UploadLease,
 )
+from app.models.report_request import ReportRequest
 from app.models.user import User, UserRole
 from app.models.user_token import UserToken, UserTokenPurpose
 
 __all__ = [
+    "ReportRequest",
+    "AccessGroup",
+    "AccessGroupMember",
+    "AccessRequest",
+    "Policy",
+    "AuditEvent",
+    "ExecutionRequest",
     "Product",
+    "Group",
+    "GroupMembership",
+    "CompanyLogo",
+    "NotificationChannel",
+    "NotificationDelivery",
     "Runner",
     "RunnerApiKey",
     "TestRun",

@@ -3,10 +3,12 @@
 import os
 from functools import lru_cache
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 from pydantic import AliasChoices, EmailStr, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+HTTP_LOCALHOST_8001 = "http://localhost:8001"
 
 BACKEND_DIR = Path(__file__).resolve().parents[2]
 ENV_FILES = (BACKEND_DIR / ".env",)
@@ -87,14 +89,17 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("BUD_AUTH_COOKIE_SECURE", "AUTH_COOKIE_SECURE"),
     )
     BUD_APP_NAME: str = "Bud TMP"
-    BUD_APP_VERSION: str = "1.1.0"
+    BUD_APP_VERSION: str = "1.2.0"
 
     APP_BASE_URL: str = Field(
-        default="http://localhost:8001",
+        default=HTTP_LOCALHOST_8001,
         validation_alias=AliasChoices("BUD_APP_BASE_URL", "APP_BASE_URL"),
     )
+    # Legacy name for APP_BASE_URL. Kept for backward compatibility and left out
+    # of .env.example and the docs on purpose. No code reads it directly;
+    # APP_BASE_URL falls back to it when only this variable is set.
     FRONTEND_BASE_URL: str = Field(
-        default="http://localhost:8001",
+        default=HTTP_LOCALHOST_8001,
         validation_alias=AliasChoices("BUD_FRONTEND_BASE_URL", "FRONTEND_BASE_URL"),
     )
 
@@ -111,7 +116,7 @@ class Settings(BaseSettings):
         default=[
             "http://localhost:3000",
             "http://localhost:5173",
-            "http://localhost:8001",
+            HTTP_LOCALHOST_8001,
         ],
         validation_alias=AliasChoices("BUD_CORS_ORIGINS", "CORS_ORIGINS"),
     )
@@ -119,6 +124,29 @@ class Settings(BaseSettings):
     # File uploads
     UPLOAD_DIR: str = Field(
         default="./uploads", validation_alias=AliasChoices("BUD_UPLOAD_DIR", "UPLOAD_DIR")
+    )
+    STORAGE_BACKEND: Literal["local", "s3"] = Field(
+        default="local",
+        validation_alias=AliasChoices("BUD_STORAGE_BACKEND", "STORAGE_BACKEND"),
+    )
+    STORAGE_LOCAL_MIRROR: bool = Field(
+        default=True,
+        validation_alias=AliasChoices("BUD_STORAGE_LOCAL_MIRROR", "STORAGE_LOCAL_MIRROR"),
+    )
+    S3_BUCKET: str = Field(default="", validation_alias=AliasChoices("BUD_S3_BUCKET", "S3_BUCKET"))
+    S3_ENDPOINT_URL: str = Field(
+        default="", validation_alias=AliasChoices("BUD_S3_ENDPOINT_URL", "S3_ENDPOINT_URL")
+    )
+    S3_REGION: str = Field(default="", validation_alias=AliasChoices("BUD_S3_REGION", "S3_REGION"))
+    S3_PREFIX: str = Field(
+        default="bud", validation_alias=AliasChoices("BUD_S3_PREFIX", "S3_PREFIX")
+    )
+    S3_ACCESS_KEY_ID: str = Field(
+        default="", validation_alias=AliasChoices("BUD_S3_ACCESS_KEY_ID", "S3_ACCESS_KEY_ID")
+    )
+    S3_SECRET_ACCESS_KEY: str = Field(
+        default="",
+        validation_alias=AliasChoices("BUD_S3_SECRET_ACCESS_KEY", "S3_SECRET_ACCESS_KEY"),
     )
     MAX_UPLOAD_SIZE: int = Field(
         default=25 * 1024 * 1024,
@@ -183,6 +211,7 @@ class Settings(BaseSettings):
         "text/xml",
         "application/xml",
         "text/csv",
+        "text/html",
         # Screenshots and plots. SVG is text, and a browser would run script
         # inside one if it were ever served inline - it is not, and the
         # download header is what keeps that true.
@@ -297,6 +326,28 @@ class Settings(BaseSettings):
             "BUD_INTEGRATION_ENCRYPTION_KEY", "INTEGRATION_ENCRYPTION_KEY"
         ),
     )
+
+    @model_validator(mode="after")
+    def require_a_bucket_for_s3(self):
+        """S3 storage needs a bucket; everything else has a working default."""
+        if self.STORAGE_BACKEND == "s3" and not self.S3_BUCKET:
+            raise ValueError("STORAGE_BACKEND=s3 needs S3_BUCKET.")
+        return self
+
+    @model_validator(mode="after")
+    def prefer_app_base_url_over_legacy_frontend_url(self):
+        # APP_BASE_URL is the public URL Bud uses in the links it emails
+        # (invites, email verification, password resets) and in report links.
+        # FRONTEND_BASE_URL is the former name of this setting and is kept
+        # only for backward compatibility: an install that sets
+        # FRONTEND_BASE_URL but not APP_BASE_URL keeps working. When both
+        # are set, APP_BASE_URL wins.
+        if (
+            "APP_BASE_URL" not in self.model_fields_set
+            and "FRONTEND_BASE_URL" in self.model_fields_set
+        ):
+            self.APP_BASE_URL = self.FRONTEND_BASE_URL
+        return self
 
     @model_validator(mode="after")
     def populate_database_url(self):

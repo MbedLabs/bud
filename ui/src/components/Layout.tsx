@@ -1,13 +1,16 @@
 import { useState, useEffect, useRef } from 'react'
 import { Suspense } from 'react'
-import { Outlet, Link, useLocation, useNavigate } from 'react-router'
+import { Outlet, Link, useLocation } from 'react-router'
 import {
   LayoutDashboard, ListChecks, PlayCircle, Server, Settings, Sun, Moon,
-  LogOut, ChevronDown, ChevronLeft, ChevronRight, Users, ExternalLink,
+  LogOut, ChevronDown, ChevronLeft, ChevronRight, Users, ExternalLink, ScrollText, Shield,
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import { can, canManageAccess } from '../lib/access'
 import { APP_VERSION } from '../api/client'
+import ProfilePicture from './ProfilePicture'
 import PoweredByEmbedLabs from './PoweredByEmbedLabs'
+import { useDarkMode } from '../hooks/useDarkMode'
 
 const getBloomUrl = (): string | null => {
   const runtimeUrl = window.runtimeConfig?.BLOOM_APP_URL
@@ -29,29 +32,8 @@ const navigation = [
   { name: 'Test Stations', href: '/test-stations', icon: Server },
 ]
 
-function useDarkMode() {
-  const [dark, setDark] = useState(() => {
-    const stored = localStorage.getItem('bud-theme')
-    if (stored) return stored === 'dark'
-    return window.matchMedia('(prefers-color-scheme: dark)').matches
-  })
-
-  useEffect(() => {
-    const root = document.documentElement
-    if (dark) {
-      root.classList.add('dark')
-    } else {
-      root.classList.remove('dark')
-    }
-    localStorage.setItem('bud-theme', dark ? 'dark' : 'light')
-  }, [dark])
-
-  return [dark, setDark] as const
-}
-
 export default function Layout() {
   const location = useLocation()
-  const navigate = useNavigate()
   const { user, logout } = useAuth()
   const [dark, setDark] = useDarkMode()
   const [userMenuOpen, setUserMenuOpen] = useState(false)
@@ -82,16 +64,17 @@ export default function Layout() {
 
   const roleBadgeColor = user?.role === 'admin'
     ? 'bg-red-500/10 text-red-400'
-    : 'bg-green-500/10 text-green-400'
+    : user?.role === 'developer'
+      ? 'bg-blue-500/10 text-blue-400'
+      : 'bg-green-500/10 text-green-400'
+
+  const [signingOut, setSigningOut] = useState(false)
 
   const handleLogout = () => {
-    logout()
-    navigate('/login')
+    if (signingOut) return
+    setSigningOut(true)
+    logout().catch(() => setSigningOut(false))
   }
-
-  const userInitials = user?.full_name
-    ? user.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
-    : 'U'
 
   return (
     <div className="h-screen flex overflow-hidden">
@@ -120,7 +103,7 @@ export default function Layout() {
                 to={item.href}
                 className={`flex items-center ${sidebarCollapsed ? 'justify-center px-2' : 'gap-2.5 px-3'} py-2 rounded-lg text-sm font-medium transition-all duration-200 group ${
                   isActive
-                    ? 'bg-sidebar-active text-white shadow-sm'
+                    ? 'bg-sidebar-active text-white shadow-xs'
                     : 'text-lime-100/70 hover:bg-sidebar-hover hover:text-white'
                 }`}
                 title={sidebarCollapsed ? item.name : undefined}
@@ -143,7 +126,7 @@ export default function Layout() {
               to="/users"
               className={`flex items-center ${sidebarCollapsed ? 'justify-center px-2' : 'gap-2.5 px-3'} py-2 rounded-lg text-sm font-medium transition-all duration-200 group ${
                 location.pathname === '/users'
-                  ? 'bg-sidebar-active text-white shadow-sm'
+                  ? 'bg-sidebar-active text-white shadow-xs'
                   : 'text-lime-100/70 hover:bg-sidebar-hover hover:text-white'
               }`}
               title={sidebarCollapsed ? 'Users' : undefined}
@@ -155,6 +138,42 @@ export default function Layout() {
             >
               <Users className="h-[18px] w-[18px] shrink-0 text-lime-300/50 group-hover:text-lime-200" />
               {!sidebarCollapsed && 'Users'}
+            </Link>
+          )}
+          {canManageAccess(user) && (
+            <Link
+              to="/access"
+              className={`flex items-center ${sidebarCollapsed ? 'justify-center px-2' : 'gap-2.5 px-3'} py-2 rounded-lg text-sm font-medium transition-all duration-200 group ${
+                location.pathname === '/access'
+                  ? 'bg-sidebar-active text-white shadow-xs'
+                  : 'text-lime-100/70 hover:bg-sidebar-hover hover:text-white'
+              }`}
+              title={sidebarCollapsed ? 'Access' : undefined}
+              onClick={() => {
+                if (sidebarCollapsed && location.pathname !== '/access') setSidebarCollapsed(false)
+              }}
+            >
+              <Shield className="h-[18px] w-[18px] shrink-0 text-lime-300/50 group-hover:text-lime-200" />
+              {!sidebarCollapsed && 'Access'}
+            </Link>
+          )}
+          {can(user, 'audit.view') && (
+            <Link
+              to="/audit"
+              className={`flex items-center ${sidebarCollapsed ? 'justify-center px-2' : 'gap-2.5 px-3'} py-2 rounded-lg text-sm font-medium transition-all duration-200 group ${
+                location.pathname === '/audit'
+                  ? 'bg-sidebar-active text-white shadow-xs'
+                  : 'text-lime-100/70 hover:bg-sidebar-hover hover:text-white'
+              }`}
+              title={sidebarCollapsed ? 'Audit log' : undefined}
+              onClick={() => {
+                if (sidebarCollapsed && location.pathname !== '/audit') {
+                  setSidebarCollapsed(false)
+                }
+              }}
+            >
+              <ScrollText className="h-[18px] w-[18px] shrink-0 text-lime-300/50 group-hover:text-lime-200" />
+              {!sidebarCollapsed && 'Audit log'}
             </Link>
           )}
         </nav>
@@ -203,7 +222,7 @@ export default function Layout() {
       <button
         type="button"
         onClick={() => setSidebarCollapsed((c) => !c)}
-        className="fixed z-[35] top-4 flex h-8 w-8 -translate-x-1/2 items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow-md transition-[left,background-color,color,box-shadow] duration-200 hover:bg-accent hover:text-foreground dark:bg-card dark:hover:bg-accent"
+        className="fixed z-35 top-4 flex h-8 w-8 -translate-x-1/2 items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow-md transition-[left,background-color,color,box-shadow] duration-200 hover:bg-accent hover:text-foreground dark:bg-card dark:hover:bg-accent"
         style={{ left: sidebarCollapsed ? SIDEBAR_EDGE.collapsed : SIDEBAR_EDGE.expanded }}
         aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
@@ -216,7 +235,7 @@ export default function Layout() {
           <div className="px-6 py-4 flex items-center justify-between">
             <div className="pl-6">
               <h2 className="text-lg font-semibold text-foreground">
-                {activeNav?.name || (location.pathname === '/settings' ? 'Settings' : location.pathname === '/users' ? 'Users' : 'Dashboard')}
+                {activeNav?.name || (location.pathname === '/settings' ? 'Settings' : location.pathname === '/users' ? 'Users' : location.pathname === '/access' ? 'Access' : location.pathname === '/audit' ? 'Audit log' : 'Dashboard')}
               </h2>
               <p className="text-xs text-muted-foreground mt-0.5">
                 {location.pathname === '/' && 'Overview of test activities'}
@@ -225,6 +244,8 @@ export default function Layout() {
                 {location.pathname === '/test-stations' && 'Monitor connected test stations'}
                 {location.pathname === '/settings' && 'Manage your preferences'}
                 {location.pathname === '/users' && 'Invite and manage members'}
+                {location.pathname === '/access' && 'Groups, policies, assignments and access requests'}
+                {location.pathname === '/audit' && 'Who did what to accounts, access, configuration and data'}
                 {location.pathname.startsWith('/runs/') && 'Test run details and results'}
               </p>
             </div>
@@ -241,9 +262,7 @@ export default function Layout() {
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
                   className="flex items-center gap-2 p-1 rounded-lg hover:bg-accent transition-colors"
                 >
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-bud-orange flex items-center justify-center text-white text-xs font-bold">
-                    {userInitials}
-                  </div>
+                  <ProfilePicture user={user} own />
                   <span className="text-sm text-foreground font-medium hidden sm:block max-w-[120px] truncate">
                     {user?.full_name}
                   </span>
@@ -261,10 +280,11 @@ export default function Layout() {
                     <div className="py-1">
                       <button
                         onClick={handleLogout}
+                        disabled={signingOut}
                         className="w-full flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
                       >
                         <LogOut className="h-4 w-4" />
-                        Sign out
+                        {signingOut ? 'Signing out...' : 'Sign out'}
                       </button>
                     </div>
                   </div>

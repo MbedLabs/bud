@@ -2,12 +2,15 @@
 File uploads API endpoints.
 """
 
+import logging
 import uuid
+from http import HTTPStatus
 from pathlib import Path
-from typing import Optional, Union
+from typing import Optional
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -18,17 +21,21 @@ from app.db import get_db
 from app.models import Artifact, Runner, TestRun
 from app.models.user import User, UserRole
 from app.schemas import ArtifactResponse
-from app.services.artifact_cleanup import unlink_storage_key
+from app.services import object_store
+from app.services.artifact_cleanup import remove_storage_key
 from app.services.artifact_storage import (
+    persist,
     release_upload,
     reserve_upload,
     store_upload,
     validate_display_metadata,
 )
+from app.services.audit import record_audit_event
 
 router = APIRouter()
 
 # Resolved absolute upload root — used for path-traversal checks (C3)
+logger = logging.getLogger(__name__)
 _UPLOAD_ROOT: Optional[Path] = None
 
 
@@ -47,6 +54,15 @@ async def ensure_upload_dir() -> Path:
     return upload_path
 
 
+ARTIFACT_DOWNLOAD_HEADERS = {
+    "Content-Security-Policy": "sandbox",
+    "X-Content-Type-Options": "nosniff",
+}
+"""An artifact is user-supplied (an HTML report, an SVG plot): it downloads as an
+attachment, and should a browser render it anyway, it renders sandboxed, with no
+script and no access to the Bud origin."""
+
+
 def _can_runner_access_artifact(runner: Runner, artifact: Artifact) -> bool:
     """Runner reads are limited to artifacts associated with its own run."""
     return (
@@ -56,14 +72,15 @@ def _can_runner_access_artifact(runner: Runner, artifact: Artifact) -> bool:
     )
 
 
-def _can_user_delete_artifact(user: User) -> bool:
+async def _can_user_delete_artifact(db: AsyncSession, user: User) -> bool:
+    """Deleting evidence is fixed to the Admin base role."""
     return user.role == UserRole.admin
 
 
 async def _get_accessible_artifact(
     db: AsyncSession,
     artifact_id: int,
-    current_entity: Union[User, Runner],
+    current_entity: User | Runner,
 ) -> Artifact:
     result = await db.execute(
         select(Artifact).options(selectinload(Artifact.test_run)).where(Artifact.id == artifact_id)
@@ -79,11 +96,11 @@ async def _get_accessible_artifact(
 
 
 async def _validate_runner_upload_run(
-    db: AsyncSession, current_entity: Union[User, Runner], run_id: Optional[int]
+    db: AsyncSession, current_entity: User | Runner, run_id: int | None
 ) -> None:
-    """Prevent a runner from attaching an artifact to another runner's test run."""
-    if isinstance(current_entity, User) and current_entity.role != UserRole.admin:
-        raise HTTPException(status_code=403, detail="Only admins may upload artifacts")
+    """Only a station uploads evidence, and only to one of its own test runs."""
+    if isinstance(current_entity, User):
+        raise HTTPException(status_code=403, detail="Only stations can upload artifacts")
     if run_id is None:
         if isinstance(current_entity, Runner):
             raise HTTPException(
@@ -105,13 +122,22 @@ async def _validate_runner_upload_run(
         )
 
 
-@router.post("", response_model=ArtifactResponse, status_code=201)
+@router.post(
+    "",
+    response_model=ArtifactResponse,
+    status_code=201,
+    responses={
+        403: {"description": HTTPStatus(403).phrase},
+        400: {"description": "Bad Request"},
+        415: {"description": "Unsupported Media Type"},
+    },
+)
 async def upload_file(
     file: UploadFile = File(...),
     test_case: Optional[str] = Form(None),
     run_id: Optional[int] = Form(None),
-    db: AsyncSession = Depends(get_db),
-    _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
+    db: AsyncSession = Depends(get_db, scope="function"),
+    _current_entity: User | Runner = Depends(get_current_active_entity),
 ):
     """Upload a file artifact (trace, log, etc.)."""
     await _validate_runner_upload_run(db, _current_entity, run_id)
@@ -152,6 +178,7 @@ async def upload_file(
     lease_id = lease.id
     try:
         stored = await store_upload(file, resolved_storage, max_bytes=lease.reserved_bytes)
+        await persist(resolved_storage, unique_filename, content_type)
 
         # Store only the relative UUID key. The display name is never a path.
         artifact = Artifact(
@@ -166,6 +193,18 @@ async def upload_file(
         )
         db.add(artifact)
         await db.flush()
+        await record_audit_event(
+            db,
+            "artifact.uploaded",
+            target_type="test_run",
+            target_id=run_id,
+            details={
+                "artifact_id": artifact.id,
+                "filename": display_filename,
+                "size": stored.size_bytes,
+                "station": getattr(_current_entity, "account", None),
+            },
+        )
         await db.delete(lease)
         await db.commit()
         await db.refresh(artifact)
@@ -179,11 +218,18 @@ async def upload_file(
     return artifact
 
 
-@router.get("/{artifact_id}")
+@router.get(
+    "/{artifact_id}",
+    responses={
+        503: {"description": HTTPStatus(503).phrase},
+        400: {"description": "Bad Request"},
+        404: {"description": "Not Found"},
+    },
+)
 async def download_artifact(
     artifact_id: int,
-    db: AsyncSession = Depends(get_db),
-    _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
+    db: AsyncSession = Depends(get_db, scope="function"),
+    _current_entity: User | Runner = Depends(get_current_active_entity),
 ):
     """
     Download an artifact by ID.
@@ -198,6 +244,29 @@ async def download_artifact(
     if storage_path.parent != upload_root:
         raise HTTPException(status_code=400, detail="Invalid artifact path.")
 
+    if object_store.s3_enabled():
+        try:
+            body = await object_store.fetch(artifact.storage_path)
+            name = artifact.original_filename
+            return StreamingResponse(
+                object_store.iter_body(body),
+                media_type=artifact.content_type,
+                headers={
+                    **ARTIFACT_DOWNLOAD_HEADERS,
+                    "Content-Disposition": (
+                        f"attachment; filename=\"{name}\"; filename*=UTF-8''{quote(name)}"
+                    ),
+                },
+            )
+        except Exception as exc:
+            if not (object_store.keeps_local_copy() and storage_path.exists()):
+                raise HTTPException(status_code=503, detail="The file store is unreachable.")
+            logger.warning(
+                "Object storage read failed for %s; serving the local mirror: %s",
+                object_store.object_key(artifact.storage_path),
+                exc,
+            )
+
     if not storage_path.exists():
         raise HTTPException(status_code=404, detail="File not found on disk")
 
@@ -205,14 +274,15 @@ async def download_artifact(
         path=str(storage_path),
         filename=artifact.original_filename,
         media_type=artifact.content_type,
+        headers=ARTIFACT_DOWNLOAD_HEADERS,
     )
 
 
 @router.get("/info/{artifact_id}", response_model=ArtifactResponse)
 async def get_artifact_info(
     artifact_id: int,
-    db: AsyncSession = Depends(get_db),
-    _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
+    db: AsyncSession = Depends(get_db, scope="function"),
+    _current_entity: User | Runner = Depends(get_current_active_entity),
 ):
     """
     Get artifact metadata without downloading.
@@ -220,10 +290,14 @@ async def get_artifact_info(
     return await _get_accessible_artifact(db, artifact_id, _current_entity)
 
 
-@router.delete("/{artifact_id}", status_code=204)
+@router.delete(
+    "/{artifact_id}",
+    status_code=204,
+    responses={403: {"description": "Forbidden"}, 404: {"description": "Not Found"}},
+)
 async def delete_artifact(
     artifact_id: int,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     _current_user: User = Depends(get_current_user),
 ):
     """
@@ -235,10 +309,17 @@ async def delete_artifact(
     if not artifact:
         raise HTTPException(status_code=404, detail="Artifact not found")
 
-    if not _can_user_delete_artifact(_current_user):
+    if not await _can_user_delete_artifact(db, _current_user):
         raise HTTPException(status_code=403, detail="Only admins may delete artifacts")
 
     storage_key = artifact.storage_path
+    await record_audit_event(
+        db,
+        "artifact.deleted",
+        target_type="test_run",
+        target_id=artifact.test_run_id,
+        details={"artifact_id": artifact.id, "filename": artifact.original_filename},
+    )
     await db.delete(artifact)
     await db.commit()
-    unlink_storage_key(storage_key)
+    await remove_storage_key(storage_key)

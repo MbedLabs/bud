@@ -3,19 +3,19 @@ Test runs API endpoints.
 """
 
 from datetime import datetime, timedelta
-from typing import Optional, Union
+from typing import Literal, Optional, Union
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.api.auth import get_current_active_entity, require_role
+from app.api.auth import get_current_active_entity, require_permission, require_role
 from app.api.uploads import get_upload_root
-from app.core.run_access import require_mutating_user, require_run_access
+from app.core.run_access import load_run
 from app.db import get_db
-from app.models import Artifact, Runner, TestRun, TestRunEvent
+from app.models import Artifact, ReportRequest, Runner, TestRun, TestRunEvent
 from app.models.user import User, UserRole
 from app.schemas import (
     ArtifactResponse,
@@ -28,7 +28,9 @@ from app.schemas import (
     TestRunStats,
     TestRunUpdate,
 )
-from app.services.artifact_cleanup import unlink_storage_key
+from app.services.artifact_cleanup import remove_storage_key
+from app.services.artifact_storage import read_stored
+from app.services.audit import record_audit_event
 from app.services.bloom_publish import (
     BloomNotConfigured,
     BloomProjectNotIdentifiable,
@@ -44,31 +46,21 @@ from app.services.run_reports import frontend_run_url as _frontend_run_url
 from app.services.run_reports import store_run_reports
 
 router = APIRouter()
+from app.services.notify import notify_run_finished
 
 
 @router.post("", response_model=TestRunResponse, status_code=201)
 async def create_test_run(
     data: TestRunCreate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
 ):
-    """Create a new test run."""
-    if isinstance(_current_entity, Runner):
-        if data.runner_account and data.runner_account != _current_entity.account:
-            raise HTTPException(
-                status_code=403, detail="Runner cannot create runs for another runner"
-            )
-        runner_id = _current_entity.id
-    else:
-        require_mutating_user(_current_entity)
-        runner_id = None
-
-    if isinstance(_current_entity, User) and data.runner_account:
-        result = await db.execute(select(Runner).where(Runner.account == data.runner_account))
-        runner = result.scalar_one_or_none()
-        if runner is None:
-            raise HTTPException(status_code=404, detail="Runner not found")
-        runner_id = runner.id
+    """Record a test run reported by its authenticated station."""
+    if not isinstance(_current_entity, Runner):
+        raise HTTPException(status_code=403, detail="Only stations can create test runs")
+    if data.runner_account and data.runner_account != _current_entity.account:
+        raise HTTPException(status_code=403, detail="Runner cannot create runs for another runner")
+    runner_id = _current_entity.id
 
     test_run = TestRun(
         name=data.test_suite_name,
@@ -96,7 +88,7 @@ async def create_test_run(
             if data.test_case_list
             else None
         ),
-        event_metadata={"runner_account": data.runner_account} if data.runner_account else None,
+        event_metadata=({"runner_account": data.runner_account} if data.runner_account else None),
     )
     await db.commit()
     await db.refresh(test_run)
@@ -111,48 +103,41 @@ async def create_test_run(
     return TestRunResponse.from_orm_with_runner(test_run)
 
 
+async def _run_rows(db: AsyncSession, entity, run_id: int, model, *order_by) -> list:
+    """The run's rows of the model in the order given, after the run access check."""
+    await load_run(db, entity, run_id)
+    result = await db.execute(select(model).where(model.test_run_id == run_id).order_by(*order_by))
+    return list(result.scalars().all())
+
+
 @router.get("/{run_id}/events", response_model=list[TestRunEventResponse])
 async def get_test_run_events(
     run_id: int,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
 ):
     """
     Get system-reported execution and integration events for a test run.
     """
-    run_result = await db.execute(select(TestRun).where(TestRun.id == run_id))
-    test_run = run_result.scalar_one_or_none()
-    if test_run is None:
-        raise HTTPException(status_code=404, detail="Test run not found")
-    require_run_access(_current_entity, test_run)
-
-    result = await db.execute(
-        select(TestRunEvent)
-        .where(TestRunEvent.test_run_id == run_id)
-        .order_by(TestRunEvent.sequence, TestRunEvent.created_at, TestRunEvent.id)
+    return await _run_rows(
+        db,
+        _current_entity,
+        run_id,
+        TestRunEvent,
+        TestRunEvent.sequence,
+        TestRunEvent.created_at,
+        TestRunEvent.id,
     )
-    return result.scalars().all()
 
 
 @router.get("/{run_id}/artifacts", response_model=list[ArtifactResponse])
 async def get_test_run_artifacts(
     run_id: int,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
 ):
     """List the artifacts uploaded against a test run."""
-    run_result = await db.execute(select(TestRun).where(TestRun.id == run_id))
-    test_run = run_result.scalar_one_or_none()
-    if test_run is None:
-        raise HTTPException(status_code=404, detail="Test run not found")
-    require_run_access(_current_entity, test_run)
-
-    result = await db.execute(
-        select(Artifact)
-        .where(Artifact.test_run_id == run_id)
-        .order_by(Artifact.created_at, Artifact.id)
-    )
-    return result.scalars().all()
+    return await _run_rows(db, _current_entity, run_id, Artifact, Artifact.created_at, Artifact.id)
 
 
 @router.get("", response_model=TestRunList)
@@ -180,9 +165,19 @@ async def list_test_runs(
         False,
         description="When true, return only the latest run for each test suite name.",
     ),
+    sort_by: Literal[
+        "name",
+        "status",
+        "runner_account",
+        "duration_seconds",
+        "started_at",
+        "completed_at",
+        "created_at",
+    ] = Query("created_at"),
+    sort_dir: Literal["asc", "desc"] = Query("desc"),
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
 ):
     """List test runs with optional filtering and pagination."""
@@ -249,14 +244,22 @@ async def list_test_runs(
     count_query = select(func.count(TestRun.id)).where(*conditions)
     total = (await db.execute(count_query)).scalar()
 
-    query = (
-        select(TestRun)
-        .options(selectinload(TestRun.runner))
-        .where(*conditions)
-        .order_by(TestRun.created_at.desc(), TestRun.id.desc())
-        .offset(offset)
-        .limit(limit)
-    )
+    query = select(TestRun).options(selectinload(TestRun.runner)).where(*conditions)
+    columns = {
+        "name": TestRun.name,
+        "status": TestRun.status,
+        "runner_account": Runner.account,
+        "duration_seconds": TestRun.duration_seconds,
+        "started_at": TestRun.started_at,
+        "completed_at": TestRun.completed_at,
+        "created_at": TestRun.created_at,
+    }
+    if sort_by == "runner_account":
+        query = query.outerjoin(Runner, TestRun.runner_id == Runner.id)
+    column = columns[sort_by]
+    ordering = column.asc() if sort_dir == "asc" else column.desc()
+    tie_breaker = TestRun.id.asc() if sort_dir == "asc" else TestRun.id.desc()
+    query = query.order_by(ordering.nullslast(), tie_breaker).offset(offset).limit(limit)
     runs = (await db.execute(query)).scalars().all()
 
     return TestRunList(
@@ -303,13 +306,17 @@ async def _scope_conditions(
 @router.get("/stats", response_model=TestRunStats)
 async def get_test_run_stats(
     days: Optional[int] = Query(
-        None, ge=1, le=3650, description="Only count runs created within the last N days."
+        None,
+        ge=1,
+        le=3650,
+        description="Only count runs created within the last N days.",
     ),
     runner_account: Optional[str] = Query(
-        None, description="Only count runs executed by this Bud runner account (Test Station)."
+        None,
+        description="Only count runs executed by this Bud runner account (Test Station).",
     ),
     suite: Optional[str] = Query(None, description="Only count runs for this test suite name."),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
 ):
     """Aggregate the dashboard counters over every run matching the filters."""
@@ -330,8 +337,22 @@ async def get_test_run_stats(
             test_pass_rate=0.0,
         )
 
-    passed_run = and_(TestRun.status == "Completed", TestRun.failed_tests == 0)
-    failed_run = or_(TestRun.status == "Failed", TestRun.failed_tests > 0)
+    execution_failed = or_(
+        TestRun.runner_exit_code != 0,
+        and_(TestRun.runner_error.is_not(None), TestRun.runner_error != ""),
+    )
+    outcome_ready = or_(TestRun.claim_id.is_(None), TestRun.claim_acknowledged_at.is_not(None))
+    passed_run = and_(
+        outcome_ready,
+        TestRun.status == "Completed",
+        TestRun.failed_tests == 0,
+        or_(TestRun.runner_exit_code.is_(None), TestRun.runner_exit_code == 0),
+        or_(TestRun.runner_error.is_(None), TestRun.runner_error == ""),
+    )
+    failed_run = and_(
+        outcome_ready,
+        or_(TestRun.status == "Failed", TestRun.failed_tests > 0, execution_failed),
+    )
 
     query = select(
         func.count(TestRun.id),
@@ -361,21 +382,24 @@ async def get_test_run_stats(
         passed_runs=passed_runs,
         failed_runs=failed_runs,
         in_progress_runs=max(total_runs - decided_runs, 0),
-        run_pass_rate=round(passed_runs / decided_runs * 100, 1) if decided_runs else 0.0,
+        run_pass_rate=(round(passed_runs / decided_runs * 100, 1) if decided_runs else 0.0),
         total_tests=total_tests,
         passed_tests=passed_tests,
         failed_tests=failed_tests,
         skipped_tests=skipped_tests,
-        test_pass_rate=round(passed_tests / total_tests * 100, 1) if total_tests else 0.0,
+        test_pass_rate=(round(passed_tests / total_tests * 100, 1) if total_tests else 0.0),
     )
 
 
 @router.get("/filter-options", response_model=TestRunFilterOptions)
 async def get_test_run_filter_options(
     days: Optional[int] = Query(
-        None, ge=1, le=3650, description="Only consider runs created within the last N days."
+        None,
+        ge=1,
+        le=3650,
+        description="Only consider runs created within the last N days.",
     ),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
 ):
     """List the suite names and Test Stations that actually appear in test runs."""
@@ -408,20 +432,13 @@ async def get_test_run_filter_options(
 @router.get("/{run_id}", response_model=TestRunResponse)
 async def get_test_run(
     run_id: int,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
 ):
     """
     Get a test run by ID.
     """
-    result = await db.execute(
-        select(TestRun).options(selectinload(TestRun.runner)).where(TestRun.id == run_id)
-    )
-    test_run = result.scalar_one_or_none()
-
-    if not test_run:
-        raise HTTPException(status_code=404, detail="Test run not found")
-    require_run_access(_current_entity, test_run)
+    test_run = await load_run(db, _current_entity, run_id, options=(selectinload(TestRun.runner),))
 
     return TestRunResponse.from_orm_with_runner(test_run)
 
@@ -430,18 +447,14 @@ async def get_test_run(
 async def update_test_run(
     run_id: int,
     data: TestRunUpdate,
-    db: AsyncSession = Depends(get_db),
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db, scope="function"),
     _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
 ):
-    """
-    Update a test run with results or status.
-    """
-    result = await db.execute(select(TestRun).where(TestRun.id == run_id))
-    test_run = result.scalar_one_or_none()
-
-    if not test_run:
-        raise HTTPException(status_code=404, detail="Test run not found")
-    require_run_access(_current_entity, test_run, mutate=True)
+    """Record execution updates reported by the run's authenticated station."""
+    if not isinstance(_current_entity, Runner):
+        raise HTTPException(status_code=403, detail="Only stations can update test runs")
+    test_run = await load_run(db, _current_entity, run_id, mutate=True)
 
     # Update fields
     if data.status is not None:
@@ -479,6 +492,8 @@ async def update_test_run(
     if data.status is not None and data.status.value == "Completed":
         await store_run_reports(db, test_run.id)
         await db.commit()
+    if data.status is not None and data.status.value in ("Completed", "Cancelled"):
+        background_tasks.add_task(notify_run_finished, test_run.id)
 
     result = await db.execute(
         select(TestRun).options(selectinload(TestRun.runner)).where(TestRun.id == test_run.id)
@@ -491,18 +506,21 @@ async def update_test_run(
 @router.post("/{run_id}/publish-to-bloom", response_model=BloomPublishResponse)
 async def publish_run_to_bloom(
     run_id: int,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_entity),
+    db: AsyncSession = Depends(get_db, scope="function"),
+    current_user: User = Depends(require_permission("bloom_publish", "execute")),
 ):
     """Send this run's report documents to Bloom as a Report (RPT) document."""
-    if isinstance(current_user, Runner):
-        raise HTTPException(status_code=403, detail="A Test Station cannot publish to Bloom")
-    require_mutating_user(current_user)
+    return await publish_report(run_id, db, current_user)
 
-    test_run = (await db.execute(select(TestRun).where(TestRun.id == run_id))).scalar_one_or_none()
-    if not test_run:
-        raise HTTPException(status_code=404, detail="Test run not found")
-    require_run_access(current_user, test_run, mutate=True)
+
+async def publish_report(
+    run_id: int,
+    db: AsyncSession,
+    current_user: User,
+    requested_project: str | None = None,
+):
+    """Publish a completed run, requiring the requested destination when supplied."""
+    test_run = await load_run(db, current_user, run_id)
 
     if test_run.status != "Completed":
         raise HTTPException(
@@ -515,6 +533,11 @@ async def publish_run_to_bloom(
         project_prefix = project_prefix_for_tc_ids(tc_ids)
     except BloomProjectNotIdentifiable as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
+    if requested_project is not None and project_prefix != requested_project:
+        raise HTTPException(
+            status_code=409,
+            detail="This run's report belongs to a different Bloom project. Refuse this request with a reason.",
+        )
 
     try:
         bloom_url, bloom_token = await bloom_credentials(db)
@@ -534,10 +557,10 @@ async def publish_run_to_bloom(
 
     files = []
     for artifact in artifacts:
-        path = get_upload_root() / artifact.storage_path
-        if not path.exists():
+        content = await read_stored(get_upload_root(), artifact.storage_path)
+        if content is None:
             continue
-        files.append((artifact.original_filename, artifact.content_type, path.read_bytes()))
+        files.append((artifact.original_filename, artifact.content_type, content))
     if not files:
         raise HTTPException(
             status_code=409, detail="This run's report files are no longer on disk."
@@ -568,6 +591,27 @@ async def publish_run_to_bloom(
     except httpx.RequestError as exc:
         raise HTTPException(status_code=502, detail=f"Could not reach Bloom: {exc}") from exc
 
+    requests = (
+        await db.scalars(
+            select(ReportRequest)
+            .where(
+                ReportRequest.bloom_url == bloom_url,
+                ReportRequest.run_id == run_id,
+                ReportRequest.project_prefix == project_prefix,
+                ReportRequest.status == "pending",
+            )
+            .with_for_update()
+        )
+    ).all()
+    for request in requests:
+        request.status = "delivered"
+        await record_audit_event(
+            db,
+            "report.published",
+            target_type="report_request",
+            target_id=request.id,
+            details={"run_id": run_id, "bloom_document_id": published.get("document_id")},
+        )
     await record_test_run_event(
         db,
         test_run_id=run_id,
@@ -594,7 +638,7 @@ async def publish_run_to_bloom(
 @router.delete("/{run_id}", status_code=204)
 async def delete_test_run(
     run_id: int,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     _admin: User = Depends(require_role(UserRole.admin)),
 ):
     """
@@ -611,7 +655,15 @@ async def delete_test_run(
             await db.scalars(select(Artifact.storage_path).where(Artifact.test_run_id == run_id))
         ).all()
     )
+    await record_audit_event(
+        db,
+        "test_run.deleted",
+        target_type="test_run",
+        target_id=test_run.id,
+        product_id=test_run.product_id,
+        details={"name": test_run.name},
+    )
     await db.delete(test_run)
     await db.commit()
     for storage_key in storage_keys:
-        unlink_storage_key(storage_key)
+        await remove_storage_key(storage_key)
