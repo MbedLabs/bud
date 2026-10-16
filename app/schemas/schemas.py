@@ -135,6 +135,10 @@ class RunnerApiKeyResponse(BaseModel):
     created_at: datetime
     last_used_at: Optional[datetime] = None
 
+    @field_serializer("created_at", "last_used_at")
+    def serialize_dt(self, dt: Optional[datetime], _info):
+        return f"{dt.isoformat()}Z" if dt else None
+
     class Config:
         from_attributes = True
 
@@ -415,10 +419,27 @@ class UnassignedTest(BaseModel):
     reason: str
 
 
+class ExecutionRequestResponse(BaseModel):
+    """A queued selection and its optional station-created execution link."""
+
+    id: int
+    name: str
+    runner_account: str
+    selected_tests: List[str]
+    state: str
+    run_id: Optional[int] = None
+    source_metadata: dict
+    created_at: datetime
+
+    @field_serializer("created_at")
+    def serialize_dt(self, dt: datetime, _info):
+        return f"{dt.isoformat()}Z"
+
+
 class CustomRunResponse(BaseModel):
     """What was queued, and what could not be."""
 
-    runs: List[TestRunResponse]
+    requests: List[ExecutionRequestResponse]
     unassigned: List[UnassignedTest]
 
 
@@ -484,6 +505,7 @@ class ReadinessResponse(BaseModel):
     status: str = "ready"
     version: str
     database: str = "connected"
+    storage: str = "local"
 
 
 class VersionResponse(BaseModel):
@@ -531,6 +553,54 @@ class PLMIntegrationSettings(BaseModel):
     has_bloom_token: bool = False
     bloom_token_prefix: Optional[str] = None
     bloom_token_rotated_at: Optional[datetime] = None
+
+
+class NotificationChannelResponse(BaseModel):
+    """A notification channel as an administrator sees it; the URL and secret stay hidden."""
+
+    id: int
+    name: str
+    format: str
+    url_prefix: str
+    run_filter: str
+    enabled: bool
+    has_secret: bool
+    created_at: datetime
+
+    @field_serializer("created_at")
+    def serialize_dt(self, dt: datetime, _info):
+        return f"{dt.isoformat()}Z"
+
+
+class NotificationChannelCreate(BaseModel):
+    """A new notification channel; the URL and the optional HMAC secret are stored encrypted."""
+
+    name: str = Field(..., min_length=1, max_length=100)
+    format: str = Field(..., pattern="^(teams|slack|discord|json)$")
+    url: str = Field(..., min_length=1, max_length=2000)
+    secret: Optional[str] = Field(default=None, max_length=500)
+    run_filter: str = Field(default="all", pattern="^(all|failures|first_failure)$")
+    enabled: bool = True
+
+
+class NotificationChannelUpdate(BaseModel):
+    """Changes to a channel; a URL or secret is replaced only when given, an empty secret clears it."""
+
+    name: Optional[str] = Field(default=None, min_length=1, max_length=100)
+    format: Optional[str] = Field(default=None, pattern="^(teams|slack|discord|json)$")
+    url: Optional[str] = Field(default=None, min_length=1, max_length=2000)
+    secret: Optional[str] = Field(default=None, max_length=500)
+    run_filter: Optional[str] = Field(default=None, pattern="^(all|failures|first_failure)$")
+    enabled: Optional[bool] = None
+
+
+class NotificationTestResult(BaseModel):
+    """The outcome of sending a test message to a channel."""
+
+    delivered: bool
+    attempts: int
+    status_code: Optional[int] = None
+    error: Optional[str] = None
 
 
 class PLMIntegrationSettingsUpdate(BaseModel):

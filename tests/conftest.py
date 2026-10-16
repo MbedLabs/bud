@@ -67,7 +67,11 @@ def pytest_configure(config: pytest.Config) -> None:
 @pytest_asyncio.fixture(scope="function")
 async def _engine(tmp_path_factory):
     """Fresh file-backed SQLite engine per test, bound into app.db.database."""
-    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+    from sqlalchemy.ext.asyncio import (
+        AsyncSession,
+        async_sessionmaker,
+        create_async_engine,
+    )
 
     from app.db import database as db_module
     from app.db.database import Base
@@ -82,6 +86,11 @@ async def _engine(tmp_path_factory):
     db_module.async_session_maker = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    from app.core.access import seed_default_access
+
+    async with db_module.async_session_maker() as session:
+        await seed_default_access(session)
+        await session.commit()
     try:
         yield engine
     finally:
@@ -170,3 +179,79 @@ async def unauthenticated_client(_engine):
             yield tc
     finally:
         app.dependency_overrides.clear()
+
+
+@pytest_asyncio.fixture(scope="function")
+async def test_station(db_session):
+    """A persisted station that produces test runs."""
+    from app.models import Runner
+
+    station = Runner(
+        account="station-01", password_hash="x", token="station-token", socket_port=53035
+    )
+    db_session.add(station)
+    await db_session.commit()
+    return station
+
+
+@pytest_asyncio.fixture(scope="function")
+async def station_run(db_session, test_station):
+    """A test run the fixture station owns, for evidence uploads."""
+    from app.models import TestRun
+
+    run = TestRun(
+        name="station-run", test_case_list="[]", status="Running", runner_id=test_station.id
+    )
+    db_session.add(run)
+    await db_session.commit()
+    return run
+
+
+@pytest.fixture(scope="function")
+def station_upload(station_request, station_run):
+    """Upload one file as the fixture station to its own run."""
+
+    def upload(name="trace.txt", content=b"evidence", content_type="text/plain", **data):
+        """Send ``POST /api/uploads`` as the station."""
+        form = {"run_id": str(station_run.id), **data}
+        return station_request(
+            "POST", "/api/uploads", files={"file": (name, content, content_type)}, data=form
+        )
+
+    return upload
+
+
+@pytest.fixture(scope="function")
+def station_request(client, test_station):
+    """Send an HTTP request as a station and restore the human client afterward."""
+    from app.api.auth import get_current_active_entity
+    from app.api.results import get_uploader_entity
+    from app.main import app
+
+    async def current_station():
+        return test_station
+
+    def request(method, url, **kwargs):
+        """Send one station-authenticated request."""
+        dependencies = (get_current_active_entity, get_uploader_entity)
+        previous = {dependency: app.dependency_overrides[dependency] for dependency in dependencies}
+        for dependency in dependencies:
+            app.dependency_overrides[dependency] = current_station
+        try:
+            return client.request(method, url, **kwargs)
+        finally:
+            app.dependency_overrides.update(previous)
+
+    return request
+
+
+@pytest.fixture
+def fresh_auth_rate_limits():
+    """Isolate the rate-limit counters around one real-auth HTTP scenario."""
+    from app.core.deps import limiter
+
+    limiter.reset()
+    try:
+        yield
+    finally:
+        limiter.reset()

@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { filenameFromResponse, saveBlob } from '../api/client'
 import dashboardSource from '../pages/Dashboard.tsx?raw'
 import runDetailSource from '../pages/TestRunDetail.tsx?raw'
+import reportButtonSource from '../components/PdfReportButton.tsx?raw'
 
 /**
  * The PDF comes back from an authenticated endpoint, so it is fetched through
@@ -87,15 +88,17 @@ describe('report buttons', () => {
   it.each([
     ['Dashboard', dashboardSource],
     ['TestRunDetail', runDetailSource],
-  ])('%s reports a failed download instead of doing nothing', (_name, source) => {
-    expect(source).toContain('setReportError(extractApiErrorMessage(error')
+  ])('%s uses the shared report button and shows its failures', (_name, source) => {
+    expect(source).toContain('<PdfReportButton')
+    expect(source).toContain('onError={setReportError}')
   })
 
-  it.each([
-    ['Dashboard', dashboardSource],
-    ['TestRunDetail', runDetailSource],
-  ])('%s re-enables the button after a failure', (_name, source) => {
-    expect(source).toContain('finally {')
-    expect(source).toContain('setReportPending(false)')
+  it('the report button reports a failed download instead of doing nothing', () => {
+    expect(reportButtonSource).toContain("onError(extractApiErrorMessage(error, 'Could not generate the report'))")
+  })
+
+  it('the report button re-enables itself after a failure', () => {
+    expect(reportButtonSource).toContain('finally {')
+    expect(reportButtonSource).toContain('setPending(false)')
   })
 })

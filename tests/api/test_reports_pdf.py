@@ -216,7 +216,9 @@ class TestRenderedContent:
     def test_chart_reports_percentages(self, fitz):
         doc = self._open(fitz, render_report(_summary_request()))
         text = doc[0].get_text()
-        assert "Passed" in text and "Failed" in text and "Skipped" in text
+        assert "Passed" in text
+        assert "Failed" in text
+        assert "Skipped" in text
         doc.close()
 
     def test_empty_selection_says_so_rather_than_drawing_an_empty_pie(self, fitz):

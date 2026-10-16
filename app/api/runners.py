@@ -1,6 +1,6 @@
 """Runners API endpoints."""
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -8,14 +8,14 @@ from sqlalchemy import delete, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.auth import get_current_user, require_role
+from app.api.auth import get_current_user, require_permission
 from app.core.config import settings
 from app.core.deps import get_current_runner, limiter, require_runner_api_key
 from app.core.runner_keys import mark_used, mint_key
 from app.core.security import generate_runner_token, get_password_hash, verify_password
 from app.db import get_db
 from app.models import Runner, RunnerApiKey, TestRun
-from app.models.user import User, UserRole
+from app.models.user import User
 from app.schemas import (
     RunnerApiKeyCreate,
     RunnerApiKeyCreated,
@@ -27,16 +27,28 @@ from app.schemas import (
     RunnerStatusList,
     RunnerToken,
 )
+from app.services.audit import record_audit_event
+
+RUNNER_NOT_FOUND = "Runner not found"
 
 router = APIRouter()
 
 
-@router.post("/register", response_model=RunnerToken, status_code=201)
+@router.post(
+    "/register",
+    response_model=RunnerToken,
+    status_code=201,
+    responses={
+        400: {"description": "Bad Request"},
+        403: {"description": "Forbidden"},
+        409: {"description": "Conflict"},
+    },
+)
 @limiter.limit("10/minute")  # H2: prevent registration flood
 async def register_runner(
     request: Request,
     data: RunnerRegister,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     api_key: RunnerApiKey = Depends(require_runner_api_key),
 ):
     """Register a Test Station.
@@ -102,6 +114,14 @@ async def register_runner(
     api_key.runner_id = runner.id
     mark_used(api_key)
 
+    await record_audit_event(
+        db,
+        "station.registered",
+        actor_type="runner",
+        target_type="station",
+        target_id=runner.account,
+        details={"enrolment_key_id": api_key.id},
+    )
     await db.commit()
     await db.refresh(runner)
 
@@ -116,7 +136,7 @@ async def register_runner(
 async def runner_heartbeat(
     request: Request,
     data: RunnerHeartbeat,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     current_runner: Runner = Depends(get_current_runner),
 ):
     """Receive a heartbeat from a runner.
@@ -126,7 +146,7 @@ async def runner_heartbeat(
     learns the current one from this response.
     """
 
-    current_runner.last_heartbeat = datetime.utcnow()
+    current_runner.last_heartbeat = datetime.now(timezone.utc).replace(tzinfo=None)
     current_runner.is_active = True
 
     if data.location:
@@ -136,14 +156,14 @@ async def runner_heartbeat(
 
     return {
         "status": "ok",
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
         "account": current_runner.account,
     }
 
 
 @router.get("/status", response_model=RunnerStatusList)
 async def get_runner_status(
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     _current_user: User = Depends(get_current_user),
 ):
     """
@@ -167,7 +187,7 @@ async def get_runner_status(
                 active_runs_map[run.runner_id] = {"id": run.id, "name": run.name}
 
     timeout = timedelta(seconds=settings.RUNNER_HEARTBEAT_TIMEOUT)
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
 
     runner_list = []
     for runner in runners:
@@ -223,8 +243,8 @@ async def _require_station_name_free(db: AsyncSession, name: str, exclude_runner
 @router.post("/api-keys", response_model=RunnerApiKeyCreated, status_code=201)
 async def create_runner_api_key(
     data: RunnerApiKeyCreate,
-    db: AsyncSession = Depends(get_db),
-    admin: User = Depends(require_role(UserRole.admin)),
+    db: AsyncSession = Depends(get_db, scope="function"),
+    admin: User = Depends(require_permission("stations", "manage")),
 ):
     """Mint an enrolment key for a Test Station."""
     if data.station_name:
@@ -237,6 +257,13 @@ async def create_runner_api_key(
     )
     db.add(record)
     await db.flush()
+    await record_audit_event(
+        db,
+        "enrolment_key.minted",
+        target_type="enrolment_key",
+        target_id=record.id,
+        details={"label": record.label, "station_name": data.station_name},
+    )
 
     return RunnerApiKeyCreated(
         id=record.id,
@@ -252,8 +279,8 @@ async def create_runner_api_key(
 
 @router.get("/api-keys", response_model=List[RunnerApiKeyResponse])
 async def list_runner_api_keys(
-    db: AsyncSession = Depends(get_db),
-    _admin: User = Depends(require_role(UserRole.admin)),
+    db: AsyncSession = Depends(get_db, scope="function"),
+    _admin: User = Depends(require_permission("stations", "manage")),
 ):
     """List every enrolment key and the station it is pinned to, if any."""
     result = await db.execute(
@@ -275,25 +302,34 @@ async def list_runner_api_keys(
     ]
 
 
-@router.delete("/api-keys/{key_id}", status_code=204)
+@router.delete("/api-keys/{key_id}", status_code=204, responses={404: {"description": "Not Found"}})
 async def delete_runner_api_key(
     key_id: int,
-    db: AsyncSession = Depends(get_db),
-    _admin: User = Depends(require_role(UserRole.admin)),
+    db: AsyncSession = Depends(get_db, scope="function"),
+    _admin: User = Depends(require_permission("stations", "manage")),
 ):
     """Revoke an enrolment key."""
     record = await db.get(RunnerApiKey, key_id)
     if record is None:
         raise HTTPException(status_code=404, detail="API key not found")
 
+    await record_audit_event(
+        db,
+        "enrolment_key.revoked",
+        target_type="enrolment_key",
+        target_id=key_id,
+        details={"label": record.label},
+    )
     await db.delete(record)
     await db.flush()
 
 
-@router.get("/{account}", response_model=RunnerResponse)
+@router.get(
+    "/{account}", response_model=RunnerResponse, responses={404: {"description": "Not Found"}}
+)
 async def get_runner(
     account: str,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     _current_user: User = Depends(get_current_user),
 ):
     """
@@ -303,17 +339,19 @@ async def get_runner(
     runner = result.scalar_one_or_none()
 
     if not runner:
-        raise HTTPException(status_code=404, detail="Runner not found")
+        raise HTTPException(status_code=404, detail=RUNNER_NOT_FOUND)
 
     return runner
 
 
-@router.patch("/{account}", response_model=RunnerResponse)
+@router.patch(
+    "/{account}", response_model=RunnerResponse, responses={404: {"description": "Not Found"}}
+)
 async def rename_runner(
     account: str,
     data: RunnerRename,
-    db: AsyncSession = Depends(get_db),
-    _admin: User = Depends(require_role(UserRole.admin)),
+    db: AsyncSession = Depends(get_db, scope="function"),
+    _admin: User = Depends(require_permission("stations", "manage")),
 ):
     """Rename a Test Station.
 
@@ -324,9 +362,16 @@ async def rename_runner(
         await db.execute(select(Runner).where(Runner.account == account))
     ).scalar_one_or_none()
     if not runner:
-        raise HTTPException(status_code=404, detail="Runner not found")
+        raise HTTPException(status_code=404, detail=RUNNER_NOT_FOUND)
 
     if data.account != runner.account:
+        await record_audit_event(
+            db,
+            "station.renamed",
+            target_type="station",
+            target_id=runner.id,
+            details={"from": runner.account, "to": data.account},
+        )
         await _require_station_name_free(db, data.account, exclude_runner_id=runner.id)
         runner.account = data.account
         await db.execute(
@@ -340,24 +385,35 @@ async def rename_runner(
     return runner
 
 
-@router.delete("/{account}", status_code=204)
+@router.delete(
+    "/{account}",
+    status_code=204,
+    responses={404: {"description": "Not Found"}, 409: {"description": "Conflict"}},
+)
 async def delete_runner(
     account: str,
-    db: AsyncSession = Depends(get_db),
-    _admin: User = Depends(require_role(UserRole.admin)),
+    db: AsyncSession = Depends(get_db, scope="function"),
+    _admin: User = Depends(require_permission("stations", "manage")),
 ):
     """Delete a Test Station. Requires an authenticated administrator."""
     result = await db.execute(select(Runner).where(Runner.account == account))
     runner = result.scalar_one_or_none()
 
     if not runner:
-        raise HTTPException(status_code=404, detail="Runner not found")
+        raise HTTPException(status_code=404, detail=RUNNER_NOT_FOUND)
 
     try:
         await db.execute(
             update(TestRun).where(TestRun.runner_id == runner.id).values(runner_id=None)
         )
         await db.execute(delete(RunnerApiKey).where(RunnerApiKey.runner_id == runner.id))
+        await record_audit_event(
+            db,
+            "station.removed",
+            target_type="station",
+            target_id=runner.id,
+            details={"account": runner.account},
+        )
         await db.delete(runner)
         # Flushed here so a dangling reference is a 409, not a rollback behind
         # the 204 that get_db's later commit would produce.

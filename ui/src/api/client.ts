@@ -1,5 +1,5 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios'
-import { clearAuthToken, getAuthToken, setAuthToken } from '../lib/tokenStorage'
+import { clearAuthToken, getAuthToken, getSessionUserId, setAuthToken } from '../lib/tokenStorage'
 
 import packageJson from '../../package.json'
 
@@ -40,11 +40,17 @@ let refreshPromise: Promise<string | null> | null = null
 async function refreshAccessToken(): Promise<string | null> {
   try {
     // Bare axios (no interceptors) so a 401 here cannot recurse into itself.
-    const resp = await axios.post<{ access_token: string }>(
+    const resp = await axios.post<{ access_token: string; user?: { id: number } }>(
       `${API_URL}/auth/refresh`,
       {},
       { withCredentials: true },
     )
+    const signedIn = getSessionUserId()
+    if (signedIn !== null && resp.data.user?.id !== signedIn) {
+      clearAuthToken()
+      window.location.replace('/login')
+      return null
+    }
     setAuthToken(resp.data.access_token)
     return resp.data.access_token
   } catch {
@@ -80,11 +86,21 @@ api.interceptors.response.use(
   },
 )
 
-export interface User {
+export type UserRole = 'admin' | 'developer' | 'viewer'
+
+export interface ProfilePerson {
+  id?: number
+  full_name: string
+  profile_picture_url?: string | null
+  has_profile_picture?: boolean
+  updated_at?: string
+}
+
+export interface User extends ProfilePerson {
   id: number
   email: string
   full_name: string
-  role: 'admin' | 'viewer'
+  role: UserRole
   is_active: boolean
   invited_at?: string | null
   last_invite_sent_at?: string | null
@@ -96,6 +112,9 @@ export interface User {
   email_change_requested_at?: string | null
   created_at: string
   updated_at: string
+  permissions?: string[]
+  has_profile_picture?: boolean
+  profile_picture_url?: string | null
 }
 
 export interface InviteUserResponse {
@@ -157,7 +176,7 @@ export const authApi = {
   },
   logout: async (): Promise<void> => {
     try {
-      await api.post('/auth/logout')
+      await api.post('/auth/logout', undefined, { timeout: 10000 })
     } finally {
       clearAuthToken()
     }
@@ -168,6 +187,27 @@ export const authApi = {
   },
   updateMe: async (data: { full_name?: string }): Promise<User> => {
     const response = await api.put<User>('/auth/me', data)
+    return response.data
+  },
+  setProfilePicture: async (file: File): Promise<User> => {
+    const form = new FormData()
+    form.append('file', file)
+    const response = await api.put<User>('/auth/me/picture', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    return response.data
+  },
+  fetchProfilePicture: async (): Promise<Blob | null> => {
+    try {
+      const response = await api.get('/auth/me/picture', { responseType: 'blob' })
+      return response.data as Blob
+    } catch (error) {
+      if ((error as { response?: { status?: number } }).response?.status === 404) return null
+      throw error
+    }
+  },
+  deleteProfilePicture: async (): Promise<User> => {
+    const response = await api.delete<User>('/auth/me/picture')
     return response.data
   },
   requestEmailChange: async (
@@ -217,20 +257,195 @@ export const authApi = {
   },
 }
 
+export interface PolicyRef {
+  id: number
+  name: string
+}
+
+export interface GroupMember {
+  user_id: number
+  email: string
+  full_name: string
+  role: UserRole
+  profile_picture_url?: string | null
+}
+
+export interface Group {
+  id: number
+  name: string
+  description: string | null
+  is_default: boolean
+  system_key: string | null
+  policies: PolicyRef[]
+  permissions: string[]
+  members: GroupMember[]
+  created_at: string
+  updated_at: string
+}
+
+export interface GroupInput {
+  name?: string
+  description?: string | null
+  policy_ids?: number[]
+}
+
+export const groupsApi = {
+  list: async () => (await api.get<Group[]>('/groups')).data,
+  get: async (id: number) => (await api.get<Group>(`/groups/${id}`)).data,
+  create: async (data: GroupInput & { name: string }) => (await api.post<Group>('/groups', data)).data,
+  update: async (id: number, data: GroupInput) => (await api.patch<Group>(`/groups/${id}`, data)).data,
+  duplicate: async (id: number) => (await api.post<Group>(`/groups/${id}/duplicate`)).data,
+  remove: async (id: number) => {
+    await api.delete(`/groups/${id}`)
+  },
+  addMember: async (id: number, userId: number) =>
+    (await api.post<Group>(`/groups/${id}/members`, { user_id: userId })).data,
+  removeMember: async (id: number, userId: number) =>
+    (await api.delete<Group>(`/groups/${id}/members/${userId}`)).data,
+}
+
+export type PermissionMatrix = Record<string, string[]>
+
+export interface Policy {
+  id: number
+  name: string
+  description: string | null
+  permissions: PermissionMatrix
+  is_default: boolean
+  system_key: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface CatalogueResource {
+  resource: string
+  actions: string[]
+}
+
+export interface PolicyInput {
+  name?: string
+  description?: string | null
+  permissions?: PermissionMatrix
+}
+
+export const policiesApi = {
+  list: async () => (await api.get<Policy[]>('/policies')).data,
+  catalogue: async () => (await api.get<CatalogueResource[]>('/policies/catalogue')).data,
+  create: async (data: PolicyInput & { name: string }) => (await api.post<Policy>('/policies', data)).data,
+  update: async (id: number, data: PolicyInput) => (await api.patch<Policy>(`/policies/${id}`, data)).data,
+  duplicate: async (id: number) => (await api.post<Policy>(`/policies/${id}/duplicate`)).data,
+  remove: async (id: number) => {
+    await api.delete(`/policies/${id}`)
+  },
+}
+
+export interface AccessUser {
+  id: number
+  email: string
+  full_name: string
+  role: UserRole
+  is_active: boolean
+  groups: PolicyRef[]
+  permissions: string[]
+  profile_picture_url?: string | null
+}
+
+export const accessApi = {
+  users: async () => (await api.get<AccessUser[]>('/access/users')).data,
+}
+
+export type AccessResourceType = 'test-run' | 'product' | 'publish-to-bloom'
+
+export interface AccessRequestInfo {
+  id: number
+  resource_type: string
+  resource_ref: string
+  status: 'pending' | 'granted' | 'refused'
+  created_at: string
+  decided_at: string | null
+  requester_name: string | null
+  requester_email: string | null
+  requester_profile_picture_url?: string | null
+  already_requested: boolean
+  mail_sent: boolean | null
+}
+
+export interface AccessRequestParams {
+  resource_type: AccessResourceType
+  resource_ref: string
+}
+
+export const accessRequestsApi = {
+  create: async (data: AccessRequestParams) =>
+    (await api.post<AccessRequestInfo>('/access-requests', data)).data,
+  mine: async (params: AccessRequestParams) =>
+    (await api.get<AccessRequestInfo | null>('/access-requests/mine', { params })).data,
+  list: async (params: { status?: string } = {}) =>
+    (await api.get<AccessRequestInfo[]>('/access-requests', { params })).data,
+  decide: async (id: number, decision: 'granted' | 'refused', groupId?: number) =>
+    (
+      await api.post<AccessRequestInfo>(`/access-requests/${id}/decision`, {
+        decision,
+        ...(groupId === undefined ? {} : { group_id: groupId }),
+      })
+    ).data,
+}
+
+export interface AuditEvent {
+  id: number
+  occurred_at: string
+  actor_user_id: number | null
+  actor_name: string | null
+  actor_profile_picture_url?: string | null
+  actor_type: string
+  action: string
+  target_type: string | null
+  target_id: string | null
+  product_id: number | null
+  request_id: string | null
+  ip: string | null
+  user_agent: string | null
+  outcome: string
+  details: Record<string, unknown> | null
+}
+
+export interface AuditEventPage {
+  items: AuditEvent[]
+  total: number
+}
+
+export interface AuditFilters {
+  actor_user_id?: number
+  action?: string
+  target_type?: string
+  target_id?: string
+  product_id?: number
+  outcome?: string
+  since?: string
+  until?: string
+  limit?: number
+  offset?: number
+}
+
+export const auditApi = {
+  list: async (filters: AuditFilters = {}) =>
+    (await api.get<AuditEventPage>('/audit', { params: filters })).data,
+}
+
 export const usersApi = {
   list: async (): Promise<User[]> => {
     const response = await api.get<User[]>('/users')
     return response.data
   },
-  create: async (data: { email: string; full_name: string; password: string; role?: 'admin' | 'viewer' }): Promise<User> => {
+  create: async (data: { email: string; full_name: string; password: string; role?: UserRole }): Promise<User> => {
     const response = await api.post<User>('/users', data)
     return response.data
   },
-  invite: async (data: { email: string; full_name: string; role?: 'admin' | 'viewer' }): Promise<InviteUserResponse> => {
+  invite: async (data: { email: string; full_name: string; role?: UserRole }): Promise<InviteUserResponse> => {
     const response = await api.post<InviteUserResponse>('/users/invite', data)
     return response.data
   },
-  update: async (id: number, data: { full_name?: string; role?: 'admin' | 'viewer'; is_active?: boolean }): Promise<User> => {
+  update: async (id: number, data: { full_name?: string; role?: UserRole; is_active?: boolean }): Promise<User> => {
     const response = await api.patch<User>(`/users/${id}`, data)
     return response.data
   },
@@ -349,8 +564,24 @@ export interface UnassignedTest {
 }
 
 export interface CustomRunResult {
-  runs: TestRun[]
+  requests: ExecutionRequest[]
   unassigned: UnassignedTest[]
+}
+
+export interface ExecutionRequest {
+  id: number
+  name: string
+  runner_account: string
+  selected_tests: string[]
+  state: 'queued' | 'claimed'
+  run_id: number | null
+  source_metadata: Record<string, unknown>
+  created_at: string
+}
+
+export const executionRequestsApi = {
+  list: async (): Promise<ExecutionRequest[]> => (await api.get<ExecutionRequest[]>('/execution-requests')).data,
+  get: async (id: number): Promise<ExecutionRequest> => (await api.get<ExecutionRequest>(`/execution-requests/${id}`)).data,
 }
 
 export interface Artifact {
@@ -411,6 +642,8 @@ export const testRunsApi = {
     return response.data
   },
   list: async (params?: {
+    sort_by?: 'name' | 'status' | 'runner_account' | 'duration_seconds' | 'started_at' | 'completed_at'
+    sort_dir?: 'asc' | 'desc'
     status?: string
     limit?: number
     offset?: number
@@ -535,6 +768,50 @@ export interface PLMIntegrationSettingsUpdate {
   clear_bloom_token?: boolean
 }
 
+export type NotificationFormat = 'teams' | 'slack' | 'discord' | 'json'
+export type NotificationRunFilter = 'all' | 'failures' | 'first_failure'
+
+export interface NotificationChannel {
+  id: number
+  name: string
+  format: NotificationFormat
+  url_prefix: string
+  run_filter: NotificationRunFilter
+  enabled: boolean
+  has_secret: boolean
+  created_at: string
+}
+
+export interface NotificationChannelInput {
+  name?: string
+  format?: NotificationFormat
+  url?: string
+  secret?: string
+  run_filter?: NotificationRunFilter
+  enabled?: boolean
+}
+
+export interface NotificationTestResult {
+  delivered: boolean
+  attempts: number
+  status_code: number | null
+  error: string | null
+}
+
+export const notificationsApi = {
+  listChannels: async () =>
+    (await api.get<NotificationChannel[]>('/settings/notifications/channels')).data,
+  createChannel: async (data: NotificationChannelInput) =>
+    (await api.post<NotificationChannel>('/settings/notifications/channels', data)).data,
+  updateChannel: async (id: number, data: NotificationChannelInput) =>
+    (await api.patch<NotificationChannel>(`/settings/notifications/channels/${id}`, data)).data,
+  deleteChannel: async (id: number) => {
+    await api.delete(`/settings/notifications/channels/${id}`)
+  },
+  testChannel: async (id: number) =>
+    (await api.post<NotificationTestResult>(`/settings/notifications/channels/${id}/test`)).data,
+}
+
 export const settingsApi = {
   getPLM: async () => {
     const response = await api.get<PLMIntegrationSettings>('/settings/integrations/PLM')
@@ -651,6 +928,34 @@ export interface SetupStatusResponse {
 export interface SetupCompletedResponse {
   message: string
   /** Shown once, to the browser that completed setup. Never returned again. */
+}
+
+export const companyLogoApi = {
+  setLogo: async (file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    const response = await api.put<{ content_type: string; size: number }>(
+      '/company-logo/logo',
+      form,
+      { headers: { 'Content-Type': 'multipart/form-data' } },
+    )
+    return response.data
+  },
+  // Fetched through the authenticated client (not a bare <img src>) so the
+  // admin actually sees the stored logo; 404 means none is set yet.
+  fetchLogo: async (): Promise<Blob | null> => {
+    try {
+      const response = await api.get('/company-logo/logo', { responseType: 'blob' })
+      return response.data as Blob
+    } catch (err) {
+      const status = (err as { response?: { status?: number } }).response?.status
+      if (status === 404) return null
+      throw err
+    }
+  },
+  deleteLogo: async () => {
+    await api.delete('/company-logo/logo')
+  },
 }
 
 export const setupApi = {

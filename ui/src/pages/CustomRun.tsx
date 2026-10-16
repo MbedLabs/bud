@@ -1,3 +1,4 @@
+import SelectField from '../components/SelectField'
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -130,7 +131,7 @@ export default function CustomRun() {
       setError(null)
       setSelected([])
       setName('')
-      queryClient.invalidateQueries({ queryKey: ['testRuns'] })
+      void queryClient.invalidateQueries({ queryKey: ['executionRequests'] })
     },
     onError: (failure) => {
       setResult(null)
@@ -156,7 +157,7 @@ export default function CustomRun() {
             <label htmlFor="custom-run-station" className="sr-only">
               Test Station
             </label>
-            <select
+            <SelectField
               id="custom-run-station"
               value={pinned}
               onChange={(event) => {
@@ -172,7 +173,7 @@ export default function CustomRun() {
                   {station.account}
                 </option>
               ))}
-            </select>
+            </SelectField>
           </div>
           <div>
             <label htmlFor="custom-run-name" className="sr-only">
@@ -344,24 +345,24 @@ export default function CustomRun() {
 }
 
 /** What was queued, and what could not be — both, always. */
-function QueuedSummary({ result }: { result: CustomRunResult }) {
+function QueuedSummary({ result }: Readonly<{ result: CustomRunResult }>) {
   return (
     <section className="bg-card rounded-lg border border-border shadow-elegant overflow-hidden">
       <div className="border-b border-border px-5 py-4">
         <h3 className="text-sm font-semibold text-foreground">
-          {result.runs.length} run{result.runs.length === 1 ? '' : 's'} queued
+          {result.requests.length} request{result.requests.length === 1 ? '' : 's'} queued
         </h3>
         <p className="text-xs text-muted-foreground">
           Waiting for the station to check in.
         </p>
       </div>
       <ul className="divide-y divide-border">
-        {result.runs.map((run) => (
+        {result.requests.map((run) => (
           <li key={run.id} className="flex items-center gap-3 px-5 py-3">
             <Server className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
             <div className="min-w-0 flex-1">
               <Link
-                to={`/runs/${run.id}`}
+                to={`/stations#request-${run.id}`}
                 className="truncate text-sm font-medium text-primary hover:text-primary/80"
               >
                 {run.name}
@@ -372,7 +373,7 @@ function QueuedSummary({ result }: { result: CustomRunResult }) {
               </p>
             </div>
             <span className="shrink-0 rounded-md border border-border px-2 py-0.5 text-xs text-muted-foreground">
-              {run.status}
+              {run.state === 'queued' ? 'Queued' : 'Claimed'}
             </span>
           </li>
         ))}

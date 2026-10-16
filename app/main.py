@@ -14,11 +14,17 @@ from slowapi.errors import RateLimitExceeded
 from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
 
+from app.api import access_requests as access_requests_api
+from app.api import audit as audit_api
 from app.api import auth as auth_api
 from app.api import (
+    company_logo,
     custom_runs,
+    groups,
     health,
+    policies,
     products,
+    report_requests,
     reports,
     results,
     runners,
@@ -28,6 +34,7 @@ from app.api import (
     uploads,
 )
 from app.api import users as users_api
+from app.core.access import seed_default_access
 from app.core.config import settings as app_settings
 from app.core.deps import limiter
 from app.core.observability import (
@@ -40,6 +47,7 @@ from app.core.security import get_password_hash
 from app.db import database as db
 from app.models.user import User, UserRole
 from app.services.artifact_cleanup import reconcile_artifacts
+from app.services.report_requests import sync_report_requests
 
 setup_logging(level=app_settings.LOG_LEVEL, json_logs=bool(app_settings.LOG_JSON))
 logger = logging.getLogger(__name__)
@@ -64,6 +72,13 @@ async def seed_admin_user():
             admin.role = UserRole.admin
             admin.is_active = True
 
+        await session.commit()
+
+
+async def seed_access_defaults() -> None:
+    """Create the shipped policies and groups that are missing."""
+    async with db.async_session_maker() as session:
+        await seed_default_access(session)
         await session.commit()
 
 
@@ -145,6 +160,7 @@ async def lifespan(app: FastAPI):
         await migrate_user_columns()
         await migrate_user_roles_to_viewer()
         await migrate_execution_columns()
+        await seed_access_defaults()
     if app_settings.AUTO_SEED_ADMIN:
         await seed_admin_user()
 
@@ -164,10 +180,24 @@ async def lifespan(app: FastAPI):
                 logger.exception("Artifact cleanup pass failed")
             await asyncio.sleep(24 * 60 * 60)
 
+    async def report_request_loop() -> None:
+        """Collect Bloom requests once a minute while this app is running."""
+        while True:
+            await asyncio.sleep(60)
+            try:
+                async with db.async_session_maker() as session:
+                    await sync_report_requests(session)
+            except Exception:
+                logger.exception("Report-request collection failed; will retry")
+
+    request_task = asyncio.create_task(report_request_loop())
     cleanup_task = asyncio.create_task(cleanup_loop())
     try:
         yield
     finally:
+        request_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await request_task
         cleanup_task.cancel()
         with contextlib.suppress(asyncio.CancelledError):
             await cleanup_task
@@ -272,18 +302,27 @@ app.include_router(health.router, prefix="/api", tags=["Health"])
 app.include_router(metrics_router, prefix="/api", tags=["Observability"])
 app.include_router(auth_api.router, prefix="/api/auth", tags=["Auth"])
 app.include_router(users_api.router, prefix="/api/users", tags=["Users"])
+app.include_router(audit_api.router, prefix="/api/audit", tags=["Audit"])
+app.include_router(
+    access_requests_api.router, prefix="/api/access-requests", tags=["Access requests"]
+)
+app.include_router(groups.router, prefix="/api/groups", tags=["Groups"])
+app.include_router(groups.access_router, prefix="/api/access", tags=["Access"])
+app.include_router(policies.router, prefix="/api/policies", tags=["Policies"])
 app.include_router(products.router, prefix="/api/products", tags=["Products"])
 # Before the test-runs and runners routers: its paths sit under both prefixes
 # (/test-runs/custom, /runners/claim-run) and registering it first keeps the
 # match deterministic rather than dependent on how the other routers evolve.
 app.include_router(custom_runs.router, prefix="/api", tags=["Custom Runs"])
 app.include_router(test_runs.router, prefix="/api/test-runs", tags=["Test Runs"])
+app.include_router(report_requests.router, prefix="/api/report-requests", tags=["Report requests"])
 app.include_router(results.router, prefix="/api/results", tags=["Results"])
 app.include_router(uploads.router, prefix="/api/uploads", tags=["Uploads"])
 app.include_router(runners.router, prefix="/api/runners", tags=["Runners"])
 app.include_router(settings.router, prefix="/api/settings", tags=["Settings"])
 app.include_router(setup.router, prefix="/api", tags=["Setup"])
 app.include_router(reports.router, prefix="/api/reports", tags=["Reports"])
+app.include_router(company_logo.router, prefix="/api/company-logo", tags=["Company logo"])
 
 
 @app.get("/")

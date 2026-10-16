@@ -22,16 +22,16 @@ def _payload(**overrides) -> dict:
 
 
 class TestRunCreation:
-    def test_creates_a_run(self, client):
-        response = client.post("/api/test-runs", json=_payload())
+    def test_creates_a_run(self, client, station_request):
+        response = station_request("POST", "/api/test-runs", json=_payload())
         assert response.status_code == 201, response.text
         body = response.json()
         assert body["name"] == "Nightly"
         # The runner creates the run as execution starts, so it is already Running.
         assert body["status"] == "Running"
 
-    def test_records_a_creation_event(self, client):
-        created = client.post("/api/test-runs", json=_payload())
+    def test_records_a_creation_event(self, client, station_request):
+        created = station_request("POST", "/api/test-runs", json=_payload())
         run_id = created.json()["id"]
 
         events = client.get(f"/api/test-runs/{run_id}/events")
@@ -43,8 +43,8 @@ class TestRunCreation:
 
 
 class TestRunRetrieval:
-    def test_fetches_a_run(self, client):
-        run_id = client.post("/api/test-runs", json=_payload()).json()["id"]
+    def test_fetches_a_run(self, client, station_request):
+        run_id = station_request("POST", "/api/test-runs", json=_payload()).json()["id"]
         response = client.get(f"/api/test-runs/{run_id}")
         assert response.status_code == 200, response.text
         assert response.json()["id"] == run_id
@@ -52,30 +52,32 @@ class TestRunRetrieval:
     def test_unknown_run_is_404(self, client):
         assert client.get("/api/test-runs/99999").status_code == 404
 
-    def test_lists_runs(self, client):
-        client.post("/api/test-runs", json=_payload(test_suite_name="One"))
-        client.post("/api/test-runs", json=_payload(test_suite_name="Two"))
+    def test_lists_runs(self, client, station_request):
+        station_request("POST", "/api/test-runs", json=_payload(test_suite_name="One"))
+        station_request("POST", "/api/test-runs", json=_payload(test_suite_name="Two"))
 
         body = client.get("/api/test-runs").json()
         assert body["total"] >= 2
         assert {item["name"] for item in body["runs"]} >= {"One", "Two"}
 
-    def test_filters_by_suite(self, client):
-        client.post("/api/test-runs", json=_payload(test_suite_name="Wanted"))
-        client.post("/api/test-runs", json=_payload(test_suite_name="Unwanted"))
+    def test_filters_by_suite(self, client, station_request):
+        station_request("POST", "/api/test-runs", json=_payload(test_suite_name="Wanted"))
+        station_request("POST", "/api/test-runs", json=_payload(test_suite_name="Unwanted"))
 
         names = {i["name"] for i in client.get("/api/test-runs?suite=Wanted").json()["runs"]}
         assert names == {"Wanted"}
 
-    def test_filters_by_status(self, client):
-        client.post("/api/test-runs", json=_payload())
+    def test_filters_by_status(self, client, station_request):
+        station_request("POST", "/api/test-runs", json=_payload())
         body = client.get("/api/test-runs?status=Running").json()
         assert body["runs"], "the freshly created run should match"
         assert all(item["status"] == "Running" for item in body["runs"])
 
-    def test_paginates(self, client):
+    def test_paginates(self, client, station_request):
         for index in range(3):
-            client.post("/api/test-runs", json=_payload(test_suite_name=f"Suite{index}"))
+            station_request(
+                "POST", "/api/test-runs", json=_payload(test_suite_name=f"Suite{index}")
+            )
         page = client.get("/api/test-runs?limit=2&offset=0").json()
         assert len(page["runs"]) <= 2
         assert page["limit"] == 2
@@ -104,9 +106,10 @@ class TestRunRetrieval:
 
 
 class TestRunUpdate:
-    def test_records_the_final_counters(self, client):
-        run_id = client.post("/api/test-runs", json=_payload()).json()["id"]
-        response = client.patch(
+    def test_records_the_final_counters(self, client, station_request):
+        run_id = station_request("POST", "/api/test-runs", json=_payload()).json()["id"]
+        response = station_request(
+            "PATCH",
             f"/api/test-runs/{run_id}",
             json={
                 "status": "Completed",
@@ -123,34 +126,41 @@ class TestRunUpdate:
         assert body["passed_tests"] == 8
         assert body["duration_seconds"] == 42.5
 
-    def test_completing_a_run_stamps_completed_at(self, client):
-        run_id = client.post("/api/test-runs", json=_payload()).json()["id"]
+    def test_completing_a_run_stamps_completed_at(self, client, station_request):
+        run_id = station_request("POST", "/api/test-runs", json=_payload()).json()["id"]
         assert client.get(f"/api/test-runs/{run_id}").json()["completed_at"] is None
 
-        client.patch(f"/api/test-runs/{run_id}", json={"status": "Completed"})
+        station_request("PATCH", f"/api/test-runs/{run_id}", json={"status": "Completed"})
         assert client.get(f"/api/test-runs/{run_id}").json()["completed_at"] is not None
 
-    def test_a_status_change_is_recorded_as_an_event(self, client):
-        run_id = client.post("/api/test-runs", json=_payload()).json()["id"]
+    def test_a_status_change_is_recorded_as_an_event(self, client, station_request):
+        run_id = station_request("POST", "/api/test-runs", json=_payload()).json()["id"]
         before = len(client.get(f"/api/test-runs/{run_id}/events").json())
 
-        client.patch(f"/api/test-runs/{run_id}", json={"status": "Completed"})
+        station_request("PATCH", f"/api/test-runs/{run_id}", json={"status": "Completed"})
         after = len(client.get(f"/api/test-runs/{run_id}/events").json())
         assert after > before
 
-    def test_updating_an_unknown_run_is_404(self, client):
-        assert client.patch("/api/test-runs/99999", json={"status": "Completed"}).status_code == 404
+    def test_updating_an_unknown_run_is_404(self, client, station_request):
+        assert (
+            station_request(
+                "PATCH", "/api/test-runs/99999", json={"status": "Completed"}
+            ).status_code
+            == 404
+        )
 
-    def test_rejects_an_unknown_status(self, client):
-        run_id = client.post("/api/test-runs", json=_payload()).json()["id"]
-        response = client.patch(f"/api/test-runs/{run_id}", json={"status": "Elsewhere"})
+    def test_rejects_an_unknown_status(self, client, station_request):
+        run_id = station_request("POST", "/api/test-runs", json=_payload()).json()["id"]
+        response = station_request(
+            "PATCH", f"/api/test-runs/{run_id}", json={"status": "Elsewhere"}
+        )
         assert response.status_code == 422
 
 
 class TestRunDeletion:
     @pytest.mark.asyncio
-    async def test_deletes_a_run(self, client, db_session):
-        run_id = client.post("/api/test-runs", json=_payload()).json()["id"]
+    async def test_deletes_a_run(self, client, station_request, db_session):
+        run_id = station_request("POST", "/api/test-runs", json=_payload()).json()["id"]
         assert client.delete(f"/api/test-runs/{run_id}").status_code == 204
 
         remaining = (
@@ -162,8 +172,10 @@ class TestRunDeletion:
         assert client.delete("/api/test-runs/99999").status_code == 404
 
     @pytest.mark.asyncio
-    async def test_deleting_a_run_takes_its_results_with_it(self, client, db_session):
-        run_id = client.post("/api/test-runs", json=_payload()).json()["id"]
+    async def test_deleting_a_run_takes_its_results_with_it(
+        self, client, station_request, db_session
+    ):
+        run_id = station_request("POST", "/api/test-runs", json=_payload()).json()["id"]
         db_session.add(
             TestResult(test_class="Smoke", test_method="test_x", passed=True, test_run_id=run_id)
         )

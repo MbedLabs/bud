@@ -325,7 +325,7 @@ class TestTheEndpoint:
 
     @pytest.mark.asyncio
     async def test_nothing_is_published_by_finishing_a_run(
-        self, client, db_session, tmp_path, monkeypatch
+        self, client, station_request, test_station, db_session, tmp_path, monkeypatch
     ):
         """Publishing is asked for. A nightly suite must not fill Bloom on its own."""
         from app.api import uploads
@@ -333,6 +333,7 @@ class TestTheEndpoint:
         monkeypatch.setattr(uploads, "_UPLOAD_ROOT", tmp_path.resolve())
         await _configure_bloom(db_session)
         run = TestRun(
+            runner_id=test_station.id,
             name="Autopublish check",
             test_case_list="Suite.CASES",
             status="Running",
@@ -343,7 +344,9 @@ class TestTheEndpoint:
         await db_session.refresh(run)
 
         with patch("app.api.test_runs.post_to_bloom", AsyncMock()) as posted:
-            completed = client.patch(f"/api/test-runs/{run.id}", json={"status": "Completed"})
+            completed = station_request(
+                "PATCH", f"/api/test-runs/{run.id}", json={"status": "Completed"}
+            )
 
         assert completed.status_code == 200
         posted.assert_not_called()

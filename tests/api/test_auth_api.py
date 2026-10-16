@@ -262,7 +262,8 @@ class TestSelfServiceEmailChange:
         ).one()
         assert token.created_by_user_id == admin.id
         assert token.target_email == "admin-after@example.com"
-        assert smtp and smtp[0]["to_email"] == "admin-before@example.com"
+        assert smtp
+        assert smtp[0]["to_email"] == "admin-before@example.com"
         assert "authorize" in smtp[0]["subject"].lower()
 
         current_mailbox_token = re.search(r"#token=([^\s<]+)", smtp[0]["text_body"])

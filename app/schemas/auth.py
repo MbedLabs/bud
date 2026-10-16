@@ -5,7 +5,14 @@ Auth and user schemas.
 from datetime import datetime
 from typing import Annotated, Literal, Optional
 
-from pydantic import AfterValidator, BaseModel, ConfigDict, EmailStr, Field
+from pydantic import (
+    AfterValidator,
+    BaseModel,
+    ConfigDict,
+    EmailStr,
+    Field,
+    field_serializer,
+)
 
 from app.core.passwords import validate_password_strength
 from app.models.user import UserRole
@@ -71,6 +78,22 @@ class UserResponse(BaseModel):
     email_change_requested_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
+    has_profile_picture: bool = False
+    profile_picture_url: str | None = None
+    permissions: list[str] = []
+
+    @field_serializer(
+        "invited_at",
+        "last_invite_sent_at",
+        "invite_accepted_at",
+        "password_set_at",
+        "email_verified_at",
+        "email_change_requested_at",
+        "created_at",
+        "updated_at",
+    )
+    def serialize_dt(self, dt: Optional[datetime], _info):
+        return f"{dt.isoformat()}Z" if dt else None
 
     class Config:
         from_attributes = True

@@ -6,6 +6,7 @@ from sqlalchemy import text
 from app import __version__
 from app.db.database import engine
 from app.schemas import HealthResponse, ReadinessResponse, VersionResponse
+from app.services import object_store
 
 router = APIRouter()
 
@@ -28,7 +29,12 @@ async def readiness_check():
             detail={"status": "not_ready", "database": "unavailable"},
         ) from exc
 
-    return ReadinessResponse(status="ready", version=__version__, database="connected")
+    storage = "local"
+    if object_store.s3_enabled():
+        storage = "s3" if await object_store.bucket_answers() else "s3-unreachable"
+    return ReadinessResponse(
+        status="ready", version=__version__, database="connected", storage=storage
+    )
 
 
 @router.get("/version", response_model=VersionResponse)

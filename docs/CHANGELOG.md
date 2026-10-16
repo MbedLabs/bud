@@ -1,5 +1,37 @@
 # Changelog
 
+## 1.2.0 - unreleased
+
+### Added
+
+- Bloom report requests persist across restarts, appear for report publishers on the dashboard and run page, and notify active publishers through configured SMTP. Publishers fulfill requests through report publishing or refuse with a reason; status returns to Bloom.
+
+- Admin company logo on test-run PDF reports: an administrator uploads a company logo in Settings; it renders on the report letterhead (top-left) alongside the EmbedLabs tamper-evidence footer, which is always present. The Settings preview loads through the authenticated client so the admin sees exactly what was stored.
+- S3-compatible object storage: `STORAGE_BACKEND=s3` keeps run artifacts and generated reports in a bucket (AWS S3, MinIO, Hetzner, Ceph) under a per-instance prefix, with the local directory as a mirror that reads fall back to when the bucket does not answer (`STORAGE_LOCAL_MIRROR`, default on). `python -m app.storage migrate --to s3` copies existing files and checks their sizes; cleanup reconciles the bucket; `/api/ready` reports the storage. Local storage stays the default and is unchanged. Adds boto3 to the locked dependencies.
+- Robot Framework runs (bud-runner `run-robot`): HTML artifacts (`text/html`, Robot's log.html and report.html) are accepted. Every artifact download is an attachment sent with `Content-Security-Policy: sandbox` and `X-Content-Type-Options: nosniff`, so user-supplied HTML or SVG never runs in the Bud origin. The Bloom sync event says how many results had no Bloom tc_id and how many skipped results were not sent.
+- Access control: permissions are `resource.action` pairs: `evidence.view`, `reports.export`, `products.view`, `products.manage`, `stations.view`, `stations.manage`, `custom_runs.create`, `bloom_publish.execute`, `settings.view`, `settings.edit`, `audit.view`, `access.manage`. A policy is a named set of permissions, a group is a named set of policies, and a user can be in several groups. A user's permissions are those of their role plus those of all their groups. Roles: `viewer` has the Results policy, `developer` also has Custom runs and Publish to Bloom, `admin` has every permission. 8 default policies and 5 default groups (Results Viewers, Test Operators, Station Managers, Access Managers, Application Administrators) are created; changing or deleting one returns 409, `POST /{id}/duplicate` creates an editable copy. A group containing `stations.manage` can only be given to `admin` or `developer` users (422). Only `admin` can give Application Administrators and change policies (403). A user with `access.manage` can only create, change, delete or give groups whose permissions they have themselves (403). User management and deleting runs and artifacts stay `admin` only. Access is not limited by product.
+- Access endpoints: `/api/policies` (with `/catalogue` and `/{id}/duplicate`), `/api/groups` (policies, members, `/{id}/duplicate`) and `GET /api/access/users`. `GET /api/auth/me` returns the user's `permissions`.
+- Separate Users and Access pages: `/users` manages accounts; `/access`, for `admin` and users with `access.manage`, provides Assignments with group rosters, Groups with policy bundles, Policies with a Read/Write editor and Requests.
+- Run notifications: when a run finishes, Bud posts it to every enabled channel under Settings, Notifications: Microsoft Teams (an Adaptive Card for a Power Automate Workflows URL, a MessageCard for a classic connector URL, chosen from the URL), Slack (Block Kit), Discord (embed) or plain JSON for any endpoint. The message carries the run, product, station and software under test, the counts and duration, up to five failed tests, the Bud link and the Bloom link or sync failure. A channel sends all runs, failures only, or the first failure after a green run; its URL is stored encrypted and shown as a prefix; an optional secret signs the JSON body (`X-Bud-Signature`). Each delivery is retried three times and recorded, shown as a notify stage on the run timeline; Send test message checks a channel. Routing per product and per station is not in this release.
+- Audit log: security-relevant events (authentication, accounts, groups, station registration, enrolment keys and station removal, configuration, deletions, exports, imports, attachments) are recorded with the acting user, the request id, the client address, the outcome and details without secrets; a failed sign-in is recorded although the request fails. Administrators read it under Audit log (`GET /api/audit`, filtered by actor, action, target, product, outcome and time). No endpoint changes or deletes an event; `python -m app.audit prune --older-than-days N` removes old events on the operator's schedule. Event times are shown in the viewer's time zone.
+- Run access requests: a run that returns 403 or 404 shows a page with a Request access button (`POST /api/access-requests`, `resource_type=test-run`). Every `admin` and every user with `access.manage` gets an email with a link to `/access`. One request per user and resource per 24 hours. Requests are decided with `POST /api/access-requests/{id}/decision`. Requests and decisions are written to the audit log; if the email fails, the request is kept and the user is told.
+- Publish to Bloom requests: a user without `bloom_publish.execute` sees Request access instead of Publish on a run (`resource_type=publish-to-bloom`). Granting requires a `group_id` of a group that has `bloom_publish.execute` and adds the user to it (422 otherwise).
+- Database: migrations `017_release120` and `018_report_requests` upgrade from 1.1.0 (`016_key_station_name`), including persistent report requests. Members of the 1.2.0 development groups are moved to Test Operators (developer groups) or Results Viewers (viewer groups); the old group tables are kept and no longer used.
+- Profile picture: a signed-in user uploads, replaces or removes their own picture under Settings, Account (PNG, JPEG or WebP up to 2 MB; stored as a PNG of at most 256 x 256 pixels without metadata, with the camera orientation applied). `GET`, `PUT` and `DELETE /api/auth/me/picture`; `/api/auth/me` reports `has_profile_picture`. Saved pictures appear in Users, the account menu, group memberships, audit actors and access requesters, with initials when none is stored. Replacing or removing a picture refreshes these identity views while preserving unrelated cached data.
+
+### Changed
+
+- Custom Run stores a human execution request and shows its assigned station; the execution link appears when that station claims it. Only authenticated Test Stations create execution records, update their execution state, submit raw results and upload artifacts; `POST /api/uploads` returns 403 for every user, `admin` included. Queued requests do not appear as completed or pending executions in reports and dashboard totals. Dashboard totals classify claimed executions as in progress until the station acknowledges completion, and a nonzero exit or execution error counts as failure even when no method results were produced.
+- Run page and PDF reports: a skipped assertion and an information entry (a Robot keyword that checks nothing) are not counted as assertions; the run page shows them in neutral colour, the reports leave them out.
+- Times written for people are given to the second, in UTC: the start, completion and generation times on PDF reports and the time in access-request emails.
+
+### Fixed
+
+- Signing out, and a session check that fails while a user is signed in, now reload the page, and a tab reloads when it next renews its session and finds it belongs to another user signed in from another tab. Nothing cached for the previous user stays in memory, and signing in empties the cache as well. Before, the next user in the same tab could be shown data cached for the previous one for up to five minutes.
+- A database error while committing a request, such as a constraint violation, is answered with 409 or 500 and the request id; the commit now runs before the response is built instead of after it had started.
+- Orphan cleanup measured its grace period from a UTC time read as local time, so on a host not running in UTC it was off by the UTC offset.
+- User and runner API key timestamps in API responses carry the UTC marker (`Z`); without it the Users page showed the time of an email change request shifted by the viewer's UTC offset.
+
 ## 1.1.0 - 2026-09-16
 
 ### Added
@@ -64,7 +96,7 @@
 
 ## 1.0.0 - 2026-07-24
 
-Initial public beta release of Bud TMP by EmbedLabs — a self-hosted test
+Initial public beta release of Bud TMP by EmbedLabs, a test
 management and execution platform. Published as a multi-architecture container
 image with PostgreSQL-backed deployment, Alembic migrations, liveness/readiness
 health checks, and persistent artifact storage.

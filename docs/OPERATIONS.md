@@ -44,6 +44,55 @@ Two independent token lifetimes, tunable via environment variables (no code chan
   usable for heartbeat/results while its `last_heartbeat` is within
   `RUNNER_HEARTBEAT_TIMEOUT`. This is separate from user sessions above.
 
+## Roles, policies and groups
+
+Every user has a base role, chosen when they are invited:
+
+- **Viewer** reads everything and changes nothing. The Viewer role is meant for internal
+  viewers.
+- **Developer** is Viewer plus queuing custom runs on the Test Stations and publishing a
+  run's report to Bloom.
+- **Admin** holds every permission. Admin is chosen when a user is created or invited; an
+  existing user is never promoted to it, and an Admin's role is never changed. Managing
+  users and their accounts, deleting runs and artifacts, and confirming an Admin's own email
+  change stay with the Admin base role and are never given through a group.
+
+A **policy** is the set of rights for one area of Bud: Results, Custom runs, Publish to
+Bloom, Stations, Products, Settings and integrations, Audit log and Access management. A
+**group** is a named bundle of policies. A user can have several groups; their access is
+the base role's allowance plus every policy of every group. A group only adds.
+
+Bud ships five groups: Results Viewers, Test Operators (Results, Custom runs, Publish to
+Bloom), Station Managers (Results, Stations), Access Managers (Station Managers plus Access
+management) and Application Administrators (every policy). Shipped groups and policies cannot be
+changed; duplicate one to make an editable copy. A group that manages stations is given
+only to users with the Admin or Developer base role. Only an Admin gives Application Administrators and
+edits policies. Someone with Access management gives, creates and edits only groups whose
+policies they hold themselves.
+
+Access is not scoped by products or stations: every user sees every product.
+
+**Access** in the sidebar has Assignments for group rosters, Groups for policy bundles,
+Policies for Read/Write controls and Requests for access requests. Users is a separate
+account-management page. A user without Publish to Bloom finds
+Request access in its place on a run; Admins and Access managers are emailed and grant it
+by giving a group that holds Publish to Bloom.
+
+Test Stations create execution records, report their status and counters, and submit raw
+results using their station credentials. These submissions are limited to the station's
+own runs. Human sessions, including Administrator, cannot submit those execution records.
+Users request queued work through **Custom Run**.
+
+A custom-run request contains the selected test classes and assigned Test Station.
+It appears in the station's request queue and links to an execution record after
+that station claims it. Queued requests are excluded from run reports and dashboard
+execution totals. The station executes the selection in its local test workspace,
+uploads results and artifacts, and acknowledges completion with its process exit
+code. Dashboard totals and completion notifications wait for that acknowledgement; an
+unavailable selected class or another execution error counts as a failed run even
+when no test results were produced. Completion retries retain the original terminal
+answer and do not record it twice.
+
 ## Logs
 
 Bud writes logs to stdout so any container log driver or shipper picks them up.
@@ -135,6 +184,50 @@ retention pass, which also removes orphaned files and expired reservations.
 
 These are authorization and resource-exhaustion controls, not a malware scanner.
 Add a fail-closed ClamAV or YARA stage if your deployment needs that claim.
+
+## Object storage (S3)
+
+Run artifacts are kept in `BUD_UPLOAD_DIR` by default. To keep them in an
+S3-compatible bucket (AWS S3, MinIO, Hetzner, Ceph) instead:
+
+- `BUD_STORAGE_BACKEND=s3` and `BUD_S3_BUCKET`. The bucket must exist.
+- `BUD_S3_ENDPOINT_URL` for anything that is not AWS (for MinIO, for example
+  `http://minio:9000`); `BUD_S3_REGION` where the store needs one.
+- `BUD_S3_PREFIX` (default `bud`) keeps several instances apart in one bucket.
+- `BUD_S3_ACCESS_KEY_ID` and `BUD_S3_SECRET_ACCESS_KEY`, or neither, in which
+  case the ambient AWS credentials (an instance role) are used.
+- `BUD_STORAGE_LOCAL_MIRROR` (default `true`) also keeps every file in
+  `BUD_UPLOAD_DIR`. Reads come from the bucket and fall back to the mirror when the
+  bucket does not answer; the log then names the key as a warning. The free-space
+  reserve applies to this directory; quotas in the bucket are the operator's.
+
+Existing files are copied with `python -m app.storage migrate --to s3`. Each file
+keeps its storage name under the prefix, sizes are checked after the copy, and files
+already in the bucket are skipped, so the command can be run again. The local files
+stay where they are.
+
+`GET /api/ready` reports `storage`: `local`, `s3`, or `s3-unreachable` when the bucket
+did not answer. It stays `200` in that case, because the database decides readiness
+and reads can still come from the mirror. Orphan cleanup lists the bucket; a file is
+counted missing when the bucket lacks it. On Cloudron the variables are set with
+`cloudron env set`; keep the mirror, as it lives under `/app/data` and is part of
+Cloudron's backup.
+
+## Audit log
+
+Security-relevant events are written to the `audit_events` table in the same transaction as the action: sign-in, sign-out, session refresh, password change and reset, email verification and email change; user creation, invitation, role change, activation, deletion; groups, station registration, enrolment keys and station removal; configuration changes; deletions, exports, imports and attachments. A failed sign-in or password reset is recorded even though the request itself fails. Each event carries the acting user or `anonymous`/`service`/`runner`, the action, the target, the request id (the `x-request-id` response header), the client address and user agent, the outcome and details without secrets.
+
+Administrators read the log under Audit log in the sidebar, or with `GET /api/audit` (filters: `actor_user_id`, `action` or an action prefix ending in `.`, `target_type`, `target_id`, `product`, `outcome`, `since`, `until`, `limit`, `offset`). No endpoint changes or deletes an event.
+
+The client address is the one the image's own nginx received. Behind another reverse proxy (Cloudron, a load balancer) it is that proxy's address.
+
+Access requests are emailed to every active administrator through the transactional mail settings; without SMTP the request is still recorded and shown on the Users page, and the user is told the email could not be sent.
+
+Retention is the operator's choice. The application never deletes events; to remove old ones, run on a schedule:
+
+```
+python -m app.audit prune --older-than-days 365
+```
 
 ## Upgrades
 

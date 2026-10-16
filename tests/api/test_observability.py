@@ -10,7 +10,8 @@ def test_health_response_carries_generated_request_id(client):
     response = client.get("/api/health")
     assert response.status_code == 200
     request_id = response.headers.get("x-request-id")
-    assert request_id and len(request_id) >= 16
+    assert request_id
+    assert len(request_id) >= 16
 
 
 def test_incoming_request_id_is_propagated(client):

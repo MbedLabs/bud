@@ -5,10 +5,23 @@ Database models for the bud TMP.
 from datetime import datetime
 from typing import List, Optional
 
-from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    LargeBinary,
+    String,
+    Text,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.database import Base
+
+ALL_DELETE_ORPHAN = "all, delete-orphan"
+TEST_RUNS_ID = "test_runs.id"
 
 
 class Product(Base):
@@ -85,6 +98,9 @@ class TestRun(Base):
     name: Mapped[str] = mapped_column(String(255))
     test_case_list: Mapped[str] = mapped_column(String(500))
     status: Mapped[str] = mapped_column(String(50), default="Pending")
+    record_kind: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="execution", server_default="execution"
+    )
 
     # Test software repository
     url_test_software: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
@@ -134,13 +150,13 @@ class TestRun(Base):
     product: Mapped[Optional["Product"]] = relationship(back_populates="test_runs")
     runner: Mapped[Optional["Runner"]] = relationship(back_populates="test_runs")
     results: Mapped[List["TestResult"]] = relationship(
-        back_populates="test_run", cascade="all, delete-orphan"
+        back_populates="test_run", cascade=ALL_DELETE_ORPHAN
     )
     artifacts: Mapped[List["Artifact"]] = relationship(
-        back_populates="test_run", cascade="all, delete-orphan"
+        back_populates="test_run", cascade=ALL_DELETE_ORPHAN
     )
     events: Mapped[List["TestRunEvent"]] = relationship(
-        back_populates="test_run", cascade="all, delete-orphan"
+        back_populates="test_run", cascade=ALL_DELETE_ORPHAN
     )
 
 
@@ -150,7 +166,7 @@ class TestRunEvent(Base):
     __tablename__ = "test_run_events"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    test_run_id: Mapped[int] = mapped_column(ForeignKey("test_runs.id"), index=True, nullable=False)
+    test_run_id: Mapped[int] = mapped_column(ForeignKey(TEST_RUNS_ID), index=True, nullable=False)
     sequence: Mapped[int] = mapped_column(Integer, default=0)
     stage: Mapped[str] = mapped_column(String(100))
     status: Mapped[str] = mapped_column(String(50), default="completed")
@@ -184,7 +200,7 @@ class TestResult(Base):
 
     # Foreign keys (optional: detached uploads before a TestRun exists)
     test_run_id: Mapped[Optional[int]] = mapped_column(
-        ForeignKey("test_runs.id"), index=True, nullable=True
+        ForeignKey(TEST_RUNS_ID), index=True, nullable=True
     )
     product_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("products.id"), index=True, nullable=True
@@ -213,7 +229,7 @@ class Artifact(Base):
 
     # Foreign key
     test_run_id: Mapped[Optional[int]] = mapped_column(
-        ForeignKey("test_runs.id"), nullable=True, index=True
+        ForeignKey(TEST_RUNS_ID), nullable=True, index=True
     )
 
     # Relationships
@@ -228,7 +244,7 @@ class UploadLease(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     principal_key: Mapped[str] = mapped_column(String(128), unique=True, index=True)
     test_run_id: Mapped[Optional[int]] = mapped_column(
-        ForeignKey("test_runs.id", ondelete="CASCADE"), nullable=True, index=True
+        ForeignKey(TEST_RUNS_ID, ondelete="CASCADE"), nullable=True, index=True
     )
     reserved_bytes: Mapped[int] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
@@ -258,3 +274,55 @@ class SystemSetting(Base):
         default=datetime.utcnow,
         onupdate=datetime.utcnow,
     )
+
+
+class CompanyLogo(Base):
+    """Instance-wide company logo: an admin-uploaded customer logo for PDF reports."""
+
+    __tablename__ = "company_logo"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    logo: Mapped[Optional[bytes]] = mapped_column(LargeBinary, nullable=True)
+    logo_content_type: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    logo_filename: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+
+class NotificationChannel(Base):
+    """An outbound chat or automation webhook that finished runs are posted to."""
+
+    __tablename__ = "notification_channels"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(100), unique=True)
+    format: Mapped[str] = mapped_column(String(20))
+    url_encrypted: Mapped[str] = mapped_column(Text)
+    url_prefix: Mapped[str] = mapped_column(String(60))
+    secret_encrypted: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    run_filter: Mapped[str] = mapped_column(String(30), default="all")
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+
+class NotificationDelivery(Base):
+    """One attempt to post a run summary to a notification channel."""
+
+    __tablename__ = "notification_deliveries"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    test_run_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey(TEST_RUNS_ID, ondelete="CASCADE"), nullable=True, index=True
+    )
+    channel_id: Mapped[int] = mapped_column(
+        ForeignKey("notification_channels.id", ondelete="CASCADE"), index=True
+    )
+    attempt: Mapped[int] = mapped_column(Integer, default=1)
+    delivered: Mapped[bool] = mapped_column(Boolean, default=False)
+    status_code: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

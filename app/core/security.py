@@ -3,16 +3,15 @@ Security utilities for authentication and authorization.
 """
 
 import secrets
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
+import jwt
 from fastapi.security import OAuth2PasswordBearer
-from jose import JWTError, jwt
 from passlib.context import CryptContext
 
 from app.core.config import settings
 
-# OAuth2 scheme
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
 # Password hashing
@@ -49,9 +48,11 @@ def create_access_token(
     to_encode = data.copy()
 
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.now(timezone.utc).replace(tzinfo=None) + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        expire = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(
+            minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
+        )
 
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=ALGORITHM)
@@ -59,20 +60,19 @@ def create_access_token(
     return encoded_jwt
 
 
-def decode_access_token(token: str) -> Optional[dict]:
-    """
-    Decode a JWT access token.
+def decode_access_token(token: str, verify_exp: bool = True) -> Optional[dict]:
+    """The claims of a JWT signed with the secret key, or None when it is invalid.
 
-    Args:
-        token: JWT token to decode.
-
-    Returns:
-        Decoded token data or None if invalid.
+    With ``verify_exp`` false an expired token still decodes.
     """
     try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[ALGORITHM])
-        return payload
-    except JWTError:
+        return jwt.decode(
+            token,
+            settings.SECRET_KEY,
+            algorithms=[ALGORITHM],
+            options={"verify_exp": verify_exp},
+        )
+    except jwt.PyJWTError:
         return None
 
 

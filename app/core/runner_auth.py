@@ -1,29 +1,20 @@
 """Test Station JWT authentication with heartbeat-backed expiry bypass."""
 
 import hmac
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from jose import JWTError, jwt
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.core.security import ALGORITHM, decode_access_token
+from app.core.security import decode_access_token
 from app.models import Runner
 
 
 def decode_access_token_ignore_exp(token: str) -> Optional[dict]:
     """Decode a JWT verifying signature but not expiration."""
-    try:
-        return jwt.decode(
-            token,
-            settings.SECRET_KEY,
-            algorithms=[ALGORITHM],
-            options={"verify_exp": False},
-        )
-    except JWTError:
-        return None
+    return decode_access_token(token, verify_exp=False)
 
 
 def runner_has_recent_heartbeat(
@@ -33,7 +24,7 @@ def runner_has_recent_heartbeat(
     """True when the runner reported a heartbeat within the configured timeout."""
     if runner.last_heartbeat is None:
         return False
-    now = now or datetime.utcnow()
+    now = now or datetime.now(timezone.utc).replace(tzinfo=None)
     last = runner.last_heartbeat
     if last.tzinfo is not None:
         last = last.replace(tzinfo=None)

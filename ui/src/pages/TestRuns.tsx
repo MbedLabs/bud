@@ -6,10 +6,15 @@ import { formatDateTime } from '../test/date-utils'
 import { useDebounced } from '../hooks/useDebounced'
 import { safeExternalUrl } from '../lib/externalLink'
 import { Search, Filter, ChevronLeft, ChevronRight, PlayCircle, Server, X, ExternalLink } from 'lucide-react'
+import RunStatusBadge from '../components/RunStatusBadge'
+import { AccessHeader } from '../components/AccessTable'
 
 const EMPTY_TEST_RUNS: TestRun[] = []
 
 const STATUS_OPTIONS = ['Pending', 'Running', 'Completed', 'Cancelled'] as const
+type SortField = 'name' | 'status' | 'runner_account' | 'duration_seconds' | 'started_at' | 'completed_at'
+const SORT_FIELDS: SortField[] = ['name', 'status', 'runner_account', 'duration_seconds', 'started_at', 'completed_at']
+const headerClass = 'px-5 py-3 text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider'
 
 export default function TestRuns() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -19,6 +24,17 @@ export default function TestRuns() {
   const [stationFilter, setStationFilter] = useState<string>(searchParams.get('station') || '')
   const [locationFilter, setLocationFilter] = useState<string>(searchParams.get('location') || '')
   const [filtersOpen, setFiltersOpen] = useState(false)
+  const requestedSort = searchParams.get('sort') as SortField | null
+  const sortField = requestedSort && SORT_FIELDS.includes(requestedSort) ? requestedSort : null
+  const sortDir = searchParams.get('dir') === 'desc' ? 'desc' : 'asc'
+  const toggleSort = (field: SortField) => {
+    setPage(1)
+    setSearchParams((previous) => {
+      previous.set('sort', field)
+      previous.set('dir', field === sortField && sortDir === 'asc' ? 'desc' : 'asc')
+      return previous
+    }, { replace: true })
+  }
   const limit = 20
 
   const hasActiveFilters = Boolean(statusFilter || stationFilter || locationFilter || search)
@@ -30,7 +46,7 @@ export default function TestRuns() {
   const { data, isLoading, error } = useQuery({
     queryKey: [
       'testRuns',
-      { page, limit, status: statusFilter, station: stationFilter, location: locationFilter, q: debouncedSearch },
+      { page, limit, status: statusFilter, station: stationFilter, location: locationFilter, q: debouncedSearch, sortField, sortDir },
     ],
     queryFn: () =>
       testRunsApi.list({
@@ -41,6 +57,8 @@ export default function TestRuns() {
         runner_account: stationFilter || undefined,
         location: locationFilter || undefined,
         q: debouncedSearch || undefined,
+        sort_by: sortField ?? undefined,
+        sort_dir: sortField ? sortDir : undefined,
       }),
     placeholderData: (previous) => previous,
   })
@@ -236,27 +254,15 @@ export default function TestRuns() {
           <table className="min-w-full divide-y divide-border">
             <thead>
               <tr className="bg-muted/50">
-                <th className="px-5 py-3 text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                  Name
-                </th>
-                <th className="px-5 py-3 text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                  Status
-                </th>
+                <AccessHeader field="name" sortField={sortField} sortDir={sortDir} onSort={toggleSort} className={headerClass}>Name</AccessHeader>
+                <AccessHeader field="status" sortField={sortField} sortDir={sortDir} onSort={toggleSort} className={headerClass}>Status</AccessHeader>
                 <th className="px-5 py-3 text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
                   Results
                 </th>
-                <th className="px-5 py-3 text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                  Test Station
-                </th>
-                <th className="px-5 py-3 text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                  Duration
-                </th>
-                <th className="px-5 py-3 text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                  Started At
-                </th>
-                <th className="px-5 py-3 text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                  Completed At
-                </th>
+                <AccessHeader field="runner_account" sortField={sortField} sortDir={sortDir} onSort={toggleSort} className={headerClass}>Test Station</AccessHeader>
+                <AccessHeader field="duration_seconds" sortField={sortField} sortDir={sortDir} onSort={toggleSort} className={headerClass}>Duration</AccessHeader>
+                <AccessHeader field="started_at" sortField={sortField} sortDir={sortDir} onSort={toggleSort} className={headerClass}>Started At</AccessHeader>
+                <AccessHeader field="completed_at" sortField={sortField} sortDir={sortDir} onSort={toggleSort} className={headerClass}>Completed At</AccessHeader>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -283,7 +289,7 @@ export default function TestRuns() {
                     )}
                   </td>
                   <td className="px-5 py-3.5 whitespace-nowrap">
-                    <StatusBadge status={run.status} />
+                    <RunStatusBadge status={run.status} />
                   </td>
                   <td className="px-5 py-3.5 whitespace-nowrap text-xs">
                     <span className="text-emerald-600 dark:text-emerald-400">{run.passed_tests} passed</span>
@@ -352,23 +358,7 @@ export default function TestRuns() {
   )
 }
 
-function StatusBadge({ status }: { status: string }) {
-  const config: Record<string, string> = {
-    Pending: 'bg-yellow-500/10 text-yellow-700 dark:text-yellow-400',
-    Running: 'bg-amber-500/10 text-amber-800 dark:text-amber-300',
-    Completed: 'bg-amber-500/10 text-amber-800 dark:text-amber-300',
-    Failed: 'bg-red-500/10 text-red-700 dark:text-red-400',
-    Cancelled: 'bg-muted text-muted-foreground',
-  }
-
-  return (
-    <span className={`px-2 py-0.5 rounded-md text-[11px] font-semibold ${config[status] || config.Pending}`}>
-      {status}
-    </span>
-  )
-}
-
-function FilterChip({ label }: { label: string }) {
+function FilterChip({ label }: Readonly<{ label: string }>) {
   return (
     <span className="inline-flex items-center rounded-md border border-primary/20 bg-primary/10 px-2 py-0.5 text-xs text-primary">
       {label}

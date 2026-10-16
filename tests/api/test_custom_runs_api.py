@@ -5,8 +5,9 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 
 import pytest
+from sqlalchemy import func, select
 
-from app.api.auth import get_current_active_entity
+from app.api.auth import get_current_active_entity, get_current_user
 from app.api.results import get_uploader_entity
 from app.main import app
 from app.models import Runner, TestResult, TestRun
@@ -89,8 +90,13 @@ def _as_runner(runner):
 
 
 def _clear():
-    app.dependency_overrides.pop(get_current_active_entity, None)
-    app.dependency_overrides.pop(get_uploader_entity, None)
+    human = app.dependency_overrides.get(get_current_user)
+    if human is None:
+        app.dependency_overrides.pop(get_current_active_entity, None)
+        app.dependency_overrides.pop(get_uploader_entity, None)
+    else:
+        app.dependency_overrides[get_current_active_entity] = human
+        app.dependency_overrides[get_uploader_entity] = human
 
 
 def _claim(client, claim_id: str = "11111111-1111-4111-8111-111111111111"):
@@ -183,6 +189,36 @@ class TestTheCatalogue:
 
 class TestQueueingACustomRun:
     @pytest.mark.asyncio
+    async def test_request_metadata_comes_from_the_assigned_station(self, client, lab):
+        await lab()
+        queued = client.post(
+            "/api/test-runs/custom",
+            json={
+                "test_paths": ["boot_suite.BootTest"],
+                "runner_account": "bench-01",
+            },
+        )
+        assert queued.status_code == 201, queued.text
+        request = queued.json()["requests"][0]
+        assert request["runner_account"] == "bench-01"
+        assert request["source_metadata"]["url_test_software"] == "https://git.test/tests.git"
+        assert request["source_metadata"]["ref_test_software"] == "release-2026"
+
+    @pytest.mark.asyncio
+    async def test_human_request_creates_no_execution_evidence(self, client, lab, db_session):
+        await lab()
+        before = await db_session.scalar(select(func.count()).select_from(TestRun))
+        response = client.post(
+            "/api/test-runs/custom", json={"test_paths": ["demo_voltage.VoltageTest"]}
+        )
+        assert response.status_code == 201, response.text
+        assert await db_session.scalar(select(func.count()).select_from(TestRun)) == before
+        body = response.json()
+        assert "runs" not in body
+        assert body["requests"][0]["state"] == "queued"
+        assert body["requests"][0]["run_id"] is None
+
+    @pytest.mark.asyncio
     async def test_queues_one_run_for_a_single_bench_selection(self, client, lab):
         await lab()
 
@@ -193,8 +229,8 @@ class TestQueueingACustomRun:
 
         assert response.status_code == 201, response.text
         body = response.json()
-        assert len(body["runs"]) == 1
-        assert body["runs"][0]["status"] == "Pending"
+        assert len(body["requests"]) == 1
+        assert body["requests"][0]["state"] == "queued"
         assert body["unassigned"] == []
 
     @pytest.mark.asyncio
@@ -208,8 +244,8 @@ class TestQueueingACustomRun:
 
         # Voltage has only ever run on bench-01 and Thermal only on bench-02.
         # Refusing would be the unhelpful answer; this says what it did.
-        assert len(body["runs"]) == 2
-        assert sorted(run["runner_account"] for run in body["runs"]) == ["bench-01", "bench-02"]
+        assert len(body["requests"]) == 2
+        assert sorted(run["runner_account"] for run in body["requests"]) == ["bench-01", "bench-02"]
 
     @pytest.mark.asyncio
     async def test_a_case_that_runs_anywhere_follows_the_ones_that_cannot(self, client, lab):
@@ -221,9 +257,9 @@ class TestQueueingACustomRun:
         ).json()
 
         # Voltage has only ever run on bench-01, so it is forced there.
-        assert len(body["runs"]) == 1
-        assert body["runs"][0]["runner_account"] == "bench-01"
-        assert sorted(body["runs"][0]["selected_tests"]) == [
+        assert len(body["requests"]) == 1
+        assert body["requests"][0]["runner_account"] == "bench-01"
+        assert sorted(body["requests"][0]["selected_tests"]) == [
             "demo_voltage.VoltageTest",
             "boot_suite.BootTest",
         ]
@@ -238,7 +274,7 @@ class TestQueueingACustomRun:
 
         # Nothing forces a bench here, so the tiebreak applies: bench-02 ran it
         # last, and its workspace is the one most likely to still hold it.
-        assert body["runs"][0]["runner_account"] == "bench-02"
+        assert body["requests"][0]["runner_account"] == "bench-02"
 
     @pytest.mark.asyncio
     async def test_carries_the_selection_on_the_run(self, client, lab):
@@ -247,7 +283,7 @@ class TestQueueingACustomRun:
         run = client.post(
             "/api/test-runs/custom",
             json={"test_paths": ["demo_voltage.VoltageTest"]},
-        ).json()["runs"][0]
+        ).json()["requests"][0]
 
         # The bench cannot resolve this from `test_case_list`: an ordinary run
         # names a list that exists in the workspace, and this selection does not.
@@ -260,12 +296,12 @@ class TestQueueingACustomRun:
         run = client.post(
             "/api/test-runs/custom",
             json={"test_paths": ["demo_voltage.VoltageTest"]},
-        ).json()["runs"][0]
+        ).json()["requests"][0]
 
         # Otherwise the bench runs whatever happens to be checked out, which is
         # not the code these tests last passed against.
-        assert run["url_test_software"] == "https://git.test/tests.git"
-        assert run["ref_test_software"] == "release-2026"
+        assert run["source_metadata"]["url_test_software"] == "https://git.test/tests.git"
+        assert run["source_metadata"]["ref_test_software"] == "release-2026"
 
     @pytest.mark.asyncio
     async def test_pinning_a_bench_keeps_everything_on_it(self, client, lab):
@@ -277,8 +313,8 @@ class TestQueueingACustomRun:
         ).json()
 
         # BootTest has run on both, so pinning is the only way to say which.
-        assert len(body["runs"]) == 1
-        assert body["runs"][0]["runner_account"] == "bench-02"
+        assert len(body["requests"]) == 1
+        assert body["requests"][0]["runner_account"] == "bench-02"
 
     @pytest.mark.asyncio
     async def test_pinning_reports_what_that_bench_has_never_run(self, client, lab):
@@ -293,7 +329,7 @@ class TestQueueingACustomRun:
         ).json()
 
         # Silently moving Thermal to bench-02 would defeat the point of pinning.
-        assert [run["runner_account"] for run in body["runs"]] == ["bench-01"]
+        assert [run["runner_account"] for run in body["requests"]] == ["bench-01"]
         assert [item["test_path"] for item in body["unassigned"]] == ["thermal.ThermalTest"]
         assert "bench-02" in body["unassigned"][0]["reason"]
 
@@ -306,7 +342,7 @@ class TestQueueingACustomRun:
             json={"test_paths": ["demo_voltage.VoltageTest", "nowhere.GhostTest"]},
         ).json()
 
-        assert len(body["runs"]) == 1
+        assert len(body["requests"]) == 1
         assert body["unassigned"][0]["test_path"] == "nowhere.GhostTest"
 
     @pytest.mark.asyncio
@@ -331,7 +367,7 @@ class TestQueueingACustomRun:
                     "demo_voltage.VoltageTest",
                 ]
             },
-        ).json()["runs"][0]
+        ).json()["requests"][0]
 
         assert run["selected_tests"] == ["demo_voltage.VoltageTest"]
 
@@ -350,14 +386,18 @@ class TestQueueingACustomRun:
     async def test_a_bench_cannot_queue_work_for_the_lab(self, client, lab):
         benches = await lab()
         _as_runner(benches["a"])
+        user_override = app.dependency_overrides.pop(get_current_user, None)
         try:
             response = client.post(
                 "/api/test-runs/custom", json={"test_paths": ["boot_suite.BootTest"]}
             )
         finally:
             _clear()
+            if user_override is not None:
+                app.dependency_overrides[get_current_user] = user_override
 
         assert response.status_code == 403
+        assert response.json()["detail"] == "User privileges required."
 
     def test_requires_authentication(self, unauthenticated_client):
         response = unauthenticated_client.post(
@@ -469,7 +509,7 @@ class TestClaimingAQueuedRun:
         first = client.post(
             "/api/test-runs/custom",
             json={"test_paths": ["demo_voltage.VoltageTest"], "name": "First"},
-        ).json()["runs"][0]
+        ).json()["requests"][0]
         client.post(
             "/api/test-runs/custom",
             json={"test_paths": ["boot_suite.BootTest"], "name": "Second"},
@@ -481,7 +521,11 @@ class TestClaimingAQueuedRun:
         finally:
             _clear()
 
-        assert claimed["run"]["id"] == first["id"]
+        assert claimed["run"]["name"] == first["name"]
+        assert (
+            client.get(f"/api/execution-requests/{first['id']}").json()["run_id"]
+            == claimed["run"]["id"]
+        )
 
     @pytest.mark.asyncio
     async def test_a_user_cannot_claim_a_run(self, client, lab):
@@ -499,6 +543,142 @@ class TestClaimingAQueuedRun:
 
 
 class TestCompletingAClaimedRun:
+    @pytest.mark.asyncio
+    async def test_station_can_acknowledge_a_cancelled_claim_and_take_next_request(
+        self, client, lab
+    ):
+        benches = await lab()
+        for number in range(2):
+            queued = client.post(
+                "/api/test-runs/custom", json={"test_paths": ["demo_voltage.VoltageTest"]}
+            )
+            assert queued.status_code == 201
+        _as_runner(benches["a"])
+        try:
+            claimed = _claim(client).json()
+            run_id = claimed["run"]["id"]
+            cancelled = client.patch(f"/api/test-runs/{run_id}", json={"status": "Cancelled"})
+            assert cancelled.status_code == 200, cancelled.text
+            completed = client.post(
+                f"/api/runners/runs/{run_id}/complete",
+                headers={"Idempotency-Key": claimed["claim_id"]},
+                json={"exit_code": 130},
+            )
+            assert completed.status_code == 200, completed.text
+            assert completed.json()["status"] == "Cancelled"
+            assert completed.json()["runner_exit_code"] == 130
+            assert completed.json()["claim_acknowledged_at"] is not None
+            next_claim = client.post(
+                "/api/runners/claim-run",
+                headers={"Idempotency-Key": "22222222-2222-4222-8222-222222222222"},
+            )
+            assert next_claim.status_code == 200, next_claim.text
+            assert next_claim.json()["run"]["id"] != run_id
+        finally:
+            _clear()
+
+    @pytest.mark.asyncio
+    async def test_failed_execution_without_results_is_not_a_passed_run(self, client, lab):
+        benches = await lab()
+        queued = client.post(
+            "/api/test-runs/custom",
+            json={
+                "test_paths": ["demo_voltage.VoltageTest"],
+                "name": "Unavailable selection",
+            },
+        )
+        assert queued.status_code == 201
+        _as_runner(benches["a"])
+        try:
+            claimed = _claim(client).json()
+            response = client.post(
+                f"/api/runners/runs/{claimed['run']['id']}/complete",
+                headers={"Idempotency-Key": claimed["claim_id"]},
+                json={"exit_code": 1},
+            )
+            assert response.status_code == 200
+            stats = client.get("/api/test-runs/stats?suite=Unavailable%20selection").json()
+            assert stats["passed_runs"] == 0
+            assert stats["failed_runs"] == 1
+            assert stats["in_progress_runs"] == 0
+            assert stats["total_tests"] == 0
+        finally:
+            _clear()
+
+    @pytest.mark.asyncio
+    async def test_results_do_not_release_an_unacknowledged_claim(self, client, lab):
+        benches = await lab()
+        payload = {"test_paths": ["demo_voltage.VoltageTest"]}
+        client.post("/api/test-runs/custom", json=payload)
+        client.post("/api/test-runs/custom", json=payload)
+        _as_runner(benches["a"])
+        try:
+            claimed = _claim(client).json()
+            run_id = claimed["run"]["id"]
+            uploaded = client.post(
+                "/api/results",
+                json={
+                    "test_run_id": run_id,
+                    "results": [
+                        {"test_class": "VoltageTest", "test_method": "test_idle", "passed": True}
+                    ],
+                },
+            )
+            assert uploaded.status_code == 201, uploaded.text
+            assert client.get(f"/api/test-runs/{run_id}").json()["status"] == "Completed"
+            second_key = {"Idempotency-Key": "22222222-2222-4222-8222-222222222222"}
+            blocked = client.post("/api/runners/claim-run", headers=second_key)
+            assert blocked.status_code == 409, blocked.text
+            completed = client.post(
+                f"/api/runners/runs/{run_id}/complete",
+                headers={"Idempotency-Key": claimed["claim_id"]},
+                json={"exit_code": 0},
+            )
+            assert completed.status_code == 200, completed.text
+            next_claim = client.post("/api/runners/claim-run", headers=second_key)
+            assert next_claim.status_code == 200, next_claim.text
+            assert next_claim.json()["run"]["id"] != run_id
+        finally:
+            _clear()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("passed", [True, False])
+    async def test_claimed_run_stats_wait_for_the_station_terminal_answer(self, client, lab, passed):
+        stations = await lab()
+        client.post(
+            "/api/test-runs/custom",
+            json={"test_paths": ["demo_voltage.VoltageTest"], "name": "Awaiting station"},
+        )
+        _as_runner(stations["a"])
+        try:
+            claimed = _claim(client).json()
+            run_id = claimed["run"]["id"]
+            uploaded = client.post(
+                "/api/results",
+                json={
+                    "test_run_id": run_id,
+                    "results": [
+                        {"test_class": "VoltageTest", "test_method": "test_idle", "passed": passed}
+                    ],
+                },
+            )
+            assert uploaded.status_code == 201, uploaded.text
+            stats = client.get("/api/test-runs/stats", params={"suite": "Awaiting station"}).json()
+            assert stats["passed_runs"] == stats["failed_runs"] == 0
+            assert stats["in_progress_runs"] == 1
+            completed = client.post(
+                f"/api/runners/runs/{run_id}/complete",
+                headers={"Idempotency-Key": claimed["claim_id"]},
+                json={"exit_code": 0 if passed else 1},
+            )
+            assert completed.status_code == 200, completed.text
+            stats = client.get("/api/test-runs/stats", params={"suite": "Awaiting station"}).json()
+            assert stats["passed_runs"] == int(passed)
+            assert stats["failed_runs"] == int(not passed)
+            assert stats["in_progress_runs"] == 0
+        finally:
+            _clear()
+
     @pytest.mark.asyncio
     async def test_a_nonzero_test_exit_still_completes_the_execution(self, client, lab):
         benches = await lab()
@@ -566,29 +746,79 @@ class TestCompletingAClaimedRun:
         assert response.status_code == 409
 
 
-class TestAQueuedRunInTheRestial:
-    """A queued run has to behave like a run everywhere else in Bud."""
+class TestRequestsAndExecutionEvidence:
+    """Queued requests remain outside execution evidence until a station claims them."""
 
     @pytest.mark.asyncio
-    async def test_appears_in_the_run_list(self, client, lab):
+    async def test_queued_request_is_listed_separately(self, client, lab):
         await lab()
-        client.post(
+        created = client.post(
             "/api/test-runs/custom",
             json={"test_paths": ["demo_voltage.VoltageTest"], "name": "Ad-hoc"},
-        )
-
-        runs = client.get("/api/test-runs?status=Pending").json()["runs"]
-
-        assert [run["name"] for run in runs] == ["Ad-hoc"]
+        ).json()["requests"][0]
+        assert client.get("/api/test-runs?status=Pending").json()["runs"] == []
+        assert client.get("/api/test-runs/stats").json()["total_runs"] == 2
+        requests = client.get("/api/execution-requests").json()
+        assert requests == [created]
+        assert client.get(f"/api/execution-requests/{created['id']}").json() == created
 
     @pytest.mark.asyncio
-    async def test_records_why_it_exists(self, client, lab):
-        await lab()
-        run = client.post(
+    async def test_station_claim_creates_execution_and_request_link(self, client, lab):
+        stations = await lab()
+        request = client.post(
             "/api/test-runs/custom", json={"test_paths": ["demo_voltage.VoltageTest"]}
-        ).json()["runs"][0]
+        ).json()["requests"][0]
+        _as_runner(stations["a"])
+        try:
+            first = _claim(client)
+            second = _claim(client)
+        finally:
+            _clear()
+        assert first.status_code == second.status_code == 200
+        assert first.json()["run"]["id"] == second.json()["run"]["id"]
+        linked = client.get(f"/api/execution-requests/{request['id']}").json()
+        assert linked["state"] == "claimed"
+        assert linked["run_id"] == first.json()["run"]["id"]
+        assert client.get("/api/test-runs/stats").json()["total_runs"] == 3
+        events = client.get(f"/api/test-runs/{linked['run_id']}/events").json()
+        assert [event["title"] for event in events] == ["Run claimed"]
+        assert events[0]["event_metadata"]["request_id"] == request["id"]
 
-        events = client.get(f"/api/test-runs/{run['id']}/events").json()
+    @pytest.mark.asyncio
+    async def test_station_cannot_read_another_stations_request(self, client, lab):
+        stations = await lab()
+        request = client.post(
+            "/api/test-runs/custom", json={"test_paths": ["thermal.ThermalTest"]}
+        ).json()["requests"][0]
+        _as_runner(stations["a"])
+        try:
+            assert client.get("/api/execution-requests").json() == []
+            assert client.get(f"/api/execution-requests/{request['id']}").status_code == 404
+        finally:
+            _clear()
 
-        titles = [event["title"] for event in events]
-        assert "Custom run queued" in titles
+    @pytest.mark.asyncio
+    async def test_retained_placeholder_is_not_execution_evidence(self, client, lab, db_session):
+        stations = await lab()
+        placeholder = TestRun(
+            name="Old queued request",
+            test_case_list="a.B",
+            selected_tests=["a.B"],
+            status="Pending",
+            runner_id=stations["a"].id,
+            record_kind="legacy_request",
+        )
+        db_session.add(placeholder)
+        await db_session.commit()
+        assert client.get("/api/test-runs/stats").json()["total_runs"] == 2
+        assert client.get("/api/test-runs?status=Pending").json()["runs"] == []
+        assert client.get(f"/api/test-runs/{placeholder.id}").status_code == 404
+        assert (
+            "Old queued request" not in client.get("/api/test-runs/filter-options").json()["suites"]
+        )
+        retained = await db_session.scalar(
+            select(TestRun.id)
+            .where(TestRun.id == placeholder.id)
+            .execution_options(include_legacy_requests=True)
+        )
+        assert retained == placeholder.id

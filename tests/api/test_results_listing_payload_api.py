@@ -34,12 +34,15 @@ def _result(passed: bool = False, **overrides) -> dict:
 
 
 @pytest.fixture
-def run_with_a_failure(client):
-    run_id = client.post(
+def run_with_a_failure(client, station_request):
+    run_id = station_request(
+        "POST",
         "/api/test-runs",
         json={"test_suite_name": "Nightly", "test_case_list": "SmokeTests"},
     ).json()["id"]
-    upload = client.post("/api/results", json={"test_run_id": run_id, "results": [_result()]})
+    upload = station_request(
+        "POST", "/api/results", json={"test_run_id": run_id, "results": [_result()]}
+    )
     assert upload.status_code == 201, upload.text
     return run_id
 
@@ -78,12 +81,14 @@ class TestTheListing:
         # it would empty the panel while the listing still looked healthy.
         assert row["assertions"][0]["traceback"] == "assertion-level trace"
 
-    def test_orders_results_as_they_were_recorded(self, client):
-        run_id = client.post(
+    def test_orders_results_as_they_were_recorded(self, client, station_request):
+        run_id = station_request(
+            "POST",
             "/api/test-runs",
             json={"test_suite_name": "Ordered", "test_case_list": "SmokeTests"},
         ).json()["id"]
-        client.post(
+        station_request(
+            "POST",
             "/api/results",
             json={
                 "test_run_id": run_id,

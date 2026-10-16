@@ -3,16 +3,17 @@ Test results API endpoints.
 """
 
 import logging
-from datetime import datetime
-from typing import List, Optional, Union
+from datetime import datetime, timezone
+from http import HTTPStatus
+from typing import List, Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from sqlalchemy import Integer, func, select
+from sqlalchemy import Integer, case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.auth import get_current_active_entity
-from app.core.run_access import require_mutating_user, require_run_access
+from app.core.run_access import load_run, require_run_access
 from app.core.runner_auth import authenticate_runner_token
 from app.core.runner_keys import mark_used, resolve_key
 from app.db import get_db
@@ -20,7 +21,10 @@ from app.models import Product, Runner, TestResult, TestRun
 from app.models.user import User
 from app.schemas import ResultsUpload, TestResultListItem, TestResultResponse
 from app.services.bloom_sync import sync_results_to_bloom
+from app.services.notify import notify_run_finished
 from app.services.run_events import record_test_run_event
+
+TEST_RESULT_NOT_FOUND = "Test result not found"
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -29,10 +33,10 @@ oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_e
 
 
 async def get_uploader_entity(
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
     token: Optional[str] = Depends(oauth2_scheme_optional),
     x_api_key: Optional[str] = Header(None, alias="X-API-Key"),
-) -> Union[User, Runner]:
+) -> User | Runner:
     """Identifies the uploader via either:
     1. A valid JWT (User or Runner).
     2. The Test Station's own enrolment key, which names one station.
@@ -69,25 +73,21 @@ async def get_uploader_entity(
     )
 
 
-@router.post("", status_code=201)
+@router.post("", status_code=201, responses={403: {"description": HTTPStatus(403).phrase}})
 async def upload_results(
     data: ResultsUpload,
     background_tasks: BackgroundTasks,
-    db: AsyncSession = Depends(get_db),
-    _current_entity: Union[User, Runner] = Depends(get_uploader_entity),
+    db: AsyncSession = Depends(get_db, scope="function"),
+    _current_entity: User | Runner = Depends(get_uploader_entity),
 ):
-    """Upload test results."""
+    """Record raw execution results submitted by their authenticated station."""
+    if not isinstance(_current_entity, Runner):
+        raise HTTPException(status_code=403, detail="Only stations can submit test results")
     target_run_id = data.test_run_id
     target_product_id = data.product_id
 
-    if isinstance(_current_entity, User):
-        require_mutating_user(_current_entity)
-
     if target_run_id is not None:
-        target_run = await db.get(TestRun, target_run_id)
-        if target_run is None:
-            raise HTTPException(status_code=404, detail="Test run not found")
-        require_run_access(_current_entity, target_run, mutate=True)
+        await load_run(db, _current_entity, target_run_id, mutate=True)
 
     # AUTO-ALIGNMENT: Create a TestRun if results are uploaded without one
     if not target_run_id:
@@ -104,7 +104,7 @@ async def upload_results(
         run_name = f"{product_name} - {suite_name}"
 
         new_run = TestRun(
-            runner_id=_current_entity.id if isinstance(_current_entity, Runner) else None,
+            runner_id=_current_entity.id,
             product_id=target_product_id,
             status="Completed",
             name=run_name,
@@ -113,7 +113,7 @@ async def upload_results(
             ref_test_software=data.ref_test_software or "main",
             url_software_under_test=data.url_software_under_test,
             ref_software_under_test=data.ref_software_under_test,
-            started_at=datetime.utcnow(),
+            started_at=datetime.now(timezone.utc).replace(tzinfo=None),
             completed_at=None,
         )
         db.add(new_run)
@@ -152,13 +152,17 @@ async def upload_results(
             select(
                 TestResult.test_class,
                 func.min(TestResult.passed.cast(Integer)).label("all_passed"),
+                func.min(
+                    case((TestResult.test_metadata["skipped"].as_boolean().is_(True), 1), else_=0)
+                ).label("all_skipped"),
             )
             .where(TestResult.test_run_id == target_run_id)
             .group_by(TestResult.test_class)
         )
         rows = class_stats.fetchall()
         total = len(rows)
-        passed = sum(1 for r in rows if r.all_passed == 1)
+        skipped = sum(1 for r in rows if r.all_skipped == 1)
+        passed = sum(1 for r in rows if r.all_passed == 1 and r.all_skipped != 1)
 
         # Duration stays as the sum across all method rows.
         dur_res = await db.execute(
@@ -170,14 +174,16 @@ async def upload_results(
 
         test_run.total_tests = total
         test_run.passed_tests = passed
-        test_run.failed_tests = total - passed
+        test_run.failed_tests = total - passed - skipped
+        if skipped:
+            test_run.skipped_tests = skipped
         test_run.duration_seconds = duration
 
         # Ensure completion status
         if test_run.status != "Completed":
             test_run.status = "Completed"
         if not test_run.completed_at:
-            test_run.completed_at = datetime.utcnow()
+            test_run.completed_at = datetime.now(timezone.utc).replace(tzinfo=None)
 
         await record_test_run_event(
             db,
@@ -185,13 +191,18 @@ async def upload_results(
             stage="results",
             status="completed",
             title="Results uploaded",
-            message=f"{len(created_results)} method results accepted. {test_run.total_tests} test case(s): {test_run.passed_tests} passed, {test_run.failed_tests} failed.",
+            message=(
+                f"{len(created_results)} method results accepted. {test_run.total_tests} test case(s): "
+                f"{test_run.passed_tests} passed, {test_run.failed_tests} failed"
+                + (f", {skipped} skipped." if skipped else ".")
+            ),
         )
 
     await db.commit()
 
     # Saving both the Bloom URL and scoped credential enables synchronization.
     background_tasks.add_task(sync_results_to_bloom, target_run_id)
+    background_tasks.add_task(notify_run_finished, target_run_id)
 
     return {
         "message": f"Uploaded {len(created_results)} results to run {target_run_id}",
@@ -203,16 +214,11 @@ async def upload_results(
 @router.get("/{run_id}", response_model=List[TestResultListItem])
 async def get_results_for_run(
     run_id: int,
-    db: AsyncSession = Depends(get_db),
-    _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
+    db: AsyncSession = Depends(get_db, scope="function"),
+    _current_entity: User | Runner = Depends(get_current_active_entity),
 ):
     """Get all results for a test run."""
-    # Verify test run exists
-    run_result = await db.execute(select(TestRun).where(TestRun.id == run_id))
-    test_run = run_result.scalar_one_or_none()
-    if test_run is None:
-        raise HTTPException(status_code=404, detail="Test run not found")
-    require_run_access(_current_entity, test_run)
+    await load_run(db, _current_entity, run_id)
 
     result = await db.execute(
         select(
@@ -235,11 +241,15 @@ async def get_results_for_run(
     return [TestResultListItem.model_validate(row, from_attributes=True) for row in result.all()]
 
 
-@router.get("/detail/{result_id}", response_model=TestResultResponse)
+@router.get(
+    "/detail/{result_id}",
+    response_model=TestResultResponse,
+    responses={404: {"description": "Not Found"}},
+)
 async def get_result(
     result_id: int,
-    db: AsyncSession = Depends(get_db),
-    _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
+    db: AsyncSession = Depends(get_db, scope="function"),
+    _current_entity: User | Runner = Depends(get_current_active_entity),
 ):
     """
     Get a single test result by ID.
@@ -248,15 +258,15 @@ async def get_result(
     test_result = result.scalar_one_or_none()
 
     if not test_result:
-        raise HTTPException(status_code=404, detail="Test result not found")
+        raise HTTPException(status_code=404, detail=TEST_RESULT_NOT_FOUND)
 
     if test_result.test_run_id is None:
         if isinstance(_current_entity, Runner):
-            raise HTTPException(status_code=404, detail="Test result not found")
+            raise HTTPException(status_code=404, detail=TEST_RESULT_NOT_FOUND)
     else:
         test_run = await db.get(TestRun, test_result.test_run_id)
         if test_run is None:
-            raise HTTPException(status_code=404, detail="Test result not found")
-        require_run_access(_current_entity, test_run)
+            raise HTTPException(status_code=404, detail=TEST_RESULT_NOT_FOUND)
+        await require_run_access(db, _current_entity, test_run)
 
     return test_result

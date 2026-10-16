@@ -26,12 +26,12 @@ export default function OutcomeDonut({
   caption,
   segments,
   totalLabel,
-}: {
+}: Readonly<{
   title: string
   caption?: string
   segments: OutcomeSegment[]
   totalLabel: string
-}) {
+}>) {
   const total = segments.reduce((sum, segment) => sum + segment.value, 0)
   // 42 is the radius that makes the circumference a round-ish 264; any radius
   // works, but a fixed one keeps the gap arithmetic below readable.

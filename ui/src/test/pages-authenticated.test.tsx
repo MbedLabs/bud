@@ -1,3 +1,4 @@
+import { selectValue } from './select-value'
 // @vitest-environment jsdom
 /**
  * Every signed-in screen, rendered with real data and driven the way a user
@@ -160,7 +161,7 @@ describe('the dashboard', () => {
     await screen.findByText('Total Test Runs')
 
     const windows = screen.getAllByRole('combobox')
-    fireEvent.change(windows[0], { target: { value: '7' } })
+    selectValue(windows[0], '7')
 
     await waitFor(() => {
       const [params] = lastCall(client.testRunsApi.stats) as [{ days?: number }]
@@ -393,6 +394,29 @@ describe('the run list', () => {
     )
   })
 
+  it('sorts through the server, resets the page and keeps sorting with filters and pagination', async () => {
+    vi.mocked(client.testRunsApi.list).mockResolvedValue({ runs: [testRun], total: 45 })
+    renderAt('/runs', '/runs', <TestRuns />)
+    await screen.findByText(testRun.name)
+    fireEvent.click(screen.getByTitle('Next page'))
+    await waitFor(() => expect((lastCall(client.testRunsApi.list)[0] as { offset: number }).offset).toBe(20))
+    const name = screen.getByRole('columnheader', { name: 'Name' })
+    fireEvent.click(within(name).getByRole('button', { name: 'Name' }))
+    await waitFor(() => expect(lastCall(client.testRunsApi.list)[0]).toEqual(expect.objectContaining({ sort_by: 'name', sort_dir: 'asc', offset: 0, latest_per_suite: true })))
+    expect(name.getAttribute('aria-sort')).toBe('ascending')
+    fireEvent.click(within(name).getByRole('button', { name: 'Name' }))
+    await waitFor(() => expect(lastCall(client.testRunsApi.list)[0]).toEqual(expect.objectContaining({ sort_by: 'name', sort_dir: 'desc' })))
+    expect(name.getAttribute('aria-sort')).toBe('descending')
+    fireEvent.change(screen.getByPlaceholderText(/search test runs/i), { target: { value: 'Nightly' } })
+    await waitFor(() => expect(lastCall(client.testRunsApi.list)[0]).toEqual(expect.objectContaining({ q: 'Nightly', sort_by: 'name', sort_dir: 'desc', offset: 0 })))
+    fireEvent.click(screen.getByTitle('Next page'))
+    await waitFor(() => expect(lastCall(client.testRunsApi.list)[0]).toEqual(expect.objectContaining({ q: 'Nightly', sort_by: 'name', sort_dir: 'desc', offset: 20 })))
+    for (const [label, field] of [['Status', 'status'], ['Test Station', 'runner_account'], ['Duration', 'duration_seconds'], ['Started At', 'started_at'], ['Completed At', 'completed_at']]) {
+      fireEvent.click(screen.getByRole('button', { name: label }))
+      await waitFor(() => expect(lastCall(client.testRunsApi.list)[0]).toEqual(expect.objectContaining({ q: 'Nightly', sort_by: field, sort_dir: 'asc', offset: 0 })))
+    }
+  })
+
   it('says so when the run list cannot be loaded', async () => {
     vi.mocked(client.testRunsApi.list).mockRejectedValue(new Error('backend unreachable'))
     renderAt('/runs', '/runs', <TestRuns />)
@@ -400,9 +424,42 @@ describe('the run list', () => {
     await waitFor(() => expect(document.body.textContent).toMatch(/error|failed|unable/i))
     expect(screen.queryByText(testRun.name)).toBeNull()
   })
+
+  it('restores shared run sorting and station filters from the URL', async () => {
+    renderAt('/runs', '/runs?sort=name&dir=desc&station=bench-01', <TestRuns />)
+    await screen.findByText(testRun.name)
+    await waitFor(() => expect(lastCall(client.testRunsApi.list)[0]).toEqual(expect.objectContaining({ sort_by: 'name', sort_dir: 'desc', runner_account: 'bench-01' })))
+    expect(screen.getByRole('columnheader', { name: 'Name' }).getAttribute('aria-sort')).toBe('descending')
+  })
 })
 
 describe('a run in detail', () => {
+  it('shows skipped and information entries in neutral colour, outside the check count', async () => {
+    vi.mocked(client.resultsApi.list).mockResolvedValue([
+      {
+        ...testResult,
+        assertions: [
+          { assertion_type: 'AssertEqual', passed: true, actual: '3', expected: '3' },
+          { assertion_type: 'Skip', passed: true, skipped: true, message: 'No probe on this bench' },
+          { assertion_type: 'Log', passed: true, info: true, code_context: 'Log    probing' },
+        ],
+      },
+    ] as never)
+    renderAt('/runs/:id', '/runs/42', <TestRunDetail />)
+    await screen.findByText(testRun.name)
+
+    expect(screen.getByText('1 / 1 passed')).toBeTruthy()
+    fireEvent.click(screen.getAllByText(testResult.test_class)[0].closest('button') as HTMLElement)
+    const skip = await screen.findByText('Skip')
+    expect(skip.className).toContain('text-foreground')
+    expect(skip.className).not.toMatch(/emerald|red/)
+    expect(screen.getByText('No probe on this bench')).toBeTruthy()
+    const log = screen.getByText('Log')
+    expect(log.className).toContain('text-foreground')
+    expect(log.className).not.toMatch(/emerald|red/)
+    expect(screen.getByText('1 check')).toBeTruthy()
+  })
+
   it('groups results by test class, the level the run counters use', async () => {
     renderAt('/runs/:id', '/runs/42', <TestRunDetail />)
 
@@ -428,6 +485,48 @@ describe('a run in detail', () => {
     expect(screen.getAllByText('3').length).toBeGreaterThan(0)
     expect(screen.getAllByText(testRun.status).length).toBeGreaterThan(0)
     expect(screen.getAllByText(testRun.runner_account as string).length).toBeGreaterThan(0)
+  })
+
+  it('offers Publish to Bloom to whoever holds it', async () => {
+    renderAt('/runs/:id', '/runs/42', <TestRunDetail />)
+    await screen.findByText(testRun.name)
+    expect(screen.getByRole('button', { name: 'Publish report' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Request access' })).toBeNull()
+  })
+
+  it('offers Request access where Publish would be for a reader', async () => {
+    const reader = user as { role: string; permissions?: string[] }
+    reader.role = 'viewer'
+    reader.permissions = ['evidence.view']
+    RESPONSES['accessRequestsApi.mine'] = null
+    RESPONSES['accessRequestsApi.create'] = {
+      id: 3,
+      resource_type: 'publish-to-bloom',
+      resource_ref: '42',
+      status: 'pending',
+      created_at: '2026-10-12T09:00:00Z',
+      decided_at: null,
+      requester_name: null,
+      requester_email: null,
+      already_requested: false,
+      mail_sent: true,
+    }
+    try {
+      renderAt('/runs/:id', '/runs/42', <TestRunDetail />)
+      await screen.findByText(testRun.name)
+      expect(screen.queryByRole('button', { name: 'Publish report' })).toBeNull()
+      fireEvent.click(await screen.findByRole('button', { name: 'Request access' }))
+      await waitFor(() =>
+        expect(client.accessRequestsApi.create).toHaveBeenCalledWith({
+          resource_type: 'publish-to-bloom',
+          resource_ref: '42',
+        }),
+      )
+      expect(await screen.findByText('Access requested.')).toBeTruthy()
+    } finally {
+      reader.role = 'admin'
+      delete reader.permissions
+    }
   })
 
   it('downloads a PDF for this run alone', async () => {
@@ -564,11 +663,12 @@ describe('a page inside the shell does not title itself', () => {
   it.each([
     ['Test Stations', () => <TestStations />],
     ['Users', () => <Users />],
-  ])('%s renders no heading of its own', async (_name, render) => {
+  ])('%s renders no page heading of its own', async (_name, render) => {
     const { container } = renderAt('/x', '/x', render())
     await settle()
 
-    expect(container.querySelector('h1, h2')).toBeNull()
+    expect(container.querySelector('h1')).toBeNull()
+    expect(Array.from(container.querySelectorAll('h2')).map((heading) => heading.textContent)).toEqual(_name === 'Test Stations' ? ['Execution requests'] : [])
   })
 })
 
@@ -859,5 +959,22 @@ describe('users', () => {
     const [id, email] = vi.mocked(client.usersApi.startEmailChange).mock.calls[0]
     expect(id).toBe(otherUser.id)
     expect(email).toBe('grace.hopper@example.com')
+  })
+})
+
+
+describe('station execution requests', () => {
+  it('keeps queued selections separate from links to created executions', async () => {
+    vi.mocked(client.executionRequestsApi.list).mockResolvedValue([
+      { id: 501, name: 'Queued selection', runner_account: 'station-01', selected_tests: ['suite.Smoke'], state: 'queued', run_id: null, source_metadata: {}, created_at: '2026-10-06T10:00:00Z' },
+      { id: 502, name: 'Claimed selection', runner_account: 'station-01', selected_tests: ['suite.Smoke'], state: 'claimed', run_id: 701, source_metadata: {}, created_at: '2026-10-06T10:00:01Z' },
+    ])
+    renderAt('/stations', '/stations', <TestStations />)
+    expect(await screen.findByRole('heading', { name: 'Execution requests', level: 2 })).toBeTruthy()
+    const queued = (await screen.findByText('Queued selection')).closest('li') as HTMLElement
+    const claimed = (await screen.findByText('Claimed selection')).closest('li') as HTMLElement
+    expect(within(queued).queryByRole('link')).toBeNull()
+    expect(within(queued).getByText('Queued')).toBeTruthy()
+    expect(within(claimed).getByRole('link', { name: 'Open execution' }).getAttribute('href')).toBe('/runs/701')
   })
 })
