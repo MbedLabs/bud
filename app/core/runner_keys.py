@@ -3,7 +3,7 @@
 import hashlib
 import hmac
 import secrets
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, Tuple
 
 from sqlalchemy import select
@@ -11,7 +11,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import RunnerApiKey
 
-# Recognisable in a shell history or a CI log.
 KEY_PREFIX = "budrnr_"
 PREFIX_LENGTH = 12
 
@@ -62,4 +61,4 @@ async def resolve_key(presented: str, db: AsyncSession) -> Optional[RunnerApiKey
 
 
 def mark_used(record: RunnerApiKey) -> None:
-    record.last_used_at = datetime.utcnow()
+    record.last_used_at = datetime.now(timezone.utc).replace(tzinfo=None)

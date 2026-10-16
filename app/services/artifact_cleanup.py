@@ -41,7 +41,7 @@ async def reconcile_artifacts(
     it), and the local mirror, when kept, is cleared of orphans too.
     """
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     root = _safe_upload_root()
     if db.bind is not None and db.bind.dialect.name == "postgresql":
         acquired = await db.scalar(select(func.pg_try_advisory_xact_lock(1730554202)))

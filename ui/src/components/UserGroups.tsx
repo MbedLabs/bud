@@ -37,8 +37,8 @@ export default function UserGroups() {
       if (editing === null && result && typeof result === 'object' && 'id' in result) setEditing(result as Group)
       else setEditing(null)
       setDeleting(null)
-      queryClient.invalidateQueries({ queryKey: ['groups'] })
-      queryClient.invalidateQueries({ queryKey: ['access-users'] })
+      void queryClient.invalidateQueries({ queryKey: ['groups'] })
+      void queryClient.invalidateQueries({ queryKey: ['access-users'] })
     },
     onError: (failure) => setError(extractApiErrorMessage(failure, 'Could not change the group')),
   })

@@ -6,7 +6,7 @@ interface PoweredByEmbedLabsProps {
 export default function PoweredByEmbedLabs({
   collapsed,
   version,
-}: PoweredByEmbedLabsProps) {
+}: Readonly<PoweredByEmbedLabsProps>) {
   if (collapsed) {
     return (
       <a

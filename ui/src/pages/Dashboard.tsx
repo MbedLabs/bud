@@ -353,13 +353,13 @@ export default function Dashboard() {
 
 /** Labelled dropdown used by the dashboard filter bar. An empty value means "no
  *  filter", which is why the placeholder option carries an empty string. */
-function FilterSelect({ label, value, onChange, options, placeholder }: {
+function FilterSelect({ label, value, onChange, options, placeholder }: Readonly<{
   label: string
   value: string
   onChange: (value: string) => void
   options: { value: string; label: string }[]
   placeholder?: string
-}) {
+}>) {
   return (
     <label className="flex min-w-0 flex-col gap-1">
       <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">{label}</span>
@@ -384,7 +384,7 @@ function FilterSelect({ label, value, onChange, options, placeholder }: {
  * reading of one value rather than the only one - the figure is always spelled
  * out beside it.
  */
-function PassRateMeter({ title, caption, rate }: { title: string; caption: string; rate: number }) {
+function PassRateMeter({ title, caption, rate }: Readonly<{ title: string; caption: string; rate: number }>) {
   const tone =
     rate >= 80
       ? 'text-emerald-600 dark:text-emerald-400'
@@ -427,14 +427,14 @@ function PassRateMeter({ title, caption, rate }: { title: string; caption: strin
   )
 }
 
-function StatCard({ title, value, icon: Icon, gradient, subtitle, subtitleTone = 'muted' }: {
+function StatCard({ title, value, icon: Icon, gradient, subtitle, subtitleTone = 'muted' }: Readonly<{
   title: string
   value: number | string
   icon: React.ComponentType<{ className?: string }>
   gradient: string
   subtitle?: string
   subtitleTone?: 'muted' | 'positive'
-}) {
+}>) {
   return (
     <div className="bg-card rounded-lg border border-border shadow-elegant hover:shadow-glow transition-shadow duration-300 p-5">
       <div className="flex items-start justify-between">

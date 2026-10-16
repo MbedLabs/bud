@@ -30,9 +30,9 @@ export default function AccessRequestsPanel() {
     mutationFn: ({ id, decision, groupId }: { id: number; decision: 'granted' | 'refused'; groupId?: number }) =>
       accessRequestsApi.decide(id, decision, groupId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey })
-      queryClient.invalidateQueries({ queryKey: ['groups'] })
-      queryClient.invalidateQueries({ queryKey: ['access-users'] })
+      void queryClient.invalidateQueries({ queryKey })
+      void queryClient.invalidateQueries({ queryKey: ['groups'] })
+      void queryClient.invalidateQueries({ queryKey: ['access-users'] })
     },
   })
 

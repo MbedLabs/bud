@@ -53,8 +53,8 @@ export default function TestStations() {
     onSuccess: () => {
       setActionError('')
       setPendingRemoval(null)
-      queryClient.invalidateQueries({ queryKey: ['testStations'] })
-      queryClient.invalidateQueries({ queryKey: ['runnerApiKeys'] })
+      void queryClient.invalidateQueries({ queryKey: ['testStations'] })
+      void queryClient.invalidateQueries({ queryKey: ['runnerApiKeys'] })
     },
     onError: (error) =>
       setActionError(extractApiErrorMessage(error, 'Could not remove the Test Station')),
@@ -67,8 +67,8 @@ export default function TestStations() {
       setActionError('')
       setRenaming(null)
       setNewName('')
-      queryClient.invalidateQueries({ queryKey: ['testStations'] })
-      queryClient.invalidateQueries({ queryKey: ['runnerApiKeys'] })
+      void queryClient.invalidateQueries({ queryKey: ['testStations'] })
+      void queryClient.invalidateQueries({ queryKey: ['runnerApiKeys'] })
     },
     onError: (error) =>
       setActionError(extractApiErrorMessage(error, 'Could not rename the Test Station')),
@@ -79,7 +79,7 @@ export default function TestStations() {
     onSuccess: () => {
       setActionError('')
       setPendingKeyRevoke(null)
-      queryClient.invalidateQueries({ queryKey: ['runnerApiKeys'] })
+      void queryClient.invalidateQueries({ queryKey: ['runnerApiKeys'] })
     },
     onError: (error) =>
       setActionError(extractApiErrorMessage(error, 'Could not revoke the key')),
@@ -300,14 +300,14 @@ function TestStationCard({
   onRemove,
   onRename,
   onRevokeKey,
-}: {
+}: Readonly<{
   runner: TestStationInfo
   canManageStations: boolean
   hasKey: boolean
   onRemove: () => void
   onRename: () => void
   onRevokeKey: () => void
-}) {
+}>) {
   return (
     <Link
       to={`/runs?station=${encodeURIComponent(runner.account)}`}

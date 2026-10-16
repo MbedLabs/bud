@@ -9,7 +9,7 @@ export interface RowMenuAction {
   destructive?: boolean
 }
 
-export default function RowMenu({ label, actions }: { label: string; actions: RowMenuAction[] }) {
+export default function RowMenu({ label, actions }: Readonly<{ label: string; actions: RowMenuAction[] }>) {
   const [open, setOpen] = useState(false)
   const [dropUp, setDropUp] = useState(false)
   const container = useRef<HTMLDivElement>(null)

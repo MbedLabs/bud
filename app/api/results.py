@@ -24,6 +24,8 @@ from app.services.bloom_sync import sync_results_to_bloom
 from app.services.notify import notify_run_finished
 from app.services.run_events import record_test_run_event
 
+TEST_RESULT_NOT_FOUND = "Test result not found"
+
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
@@ -239,7 +241,11 @@ async def get_results_for_run(
     return [TestResultListItem.model_validate(row, from_attributes=True) for row in result.all()]
 
 
-@router.get("/detail/{result_id}", response_model=TestResultResponse)
+@router.get(
+    "/detail/{result_id}",
+    response_model=TestResultResponse,
+    responses={404: {"description": "Not Found"}},
+)
 async def get_result(
     result_id: int,
     db: AsyncSession = Depends(get_db, scope="function"),
@@ -252,15 +258,15 @@ async def get_result(
     test_result = result.scalar_one_or_none()
 
     if not test_result:
-        raise HTTPException(status_code=404, detail="Test result not found")
+        raise HTTPException(status_code=404, detail=TEST_RESULT_NOT_FOUND)
 
     if test_result.test_run_id is None:
         if isinstance(_current_entity, Runner):
-            raise HTTPException(status_code=404, detail="Test result not found")
+            raise HTTPException(status_code=404, detail=TEST_RESULT_NOT_FOUND)
     else:
         test_run = await db.get(TestRun, test_result.test_run_id)
         if test_run is None:
-            raise HTTPException(status_code=404, detail="Test result not found")
+            raise HTTPException(status_code=404, detail=TEST_RESULT_NOT_FOUND)
         await require_run_access(db, _current_entity, test_run)
 
     return test_result

@@ -64,7 +64,9 @@ async def get_settings(
     return result.scalars().all()
 
 
-@router.get("/{key}", response_model=SystemSettingResponse)
+@router.get(
+    "/{key}", response_model=SystemSettingResponse, responses={404: {"description": "Not Found"}}
+)
 async def get_setting(
     key: str,
     db: AsyncSession = Depends(get_db, scope="function"),
@@ -81,7 +83,9 @@ async def get_setting(
     return setting
 
 
-@router.put("/{key}", response_model=SystemSettingResponse)
+@router.put(
+    "/{key}", response_model=SystemSettingResponse, responses={403: {"description": "Forbidden"}}
+)
 async def update_setting(
     key: str,
     data: SystemSettingUpdate,
@@ -139,7 +143,11 @@ async def get_plm_integration(
     )
 
 
-@router.post("/integrations/PLM", response_model=PLMIntegrationSettings)
+@router.post(
+    "/integrations/PLM",
+    response_model=PLMIntegrationSettings,
+    responses={422: {"description": "Unprocessable Content"}},
+)
 async def update_plm_integration(
     data: PLMIntegrationSettingsUpdate,
     db: AsyncSession = Depends(get_db, scope="function"),

@@ -18,7 +18,12 @@ from app.services.audit import record_audit_event
 router = APIRouter()
 
 
-@router.post("", response_model=ProductResponse, status_code=201)
+@router.post(
+    "",
+    response_model=ProductResponse,
+    status_code=201,
+    responses={400: {"description": "Bad Request"}},
+)
 async def create_product(
     data: ProductCreate,
     db: AsyncSession = Depends(get_db, scope="function"),
@@ -62,7 +67,9 @@ async def list_products(
     return result.scalars().all()
 
 
-@router.get("/{product_id}", response_model=ProductResponse)
+@router.get(
+    "/{product_id}", response_model=ProductResponse, responses={404: {"description": "Not Found"}}
+)
 async def get_product(
     product_id: int,
     db: AsyncSession = Depends(get_db, scope="function"),
@@ -78,7 +85,7 @@ async def get_product(
     return product
 
 
-@router.delete("/{product_id}", status_code=204)
+@router.delete("/{product_id}", status_code=204, responses={404: {"description": "Not Found"}})
 async def delete_product(
     product_id: int,
     db: AsyncSession = Depends(get_db, scope="function"),

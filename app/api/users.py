@@ -5,7 +5,7 @@ Users API endpoints (admin only): CRUD for user management.
 import logging
 import secrets
 import string
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import delete, select, update
@@ -38,6 +38,8 @@ from app.services.token_service import (
     invalidate_tokens,
 )
 
+USER_NOT_FOUND = "User not found"
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
@@ -48,7 +50,7 @@ require_admin = require_role(UserRole.admin)
 async def _get_user_or_404(db: AsyncSession, user_id: int) -> User:
     user = await db.get(User, user_id, populate_existing=True, with_for_update=True)
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail=USER_NOT_FOUND)
     return user
 
 
@@ -73,7 +75,9 @@ async def _send_email_change_confirmation(
 
     user.pending_email = new_email
     user.email_change_status = "awaiting_confirmation"
-    user.email_change_requested_at = user.email_change_requested_at or datetime.utcnow()
+    user.email_change_requested_at = user.email_change_requested_at or datetime.now(
+        timezone.utc
+    ).replace(tzinfo=None)
     token = await create_user_token(
         db,
         user_id=user.id,
@@ -115,7 +119,12 @@ async def list_users(
     return [UserResponse.model_validate(u) for u in result.scalars().all()]
 
 
-@router.post("", response_model=UserResponse, status_code=201)
+@router.post(
+    "",
+    response_model=UserResponse,
+    status_code=201,
+    responses={400: {"description": "Bad Request"}},
+)
 async def create_user(
     data: UserCreate,
     _admin: User = Depends(require_admin),
@@ -144,7 +153,12 @@ async def create_user(
     return UserResponse.model_validate(user)
 
 
-@router.post("/invite", response_model=InviteResponse, status_code=201)
+@router.post(
+    "/invite",
+    response_model=InviteResponse,
+    status_code=201,
+    responses={400: {"description": "Bad Request"}, 503: {"description": "Service Unavailable"}},
+)
 async def invite_user(
     data: InviteCreateRequest,
     admin: User = Depends(require_admin),
@@ -166,9 +180,9 @@ async def invite_user(
             hashed_password=get_password_hash(temp_password),
             role=data.role,
             is_active=True,
-            invited_at=datetime.utcnow(),
+            invited_at=datetime.now(timezone.utc).replace(tzinfo=None),
             invited_by_user_id=admin.id,
-            last_invite_sent_at=datetime.utcnow(),
+            last_invite_sent_at=datetime.now(timezone.utc).replace(tzinfo=None),
         )
         db.add(user)
         await db.flush()
@@ -176,9 +190,9 @@ async def invite_user(
         user.full_name = data.full_name
         user.role = data.role
         user.hashed_password = get_password_hash(temp_password)
-        user.invited_at = user.invited_at or datetime.utcnow()
+        user.invited_at = user.invited_at or datetime.now(timezone.utc).replace(tzinfo=None)
         user.invited_by_user_id = admin.id
-        user.last_invite_sent_at = datetime.utcnow()
+        user.last_invite_sent_at = datetime.now(timezone.utc).replace(tzinfo=None)
 
     invite_token = await create_user_token(
         db,
@@ -214,7 +228,15 @@ async def invite_user(
     )
 
 
-@router.post("/{user_id}/resend-invite", response_model=InviteResponse)
+@router.post(
+    "/{user_id}/resend-invite",
+    response_model=InviteResponse,
+    responses={
+        400: {"description": "Bad Request"},
+        404: {"description": "Not Found"},
+        503: {"description": "Service Unavailable"},
+    },
+)
 async def resend_invite(
     user_id: int,
     admin: User = Depends(require_admin),
@@ -223,11 +245,11 @@ async def resend_invite(
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail=USER_NOT_FOUND)
     if user.password_set_at is not None:
         raise HTTPException(status_code=400, detail="Invite already accepted")
 
-    user.last_invite_sent_at = datetime.utcnow()
+    user.last_invite_sent_at = datetime.now(timezone.utc).replace(tzinfo=None)
     alphabet = string.ascii_letters + string.digits
     temp_password = "".join(secrets.choice(alphabet) for _ in range(12))
     user.hashed_password = get_password_hash(temp_password)
@@ -264,7 +286,11 @@ async def resend_invite(
     )
 
 
-@router.post("/{user_id}/revoke-invite", response_model=InviteResponse)
+@router.post(
+    "/{user_id}/revoke-invite",
+    response_model=InviteResponse,
+    responses={400: {"description": "Bad Request"}, 404: {"description": "Not Found"}},
+)
 async def revoke_invite(
     user_id: int,
     _admin: User = Depends(require_admin),
@@ -273,7 +299,7 @@ async def revoke_invite(
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail=USER_NOT_FOUND)
     if user.password_set_at is not None:
         raise HTTPException(status_code=400, detail="Invite already accepted")
 
@@ -303,7 +329,7 @@ async def start_email_change(
 ):
     """Let an administrator propose a new login email."""
     user = await _get_user_or_404(db, user_id)
-    user.email_change_requested_at = datetime.utcnow()
+    user.email_change_requested_at = datetime.now(timezone.utc).replace(tzinfo=None)
     return await _send_email_change_confirmation(
         db,
         user=user,
@@ -313,7 +339,11 @@ async def start_email_change(
     )
 
 
-@router.post("/{user_id}/email/approve", response_model=UserResponse)
+@router.post(
+    "/{user_id}/email/approve",
+    response_model=UserResponse,
+    responses={400: {"description": "Bad Request"}},
+)
 async def approve_email_change(
     user_id: int,
     admin: User = Depends(require_admin),
@@ -334,7 +364,9 @@ async def approve_email_change(
     )
 
 
-@router.delete("/{user_id}/email", response_model=UserResponse)
+@router.delete(
+    "/{user_id}/email", response_model=UserResponse, responses={400: {"description": "Bad Request"}}
+)
 async def reject_email_change(
     user_id: int,
     _admin: User = Depends(require_admin),
@@ -354,7 +386,11 @@ async def reject_email_change(
     return UserResponse.model_validate(user)
 
 
-@router.patch("/{user_id}", response_model=UserResponse)
+@router.patch(
+    "/{user_id}",
+    response_model=UserResponse,
+    responses={400: {"description": "Bad Request"}, 404: {"description": "Not Found"}},
+)
 async def update_user(
     user_id: int,
     data: UserUpdate,
@@ -364,7 +400,7 @@ async def update_user(
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail=USER_NOT_FOUND)
 
     previous_role = user.role
     previous_active = user.is_active
@@ -399,7 +435,16 @@ async def update_user(
     return UserResponse.model_validate(user)
 
 
-@router.delete("/{user_id}", status_code=204)
+@router.delete(
+    "/{user_id}",
+    status_code=204,
+    responses={
+        400: {"description": "Bad Request"},
+        404: {"description": "Not Found"},
+        409: {"description": "Conflict"},
+        500: {"description": "Internal Server Error"},
+    },
+)
 async def delete_user(
     user_id: int,
     admin: User = Depends(require_admin),
@@ -408,7 +453,7 @@ async def delete_user(
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail=USER_NOT_FOUND)
 
     if admin.id == user_id:
         raise HTTPException(
@@ -441,13 +486,13 @@ async def delete_user(
             details={"email": deleted_email},
         )
     except IntegrityError as exc:
-        logger.error(f"Integrity error deleting user {user_id}: {exc}")
+        logger.exception(f"Integrity error deleting user {user_id}: {exc}")
         raise HTTPException(
             status_code=409,
             detail="User could not be deleted because related records still reference this account",
         ) from exc
     except Exception as exc:
-        logger.error(f"Unexpected error deleting user {user_id}: {exc}")
+        logger.exception(f"Unexpected error deleting user {user_id}: {exc}")
         raise HTTPException(
             status_code=500,
             detail="An unexpected error occurred while deleting the user",

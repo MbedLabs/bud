@@ -37,8 +37,8 @@ export default function AccessPolicies({ canEdit }: Readonly<{ canEdit: boolean 
       if (editing === null && result && typeof result === 'object' && 'id' in result) setEditing(result as Policy)
       else setEditing(null)
       setDeleting(null)
-      queryClient.invalidateQueries({ queryKey: ['policies'] })
-      queryClient.invalidateQueries({ queryKey: ['groups'] })
+      void queryClient.invalidateQueries({ queryKey: ['policies'] })
+      void queryClient.invalidateQueries({ queryKey: ['groups'] })
     },
     onError: (failure) => setError(extractApiErrorMessage(failure, 'Could not change the policy')),
   })

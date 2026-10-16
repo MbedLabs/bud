@@ -126,7 +126,11 @@ async def _validate_runner_upload_run(
     "",
     response_model=ArtifactResponse,
     status_code=201,
-    responses={403: {"description": HTTPStatus(403).phrase}},
+    responses={
+        403: {"description": HTTPStatus(403).phrase},
+        400: {"description": "Bad Request"},
+        415: {"description": "Unsupported Media Type"},
+    },
 )
 async def upload_file(
     file: UploadFile = File(...),
@@ -214,7 +218,14 @@ async def upload_file(
     return artifact
 
 
-@router.get("/{artifact_id}", responses={503: {"description": HTTPStatus(503).phrase}})
+@router.get(
+    "/{artifact_id}",
+    responses={
+        503: {"description": HTTPStatus(503).phrase},
+        400: {"description": "Bad Request"},
+        404: {"description": "Not Found"},
+    },
+)
 async def download_artifact(
     artifact_id: int,
     db: AsyncSession = Depends(get_db, scope="function"),
@@ -279,7 +290,11 @@ async def get_artifact_info(
     return await _get_accessible_artifact(db, artifact_id, _current_entity)
 
 
-@router.delete("/{artifact_id}", status_code=204)
+@router.delete(
+    "/{artifact_id}",
+    status_code=204,
+    responses={403: {"description": "Forbidden"}, 404: {"description": "Not Found"}},
+)
 async def delete_artifact(
     artifact_id: int,
     db: AsyncSession = Depends(get_db, scope="function"),

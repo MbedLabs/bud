@@ -1,6 +1,6 @@
 """Runners API endpoints."""
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -29,10 +29,21 @@ from app.schemas import (
 )
 from app.services.audit import record_audit_event
 
+RUNNER_NOT_FOUND = "Runner not found"
+
 router = APIRouter()
 
 
-@router.post("/register", response_model=RunnerToken, status_code=201)
+@router.post(
+    "/register",
+    response_model=RunnerToken,
+    status_code=201,
+    responses={
+        400: {"description": "Bad Request"},
+        403: {"description": "Forbidden"},
+        409: {"description": "Conflict"},
+    },
+)
 @limiter.limit("10/minute")  # H2: prevent registration flood
 async def register_runner(
     request: Request,
@@ -135,7 +146,7 @@ async def runner_heartbeat(
     learns the current one from this response.
     """
 
-    current_runner.last_heartbeat = datetime.utcnow()
+    current_runner.last_heartbeat = datetime.now(timezone.utc).replace(tzinfo=None)
     current_runner.is_active = True
 
     if data.location:
@@ -145,7 +156,7 @@ async def runner_heartbeat(
 
     return {
         "status": "ok",
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
         "account": current_runner.account,
     }
 
@@ -176,7 +187,7 @@ async def get_runner_status(
                 active_runs_map[run.runner_id] = {"id": run.id, "name": run.name}
 
     timeout = timedelta(seconds=settings.RUNNER_HEARTBEAT_TIMEOUT)
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
 
     runner_list = []
     for runner in runners:
@@ -291,7 +302,7 @@ async def list_runner_api_keys(
     ]
 
 
-@router.delete("/api-keys/{key_id}", status_code=204)
+@router.delete("/api-keys/{key_id}", status_code=204, responses={404: {"description": "Not Found"}})
 async def delete_runner_api_key(
     key_id: int,
     db: AsyncSession = Depends(get_db, scope="function"),
@@ -313,7 +324,9 @@ async def delete_runner_api_key(
     await db.flush()
 
 
-@router.get("/{account}", response_model=RunnerResponse)
+@router.get(
+    "/{account}", response_model=RunnerResponse, responses={404: {"description": "Not Found"}}
+)
 async def get_runner(
     account: str,
     db: AsyncSession = Depends(get_db, scope="function"),
@@ -326,12 +339,14 @@ async def get_runner(
     runner = result.scalar_one_or_none()
 
     if not runner:
-        raise HTTPException(status_code=404, detail="Runner not found")
+        raise HTTPException(status_code=404, detail=RUNNER_NOT_FOUND)
 
     return runner
 
 
-@router.patch("/{account}", response_model=RunnerResponse)
+@router.patch(
+    "/{account}", response_model=RunnerResponse, responses={404: {"description": "Not Found"}}
+)
 async def rename_runner(
     account: str,
     data: RunnerRename,
@@ -347,7 +362,7 @@ async def rename_runner(
         await db.execute(select(Runner).where(Runner.account == account))
     ).scalar_one_or_none()
     if not runner:
-        raise HTTPException(status_code=404, detail="Runner not found")
+        raise HTTPException(status_code=404, detail=RUNNER_NOT_FOUND)
 
     if data.account != runner.account:
         await record_audit_event(
@@ -370,7 +385,11 @@ async def rename_runner(
     return runner
 
 
-@router.delete("/{account}", status_code=204)
+@router.delete(
+    "/{account}",
+    status_code=204,
+    responses={404: {"description": "Not Found"}, 409: {"description": "Conflict"}},
+)
 async def delete_runner(
     account: str,
     db: AsyncSession = Depends(get_db, scope="function"),
@@ -381,7 +400,7 @@ async def delete_runner(
     runner = result.scalar_one_or_none()
 
     if not runner:
-        raise HTTPException(status_code=404, detail="Runner not found")
+        raise HTTPException(status_code=404, detail=RUNNER_NOT_FOUND)
 
     try:
         await db.execute(

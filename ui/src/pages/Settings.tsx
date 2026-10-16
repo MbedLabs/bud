@@ -184,7 +184,7 @@ export default function Settings() {
       setHasBloomToken(updated.has_bloom_token)
       setBloomTokenPrefix(updated.bloom_token_prefix)
       setBloomToken('')
-      queryClient.invalidateQueries({ queryKey: ['plmSettings'] })
+      void queryClient.invalidateQueries({ queryKey: ['plmSettings'] })
       alert('PLM settings updated successfully')
     },
     onError: (error) => {

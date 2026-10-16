@@ -377,7 +377,7 @@ export default function TestRunDetail() {
  * because the endpoint is authenticated and a plain href arrives without a
  * token.
  */
-function RunArtifacts({ artifacts, isLoading }: { artifacts?: Artifact[]; isLoading: boolean }) {
+function RunArtifacts({ artifacts, isLoading }: Readonly<{ artifacts?: Artifact[]; isLoading: boolean }>) {
   const [downloading, setDownloading] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -469,7 +469,7 @@ function formatBytes(bytes: number): string {
   return `${value < 10 ? value.toFixed(1) : Math.round(value)} ${units[unit]}`
 }
 
-function RunEventTimeline({ events }: { events: TestRunEvent[] }) {
+function RunEventTimeline({ events }: Readonly<{ events: TestRunEvent[] }>) {
   return (
     <div className="divide-y divide-border">
       {events.map((event) => {
@@ -581,10 +581,10 @@ interface AssertionShape {
 function ResultsTable({
   results,
   outcomeFilters,
-}: {
+}: Readonly<{
   results: TestResult[]
   outcomeFilters: OutcomeFilters
-}) {
+}>) {
   const [expandedCases, setExpandedCases] = useState<Record<string, boolean>>({})
   const testCases = useMemo(() => groupResultsByTestCase(results), [results])
   const visibleTestCases = useMemo(
@@ -746,7 +746,7 @@ interface AssertionViewModel extends AssertionShape {
   methodErrorMessage: string | null
 }
 
-function ResultDetail({ assertions }: { assertions: AssertionViewModel[] }) {
+function ResultDetail({ assertions }: Readonly<{ assertions: AssertionViewModel[] }>) {
   return (
     <div className="space-y-2 pl-10">
       {assertions.length > 0 ? (
@@ -758,7 +758,7 @@ function ResultDetail({ assertions }: { assertions: AssertionViewModel[] }) {
   )
 }
 
-function AssertionRow({ assertion, index }: { assertion: AssertionViewModel; index: number }) {
+function AssertionRow({ assertion, index }: Readonly<{ assertion: AssertionViewModel; index: number }>) {
   const passed = assertion.passed !== false
   const neutral = assertion.skipped === true || assertion.info === true
   const expected = assertion.expected
@@ -848,7 +848,7 @@ function formatVal(v: unknown): string {
   return String(v)
 }
 
-function DetailItem({ label, value }: { label: string; value: string }) {
+function DetailItem({ label, value }: Readonly<{ label: string; value: string }>) {
   return (
     <div>
       <dt className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">{label}</dt>
@@ -859,14 +859,14 @@ function DetailItem({ label, value }: { label: string; value: string }) {
 
 /** Reports the test-case count and the assertion count side by side, because a run
  *  summarised by only one of the two is ambiguous. */
-function SummaryCard({ label, tests, assertions, icon: Icon, gradient, iconColor }: {
+function SummaryCard({ label, tests, assertions, icon: Icon, gradient, iconColor }: Readonly<{
   label: string
   tests: number
   assertions: number
   icon: React.ComponentType<{ className?: string }>
   gradient: string
   iconColor: string
-}) {
+}>) {
   return (
     <div className="bg-card rounded-lg border border-border shadow-elegant p-4">
       <div className="flex items-center justify-between">
@@ -893,7 +893,7 @@ function SummaryCard({ label, tests, assertions, icon: Icon, gradient, iconColor
   )
 }
 
-function ResultIcon({ status }: { status: string }) {
+function ResultIcon({ status }: Readonly<{ status: string }>) {
   switch (status) {
     case 'passed':
       return <CheckCircle className="h-4 w-4 text-emerald-500" />
@@ -916,7 +916,7 @@ function formatDuration(seconds: number): string {
   return `${hours}h ${mins}m`
 }
 
-function OutcomeFilterChip({ label }: { label: string }) {
+function OutcomeFilterChip({ label }: Readonly<{ label: string }>) {
   return (
     <span className="inline-flex items-center rounded-md border border-border bg-background px-2 py-0.5 text-xs font-medium text-foreground">
       {label}
@@ -985,7 +985,7 @@ function RequestPublishing({ runId }: Readonly<{ runId: number }>) {
   )
 }
 
-function PublishToBloom({ runId, status }: { runId: number; status: string }) {
+function PublishToBloom({ runId, status }: Readonly<{ runId: number; status: string }>) {
   const [result, setResult] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const canPublish = status === 'Completed'

@@ -86,8 +86,10 @@ async def test_upload_results_persists_assertions_and_updates_counters(
 
     failing = next(r for r in rows if r.test_method == "bud_check_cell_voltages")
     assert failing.passed is False
-    assert failing.traceback and "Traceback" in failing.traceback
-    assert isinstance(failing.assertions, list) and len(failing.assertions) == 2
+    assert failing.traceback
+    assert "Traceback" in failing.traceback
+    assert isinstance(failing.assertions, list)
+    assert len(failing.assertions) == 2
     failed_assertion = next(a for a in failing.assertions if a["passed"] is False)
     assert failed_assertion["actual"] == "3.50"
     assert failed_assertion["metadata"]["cell"] == 3

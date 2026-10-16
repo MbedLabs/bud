@@ -30,7 +30,7 @@ export default function UsersPage() {
   const inviteMutation = useMutation({
     mutationFn: usersApi.invite,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] })
+      void queryClient.invalidateQueries({ queryKey: ['users'] })
     },
   })
 
@@ -61,7 +61,7 @@ export default function UsersPage() {
     onSuccess: () => {
       setEmailChangeUser(null)
       setEmailActionError(null)
-      queryClient.invalidateQueries({ queryKey: ['users'] })
+      void queryClient.invalidateQueries({ queryKey: ['users'] })
     },
     onError: (error) => {
       setEmailActionError(extractApiErrorMessage(error, 'Failed to start email change'))
@@ -72,7 +72,7 @@ export default function UsersPage() {
     mutationFn: usersApi.approveEmailChange,
     onSuccess: () => {
       setEmailActionError(null)
-      queryClient.invalidateQueries({ queryKey: ['users'] })
+      void queryClient.invalidateQueries({ queryKey: ['users'] })
     },
     onError: (error) => {
       setEmailActionError(extractApiErrorMessage(error, 'Failed to approve email change'))
@@ -83,7 +83,7 @@ export default function UsersPage() {
     mutationFn: usersApi.rejectEmailChange,
     onSuccess: () => {
       setEmailActionError(null)
-      queryClient.invalidateQueries({ queryKey: ['users'] })
+      void queryClient.invalidateQueries({ queryKey: ['users'] })
     },
     onError: (error) => {
       setEmailActionError(extractApiErrorMessage(error, 'Failed to reject email change'))
@@ -296,13 +296,13 @@ function EmailChangeModal({
   onSubmit,
   isLoading,
   error,
-}: {
+}: Readonly<{
   user: User
   onClose: () => void
   onSubmit: (newEmail: string) => Promise<User>
   isLoading: boolean
   error: string | null
-}) {
+}>) {
   const [newEmail, setNewEmail] = useState(user.pending_email ?? '')
 
   return (
@@ -363,12 +363,12 @@ function InviteUserModal({
   onSubmit,
   isLoading,
   error,
-}: {
+}: Readonly<{
   onClose: () => void
   onSubmit: (data: { email: string; full_name: string; role?: UserRole }) => Promise<InviteUserResponse>
   isLoading: boolean
   error: string | null
-}) {
+}>) {
   const [email, setEmail] = useState('')
   const [fullName, setFullName] = useState('')
   const [role, setRole] = useState<UserRole>('viewer')

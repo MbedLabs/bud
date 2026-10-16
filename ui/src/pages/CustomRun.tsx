@@ -131,7 +131,7 @@ export default function CustomRun() {
       setError(null)
       setSelected([])
       setName('')
-      queryClient.invalidateQueries({ queryKey: ['executionRequests'] })
+      void queryClient.invalidateQueries({ queryKey: ['executionRequests'] })
     },
     onError: (failure) => {
       setResult(null)
@@ -345,7 +345,7 @@ export default function CustomRun() {
 }
 
 /** What was queued, and what could not be — both, always. */
-function QueuedSummary({ result }: { result: CustomRunResult }) {
+function QueuedSummary({ result }: Readonly<{ result: CustomRunResult }>) {
   return (
     <section className="bg-card rounded-lg border border-border shadow-elegant overflow-hidden">
       <div className="border-b border-border px-5 py-4">

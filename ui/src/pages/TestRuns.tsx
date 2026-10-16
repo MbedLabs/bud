@@ -358,7 +358,7 @@ export default function TestRuns() {
   )
 }
 
-function FilterChip({ label }: { label: string }) {
+function FilterChip({ label }: Readonly<{ label: string }>) {
   return (
     <span className="inline-flex items-center rounded-md border border-primary/20 bg-primary/10 px-2 py-0.5 text-xs text-primary">
       {label}

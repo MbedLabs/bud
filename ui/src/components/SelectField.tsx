@@ -18,7 +18,7 @@ function selectOptions(children: ReactNode, disabled = false): Array<{ value: st
 }
 
 /** A themed single selector with native change events and form validation. */
-export default function SelectField({ children, value, defaultValue, id, title, className = '', disabled, required, autoFocus, 'aria-label': label, 'aria-labelledby': labelledBy, ...props }: SelectHTMLAttributes<HTMLSelectElement>) {
+export default function SelectField({ children, value, defaultValue, id, title, className = '', disabled, required, autoFocus, 'aria-label': label, 'aria-labelledby': labelledBy, ...props }: Readonly<SelectHTMLAttributes<HTMLSelectElement>>) {
   const native = useRef<HTMLSelectElement>(null)
   const errorId = useId()
   const [validationError, setValidationError] = useState('')

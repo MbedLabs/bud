@@ -64,7 +64,12 @@ async def get_test_catalog(
     )
 
 
-@router.post("/test-runs/custom", response_model=CustomRunResponse, status_code=201)
+@router.post(
+    "/test-runs/custom",
+    response_model=CustomRunResponse,
+    status_code=201,
+    responses={404: {"description": "Not Found"}, 422: {"description": "Unprocessable Content"}},
+)
 async def create_custom_run(
     data: CustomRunRequest,
     db: AsyncSession = Depends(get_db, scope="function"),
@@ -208,7 +213,11 @@ async def _most_recent_source_run(db: AsyncSession, run_ids: list[int | None]) -
 @router.post(
     "/runners/claim-run",
     response_model=ClaimedRunResponse,
-    responses={204: {"description": "Nothing queued for this Test Station."}},
+    responses={
+        204: {"description": "Nothing queued for this Test Station."},
+        403: {"description": "Forbidden"},
+        409: {"description": "Conflict"},
+    },
 )
 async def claim_next_run(
     idempotency_key: UUID = Header(alias="Idempotency-Key"),
@@ -307,6 +316,11 @@ async def claim_next_run(
 @router.post(
     "/runners/runs/{run_id}/complete",
     response_model=TestRunResponse,
+    responses={
+        403: {"description": "Forbidden"},
+        404: {"description": "Not Found"},
+        409: {"description": "Conflict"},
+    },
 )
 async def complete_claimed_run(
     run_id: int,
