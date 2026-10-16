@@ -42,7 +42,7 @@ export default function UsersPage() {
 
   const deleteMutation = useMutation({
     mutationFn: usersApi.delete,
-    onMutate: async (id: number) => {
+    onMutate: (id: number) => {
       setDeleteError(null)
       setPendingDeleteUserId(id)
     },

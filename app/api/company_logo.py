@@ -1,5 +1,6 @@
 """Company logo: an admin-uploaded customer logo shown on the report letterhead."""
 
+from http import HTTPStatus
 from typing import Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
@@ -34,7 +35,13 @@ async def _company_logo_row(db: AsyncSession) -> CompanyLogo:
     return row
 
 
-@router.put("/logo")
+@router.put(
+    "/logo",
+    responses={
+        413: {"description": HTTPStatus(413).phrase},
+        415: {"description": HTTPStatus(415).phrase},
+    },
+)
 async def set_company_logo(
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db, scope="function"),
@@ -60,7 +67,7 @@ async def set_company_logo(
     return {"content_type": file.content_type, "size": len(raw)}
 
 
-@router.get("/logo")
+@router.get("/logo", responses={404: {"description": HTTPStatus(404).phrase}})
 async def get_company_logo(
     db: AsyncSession = Depends(get_db, scope="function"),
     _entity=Depends(get_current_active_entity),

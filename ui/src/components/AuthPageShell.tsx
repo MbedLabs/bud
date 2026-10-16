@@ -3,7 +3,7 @@ import { APP_VERSION } from '../api/client'
 import { BUD_LOGO_DARK, BUD_LOGO_LIGHT } from '../brandAssets'
 
 /** The card with the logo and the version footer that frames the account pages. */
-export default function AuthPageShell({ children }: { children: ReactNode }) {
+export default function AuthPageShell({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-auth p-4">
       <div className="w-full max-w-md bg-card rounded-2xl shadow-2xl p-8 border border-border">

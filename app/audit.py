@@ -10,7 +10,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import delete
 
@@ -20,7 +20,7 @@ from app.models.audit import AuditEvent
 
 async def prune(older_than_days: int) -> int:
     """Delete the events older than the given number of days; returns how many."""
-    cutoff = datetime.utcnow() - timedelta(days=older_than_days)
+    cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=older_than_days)
     async with async_session_maker() as session:
         result = await session.execute(delete(AuditEvent).where(AuditEvent.occurred_at < cutoff))
         await session.commit()

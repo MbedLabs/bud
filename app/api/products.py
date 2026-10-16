@@ -2,7 +2,7 @@
 Products API endpoints.
 """
 
-from typing import List, Union
+from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
@@ -53,7 +53,7 @@ async def create_product(
 @router.get("", response_model=List[ProductResponse])
 async def list_products(
     db: AsyncSession = Depends(get_db, scope="function"),
-    _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
+    _current_entity: User | Runner = Depends(get_current_active_entity),
 ):
     """
     List all products.
@@ -66,7 +66,7 @@ async def list_products(
 async def get_product(
     product_id: int,
     db: AsyncSession = Depends(get_db, scope="function"),
-    _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
+    _current_entity: User | Runner = Depends(get_current_active_entity),
 ):
     """
     Get a product by ID.

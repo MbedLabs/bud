@@ -19,7 +19,7 @@ const inputClass =
  * Policies: person-agnostic permission sets that groups bundle. Each shows the rights it
  * covers. Defaults are read-only; an Admin duplicates one to customise it.
  */
-export default function AccessPolicies({ canEdit }: { canEdit: boolean }) {
+export default function AccessPolicies({ canEdit }: Readonly<{ canEdit: boolean }>) {
   const queryClient = useQueryClient()
   const [editing, setEditing] = useState<Policy | 'new' | null>(null)
   const [viewing, setViewing] = useState<Policy | null>(null)
@@ -136,7 +136,7 @@ function PolicyEditor({
   error,
   onCancel,
   onSave,
-}: {
+}: Readonly<{
   policy: Policy | null
   catalogue: CatalogueResource[]
   readOnly?: boolean
@@ -144,7 +144,7 @@ function PolicyEditor({
   error: string | null
   onCancel: () => void
   onSave: (data: { name?: string; description?: string | null; permissions: PermissionMatrix }) => void
-}) {
+}>) {
   const [name, setName] = useState(policy?.name ?? '')
   const [description, setDescription] = useState(policy?.description ?? '')
   const [matrix, setMatrix] = useState<PermissionMatrix>(policy?.permissions ?? {})

@@ -278,7 +278,7 @@ export default function Settings() {
                   Upload
                 </button>
               </div>
-              {pictureMessage && <p role="status" className="text-sm text-muted-foreground">{pictureMessage}</p>}
+              {pictureMessage && <output className="block text-sm text-muted-foreground">{pictureMessage}</output>}
             </div>
           </div>
           <div>
@@ -579,7 +579,7 @@ export default function Settings() {
               </div>
             </div>
             {logoMessage && (
-              <p className="text-sm text-muted-foreground" role="status">{logoMessage}</p>
+              <output className="block text-sm text-muted-foreground">{logoMessage}</output>
             )}
           </div>
         </div>

@@ -41,6 +41,9 @@ from app.models import (
 from app.services.integration_secrets import decrypt_integration_secret
 from app.services.run_events import record_test_run_event
 
+OPEN_IN_BLOOM = "Open in Bloom"
+OPEN_IN_BUD = "Open in Bud"
+
 logger = logging.getLogger(__name__)
 
 FORMATS = ("teams", "slack", "discord", "json")
@@ -181,7 +184,7 @@ def render_slack(summary: RunSummary) -> dict:
         buttons.append(
             {
                 "type": "button",
-                "text": {"type": "plain_text", "text": "Open in Bud"},
+                "text": {"type": "plain_text", "text": OPEN_IN_BUD},
                 "url": summary.run_url,
             }
         )
@@ -189,7 +192,7 @@ def render_slack(summary: RunSummary) -> dict:
         buttons.append(
             {
                 "type": "button",
-                "text": {"type": "plain_text", "text": "Open in Bloom"},
+                "text": {"type": "plain_text", "text": OPEN_IN_BLOOM},
                 "url": summary.bloom_url,
             }
         )
@@ -269,11 +272,9 @@ def render_teams(summary: RunSummary) -> dict:
         )
     actions = []
     if summary.run_url:
-        actions.append({"type": "Action.OpenUrl", "title": "Open in Bud", "url": summary.run_url})
+        actions.append({"type": "Action.OpenUrl", "title": OPEN_IN_BUD, "url": summary.run_url})
     if summary.bloom_url:
-        actions.append(
-            {"type": "Action.OpenUrl", "title": "Open in Bloom", "url": summary.bloom_url}
-        )
+        actions.append({"type": "Action.OpenUrl", "title": OPEN_IN_BLOOM, "url": summary.bloom_url})
     card = {
         "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
         "type": "AdaptiveCard",
@@ -307,7 +308,7 @@ def render_teams_connector(summary: RunSummary) -> dict:
         section["text"] = "\n\n".join(text)
     actions = [
         {"@type": "OpenUri", "name": name, "targets": [{"os": "default", "uri": url}]}
-        for name, url in (("Open in Bud", summary.run_url), ("Open in Bloom", summary.bloom_url))
+        for name, url in ((OPEN_IN_BUD, summary.run_url), (OPEN_IN_BLOOM, summary.bloom_url))
         if url
     ]
     return {

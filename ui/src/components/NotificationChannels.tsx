@@ -97,9 +97,9 @@ export default function NotificationChannels() {
       </div>
       <div className="p-5 space-y-4">
         {message && (
-          <p className={`text-xs ${message.ok ? 'text-emerald-600' : 'text-destructive'}`} role="status">
+          <output className={"block " + (`text-xs ${message.ok ? 'text-emerald-600' : 'text-destructive'}`)}>
             {message.text}
-          </p>
+          </output>
         )}
 
         {isLoading ? (

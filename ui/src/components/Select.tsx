@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { ChevronDown } from 'lucide-react'
 
 /** A themed option picker with keyboard navigation and selection. */
-export default function Select<V extends string>({ id, label, title, value, onChange, options, disabled = false, required = false, className = '', wrapperClassName = '', autoFocus = false, labelledBy, invalid = false, describedBy }: {
+export default function Select<V extends string>({ id, label, title, value, onChange, options, disabled = false, required = false, className = '', wrapperClassName = '', autoFocus = false, labelledBy, invalid = false, describedBy }: Readonly<{
   id?: string
   label?: string
   title?: string
@@ -18,7 +18,7 @@ export default function Select<V extends string>({ id, label, title, value, onCh
   labelledBy?: string
   invalid?: boolean
   describedBy?: string
-}) {
+}>) {
   const listId = useId()
   const button = useRef<HTMLButtonElement>(null)
   const list = useRef<HTMLDivElement>(null)
@@ -74,6 +74,10 @@ export default function Select<V extends string>({ id, label, title, value, onCh
     }
     return start
   }
+  const typeAhead = (event: React.KeyboardEvent<HTMLButtonElement>) => {
+    const index = options.findIndex((option) => !option.disabled && option.label.toLowerCase().startsWith(event.key.toLowerCase()))
+    if (index >= 0) { event.preventDefault(); showMenu(index) }
+  }
   return <div className={`min-w-0 ${wrapperClassName}`}>
     <button ref={button} id={id} value={value} type="button" role="combobox" aria-label={label} aria-labelledby={labelledBy} title={title ?? label}
       aria-expanded={open} aria-haspopup="listbox" aria-controls={open ? `${listId}-list` : undefined}
@@ -92,8 +96,7 @@ export default function Select<V extends string>({ id, label, title, value, onCh
         } else if ((event.key === 'Enter' || event.key === ' ') && open) {
           event.preventDefault(); choose(active)
         } else if (event.key.length === 1 && event.key !== ' ') {
-          const index = options.findIndex((option) => !option.disabled && option.label.toLowerCase().startsWith(event.key.toLowerCase()))
-          if (index >= 0) { event.preventDefault(); showMenu(index) }
+          typeAhead(event)
         }
       }}>
       <span className="min-w-0 whitespace-normal break-words">{options[selectedIndex]?.label}</span>

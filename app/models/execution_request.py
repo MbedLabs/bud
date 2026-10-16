@@ -9,6 +9,9 @@ from sqlalchemy.orm import Mapped, Session, mapped_column, with_loader_criteria
 from app.db.database import Base
 from app.models.models import TestRun
 
+SET_NULL = "SET NULL"
+TEST_RUNS_ID = "test_runs.id"
+
 
 class ExecutionRequest(Base):
     """A test selection waiting for its station, linked to the execution after claim."""
@@ -25,24 +28,24 @@ class ExecutionRequest(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     requested_by_id: Mapped[Optional[int]] = mapped_column(
-        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+        ForeignKey("users.id", ondelete=SET_NULL), nullable=True
     )
     runner_id: Mapped[Optional[int]] = mapped_column(
-        ForeignKey("runners.id", ondelete="SET NULL"), nullable=True, index=True
+        ForeignKey("runners.id", ondelete=SET_NULL), nullable=True, index=True
     )
     runner_account: Mapped[str] = mapped_column(String(100), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     selected_tests: Mapped[list] = mapped_column(JSON, nullable=False)
     source_run_id: Mapped[Optional[int]] = mapped_column(
-        ForeignKey("test_runs.id", ondelete="SET NULL"), nullable=True
+        ForeignKey(TEST_RUNS_ID, ondelete=SET_NULL), nullable=True
     )
     source_metadata: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     state: Mapped[str] = mapped_column(String(20), nullable=False, default="queued", index=True)
     claimed_run_id: Mapped[Optional[int]] = mapped_column(
-        ForeignKey("test_runs.id"), nullable=True, unique=True
+        ForeignKey(TEST_RUNS_ID), nullable=True, unique=True
     )
     legacy_queue_run_id: Mapped[Optional[int]] = mapped_column(
-        ForeignKey("test_runs.id"), nullable=True, unique=True
+        ForeignKey(TEST_RUNS_ID), nullable=True, unique=True
     )
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 

@@ -15,7 +15,7 @@ type ReportRequest = {
   requester_email: string
 }
 
-export default function ReportRequests({ runId }: { runId?: number }) {
+export default function ReportRequests({ runId }: Readonly<{ runId?: number }>) {
   const { user } = useAuth()
   const client = useQueryClient()
   const [refusing, setRefusing] = useState<number | null>(null)
@@ -27,7 +27,7 @@ export default function ReportRequests({ runId }: { runId?: number }) {
     refetchInterval: 30000,
   })
   const decide = useMutation({
-    mutationFn: async ({ row, refuse }: { row: ReportRequest; refuse: boolean }) => refuse
+    mutationFn: ({ row, refuse }: { row: ReportRequest; refuse: boolean }): Promise<unknown> => refuse
       ? api.post(`/report-requests/${row.id}/refuse`, { reason })
       : api.post(`/report-requests/${row.id}/publish`, {}),
     onSuccess: () => {
@@ -57,7 +57,7 @@ export default function ReportRequests({ runId }: { runId?: number }) {
                   className="mt-1 block w-full rounded border border-border bg-background px-3 py-2" />
               </label>
               <div className="flex gap-2">
-                <button disabled={decide.isPending || !reason.trim()} className="px-3 py-2 text-sm rounded bg-primary text-primary-foreground disabled:opacity-50">Refuse request</button>
+                <button type="submit" disabled={decide.isPending || !reason.trim()} className="px-3 py-2 text-sm rounded bg-primary text-primary-foreground disabled:opacity-50">Refuse request</button>
                 <button type="button" disabled={decide.isPending} onClick={() => { setRefusing(null); setReason('') }} className="px-3 py-2 text-sm rounded border border-border">Cancel</button>
               </div>
             </form>

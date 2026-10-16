@@ -125,7 +125,7 @@ function GroupEditor({
   error,
   onCancel,
   onSave,
-}: {
+}: Readonly<{
   group: Group | null
   policies: Policy[]
   readOnly?: boolean
@@ -133,7 +133,7 @@ function GroupEditor({
   error: string | null
   onCancel: () => void
   onSave: (data: { name?: string; description?: string | null; policy_ids: number[] }) => void
-}) {
+}>) {
   const [name, setName] = useState(group?.name ?? '')
   const [description, setDescription] = useState(group?.description ?? '')
   const [selected, setSelected] = useState<Set<number>>(new Set(group?.policies.map((policy) => policy.id)))

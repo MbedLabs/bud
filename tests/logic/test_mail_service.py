@@ -122,3 +122,45 @@ def test_an_unreachable_relay_is_also_reported(monkeypatch):
         assert "mail:2525" in str(exc)
     else:
         raise AssertionError("an unreachable relay must raise MailDeliveryError")
+
+
+def test_delivery_log_excludes_message_and_recipient(monkeypatch, caplog):
+    """Successful deliveries keep recipient and message content out of logs."""
+    import logging
+
+    _configure_smtp(monkeypatch, starttls=False)
+    monkeypatch.setattr(mail_service.smtplib, "SMTP", _DummySMTP)
+    with caplog.at_level(logging.INFO, logger=mail_service.__name__):
+        mail_service.send_email(
+            to_email="private-recipient@example.com",
+            subject="Private subject with an untrusted marker",
+            text_body="private message content",
+        )
+    assert "Email sent" in caplog.text
+    assert "private-recipient" not in caplog.text
+    assert "untrusted marker" not in caplog.text
+    assert "private message content" not in caplog.text
+
+
+def test_delivery_error_log_excludes_untrusted_server_response(monkeypatch, caplog):
+    """SMTP errors retain diagnostic exceptions without logging server text."""
+    import logging
+    import smtplib
+
+    import pytest
+
+    _configure_smtp(monkeypatch, starttls=False)
+
+    def refused(host, port, timeout):
+        raise smtplib.SMTPException("remote response\nforged log entry")
+
+    monkeypatch.setattr(mail_service.smtplib, "SMTP", refused)
+    with caplog.at_level(logging.ERROR, logger=mail_service.__name__):
+        with pytest.raises(mail_service.MailDeliveryError) as error:
+            mail_service.send_email(
+                to_email="private-recipient@example.com", subject="private", text_body="body"
+            )
+    assert "SMTPException" in caplog.text
+    assert "remote response" not in caplog.text
+    assert "forged log entry" not in caplog.text
+    assert "remote response" in str(error.value)

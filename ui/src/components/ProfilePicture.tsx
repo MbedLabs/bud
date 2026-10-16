@@ -4,11 +4,11 @@ import { authApi, type ProfilePerson } from '../api/client'
 /**
  * A person's profile picture, or their initials when none is stored.
  */
-export default function ProfilePicture({ user, className = 'w-8 h-8', own = false }: {
+export default function ProfilePicture({ user, className = 'w-8 h-8', own = false }: Readonly<{
   user: ProfilePerson | null
   className?: string
   own?: boolean
-}) {
+}>) {
   const [image, setImage] = useState<{ key: string; url: string } | null>(null)
   const [failedUrl, setFailedUrl] = useState<string | null>(null)
   const id = user?.id

@@ -54,7 +54,8 @@ async def test_a_request_emails_the_administrators_once_a_day(
 
     assert first.status_code == 201, first.text
     assert first.json()["mail_sent"] is True
-    assert again.status_code == 200 and again.json()["already_requested"] is True
+    assert again.status_code == 200
+    assert again.json()["already_requested"] is True
     assert mine.json()["id"] == first.json()["id"]
     boss_mail = [mail for mail in sent_mail if mail["to_email"] == "boss@example.com"]
     assert len(boss_mail) == 1
@@ -102,7 +103,8 @@ async def test_an_administrator_decision_is_recorded_once(
 
     assert [r["requester_email"] for r in listed.json()] == ["member@example.com"]
     assert by_member.status_code == 403
-    assert refused.status_code == 200 and refused.json()["status"] == "refused"
+    assert refused.status_code == 200
+    assert refused.json()["status"] == "refused"
     assert twice.status_code == 409
     event = (
         await db_session.execute(select(AuditEvent).where(AuditEvent.action == "access.refused"))
@@ -148,10 +150,14 @@ async def test_reviewers_see_each_requesters_picture_and_no_other_identity_is_di
         created = unauthenticated_client.post("/api/access-requests", json=REQUEST, headers=headers)
         assert created.status_code == 201
         assert created.json()["requester_profile_picture_url"] is None
-        mine = unauthenticated_client.get("/api/access-requests/mine", params=REQUEST, headers=headers)
+        mine = unauthenticated_client.get(
+            "/api/access-requests/mine", params=REQUEST, headers=headers
+        )
         assert mine.status_code == 200
         assert mine.json()["requester_profile_picture_url"] is None
-        assert unauthenticated_client.get("/api/access-requests", headers=headers).status_code == 403
+        assert (
+            unauthenticated_client.get("/api/access-requests", headers=headers).status_code == 403
+        )
     assert unauthenticated_client.get("/api/access-requests").status_code == 401
     for picture in (b"first", b"replacement", None):
         first = await db_session.get(User, first_id)
@@ -163,5 +169,9 @@ async def test_reviewers_see_each_requesters_picture_and_no_other_identity_is_di
         second = await db_session.get(User, second_id)
         admin = await db_session.get(User, admin_id)
         assert requesters[first.email]["requester_profile_picture_url"] == first.profile_picture_url
-        assert requesters[second.email]["requester_profile_picture_url"] == second.profile_picture_url
-        assert requesters[second.email]["requester_profile_picture_url"] != admin.profile_picture_url
+        assert (
+            requesters[second.email]["requester_profile_picture_url"] == second.profile_picture_url
+        )
+        assert (
+            requesters[second.email]["requester_profile_picture_url"] != admin.profile_picture_url
+        )

@@ -1,5 +1,7 @@
 """Publisher inbox and refusal of a Bloom reader's report request."""
 
+from http import HTTPStatus
+
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -54,7 +56,15 @@ async def pending_requests(
     ]
 
 
-@router.post("/{request_id}/refuse")
+@router.post(
+    "/{request_id}/refuse",
+    responses={
+        404: {"description": HTTPStatus(404).phrase},
+        409: {"description": HTTPStatus(409).phrase},
+        422: {"description": HTTPStatus(422).phrase},
+        502: {"description": HTTPStatus(502).phrase},
+    },
+)
 async def refuse_request(
     request_id: int,
     data: Refusal,
@@ -120,7 +130,13 @@ async def refuse_request(
     return {"status": row.status}
 
 
-@router.post("/{request_id}/publish")
+@router.post(
+    "/{request_id}/publish",
+    responses={
+        404: {"description": HTTPStatus(404).phrase},
+        409: {"description": HTTPStatus(409).phrase},
+    },
+)
 async def publish_request(
     request_id: int,
     db: AsyncSession = Depends(get_db, scope="function"),

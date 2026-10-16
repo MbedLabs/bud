@@ -53,16 +53,19 @@ def _upload(station_upload, name="trace.txt", data=b"evidence"):
 def test_upload_and_download_through_the_bucket(client, s3, station_upload):
     artifact = _upload(station_upload)
     stored = uploads.get_upload_root() / artifact["filename"]
-    assert _keys(s3) == [f"bud/{artifact['filename']}"] and stored.exists()
+    assert _keys(s3) == [f"bud/{artifact['filename']}"]
+    assert stored.exists()
 
     downloaded = client.get(f"/api/uploads/{artifact['id']}")
-    assert downloaded.status_code == 200 and downloaded.content == b"evidence"
+    assert downloaded.status_code == 200
+    assert downloaded.content == b"evidence"
     assert downloaded.headers["content-disposition"].startswith("attachment;")
     assert downloaded.headers["content-security-policy"] == "sandbox"
 
     s3.delete_object(Bucket=BUCKET, Key=f"bud/{artifact['filename']}")
     fallback = client.get(f"/api/uploads/{artifact['id']}")
-    assert fallback.status_code == 200 and fallback.content == b"evidence"
+    assert fallback.status_code == 200
+    assert fallback.content == b"evidence"
 
     stored.unlink()
     assert client.get(f"/api/uploads/{artifact['id']}").status_code == 503

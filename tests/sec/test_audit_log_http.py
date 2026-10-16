@@ -73,7 +73,8 @@ async def test_a_deactivation_records_the_admin(unauthenticated_client, db_sessi
 
     assert response.status_code == 200, response.text
     [event] = await _events(db_session, "user.deactivated")
-    assert event.actor_type == "user" and event.actor_user_id == admin.id
+    assert event.actor_type == "user"
+    assert event.actor_user_id == admin.id
     assert event.target_id == str(member.id)
 
 
