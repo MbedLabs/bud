@@ -8,7 +8,7 @@ import os
 import shutil
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import aiofiles
@@ -52,7 +52,7 @@ async def reserve_upload(
 ) -> UploadLease:
     """Atomically enforce rate, concurrency, and per-run reservation limits."""
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     window_start = now - timedelta(minutes=15)
     principal = upload_principal_key(entity)
     reservation_bytes = settings.MAX_UPLOAD_SIZE

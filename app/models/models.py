@@ -20,6 +20,9 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.database import Base
 
+ALL_DELETE_ORPHAN = "all, delete-orphan"
+TEST_RUNS_ID = "test_runs.id"
+
 
 class Product(Base):
     """Product/project being tested."""
@@ -147,13 +150,13 @@ class TestRun(Base):
     product: Mapped[Optional["Product"]] = relationship(back_populates="test_runs")
     runner: Mapped[Optional["Runner"]] = relationship(back_populates="test_runs")
     results: Mapped[List["TestResult"]] = relationship(
-        back_populates="test_run", cascade="all, delete-orphan"
+        back_populates="test_run", cascade=ALL_DELETE_ORPHAN
     )
     artifacts: Mapped[List["Artifact"]] = relationship(
-        back_populates="test_run", cascade="all, delete-orphan"
+        back_populates="test_run", cascade=ALL_DELETE_ORPHAN
     )
     events: Mapped[List["TestRunEvent"]] = relationship(
-        back_populates="test_run", cascade="all, delete-orphan"
+        back_populates="test_run", cascade=ALL_DELETE_ORPHAN
     )
 
 
@@ -163,7 +166,7 @@ class TestRunEvent(Base):
     __tablename__ = "test_run_events"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    test_run_id: Mapped[int] = mapped_column(ForeignKey("test_runs.id"), index=True, nullable=False)
+    test_run_id: Mapped[int] = mapped_column(ForeignKey(TEST_RUNS_ID), index=True, nullable=False)
     sequence: Mapped[int] = mapped_column(Integer, default=0)
     stage: Mapped[str] = mapped_column(String(100))
     status: Mapped[str] = mapped_column(String(50), default="completed")
@@ -197,7 +200,7 @@ class TestResult(Base):
 
     # Foreign keys (optional: detached uploads before a TestRun exists)
     test_run_id: Mapped[Optional[int]] = mapped_column(
-        ForeignKey("test_runs.id"), index=True, nullable=True
+        ForeignKey(TEST_RUNS_ID), index=True, nullable=True
     )
     product_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("products.id"), index=True, nullable=True
@@ -226,7 +229,7 @@ class Artifact(Base):
 
     # Foreign key
     test_run_id: Mapped[Optional[int]] = mapped_column(
-        ForeignKey("test_runs.id"), nullable=True, index=True
+        ForeignKey(TEST_RUNS_ID), nullable=True, index=True
     )
 
     # Relationships
@@ -241,7 +244,7 @@ class UploadLease(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     principal_key: Mapped[str] = mapped_column(String(128), unique=True, index=True)
     test_run_id: Mapped[Optional[int]] = mapped_column(
-        ForeignKey("test_runs.id", ondelete="CASCADE"), nullable=True, index=True
+        ForeignKey(TEST_RUNS_ID, ondelete="CASCADE"), nullable=True, index=True
     )
     reserved_bytes: Mapped[int] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
@@ -313,7 +316,7 @@ class NotificationDelivery(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     test_run_id: Mapped[Optional[int]] = mapped_column(
-        ForeignKey("test_runs.id", ondelete="CASCADE"), nullable=True, index=True
+        ForeignKey(TEST_RUNS_ID, ondelete="CASCADE"), nullable=True, index=True
     )
     channel_id: Mapped[int] = mapped_column(
         ForeignKey("notification_channels.id", ondelete="CASCADE"), index=True

@@ -1,7 +1,7 @@
 import { Navigate } from 'react-router'
 import { useAuth } from '../contexts/AuthContext'
 
-export default function ProtectedRoute({ children }: { children: React.ReactNode }) {
+export default function ProtectedRoute({ children }: Readonly<{ children: React.ReactNode }>) {
   const { isAuthenticated, isLoading } = useAuth()
 
   if (isLoading) {

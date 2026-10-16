@@ -18,7 +18,7 @@ def _fernet() -> Fernet:
         )
     try:
         return Fernet(settings.INTEGRATION_ENCRYPTION_KEY.encode("ascii"))
-    except (ValueError, UnicodeEncodeError) as exc:
+    except ValueError as exc:
         raise HTTPException(
             status_code=503,
             detail="BUD_INTEGRATION_ENCRYPTION_KEY must be a valid Fernet key.",

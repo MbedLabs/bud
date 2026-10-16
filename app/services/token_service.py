@@ -1,12 +1,14 @@
 import hashlib
 import secrets
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import NamedTuple
 
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.user_token import UserToken, UserTokenPurpose
+
+INVALID_TOKEN = "Invalid token"
 
 
 class TokenValidationError(Exception):
@@ -47,7 +49,7 @@ async def create_user_token(
                 UserToken.purpose == purpose,
                 UserToken.used_at.is_(None),
             )
-            .values(used_at=datetime.utcnow())
+            .values(used_at=datetime.now(timezone.utc).replace(tzinfo=None))
         )
 
     raw_token = generate_raw_token()
@@ -56,7 +58,7 @@ async def create_user_token(
             user_id=user_id,
             purpose=purpose,
             token_hash=hash_token(raw_token),
-            expires_at=datetime.utcnow() + timedelta(hours=ttl_hours),
+            expires_at=datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=ttl_hours),
             created_by_user_id=created_by_user_id,
             target_email=target_email,
         )
@@ -88,10 +90,10 @@ async def get_valid_token(
 ) -> UserToken:
     result = await find_token(db, token=token, purpose=purpose)
     if result is None:
-        raise TokenValidationError("Invalid token")
+        raise TokenValidationError(INVALID_TOKEN)
     if result.used_at is not None:
         raise TokenValidationError("Token has already been used")
-    if result.expires_at < datetime.utcnow():
+    if result.expires_at < datetime.now(timezone.utc).replace(tzinfo=None):
         raise TokenValidationError("Token has expired")
     return result
 
@@ -103,7 +105,7 @@ async def claim_token(
     purpose: UserTokenPurpose,
 ) -> ClaimedToken:
     """Atomically consume a one-time token."""
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     result = await db.execute(
         update(UserToken)
         .where(
@@ -121,16 +123,16 @@ async def claim_token(
 
     existing = await find_token(db, token=token, purpose=purpose)
     if existing is None:
-        raise TokenValidationError("Invalid token")
+        raise TokenValidationError(INVALID_TOKEN)
     if existing.used_at is not None:
         raise TokenValidationError("Token has already been used")
     if existing.expires_at < now:
         raise TokenValidationError("Token has expired")
-    raise TokenValidationError("Invalid token")
+    raise TokenValidationError(INVALID_TOKEN)
 
 
 async def mark_token_used(db: AsyncSession, user_token: UserToken) -> None:
-    user_token.used_at = datetime.utcnow()
+    user_token.used_at = datetime.now(timezone.utc).replace(tzinfo=None)
     await db.flush()
 
 
@@ -143,7 +145,7 @@ async def invalidate_tokens(db: AsyncSession, user_id: int, *, purpose: UserToke
             UserToken.purpose == purpose,
             UserToken.used_at.is_(None),
         )
-        .values(used_at=datetime.utcnow())
+        .values(used_at=datetime.now(timezone.utc).replace(tzinfo=None))
     )
     await db.flush()
 

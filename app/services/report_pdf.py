@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from html import escape
 from io import BytesIO
 from pathlib import Path
@@ -398,7 +398,7 @@ def _draw_footer(canvas, doc) -> None:
 
 
 def _header(request: ReportRequest, styles: dict[str, ParagraphStyle], company_logo=None) -> list:
-    generated = request.generated_at or datetime.utcnow()
+    generated = request.generated_at or datetime.now(timezone.utc).replace(tzinfo=None)
     meta = [
         Paragraph(f"<b>{request.title}</b>", styles["title"]),
         Paragraph(request.subtitle, styles["subtitle"]),

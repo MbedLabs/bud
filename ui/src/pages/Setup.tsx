@@ -53,7 +53,7 @@ export default function Setup() {
     setSubmitting(true)
     try {
       await setupApi.createFirstAdmin(email, password, fullName)
-      navigate('/login', { replace: true })
+      void navigate('/login', { replace: true })
     } catch (err: unknown) {
       setSubmitError(extractApiErrorMessage(err, 'Unable to create the administrator account'))
     } finally {

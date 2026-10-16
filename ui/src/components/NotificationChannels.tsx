@@ -57,7 +57,7 @@ export default function NotificationChannels() {
       setUrl('')
       setSecret('')
       setMessage({ ok: true, text: 'Channel added.' })
-      refresh()
+      void refresh()
     },
     onError: (error) => setMessage({ ok: false, text: extractApiErrorMessage(error, 'Could not add the channel') }),
   })

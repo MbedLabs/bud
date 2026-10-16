@@ -7,7 +7,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from sqlalchemy import select
@@ -113,7 +113,7 @@ async def _build_run_scoped_report(db: AsyncSession, run: TestRun, *, title: str
             run_url=frontend_run_url(run.id),
         ),
         assertions=assertions,
-        generated_at=datetime.utcnow(),
+        generated_at=datetime.now(timezone.utc).replace(tzinfo=None),
         app_version=settings.BUD_APP_VERSION,
     )
 
@@ -195,7 +195,7 @@ async def build_summary_report(
             Breakdown("Per Test Station", "Test Station", per_station),
             Breakdown("Per day", "Day", per_day),
         ],
-        generated_at=datetime.utcnow(),
+        generated_at=datetime.now(timezone.utc).replace(tzinfo=None),
         app_version=settings.BUD_APP_VERSION,
     )
 

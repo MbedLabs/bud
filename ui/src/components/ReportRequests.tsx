@@ -33,8 +33,8 @@ export default function ReportRequests({ runId }: Readonly<{ runId?: number }>) 
     onSuccess: () => {
       setRefusing(null)
       setReason('')
-      client.invalidateQueries({ queryKey: ['report-requests'] })
-      client.invalidateQueries({ queryKey: ['testRunEvents'] })
+      void client.invalidateQueries({ queryKey: ['report-requests'] })
+      void client.invalidateQueries({ queryKey: ['testRunEvents'] })
     },
   })
   if (!can(user, 'bloom_publish.execute')) return null

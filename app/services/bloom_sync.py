@@ -1,6 +1,6 @@
 import logging
 from collections.abc import AsyncIterable
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 import httpx
@@ -47,7 +47,9 @@ async def _coalesce_results_by_tc_id(
             continue
 
         executed_at = (
-            res.created_at.isoformat() if res.created_at else datetime.utcnow().isoformat()
+            res.created_at.isoformat()
+            if res.created_at
+            else datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
         )
         entry = grouped.setdefault(
             tc_id,
