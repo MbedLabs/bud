@@ -732,6 +732,33 @@ describe('the Test Stations screen', () => {
     expect(renamed.mock.calls[0].slice(0, 2)).toEqual([testStation.account, 'bench-renamed'])
   })
 
+  it('closes the rename dialog with Escape or its backdrop without renaming', async () => {
+    renderAt('/test-stations', '/test-stations', <TestStations />)
+    await screen.findByText(testStation.account)
+
+    fireEvent.click(screen.getByRole('button', { name: `Actions for ${testStation.account}` }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Rename' }))
+    const field = await screen.findByLabelText('Rename station to')
+    fireEvent.keyDown(field, { key: 'Enter' })
+    fireEvent.click(field)
+    expect(screen.getByRole('dialog', { name: 'Rename Test Station' })).toBeTruthy()
+    fireEvent.keyDown(field, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Rename Test Station' })).toBeNull())
+
+    fireEvent.click(screen.getByRole('button', { name: `Actions for ${testStation.account}` }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Rename' }))
+    await screen.findByLabelText('Rename station to')
+    fireEvent.keyDown(document.body, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Rename Test Station' })).toBeNull())
+
+    fireEvent.click(screen.getByRole('button', { name: `Actions for ${testStation.account}` }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Rename' }))
+    await screen.findByLabelText('Rename station to')
+    fireEvent.click(screen.getByRole('button', { name: 'Close Rename Test Station backdrop' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Rename Test Station' })).toBeNull())
+    expect(client.testStationsApi.rename).not.toHaveBeenCalled()
+  })
+
   it('offers to revoke the key from the station that holds it', async () => {
     vi.mocked(client.testStationsApi.listApiKeys).mockResolvedValue([
       {

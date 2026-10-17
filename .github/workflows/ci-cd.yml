@@ -61,7 +61,7 @@ jobs:
           pip install black==25.1.0 isort==5.13.2 bandit==1.8.3 pip-audit
 
       - name: Install UI dependencies
-        run: npm --prefix ui ci
+        run: npm --prefix ui ci --ignore-scripts
 
       - name: Audit UI dependencies
         run: npm --prefix ui run audit
@@ -160,7 +160,7 @@ jobs:
       - name: Run UI checks
         run: |
           npm --prefix ui run lint
-          npx --prefix ui tsc --project ui/tsconfig.json --noEmit
+          ui/node_modules/.bin/tsc --project ui/tsconfig.json --noEmit
           npm --prefix ui run test -- --coverage
 
   build-image:
