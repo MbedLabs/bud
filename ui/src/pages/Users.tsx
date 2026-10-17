@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check, Code2, Copy, Eye, Mail, Shield, Trash2, UserPlus, X } from 'lucide-react'
 import { extractApiErrorMessage, InviteUserResponse, User, UserRole, usersApi } from '../api/client'
 import { useAuth } from '../contexts/AuthContext'
+import { useEscapeKey } from '../hooks/useEscapeKey'
 import { formatDateTime } from '../test/date-utils'
 
 const ROLE_CONFIG = {
@@ -304,12 +305,22 @@ function EmailChangeModal({
   error: string | null
 }>) {
   const [newEmail, setNewEmail] = useState(user.pending_email ?? '')
+  useEscapeKey(onClose)
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
-      <div
-        className="bg-card border border-border rounded-xl shadow-elegant p-6 w-full max-w-md"
-        onClick={(event) => event.stopPropagation()}
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <button
+        type="button"
+        aria-label="Close Change user email backdrop"
+        tabIndex={-1}
+        className="absolute inset-0 h-full w-full cursor-default"
+        onClick={onClose}
+      />
+      <dialog
+        open
+        aria-modal="true"
+        aria-label="Change user email"
+        className="relative m-0 bg-card border border-border rounded-xl shadow-elegant p-6 w-full max-w-md text-foreground"
       >
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-foreground">Change user email</h2>
@@ -353,7 +364,7 @@ function EmailChangeModal({
             {isLoading ? 'Sending confirmation…' : 'Send confirmation email'}
           </button>
         </form>
-      </div>
+      </dialog>
     </div>
   )
 }
@@ -375,6 +386,7 @@ function InviteUserModal({
   const [inviteLink, setInviteLink] = useState<string | null>(null)
   const [invitedEmail, setInvitedEmail] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
+  useEscapeKey(onClose)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -402,10 +414,19 @@ function InviteUserModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
-      <div
-        className="bg-card border border-border rounded-xl shadow-elegant p-6 w-full max-w-md"
-        onClick={(e) => e.stopPropagation()}
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <button
+        type="button"
+        aria-label="Close Invite User backdrop"
+        tabIndex={-1}
+        className="absolute inset-0 h-full w-full cursor-default"
+        onClick={onClose}
+      />
+      <dialog
+        open
+        aria-modal="true"
+        aria-label="Invite User"
+        className="relative m-0 bg-card border border-border rounded-xl shadow-elegant p-6 w-full max-w-md text-foreground"
       >
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-foreground">Invite User</h2>
@@ -486,7 +507,7 @@ function InviteUserModal({
             {isLoading ? 'Sending Invite...' : 'Send Invite'}
           </button>
         </form>
-      </div>
+      </dialog>
     </div>
   )
 }

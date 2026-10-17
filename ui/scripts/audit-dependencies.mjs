@@ -1,15 +1,42 @@
 import { spawnSync } from 'node:child_process'
+import { readFileSync } from 'node:fs'
+import { basename, isAbsolute } from 'node:path'
 
-// Advisories reviewed and judged not to apply to this application, as
-// `package name -> set of advisory URLs`. Anything not listed here fails the
-// audit. Keep entries narrow (a specific advisory, never a whole package) and
-// record why the advisory cannot affect Bud.
-//
-// Currently empty: GHSA-qwww-vcr4-c8h2 (React Router RSC) was the last entry and
-// is fixed by React Router 8.
-const reviewedAdvisories = new Map()
+/**
+ * Reads reviewed-advisories.json next to this script: an object that maps a package name to the
+ * advisory URLs reviewed and judged not to apply to Bud. Returns a Map of package name to a Set of
+ * those URLs; an advisory that is not listed fails the audit.
+ */
+function loadReviewedAdvisories() {
+  const entries = JSON.parse(readFileSync(new URL('./reviewed-advisories.json', import.meta.url), 'utf8'))
+  const valid =
+    entries !== null &&
+    typeof entries === 'object' &&
+    !Array.isArray(entries) &&
+    Object.values(entries).every((urls) => Array.isArray(urls) && urls.every((url) => typeof url === 'string'))
+  if (!valid) {
+    console.error('reviewed-advisories.json must map each package name to a list of advisory URLs.')
+    process.exit(1)
+  }
+  return new Map(Object.entries(entries).map(([name, urls]) => [name, new Set(urls)]))
+}
 
-const result = spawnSync('npm', ['audit', '--json'], {
+/**
+ * Returns the absolute path of the npm CLI script that npm exposes as npm_execpath when it runs
+ * `npm run audit`, and exits with an error when the audit is started any other way.
+ */
+function npmCliPath() {
+  const npmCli = process.env.npm_execpath
+  if (!npmCli || !isAbsolute(npmCli) || !/^npm-cli\.c?js$/.test(basename(npmCli))) {
+    console.error('Start this audit with `npm run audit`: npm_execpath does not name the npm CLI script.')
+    process.exit(1)
+  }
+  return npmCli
+}
+
+const reviewedAdvisories = loadReviewedAdvisories()
+
+const result = spawnSync(process.execPath, [npmCliPath(), 'audit', '--json'], {
   encoding: 'utf8',
   maxBuffer: 20 * 1024 * 1024,
 })
@@ -64,5 +91,5 @@ const reviewed = Object.keys(vulnerabilities)
 console.log(
   reviewed.length === 0
     ? 'npm audit found no vulnerabilities.'
-    : `npm audit found only the reviewed non-applicable RSC advisory (${reviewed.join(', ')}).`,
+    : `npm audit found only reviewed non-applicable advisories (${reviewed.join(', ')}).`,
 )

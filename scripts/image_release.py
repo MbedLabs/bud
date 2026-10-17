@@ -5,12 +5,31 @@ import re
 import subprocess
 import sys
 
+IMAGE_REFERENCE = re.compile(
+    r"(?:localhost|[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+)"
+    r"(?::[0-9]{1,5})?"
+    r"(?:/[a-z0-9]+(?:(?:[._]|__|-+)[a-z0-9]+)*)+"
+    r"(?::[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}|@sha256:[0-9a-f]{64})?"
+)
+
 
 def run(*args):
     return subprocess.run(args, text=True, capture_output=True, check=True).stdout.strip()
 
 
+def checked_reference(image):
+    """Return an image reference of the form registry/name, optionally followed by
+    :tag or @sha256:<64 hex digits>, and raise ValueError for any other value,
+    including one that starts with '-'."""
+    if not isinstance(image, str) or not IMAGE_REFERENCE.fullmatch(image):
+        raise ValueError(f"Invalid image reference: {image!r}")
+    return image
+
+
 def digest(image):
+    """Return the registry manifest digest of a checked image reference, or None
+    when the registry does not hold it."""
+    checked_reference(image)
     result = subprocess.run(
         ["docker", "buildx", "imagetools", "inspect", image, "--format", "{{.Manifest.Digest}}"],
         text=True,
@@ -47,6 +66,10 @@ def eligible_aliases(aliases, ref, latest_tag, branch_current=True):
 
 
 def promote(image, aliases, inspect=digest, execute=run):
+    """Point every alias at the image digest after checking the image and every
+    alias reference."""
+    for reference in (image, *aliases):
+        checked_reference(reference)
     expected = image.split("@", 1)[1]
     # Preflight every exact version before changing any aliases.
     for alias in aliases:

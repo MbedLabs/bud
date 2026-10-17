@@ -105,7 +105,7 @@ export default function CustomRun() {
     for (const entry of selectedEntries) {
       if (entry.runner_accounts.length === 1) forced.add(entry.runner_accounts[0])
     }
-    return Array.from(forced).sort()
+    return Array.from(forced).sort((a, b) => a.localeCompare(b))
   }, [selectedEntries, pinned])
 
   const methodTotal = selectedEntries.reduce((sum, entry) => sum + entry.method_count, 0)
