@@ -23,7 +23,7 @@ async def readiness_check():
     try:
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
-    except Exception as exc:  # pragma: no cover - failure path exercised in CI e2e
+    except Exception as exc:  # pragma: no cover
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail={"status": "not_ready", "database": "unavailable"},

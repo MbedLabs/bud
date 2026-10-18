@@ -44,7 +44,7 @@ router = APIRouter()
         409: {"description": "Conflict"},
     },
 )
-@limiter.limit("10/minute")  # H2: prevent registration flood
+@limiter.limit("10/minute")
 async def register_runner(
     request: Request,
     data: RunnerRegister,
@@ -55,6 +55,10 @@ async def register_runner(
 
     A key minted with a station name carries the name an administrator chose,
     and that name is the one the station ends up with.
+
+    Registration is limited to 10 requests a minute per client. A key pinned to a station
+    registers only that station (403 otherwise). A key without a pinned station enrols an
+    existing station only when that station has no key (409 otherwise).
     """
     account = api_key.station_name or data.username
     result = await db.execute(select(Runner).where(Runner.account == account))
@@ -70,15 +74,12 @@ async def register_runner(
         )
 
     if runner:
-        # If it exists, verify password (M3)
         if not verify_password(data.password, runner.password_hash):
             raise HTTPException(
                 status_code=400,
                 detail="Runner already exists and password does not match.",
             )
         if api_key.runner_id is None:
-            # An unpinned key may adopt a station that has none, but never
-            # displace one the station already has.
             existing = await db.execute(
                 select(RunnerApiKey).where(RunnerApiKey.runner_id == runner.id)
             )
@@ -105,7 +106,6 @@ async def register_runner(
             token=generate_runner_token(account),
         )
         db.add(runner)
-        # Flushed for the id the key is pinned to.
         await db.flush()
 
     token = generate_runner_token(runner.account, runner.id)
@@ -132,7 +132,7 @@ async def register_runner(
 
 
 @router.post("/heartbeat")
-@limiter.limit("60/minute")  # H2: allow frequent heartbeats but cap abuse
+@limiter.limit("60/minute")
 async def runner_heartbeat(
     request: Request,
     data: RunnerHeartbeat,
@@ -144,6 +144,8 @@ async def runner_heartbeat(
     The token names the station, so ``runner_account`` in the body is advisory:
     a station renamed in Bud still reports under the name it last knew, and
     learns the current one from this response.
+
+    Heartbeats are limited to 60 requests a minute per client.
     """
 
     current_runner.last_heartbeat = datetime.now(timezone.utc).replace(tzinfo=None)
@@ -168,13 +170,14 @@ async def get_runner_status(
 ):
     """
     Get status of all runners.
+
+    Each runner is listed with the test run it is executing, if any.
     """
     result = await db.execute(select(Runner).order_by(Runner.last_heartbeat.desc()))
     runners = result.scalars().all()
 
     runner_ids = [r.id for r in runners]
 
-    # Find any test run currently executing on each runner.
     active_runs_map: dict[int, dict] = {}
     if runner_ids:
         active_q = await db.execute(
@@ -395,7 +398,11 @@ async def delete_runner(
     db: AsyncSession = Depends(get_db, scope="function"),
     _admin: User = Depends(require_permission("stations", "manage")),
 ):
-    """Delete a Test Station. Requires an authenticated administrator."""
+    """Delete a Test Station. Requires an authenticated administrator.
+
+    The deletion is flushed within the request: a remaining reference answers 409 before the
+    204 is sent.
+    """
     result = await db.execute(select(Runner).where(Runner.account == account))
     runner = result.scalar_one_or_none()
 
@@ -415,8 +422,6 @@ async def delete_runner(
             details={"account": runner.account},
         )
         await db.delete(runner)
-        # Flushed here so a dangling reference is a 409, not a rollback behind
-        # the 204 that get_db's later commit would produce.
         await db.flush()
     except IntegrityError as exc:
         raise HTTPException(

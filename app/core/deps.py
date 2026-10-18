@@ -11,10 +11,7 @@ from app.core.security import oauth2_scheme
 from app.db import get_db
 from app.models import Runner, RunnerApiKey
 
-# ── Rate limiter (H2) ──────────────────────────────────────────────────────────
 limiter = Limiter(key_func=get_remote_address)
-
-# ── Auth Dependencies ──────────────────────────────────────────────────────────
 
 
 async def get_current_runner(
@@ -30,9 +27,6 @@ async def get_current_runner(
         )
 
     return runner
-
-
-# ── API-key auth (C2) ─────────────────────────────────────────────────────────
 
 
 async def require_runner_api_key(

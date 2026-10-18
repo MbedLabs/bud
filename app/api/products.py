@@ -32,7 +32,6 @@ async def create_product(
     """
     Create a new product.
     """
-    # Check if product already exists
     result = await db.execute(select(Product).where(Product.name == data.name))
     if result.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Product with this name already exists")

@@ -1,9 +1,11 @@
 import type { LucideIcon } from 'lucide-react'
 
+/**
+ * One segment of the donut: tone is a Tailwind text colour, and its arc is drawn with currentColor.
+ */
 export interface OutcomeSegment {
   label: string
   value: number
-  /** Tailwind text colour; the arc is drawn with `currentColor`. */
   tone: string
   icon: LucideIcon
 }
@@ -20,6 +22,8 @@ export interface OutcomeSegment {
  *
  * Segments are ordered as given and never re-coloured when one drops to zero -
  * a filter that empties "skipped" must not repaint "failed".
+ *
+ * The ring has a fixed radius of 42, and only segments with a value above zero draw an arc.
  */
 export default function OutcomeDonut({
   title,
@@ -33,14 +37,10 @@ export default function OutcomeDonut({
   totalLabel: string
 }>) {
   const total = segments.reduce((sum, segment) => sum + segment.value, 0)
-  // 42 is the radius that makes the circumference a round-ish 264; any radius
-  // works, but a fixed one keeps the gap arithmetic below readable.
   const radius = 42
   const circumference = 2 * Math.PI * radius
   const GAP = 3
 
-  // Only non-empty segments get an arc: a zero-length arc still draws its two
-  // gap ends, which reads as a stray tick on the ring.
   const drawn = segments.filter((segment) => segment.value > 0)
   let offset = 0
 

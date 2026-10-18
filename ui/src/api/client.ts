@@ -9,7 +9,6 @@ export const APP_VERSION = packageJson.version
 
 export const api = axios.create({
   baseURL: API_URL,
-  // Send the httpOnly refresh cookie on same-origin auth calls.
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
@@ -33,13 +32,15 @@ function redirectToLogin() {
   }
 }
 
-// De-duplicate concurrent refreshes: when the short access token expires, many
-// in-flight requests can 401 at once; they all await a single /auth/refresh.
 let refreshPromise: Promise<string | null> | null = null
 
+/**
+ * Get a new access token with the refresh cookie, through a bare axios instance without the
+ * interceptors. The response interceptor shares one such call, held in refreshPromise, among
+ * requests that fail with 401 at the same time.
+ */
 async function refreshAccessToken(): Promise<string | null> {
   try {
-    // Bare axios (no interceptors) so a 401 here cannot recurse into itself.
     const resp = await axios.post<{ access_token: string; user?: { id: number } }>(
       `${API_URL}/auth/refresh`,
       {},
@@ -466,7 +467,13 @@ export const usersApi = {
   },
 }
 
-// Types
+/**
+ * A test run. runner_account is the Test Station account that executed it, if any.
+ * selected_tests, present only on a custom run, lists its test cases as the importable paths
+ * the station's loader takes; an ordinary run names in test_case_list a list the station
+ * resolves in its own workspace. The bloom_artefact fields name the Bloom test suite its
+ * results reached, as Bloom reported it, and are null when none was identified.
+ */
 export interface TestRun {
   id: number
   name: string
@@ -484,26 +491,20 @@ export interface TestRun {
   completed_at: string | null
   product_id: number | null
   runner_id: number | null
-  /** Bud runner (Test Station) account that executed this run, if any. */
   runner_account: string | null
-  /**
-   * The test cases a custom run was built from, as the importable paths the
-   * station's loader takes. Absent on an ordinary run, whose `test_case_list`
-   * names a list the station resolves in its own workspace.
-   */
   selected_tests?: string[] | null
-  /** The Bloom test suite this run's results reached, as Bloom reported it; null when none was identified. */
   bloom_artefact_id?: string | null
   bloom_artefact_name?: string | null
   bloom_artefact_url?: string | null
 }
 
+/**
+ * Filters of the run statistics: runs created within the last `days` days (all time when
+ * omitted), runs executed by `runner_account`, and runs of `suite`.
+ */
 export interface TestRunStatsFilters {
-  /** Only count runs created within the last N days. Omit for all time. */
   days?: number
-  /** Only count runs executed by this Test Station account. */
   runner_account?: string
-  /** Only count runs for this test suite name. */
   suite?: string
 }
 
@@ -525,6 +526,10 @@ export interface TestRunFilterOptions {
   runner_accounts: string[]
 }
 
+/**
+ * One test method's result. traceback is the method's own stack trace: present when a single
+ * result is fetched, absent from a run's listing.
+ */
 export interface TestResult {
   id: number
   test_class: string
@@ -534,11 +539,6 @@ export interface TestResult {
   status?: string
   duration_seconds: number
   error_message: string | null
-  /**
-   * The method's own stack trace. Present when a single result is fetched;
-   * absent from a run's listing, which does not render it - the trace shown
-   * against a failure comes from inside that assertion, not from here.
-   */
   traceback?: string | null
   assertions: Record<string, unknown>[] | null
   test_metadata: Record<string, unknown> | null
@@ -628,7 +628,6 @@ export interface Runner {
   created_at: string
 }
 
-// API functions
 export interface BloomPublishResult {
   document_id: number | null
   doc_id: string | null
@@ -641,19 +640,20 @@ export const testRunsApi = {
     const response = await api.post<BloomPublishResult>(`/test-runs/${runId}/publish-to-bloom`)
     return response.data
   },
+  /**
+   * List runs. runner_account and location filter them (a location covers every runner at it),
+   * q matches the run name, the test case list or the runner account, and latest_per_suite keeps
+   * the latest run of each test suite.
+   */
   list: async (params?: {
     sort_by?: 'name' | 'status' | 'runner_account' | 'duration_seconds' | 'started_at' | 'completed_at'
     sort_dir?: 'asc' | 'desc'
     status?: string
     limit?: number
     offset?: number
-    /** Filter by Bud runner / Test Station account. */
     runner_account?: string
-    /** Filter by the location a runner sits at. A location holds several. */
     location?: string
-    /** Match the run name, the test case list, or the runner account. */
     q?: string
-    /** Return only the latest run for each test suite name. */
     latest_per_suite?: boolean
   }) => {
     const response = await api.get<{ runs: TestRun[]; total: number }>('/test-runs', { params })
@@ -740,10 +740,13 @@ export const testStationsApi = {
   },
 }
 
+/**
+ * A Test Station enrolment key. station_name is the name the station takes when the key enrols
+ * one, and is null on keys minted before naming existed.
+ */
 export interface RunnerApiKey {
   id: number
   label: string
-  /** The name the station takes when this key enrols one. Null on keys minted before naming existed. */
   station_name: string | null
   key_prefix: string
   runner_account: string | null
@@ -823,13 +826,6 @@ export const settingsApi = {
   },
 }
 
-/**
- * PDF reports.
- *
- * The download goes through the axios instance rather than a plain link so the
- * Authorization header (and the 401 refresh retry) still apply; a bare <a href>
- * would arrive unauthenticated.
- */
 export const catalogApi = {
   /**
    * The test cases Bud has a record of, and the benches each has run on.
@@ -872,6 +868,7 @@ export const artifactsApi = {
 }
 
 export const reportsApi = {
+  /** Fetch the filtered test report PDF through the authenticated client, as a blob. */
   testRuns: async (params?: TestRunStatsFilters) => {
     const response = await api.get('/reports/test-runs.pdf', {
       params,
@@ -880,6 +877,7 @@ export const reportsApi = {
     return { blob: response.data as Blob, filename: filenameFromResponse(response, 'bud-test-report.pdf') }
   },
 
+  /** Fetch one run's PDF report through the authenticated client, as a blob. */
   testRun: async (runId: number) => {
     const response = await api.get(`/reports/test-runs/${runId}.pdf`, { responseType: 'blob' })
     return { blob: response.data as Blob, filename: filenameFromResponse(response, `bud-run-${runId}.pdf`) }
@@ -898,15 +896,19 @@ export function filenameFromResponse(
   if (!raw) return fallback
 
   const encoded = /filename\*=UTF-8''([^;]+)/i.exec(raw)
-  if (encoded) {
-    try {
-      return decodeURIComponent(encoded[1])
-    } catch {
-      // fall through to the plain form
-    }
-  }
-  const plain = /filename="?([^";]+)"?/i.exec(raw)
+  const decoded = encoded ? decodedOrNull(encoded[1]) : null
+  if (decoded !== null) return decoded
+  const plain = /filename=\x22?([^\x22;]+)\x22?/i.exec(raw)
   return plain ? plain[1] : fallback
+}
+
+/** Percent-decode a value, or return null when it is not valid percent-encoding. */
+function decodedOrNull(value: string): string | null {
+  try {
+    return decodeURIComponent(value)
+  } catch {
+    return null
+  }
 }
 
 /** Hand a generated file to the browser's downloader. */
@@ -927,7 +929,6 @@ export interface SetupStatusResponse {
 
 export interface SetupCompletedResponse {
   message: string
-  /** Shown once, to the browser that completed setup. Never returned again. */
 }
 
 export const companyLogoApi = {
@@ -941,8 +942,7 @@ export const companyLogoApi = {
     )
     return response.data
   },
-  // Fetched through the authenticated client (not a bare <img src>) so the
-  // admin actually sees the stored logo; 404 means none is set yet.
+  /** Fetch the stored logo through the authenticated client; null when none is set (404). */
   fetchLogo: async (): Promise<Blob | null> => {
     try {
       const response = await api.get('/company-logo/logo', { responseType: 'blob' })
@@ -959,8 +959,10 @@ export const companyLogoApi = {
 }
 
 export const setupApi = {
-  // Unauthenticated on purpose: this is what a brand new instance answers
-  // before any account exists. It stops reporting true the moment one does.
+  /**
+   * Whether the instance needs its first administrator. The call is unauthenticated and answers
+   * true until the first account exists.
+   */
   getStatus: async (): Promise<SetupStatusResponse> => {
     const response = await api.get<SetupStatusResponse>('/setup/status')
     return response.data

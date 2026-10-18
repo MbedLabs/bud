@@ -1,4 +1,8 @@
-"""The migration chain must stay a single explicit-DDL baseline."""
+"""The migration chain must stay a single explicit-DDL baseline.
+
+EXPECTED_HEAD equals the head the earlier deployed chain ended on: a database at that
+revision counts as up to date.
+"""
 
 import ast
 from pathlib import Path
@@ -7,8 +11,6 @@ import pytest
 
 VERSIONS_DIR = Path(__file__).resolve().parents[2] / "alembic" / "versions"
 
-# Deliberately equal to the head the previously deployed chain ended on, so a
-# database already at that revision is seen as up to date and never re-migrated.
 EXPECTED_HEAD = "009_admin_email_change_workflow"
 BASELINE_FILE = f"{EXPECTED_HEAD}.py"
 
@@ -38,8 +40,6 @@ def test_every_later_revision_names_a_parent():
         if path.name == BASELINE_FILE:
             continue
         source = path.read_text()
-        # A revision with no parent is a second root: alembic would refuse to
-        # pick a head, and one of the two branches would never run.
         assert "down_revision = " in source, path.name
         assert "down_revision = None" not in source, path.name
 

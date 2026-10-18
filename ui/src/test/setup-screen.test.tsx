@@ -73,7 +73,6 @@ describe('first-run setup screen', () => {
   })
 
   it('does not offer to claim an instance it cannot reach', async () => {
-    // A backend that cannot answer must not be treated as unclaimed.
     mockedApi.getStatus.mockRejectedValue(new Error('network down'))
     renderSetup()
 

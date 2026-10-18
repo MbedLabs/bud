@@ -262,6 +262,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """Drop the baseline tables and the userrole and usertokenpurpose enum types."""
     op.drop_index(op.f("ix_upload_leases_test_run_id"), table_name="upload_leases")
     op.drop_index(op.f("ix_upload_leases_principal_key"), table_name="upload_leases")
     op.drop_index(op.f("ix_upload_leases_expires_at"), table_name="upload_leases")
@@ -291,7 +292,5 @@ def downgrade() -> None:
     op.drop_table("runners")
     op.drop_table("products")
 
-    # Alembic's autogenerate drops tables but not the enum types they use, which
-    # would make a re-upgrade fail with "type already exists".
     for enum_name in ("userrole", "usertokenpurpose"):
         op.execute(f"DROP TYPE IF EXISTS {enum_name}")

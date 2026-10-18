@@ -6,14 +6,16 @@ import { AuthProvider } from './contexts/AuthContext'
 import App from './App'
 import './index.css'
 
-// Apply theme before first paint so auth pages (outside Layout) respect dark mode.
-;(() => {
+/** Apply the stored or preferred colour theme before the first paint, on pages outside Layout too. */
+function applyStoredTheme() {
   const stored = localStorage.getItem('bud-theme')
   const dark = stored
     ? stored === 'dark'
     : window.matchMedia('(prefers-color-scheme: dark)').matches
   document.documentElement.classList.toggle('dark', dark)
-})()
+}
+
+applyStoredTheme()
 
 const queryClient = new QueryClient({
   defaultOptions: {

@@ -8,8 +8,6 @@ from typing import Any, Dict, List, Optional  # noqa: F401
 
 from pydantic import BaseModel, Field, field_serializer
 
-# ==================== Enums ====================
-
 
 class TestRunStatus(str, Enum):
     """Test run status values."""
@@ -18,9 +16,6 @@ class TestRunStatus(str, Enum):
     RUNNING = "Running"
     COMPLETED = "Completed"
     CANCELLED = "Cancelled"
-
-
-# ==================== Product Schemas ====================
 
 
 class ProductBase(BaseModel):
@@ -52,16 +47,12 @@ class ProductResponse(ProductBase):
         from_attributes = True
 
 
-# ==================== Runner Schemas ====================
-
-
 STATION_NAME_PATTERN = r"^[a-zA-Z0-9_\-]+$"
 
 
 class RunnerRegister(BaseModel):
     """Schema for runner registration."""
 
-    # M2: tighter max_length and explicit pattern to avoid control chars / injection
     username: str = Field(..., min_length=3, max_length=50, pattern=STATION_NAME_PATTERN)
     password: str = Field(..., min_length=12, max_length=128)
     socket_port: int = Field(default=53035, ge=1024, le=65535)
@@ -158,12 +149,8 @@ class RunnerRename(BaseModel):
 class RunnerHeartbeat(BaseModel):
     """Schema for runner heartbeat."""
 
-    # M2: limit account field length to match DB constraint
     runner_account: str = Field(..., min_length=3, max_length=50)
     location: Optional[str] = Field(default=None, max_length=255)
-
-
-# ==================== Test Run Schemas ====================
 
 
 class TestRunCreate(BaseModel):
@@ -196,7 +183,11 @@ class TestRunUpdate(BaseModel):
 
 
 class TestRunResponse(BaseModel):
-    """Schema for test run response."""
+    """Schema for test run response.
+
+    selected_tests is present only on a custom run: the test cases it was built from, as the
+    importable paths the runner's loader takes.
+    """
 
     id: int
     name: str
@@ -220,8 +211,6 @@ class TestRunResponse(BaseModel):
     product_id: Optional[int]
     runner_id: Optional[int]
     runner_account: Optional[str] = None
-    # Present only on a custom run: the test cases it was built from, as the
-    # importable paths the runner's loader takes.
     selected_tests: Optional[List[str]] = None
     bloom_artefact_id: Optional[str] = None
     bloom_artefact_name: Optional[str] = None
@@ -274,14 +263,16 @@ class TestRunList(BaseModel):
 
 
 class TestRunStats(BaseModel):
-    """Aggregate run and test-case counters behind the dashboard tiles."""
+    """Aggregate run and test-case counters behind the dashboard tiles.
+
+    The pass rate is the share of decided (passed or failed) runs that passed; pending runs
+    are left out.
+    """
 
     total_runs: int
     passed_runs: int
     failed_runs: int
     in_progress_runs: int
-    # Share of decided (passed or failed) runs that passed; pending runs are excluded
-    # so a queued backlog cannot drag the reported rate down.
     run_pass_rate: float
     total_tests: int
     passed_tests: int
@@ -295,9 +286,6 @@ class TestRunFilterOptions(BaseModel):
 
     suites: List[str]
     runner_accounts: List[str]
-
-
-# ==================== Test Result Schemas ====================
 
 
 class TestResultCreate(BaseModel):
@@ -373,9 +361,6 @@ class ResultsUpload(BaseModel):
     ref_test_software: Optional[str] = None
     url_software_under_test: Optional[str] = None
     ref_software_under_test: Optional[str] = None
-
-
-# ==================== Artifact Schemas ====================
 
 
 class CatalogEntryResponse(BaseModel):
@@ -486,16 +471,14 @@ class ArtifactResponse(BaseModel):
         from_attributes = True
 
 
-# ==================== Health Schemas ====================
-
-
 class HealthResponse(BaseModel):
-    """Schema for the liveness probe response."""
+    """Schema for the liveness probe response.
+
+    The liveness probe reports no database state; /api/ready checks the database.
+    """
 
     status: str = "healthy"
     version: str
-    # Liveness never inspects the database, so it must not claim a connection it
-    # has not verified. The real dependency check lives at /api/ready.
     database: str = "not_checked"
 
 
@@ -513,9 +496,6 @@ class VersionResponse(BaseModel):
 
     version: str
     api_version: str = "v1"
-
-
-# ==================== Settings Schemas ====================
 
 
 class SystemSettingBase(BaseModel):

@@ -22,7 +22,6 @@ const getBloomUrl = (): string | null => {
 
 const BLOOM_PLM_URL = getBloomUrl()
 
-/** Must match Tailwind w-60 / w-14 and main ml-* — also positions the seam toggle. */
 const SIDEBAR_EDGE = { expanded: '15rem', collapsed: '3.5rem' } as const
 
 const navigation = [
@@ -32,6 +31,11 @@ const navigation = [
   { name: 'Test Stations', href: '/test-stations', icon: Server },
 ]
 
+/**
+ * The app shell with the sidebar, the account menu and the routed page. SIDEBAR_EDGE matches the
+ * Tailwind sidebar widths (w-60 expanded, w-14 collapsed) and the main ml-* offsets, and positions
+ * the seam toggle.
+ */
 export default function Layout() {
   const location = useLocation()
   const { user, logout } = useAuth()

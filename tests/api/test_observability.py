@@ -20,14 +20,13 @@ def test_incoming_request_id_is_propagated(client):
 
 
 def test_metrics_endpoint_exposes_prometheus_format(client):
-    client.get("/api/health")  # ensure at least one observation exists
+    client.get("/api/health")
     response = client.get("/api/metrics")
     assert response.status_code == 200
     assert "text/plain" in response.headers["content-type"]
     body = response.text
     assert "http_requests_total" in body
     assert "http_request_duration_seconds" in body
-    # labels use the route template, not raw request paths
     assert 'path="/health"' in body
 
 
@@ -68,5 +67,4 @@ def test_setup_logging_is_idempotent():
     root = logging.getLogger()
     assert len(root.handlers) == 1
     assert isinstance(root.handlers[0].formatter, JsonLogFormatter)
-    # restore text logging so other tests' output stays readable
     setup_logging(level="INFO", json_logs=False)

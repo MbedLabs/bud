@@ -51,10 +51,11 @@ async def get_test_catalog(
     db: AsyncSession = Depends(get_db, scope="function"),
     current_entity: User | Runner = Depends(get_current_active_entity),
 ):
-    """Every test case Bud has a record of, and the Test Stations it ran on."""
+    """Every test case Bud has a record of, and the Test Stations it ran on.
+
+    A Test Station sees only its own test cases.
+    """
     if isinstance(current_entity, Runner):
-        # A station may see its own catalogue; it has no business enumerating
-        # what the rest of the lab runs.
         runner_account = current_entity.account
 
     entries = await build_catalog(db, runner_account=runner_account, suite=suite)
@@ -330,7 +331,10 @@ async def complete_claimed_run(
     db: AsyncSession = Depends(get_db, scope="function"),
     current_entity: User | Runner = Depends(get_current_active_entity),
 ):
-    """Record the station's terminal answer for a claimed execution."""
+    """Record the station's terminal answer for a claimed execution.
+
+    A claimed run reaches Completed through this endpoint, not through the run PATCH.
+    """
     if not isinstance(current_entity, Runner):
         raise HTTPException(status_code=403, detail="Only a Test Station can complete a claim")
 
@@ -383,7 +387,6 @@ async def complete_claimed_run(
     )
     await db.commit()
 
-    # A claimed run reaches Completed here, not through the PATCH.
     await store_run_reports(db, run.id)
     await db.commit()
     background_tasks.add_task(notify_run_finished, run.id)

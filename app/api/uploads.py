@@ -34,7 +34,6 @@ from app.services.audit import record_audit_event
 
 router = APIRouter()
 
-# Resolved absolute upload root — used for path-traversal checks (C3)
 logger = logging.getLogger(__name__)
 _UPLOAD_ROOT: Optional[Path] = None
 
@@ -58,9 +57,6 @@ ARTIFACT_DOWNLOAD_HEADERS = {
     "Content-Security-Policy": "sandbox",
     "X-Content-Type-Options": "nosniff",
 }
-"""An artifact is user-supplied (an HTML report, an SVG plot): it downloads as an
-attachment, and should a browser render it anyway, it renders sandboxed, with no
-script and no access to the Bud origin."""
 
 
 def _can_runner_access_artifact(runner: Runner, artifact: Artifact) -> bool:
@@ -139,11 +135,16 @@ async def upload_file(
     db: AsyncSession = Depends(get_db, scope="function"),
     _current_entity: User | Runner = Depends(get_current_active_entity),
 ):
-    """Upload a file artifact (trace, log, etc.)."""
+    """Upload a file artifact (trace, log, etc.).
+
+    The content type must be in ALLOWED_UPLOAD_MIME_TYPES. The file is stored inside the
+    upload root under a UUID name, keeping the client's extension only when it is a dot and
+    at most nine letters or digits; the artifact records that relative key, and the client's
+    file name only for display.
+    """
     await _validate_runner_upload_run(db, _current_entity, run_id)
     display_filename = validate_display_metadata(file.filename, test_case)
 
-    # H4: Validate MIME type against allowlist
     content_type = file.content_type or "application/octet-stream"
     if content_type not in settings.ALLOWED_UPLOAD_MIME_TYPES:
         raise HTTPException(
@@ -154,22 +155,17 @@ async def upload_file(
             ),
         )
 
-    # Generate a UUID-only filename — never use the client-supplied filename
-    # as part of the storage path (C3: prevents path traversal / directory injection)
     ext = ""
     if file.filename:
         suffix = Path(file.filename).suffix
-        # Only allow simple alphanumeric extensions to avoid tricks like ".php\0.txt"
         if suffix and suffix[1:].isalnum() and len(suffix) <= 10:
             ext = suffix.lower()
 
     unique_filename = f"{uuid.uuid4()}{ext}"
 
-    # Save file
     upload_dir = await ensure_upload_dir()
     storage_path = upload_dir / unique_filename
 
-    # C3: Verify the resolved storage path is still inside the upload root
     resolved_storage = storage_path.resolve()
     if resolved_storage.parent != upload_dir:
         raise HTTPException(status_code=400, detail="Invalid file path.")
@@ -180,7 +176,6 @@ async def upload_file(
         stored = await store_upload(file, resolved_storage, max_bytes=lease.reserved_bytes)
         await persist(resolved_storage, unique_filename, content_type)
 
-        # Store only the relative UUID key. The display name is never a path.
         artifact = Artifact(
             filename=unique_filename,
             original_filename=display_filename,
@@ -233,14 +228,17 @@ async def download_artifact(
 ):
     """
     Download an artifact by ID.
+
+    The path is rebuilt from the upload root and the stored key and has to resolve inside
+    the upload root. An artifact is user-supplied (an HTML report, an SVG plot): it
+    downloads as an attachment with ARTIFACT_DOWNLOAD_HEADERS, and a browser that renders it
+    anyway renders it sandboxed, without script and without access to the Bud origin.
     """
     artifact = await _get_accessible_artifact(db, artifact_id, _current_entity)
 
-    # C3: Reconstruct the full path from the trusted upload root + relative filename
     upload_root = get_upload_root()
     storage_path = (upload_root / artifact.storage_path).resolve()
 
-    # Double-check the resolved path is inside the upload root (defense-in-depth)
     if storage_path.parent != upload_root:
         raise HTTPException(status_code=400, detail="Invalid artifact path.")
 

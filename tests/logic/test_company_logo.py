@@ -71,14 +71,13 @@ def _request() -> ReportRequest:
 
 
 def test_report_renders_with_and_without_company_logo():
+    """The branded report embeds exactly one more image than the report without a logo."""
     import fitz
 
     without = render_report(_request())
     withlogo = render_report(_request(), PNG)
     assert without.startswith(b"%PDF-")
     assert withlogo.startswith(b"%PDF-")
-    # The company logo must actually land on the page, not be silently dropped:
-    # exactly one more embedded image than the un-branded report.
     n_without = len(fitz.open(stream=without, filetype="pdf")[0].get_images())
     n_with = len(fitz.open(stream=withlogo, filetype="pdf")[0].get_images())
     assert n_with == n_without + 1

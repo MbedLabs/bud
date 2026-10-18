@@ -10,6 +10,8 @@ import { newPasswordProblem } from '../lib/passwordRules'
  * Reachable only while the instance has no users. A packaged install has no way
  * to ask for an email address at install time, so the first visitor supplies
  * their own here instead of hunting for a generated password on disk.
+ *
+ * An instance whose setup status is unreadable counts as set up.
  */
 export default function Setup() {
   const navigate = useNavigate()
@@ -31,7 +33,6 @@ export default function Setup() {
         if (!cancelled) setSetupRequired(status.setup_required)
       })
       .catch(() => {
-        // An instance that cannot answer is not one we should offer to claim.
         if (!cancelled) setSetupRequired(false)
       })
 

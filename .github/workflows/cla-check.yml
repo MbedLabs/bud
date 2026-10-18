@@ -20,14 +20,12 @@ jobs:
             const pr = context.payload.pull_request;
             const author = pr.user.login;
 
-            // Dependabot and other automated bots are exempt
             if (pr.user.type === 'Bot' || author.includes('[bot]')) {
               core.info(`Author is a bot (${author}); exempt from CLA.`);
               return;
             }
 
             const body = pr.body || '';
-            // Check for [x] or [X] next to CLA declaration
             const claRegex = /\[[xX]\]\s+\*\*I have read and accept `CLA\.md`/i;
 
             if (claRegex.test(body)) {

@@ -48,7 +48,6 @@ async def _seed_key(db_session, label: str = "seeded") -> str:
 
 def test_register_without_api_key_is_rejected(client):
     response = client.post("/api/runners/register", json=VALID_PAYLOAD)
-    # Header(..., alias="X-API-Key") → missing required header → 422
     assert response.status_code == 422, response.text
 
 
@@ -74,9 +73,8 @@ async def test_register_with_a_minted_key_creates_and_pins(client, db_session):
     assert response.status_code == 201, response.text
     body = response.json()
     assert body["account"] == VALID_PAYLOAD["username"]
-    assert body["token"]  # non-empty JWT
+    assert body["token"]
 
-    # The key now names this station, and only this station.
     runner = (
         await db_session.execute(select(Runner).where(Runner.account == VALID_PAYLOAD["username"]))
     ).scalar_one()

@@ -14,7 +14,9 @@ from app.models import TestResult, TestRun, TestRunEvent
 async def test_upload_results_persists_assertions_and_updates_counters(
     client, station_request, test_station, db_session
 ):
-    # Seed a TestRun that uploaded results will attach to.
+    """Both uploaded methods belong to VoltageTest and one of them failed: the class counts as
+    one failed test.
+    """
     run = TestRun(
         runner_id=test_station.id,
         name="CI-1-abcdef",
@@ -74,10 +76,8 @@ async def test_upload_results_persists_assertions_and_updates_counters(
     body = response.json()
     assert body["count"] == 2
 
-    # HTTP handler commits on another session; refresh our ORM copy of the run.
     await db_session.refresh(run)
 
-    # Rows persisted with assertions JSON intact.
     rows_q = await db_session.execute(
         select(TestResult).where(TestResult.test_run_id == run_id).order_by(TestResult.id)
     )
@@ -97,8 +97,6 @@ async def test_upload_results_persists_assertions_and_updates_counters(
     passing = next(r for r in rows if r.test_method == "bud_check_pack_voltage")
     assert passing.passed is True
 
-    # Counters roll up at the test-class (file) level: both methods belong to
-    # "VoltageTest", and one method failed → the whole class counts as failed.
     assert run.total_tests == 1
     assert run.passed_tests == 0
     assert run.failed_tests == 1

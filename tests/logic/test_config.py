@@ -374,7 +374,6 @@ def test_production_rejects_replace_with_secret_key_placeholder(monkeypatch):
     clear_config_env(monkeypatch)
 
     monkeypatch.setenv("BUD_ENV", "production")
-    # 35 chars — long enough to clear the length gate, but still the placeholder.
     monkeypatch.setenv("BUD_SECRET_KEY", "replace-with-a-strong-random-secret")
     set_prod_baseline(monkeypatch)
     monkeypatch.setenv("BUD_ADMIN_EMAIL", "ops@example.com")
@@ -403,8 +402,6 @@ def test_production_starts_without_a_shared_runner_key(monkeypatch):
 def test_production_rejects_default_db_password_when_url_built_from_parts(monkeypatch):
     clear_config_env(monkeypatch)
 
-    # No DATABASE_URL -> the URL is assembled from DB_* parts, so the default
-    # DB_PASSWORD ("bud") must be rejected.
     monkeypatch.setenv("BUD_ENV", "production")
     monkeypatch.setenv("BUD_SECRET_KEY", "b" * 32)
     monkeypatch.setenv("BUD_ADMIN_EMAIL", "ops@example.com")
@@ -418,10 +415,11 @@ def test_production_rejects_default_db_password_when_url_built_from_parts(monkey
 
 
 def test_production_allows_default_db_password_when_full_url_provided(monkeypatch):
+    """A complete DATABASE_URL carries the password; the unused default DB_PASSWORD is accepted
+    in production.
+    """
     clear_config_env(monkeypatch)
 
-    # The docker-compose path: a complete DATABASE_URL carries the real password, so an
-    # unset DB_PASSWORD (default "bud") must NOT be a false-positive boot failure.
     monkeypatch.setenv("BUD_ENV", "production")
     monkeypatch.setenv("BUD_SECRET_KEY", "b" * 32)
     monkeypatch.setenv(
@@ -434,7 +432,7 @@ def test_production_allows_default_db_password_when_full_url_provided(monkeypatc
     settings = Settings(_env_file=None)
 
     assert settings.DATABASE_URL == ("postgresql://bud:an-actually-strong-password@db:5432/buddb")
-    assert settings.DB_PASSWORD == "bud"  # unused, and therefore not fatal
+    assert settings.DB_PASSWORD == "bud"
 
 
 def test_production_accepts_fully_valid_config(monkeypatch):
@@ -449,14 +447,12 @@ def test_production_accepts_fully_valid_config(monkeypatch):
 
     settings = Settings(_env_file=None)
 
-    # URL assembled from parts using the strong password.
     assert "a-strong-non-default-db-password" in settings.DATABASE_URL
     assert settings.RUNNER_API_KEY == "r" * 32
 
 
 def test_legacy_frontend_base_url_backfills_app_base_url(monkeypatch):
-    # Backward compatibility: an install that still sets only the legacy
-    # FRONTEND_BASE_URL keeps working because APP_BASE_URL falls back to it.
+    """An install that sets only FRONTEND_BASE_URL gets it as APP_BASE_URL."""
     clear_config_env(monkeypatch)
     monkeypatch.setenv("BUD_SECRET_KEY", "b" * 32)
     monkeypatch.setenv("BUD_FRONTEND_BASE_URL", "https://legacy.example.com")

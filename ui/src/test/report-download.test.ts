@@ -8,12 +8,6 @@ import dashboardSource from '../pages/Dashboard.tsx?raw'
 import runDetailSource from '../pages/TestRunDetail.tsx?raw'
 import reportButtonSource from '../components/PdfReportButton.tsx?raw'
 
-/**
- * The PDF comes back from an authenticated endpoint, so it is fetched through
- * the axios instance and handed to the browser as a blob. A plain <a href>
- * would arrive without the Authorization header.
- */
-
 describe('filenameFromResponse', () => {
   const withHeader = (value?: string) => ({
     headers: value ? { 'content-disposition': value } : {},
@@ -70,7 +64,6 @@ describe('saveBlob', () => {
     expect(createObjectURL).toHaveBeenCalledOnce()
     expect(click).toHaveBeenCalledOnce()
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:fake')
-    // The temporary anchor must not be left in the document.
     expect(document.querySelectorAll('a[download]')).toHaveLength(0)
     vi.unstubAllGlobals()
   })

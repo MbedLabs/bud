@@ -85,8 +85,6 @@ describe('accepting an invitation', () => {
   })
 
   it('reads the token from the fragment, never the query string', async () => {
-    // A token only in the query string must not be picked up. Asserting that
-    // `search` is empty proves nothing unless something was put there first.
     window.history.replaceState(null, '', '/accept-invite?token=from-the-query')
     render(
       <MemoryRouter>
@@ -246,7 +244,6 @@ describe('asking for a password reset', () => {
     })
     fireEvent.click(screen.getByRole('button', { name: 'Send Reset Link' }))
 
-    // The server never confirms an address exists, and neither does the screen.
     await waitFor(() => expect(client.authApi.forgotPassword).toHaveBeenCalled())
     expect(document.body.textContent).not.toMatch(/no such|not found|unknown account/i)
   })

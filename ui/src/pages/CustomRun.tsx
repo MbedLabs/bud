@@ -35,6 +35,11 @@ import { formatDateTime } from '../test/date-utils'
  *
  * And a queued run is not a started run. The bench polls Bud and picks it up on
  * its own schedule, so the confirmation says "queued", never "running".
+ *
+ * Narrowing to a station keeps the previous list on screen while the narrowed one loads, and the
+ * search filters the whole catalogue. The benches shown for a selection are the pinned bench, or
+ * the benches of the selected test cases that ran on one bench only; a test case that ran on
+ * several benches is placed by the server and adds no bench.
  */
 export default function CustomRun() {
   const queryClient = useQueryClient()
@@ -49,8 +54,6 @@ export default function CustomRun() {
   const { data: catalog, isLoading } = useQuery({
     queryKey: ['testCatalog', pinned],
     queryFn: () => catalogApi.list(pinned ? { runner_account: pinned } : undefined),
-    // Narrowing to a station is a filter, not a new page: blanking the list
-    // while the narrowed one arrives loses the reader's place for no reason.
     placeholderData: (previous) => previous,
   })
 
@@ -63,8 +66,6 @@ export default function CustomRun() {
 
   const entries = useMemo(() => catalog?.entries ?? [], [catalog])
 
-  // The catalogue is one page of everything Bud knows and is not paged, so this
-  // filter runs over the whole set rather than a slice of it.
   const visible = useMemo(() => {
     if (!debouncedSearch.trim()) return entries
     const needle = debouncedSearch.toLowerCase()
@@ -91,14 +92,6 @@ export default function CustomRun() {
     [entries, selected],
   )
 
-  /**
-   * The benches this selection would reach, so the split is visible before the
-   * reader commits rather than arriving as a surprise in the response.
-   *
-   * A case that has run on several benches is not counted as forcing one: the
-   * server places those alongside whatever had no choice, and claiming they
-   * force a split here would show a warning that never comes true.
-   */
   const benchesInvolved = useMemo(() => {
     if (pinned) return [pinned]
     const forced = new Set<string>()

@@ -14,7 +14,6 @@ import pathlib, subprocess
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
-# (label, file, old, new) - each is a plausible regression, not a typo.
 MUTANTS = [
  ("Auth: keep the access token in localStorage instead of sessionStorage",
   "src/lib/tokenStorage.ts",

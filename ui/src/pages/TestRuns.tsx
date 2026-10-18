@@ -39,8 +39,6 @@ export default function TestRuns() {
 
   const hasActiveFilters = Boolean(statusFilter || stationFilter || locationFilter || search)
 
-  // The search box and the location picker used to narrow the page the server had
-  // already sent, while the footer went on counting the server's unfiltered total.
   const debouncedSearch = useDebounced(search, 250)
 
   const { data, isLoading, error } = useQuery({
@@ -234,7 +232,6 @@ export default function TestRuns() {
         )}
       </section>
 
-      {/* Table */}
       <div className="bg-card rounded-lg border border-border shadow-elegant overflow-hidden">
         {isLoading ? (
           <div className="p-8 text-center text-muted-foreground">Loading...</div>
@@ -324,7 +321,6 @@ export default function TestRuns() {
           </div>
         )}
 
-        {/* Pagination */}
         {totalPages > 1 && (
           <div className="px-5 py-3.5 border-t border-border flex items-center justify-between">
             <div className="text-xs text-muted-foreground">
