@@ -1,4 +1,4 @@
-"""Tests for ``POST /api/runners/register`` — guarded by a Test Station enrolment
+"""Tests for ``POST /api/runners/register``, guarded by a Test Station enrolment
 key (see ``app.core.deps.require_runner_api_key``).
 """
 

@@ -107,7 +107,7 @@ def test_delivery_failures_reach_the_existing_error_handlers(monkeypatch):
 
 
 def test_an_unreachable_relay_is_also_reported(monkeypatch):
-    """OSError, not SMTPException — a refused connection must be translated too."""
+    """OSError, not SMTPException: a refused connection must be translated too."""
     _configure_smtp(monkeypatch, starttls=False, port=2525)
 
     def _refused(host, port, timeout):
