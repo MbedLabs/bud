@@ -217,7 +217,7 @@ Cloudron's backup.
 
 Security-relevant events are written to the `audit_events` table in the same transaction as the action: sign-in, sign-out, session refresh, password change and reset, email verification and email change; user creation, invitation, role change, activation, deletion; groups, station registration, enrolment keys and station removal; configuration changes; deletions, exports, imports and attachments. A failed sign-in or password reset is recorded even though the request itself fails. Each event carries the acting user or `anonymous`/`service`/`runner`, the action, the target, the request id (the `x-request-id` response header), the client address and user agent, the outcome and details without secrets.
 
-Administrators read the log under Audit log in the sidebar, or with `GET /api/audit` (filters: `actor_user_id`, `action` or an action prefix ending in `.`, `target_type`, `target_id`, `product`, `outcome`, `since`, `until`, `limit`, `offset`). No endpoint changes or deletes an event.
+Users with the `audit.view` permission read the log under Audit log in the sidebar, or with `GET /api/audit`. Every Admin has it; any other user has it through a group with a policy that grants it, such as the shipped Audit log policy, which the shipped Application Administrators group includes. Filters: `actor_user_id`, `action` or an action prefix ending in `.`, `target_type`, `target_id`, `product_id`, `outcome`, `since`, `until`; paging: `limit` (1 to 500, default 50) and `offset`. No endpoint changes or deletes an event.
 
 The client address is the one the image's own nginx received. Behind another reverse proxy (Cloudron, a load balancer) it is that proxy's address.
 
