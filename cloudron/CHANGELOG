@@ -1,6 +1,11 @@
 [1.2.0]
+* Access control with groups and policies, a developer role, and separate Users and Access pages.
+* Run notifications to Microsoft Teams, Slack, Discord or any JSON endpoint.
+* Audit log of security-relevant events.
+* Optional S3-compatible storage for run artifacts and generated reports.
+* Robot Framework runs from bud-runner keep their log and report pages with the run.
 * Receive Bloom report requests, notify report publishers, and publish or refuse with a reason.
-* Admin company logo on test-run PDF reports, alongside the EmbedLabs branding.
+* Company logo on test-run PDF reports, alongside the EmbedLabs branding.
 * Saved profile pictures across user displays, with initials fallback and refresh after replacement or removal.
 
 [1.1.0]
