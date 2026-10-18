@@ -2,7 +2,7 @@
 
 A practical guide for running Bud in production: monitoring, logs, backup and
 restore, upgrades, and disaster recovery. Runtime configuration lives in
-environment variables — see [`.env.example`](../.env.example) for the full list.
+environment variables; see [`.env.example`](../.env.example) for the full list.
 
 ## Image tags
 
@@ -11,21 +11,21 @@ Images are published to `ghcr.io/mbedlabs/bud`:
 | Tag | Moves? | Use for |
 |---|---|---|
 | `sha-<commit>` | immutable | exact reproducibility / debugging |
-| `1.2.3` (full semver) | immutable | **production — pin this** |
+| `1.2.3` (full semver) | immutable | **production: pin this** |
 | `1.2`, `1` | moving (stable releases) | tracking a minor/major line |
 | `stable` | moving → newest stable release | low-maintenance production |
 | `latest` | moving → newest `main` build | **development / staging only** |
 
 Set `BUD_VERSION` in `.env` to a pinned version (e.g. `1.2.3`) or `stable`.
-Never run `latest` in production — it is the rolling development build. `stable`
+Never run `latest` in production: it is the rolling development build. `stable`
 starts existing once you publish your first `vX.Y.Z` release tag.
 
 ## Health checks
 
-- `GET /api/health` — **liveness**. Reports only that the API process is up; it
+- `GET /api/health`: **liveness**. Reports only that the API process is up; it
   does not touch PostgreSQL, so it never claims a database connection it has not
   verified. Use it for a cheap "is the process alive?" signal.
-- `GET /api/ready` — **readiness**. Runs `SELECT 1` against PostgreSQL and returns
+- `GET /api/ready`: **readiness**. Runs `SELECT 1` against PostgreSQL and returns
   `200` only when the database is reachable, `503` otherwise. This is what the
   container `HEALTHCHECK` and `docker-compose` healthcheck probe, and it is the
   right target for load-balancer / orchestrator readiness checks.
@@ -34,12 +34,12 @@ starts existing once you publish your first `vX.Y.Z` release tag.
 
 Two independent token lifetimes, tunable via environment variables (no code change):
 
-- **User sessions** — `ACCESS_TOKEN_EXPIRE_MINUTES` (default `10080`, i.e. 7 days).
+- **User sessions**: `ACCESS_TOKEN_EXPIRE_MINUTES` (default `10080`, i.e. 7 days).
   The bearer token a browser receives at login. Seven days favours convenience;
   if a leaked token's exposure window matters more than staying signed in,
   shorten it (e.g. `1440` for 24h). Users are re-prompted to log in once both the
   access and refresh sessions expire.
-- **Runner tokens** — `RUNNER_TOKEN_EXPIRE_HOURS` (default `2160`, i.e. 90 days).
+- **Runner tokens**: `RUNNER_TOKEN_EXPIRE_HOURS` (default `2160`, i.e. 90 days).
   Issued at runner registration and intentionally long-lived; a runner stays
   usable for heartbeat/results while its `last_heartbeat` is within
   `RUNNER_HEARTBEAT_TIMEOUT`. This is separate from user sessions above.
@@ -118,9 +118,9 @@ Bud, and your log aggregator. Pass the header from your edge (nginx:
 
 ## Metrics (Prometheus)
 
-- `GET /api/metrics` — Prometheus text format.
-- `http_requests_total{method,path,status}` — request counts by route template.
-- `http_request_duration_seconds{method,path}` — latency histogram.
+- `GET /api/metrics`: Prometheus text format.
+- `http_requests_total{method,path,status}`: request counts by route template.
+- `http_request_duration_seconds{method,path}`: latency histogram.
 - Plus standard Python process/GC metrics.
 
 Scrape config:
@@ -171,7 +171,7 @@ then log in and confirm recent runs and artifacts are visible.
 `MAX_RUN_UPLOAD_BYTES` defaults to 250 MiB. A runner creates a `TestRun` for a
 suite execution and may attach multiple artifacts to it: the first setting caps
 each file, and the second caps the combined committed and reserved bytes for
-that run. The aggregate boundary is the run—not the suite name—so separate
+that run. The aggregate boundary is the run, not the suite name, so separate
 executions of the same named suite receive separate run budgets.
 
 Bud reserves run capacity before an upload. `UPLOADS_PER_15_MINUTES` and
@@ -252,7 +252,7 @@ tag. Never run a newer schema against an older application version.
 
 ## Disaster recovery
 
-- **RPO** equals your backup cadence — nightly dumps mean up to 24h of loss;
+- **RPO** equals your backup cadence: nightly dumps mean up to 24h of loss;
   schedule to your tolerance and copy backups off the host.
 - **RTO** is dominated by Postgres restore time; rehearse the restore path
   against a scratch database at least once before you depend on it.
@@ -277,6 +277,6 @@ pip install pip-tools
 pip-compile --strip-extras --output-file=constraints.txt pyproject.toml
 ```
 
-The container runs unprivileged end to end (`USER appuser` — supervisord,
+The container runs unprivileged end to end (`USER appuser`: supervisord,
 nginx on port 8080, and uvicorn), which also satisfies Kubernetes
 `runAsNonRoot` policies.

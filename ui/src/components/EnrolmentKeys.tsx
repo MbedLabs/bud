@@ -91,7 +91,7 @@ export default function EnrolmentKeys() {
           <div className="flex items-start gap-2 mb-3">
             <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
             <p className="text-sm text-amber-700 dark:text-amber-400">
-              <strong>Shown once.</strong> Copy it onto the bench now &mdash; it is not
+              <strong>Shown once.</strong> Copy it onto the bench now; it is not
               stored and cannot be retrieved afterwards.
             </p>
           </div>

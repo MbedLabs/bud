@@ -1,4 +1,4 @@
-"""Tests for ``POST /api/results`` — the endpoint CI runners (bud_runner)
+"""Tests for ``POST /api/results``, the endpoint CI runners (bud_runner)
 use to upload test results after executing a test run.
 """
 

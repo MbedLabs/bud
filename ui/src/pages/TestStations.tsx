@@ -130,7 +130,7 @@ export default function TestStations() {
           <h3 className="text-lg font-semibold text-foreground mb-2">No Test Stations Registered</h3>
           <p className="text-muted-foreground max-w-md mx-auto text-sm">
             A Test Station is a{' '}
-            <span className="font-medium text-foreground">Bud runner</span> — the two
+            <span className="font-medium text-foreground">Bud runner</span>; the two
             are the same thing. Each location runs one or more of them, so a single
             machine can host several stations, each with its own account. Register one
             with the <code>bud_runner</code> CLI:

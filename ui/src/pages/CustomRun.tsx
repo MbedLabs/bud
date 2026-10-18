@@ -213,7 +213,7 @@ export default function CustomRun() {
               <p>No test cases yet.</p>
               <p className="mt-1 text-xs">
                 A test case appears here once it has run at least once and reported the file it
-                came from — Bud does not read a station&rsquo;s workspace.
+                came from. Bud does not read a station&rsquo;s workspace.
               </p>
             </div>
           ) : visible.length === 0 ? (
@@ -308,7 +308,7 @@ export default function CustomRun() {
                     <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                     <span>
                       These test cases live on different stations, so this will queue{' '}
-                      {benchesInvolved.length} separate runs — one each for{' '}
+                      {benchesInvolved.length} separate runs, one each for{' '}
                       {benchesInvolved.join(' and ')}.
                     </span>
                   </p>
@@ -337,7 +337,7 @@ export default function CustomRun() {
   )
 }
 
-/** What was queued, and what could not be — both, always. */
+/** What was queued, and what could not be: both, always. */
 function QueuedSummary({ result }: Readonly<{ result: CustomRunResult }>) {
   return (
     <section className="bg-card rounded-lg border border-border shadow-elegant overflow-hidden">
@@ -381,7 +381,7 @@ function QueuedSummary({ result }: Readonly<{ result: CustomRunResult }>) {
           <ul className="space-y-1">
             {result.unassigned.map((item) => (
               <li key={item.test_path} className="text-xs text-muted-foreground">
-                <span className="font-mono text-foreground">{item.test_path}</span> — {item.reason}
+                <span className="font-mono text-foreground">{item.test_path}</span>: {item.reason}
               </li>
             ))}
           </ul>
