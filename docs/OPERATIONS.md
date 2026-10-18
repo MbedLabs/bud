@@ -221,7 +221,7 @@ Users with the `audit.view` permission read the log under Audit log in the sideb
 
 The client address is the one the image's own nginx received. Behind another reverse proxy (Cloudron, a load balancer) it is that proxy's address.
 
-Access requests are emailed to every active administrator through the transactional mail settings; without SMTP the request is still recorded and shown on the Users page, and the user is told the email could not be sent.
+Access requests are emailed through the transactional mail settings to every active Admin and every active user with `access.manage`, with a link to Access, where they are listed under Requests. When the email cannot be sent (SMTP is disabled or not fully configured, or the send fails), the request is still recorded and listed there, and the user is told the email could not be sent.
 
 Retention is the operator's choice. The application never deletes events; to remove old ones, run on a schedule:
 
