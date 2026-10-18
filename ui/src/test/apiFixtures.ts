@@ -5,6 +5,11 @@
  * is asserted is the page rendering real-shaped data rather than a spinner. The
  * shapes are the exported interfaces in `api/client.ts`; a page that reads a
  * field nothing here supplies fails loudly instead of silently rendering blank.
+ *
+ * otherUser is a second account besides the signed-in user; artifact is a packet capture
+ * attached to a run; catalogEntries holds three test cases across two benches: Voltage only on
+ * bench-01, Thermal only on bench-02 and Boot on both. RESPONSES maps `group.method` to the
+ * response the client declares.
  */
 
 const NOW = '2026-03-01T10:00:00Z'
@@ -22,7 +27,6 @@ export const user = {
   updated_at: NOW,
 }
 
-/** A second account, so tests can act on someone other than the signed-in user. */
 export const otherUser = {
   id: 2,
   email: 'grace@example.com',
@@ -143,8 +147,6 @@ export const plmSettings = {
   bloom_token_rotated_at: NOW,
 }
 
-/** `group.method -> response`, matching the client's declared return types. */
-/** A packet capture attached to a run: the shape the artifacts panel lists. */
 export const artifact = {
   id: 7,
   filename: '5f0c9c4e-2b3a-4f11-9a77-0f2c9a1b3c4d.pcap',
@@ -157,10 +159,6 @@ export const artifact = {
   test_run_id: 42,
 }
 
-/**
- * Three test cases across two benches, chosen so placement is testable:
- * Voltage runs only on bench-01, Thermal only on bench-02, and Boot on both.
- */
 export const catalogEntries = [
   {
     test_path: 'demo_voltage.VoltageTest',
@@ -242,7 +240,6 @@ export const RESPONSES: Record<string, unknown> = {
     requests: [{ id: 90, name: 'Custom run - Nightly', runner_account: testRun.runner_account, state: 'queued', run_id: null, selected_tests: ['demo_voltage.VoltageTest'], source_metadata: {}, created_at: testRun.created_at }],
     unassigned: [],
   },
-  // The blob a download resolves to; `saveBlob` is stubbed in the page tests.
   'artifactsApi.download': { blob: new Blob(['pcap']), filename: 'endurance-load.pcap' },
   'testRunsApi.stats': stats,
   'testRunsApi.filterOptions': filterOptions,

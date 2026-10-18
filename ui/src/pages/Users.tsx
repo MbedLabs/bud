@@ -369,6 +369,7 @@ function EmailChangeModal({
   )
 }
 
+/** The invite form. A failed submission leaves the form as it is; the parent shows the error. */
 function InviteUserModal({
   onClose,
   onSubmit,
@@ -391,13 +392,12 @@ function InviteUserModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setCopied(false)
-    try {
-      const response = await onSubmit({ email, full_name: fullName, role })
-      setInviteLink(response.invite_link ?? null)
-      setInvitedEmail(response.user.email)
-    } catch {
-      // Error is rendered by parent mutation state.
-    }
+    await onSubmit({ email, full_name: fullName, role })
+      .then((response) => {
+        setInviteLink(response.invite_link ?? null)
+        setInvitedEmail(response.user.email)
+      })
+      .catch(() => undefined)
   }
 
   const handleCopyLink = async () => {

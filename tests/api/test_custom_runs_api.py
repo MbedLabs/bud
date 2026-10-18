@@ -27,7 +27,12 @@ def _result(test_class: str, method: str, source_file: str, run_id: int, when: d
 
 @pytest.fixture
 def lab(db_session):
-    """Two benches with different test cases, and one they share."""
+    """Two benches with different test cases, and one they share.
+
+    Seed a run on bench-01 (Lab A, two hours ago) with VoltageTest and BootTest, and a run on
+    bench-02 (Lab B, an hour ago) with ThermalTest and BootTest. LegacyTest has no source file
+    and no importable path.
+    """
 
     async def _make():
         bench_a = Runner(account="bench-01", password_hash="x", token="t1", location="Lab A")
@@ -61,9 +66,7 @@ def lab(db_session):
                 _result("VoltageTest", "test_load", "/w/demo_voltage.py", run_a.id, now),
                 _result("BootTest", "test_cold", "/w/boot_suite.py", run_a.id, now),
                 _result("ThermalTest", "test_soak", "/w/thermal.py", run_b.id, now),
-                # Shared: the same class has run on both benches.
                 _result("BootTest", "test_cold", "/w/boot_suite.py", run_b.id, now),
-                # No source file, so no importable path: it cannot be selected.
                 TestResult(
                     test_class="LegacyTest",
                     test_method="test_old",
@@ -118,13 +121,11 @@ class TestTheCatalogue:
 
     @pytest.mark.asyncio
     async def test_derives_the_importable_path_the_runner_takes(self, client, lab):
+        """The path is module.Class, the form the runner's loader splits on its last dot."""
         await lab()
 
         paths = {entry["test_path"] for entry in client.get("/api/test-catalog").json()["entries"]}
 
-        # The runner's loader splits on the last dot and imports the module, so
-        # this is the form it can actually resolve - not the absolute file path
-        # the bench reported, which means nothing off that machine.
         assert "demo_voltage.VoltageTest" in paths
         assert "thermal.ThermalTest" in paths
 
@@ -134,8 +135,6 @@ class TestTheCatalogue:
 
         paths = {entry["test_path"] for entry in client.get("/api/test-catalog").json()["entries"]}
 
-        # A class name alone is not importable. Guessing a module for it would
-        # queue a run that fails on the bench minutes later.
         assert not any(path.endswith("LegacyTest") for path in paths)
 
     @pytest.mark.asyncio
@@ -156,8 +155,6 @@ class TestTheCatalogue:
 
         entries = {e["test_path"]: e for e in client.get("/api/test-catalog").json()["entries"]}
 
-        # A test case carries several methods, and the count is what tells a
-        # reader how much they are queueing.
         assert entries["demo_voltage.VoltageTest"]["method_count"] == 2
         assert entries["thermal.ThermalTest"]["method_count"] == 1
 
@@ -179,8 +176,6 @@ class TestTheCatalogue:
         finally:
             _clear()
 
-        # A station has no business enumerating what the rest of the lab runs,
-        # and asking for someone else's does not change the answer.
         assert "thermal.ThermalTest" not in {entry["test_path"] for entry in entries}
 
     def test_requires_authentication(self, unauthenticated_client):
@@ -242,8 +237,6 @@ class TestQueueingACustomRun:
             json={"test_paths": ["demo_voltage.VoltageTest", "thermal.ThermalTest"]},
         ).json()
 
-        # Voltage has only ever run on bench-01 and Thermal only on bench-02.
-        # Refusing would be the unhelpful answer; this says what it did.
         assert len(body["requests"]) == 2
         assert sorted(run["runner_account"] for run in body["requests"]) == ["bench-01", "bench-02"]
 
@@ -256,7 +249,6 @@ class TestQueueingACustomRun:
             json={"test_paths": ["demo_voltage.VoltageTest", "boot_suite.BootTest"]},
         ).json()
 
-        # Voltage has only ever run on bench-01, so it is forced there.
         assert len(body["requests"]) == 1
         assert body["requests"][0]["runner_account"] == "bench-01"
         assert sorted(body["requests"][0]["selected_tests"]) == [
@@ -272,8 +264,6 @@ class TestQueueingACustomRun:
             "/api/test-runs/custom", json={"test_paths": ["boot_suite.BootTest"]}
         ).json()
 
-        # Nothing forces a bench here, so the tiebreak applies: bench-02 ran it
-        # last, and its workspace is the one most likely to still hold it.
         assert body["requests"][0]["runner_account"] == "bench-02"
 
     @pytest.mark.asyncio
@@ -285,8 +275,6 @@ class TestQueueingACustomRun:
             json={"test_paths": ["demo_voltage.VoltageTest"]},
         ).json()["requests"][0]
 
-        # The bench cannot resolve this from `test_case_list`: an ordinary run
-        # names a list that exists in the workspace, and this selection does not.
         assert run["selected_tests"] == ["demo_voltage.VoltageTest"]
 
     @pytest.mark.asyncio
@@ -298,8 +286,6 @@ class TestQueueingACustomRun:
             json={"test_paths": ["demo_voltage.VoltageTest"]},
         ).json()["requests"][0]
 
-        # Otherwise the bench runs whatever happens to be checked out, which is
-        # not the code these tests last passed against.
         assert run["source_metadata"]["url_test_software"] == "https://git.test/tests.git"
         assert run["source_metadata"]["ref_test_software"] == "release-2026"
 
@@ -312,7 +298,6 @@ class TestQueueingACustomRun:
             json={"test_paths": ["boot_suite.BootTest"], "runner_account": "bench-02"},
         ).json()
 
-        # BootTest has run on both, so pinning is the only way to say which.
         assert len(body["requests"]) == 1
         assert body["requests"][0]["runner_account"] == "bench-02"
 
@@ -328,7 +313,6 @@ class TestQueueingACustomRun:
             },
         ).json()
 
-        # Silently moving Thermal to bench-02 would defeat the point of pinning.
         assert [run["runner_account"] for run in body["requests"]] == ["bench-01"]
         assert [item["test_path"] for item in body["unassigned"]] == ["thermal.ThermalTest"]
         assert "bench-02" in body["unassigned"][0]["reason"]
@@ -351,7 +335,6 @@ class TestQueueingACustomRun:
 
         response = client.post("/api/test-runs/custom", json={"test_paths": ["nowhere.GhostTest"]})
 
-        # Creating an empty run would look like success and never execute.
         assert response.status_code == 422
         assert "nowhere.GhostTest" in response.json()["detail"]
 
@@ -448,7 +431,6 @@ class TestClaimingAQueuedRun:
         finally:
             _clear()
 
-        # The run is queued for bench-02. bench-01 must not be handed it.
         assert response.status_code == 204
 
     @pytest.mark.asyncio
@@ -460,8 +442,6 @@ class TestClaimingAQueuedRun:
         finally:
             _clear()
 
-        # A station polls on an interval; "nothing for you" is the ordinary
-        # answer and must not read as a failure in its logs.
         assert response.status_code == 204
 
     @pytest.mark.asyncio
@@ -534,8 +514,6 @@ class TestClaimingAQueuedRun:
 
         response = _claim(client)
 
-        # Claiming means "I am about to execute this", which only a bench can
-        # honestly say.
         assert response.status_code == 403
 
     def test_requires_authentication(self, unauthenticated_client):

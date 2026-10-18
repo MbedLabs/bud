@@ -73,10 +73,10 @@ async def _seed_many(db_session, bench_ids: dict[str, int]) -> None:
 class TestSearchReachesEveryPage:
     @pytest.mark.asyncio
     async def test_finds_a_run_that_does_not_fit_on_the_first_page(self, client, db_session, bench):
+        """Without the search the run is the 31st row."""
         ids = await bench()
         await _seed_many(db_session, ids)
 
-        # Without the search it is the 31st row, so page one cannot hold it.
         first_page = client.get("/api/test-runs?limit=20&offset=0").json()
         assert "Powertrain Endurance" not in [r["name"] for r in first_page["runs"]]
 
@@ -90,7 +90,6 @@ class TestSearchReachesEveryPage:
 
         found = client.get("/api/test-runs?limit=20&q=Powertrain").json()
 
-        # The pager reads this. Reporting 31 beside one row is the bug.
         assert found["total"] == 1
 
     @pytest.mark.asyncio
@@ -100,7 +99,6 @@ class TestSearchReachesEveryPage:
 
         found = client.get("/api/test-runs?limit=20&q=EnduranceTests").json()
 
-        # Which is not the run's name, so a name-only search would miss it.
         assert [r["name"] for r in found["runs"]] == ["Powertrain Endurance"]
 
     @pytest.mark.asyncio
@@ -133,6 +131,7 @@ class TestSearchReachesEveryPage:
 class TestLocationCoversEveryBench:
     @pytest.mark.asyncio
     async def test_keeps_the_runs_of_every_bench_at_the_location(self, client, db_session, bench):
+        """Lab A holds two benches, and the runs of both are returned."""
         ids = await bench()
         now = datetime.utcnow()
         db_session.add_all(
@@ -164,20 +163,17 @@ class TestLocationCoversEveryBench:
 
         body = client.get("/api/test-runs?location=Lab%20A").json()
 
-        # Lab A holds two benches; taking only the first would drop bench-03's
-        # run along with Lab B's.
         assert sorted(r["name"] for r in body["runs"]) == ["At bench-01", "At bench-03"]
         assert body["total"] == 2
 
     @pytest.mark.asyncio
     async def test_reaches_a_run_that_is_not_on_the_first_page(self, client, db_session, bench):
+        """The one Lab B run is the oldest of thirty-one."""
         ids = await bench()
         await _seed_many(db_session, ids)
 
         body = client.get("/api/test-runs?location=Lab%20B&limit=20").json()
 
-        # The one Lab B run is the oldest of the thirty-one, so a filter
-        # applied to page one finds nothing at all.
         assert [r["name"] for r in body["runs"]] == ["Powertrain Endurance"]
         assert body["total"] == 1
 
@@ -190,8 +186,6 @@ class TestLocationCoversEveryBench:
 
         body = client.get("/api/test-runs?location=Lab%20Z").json()
 
-        # Falling through to an unfiltered list would be the worst outcome: the
-        # reader would believe every run happened at a lab that has no benches.
         assert body["runs"] == []
         assert body["total"] == 0
 
@@ -261,15 +255,13 @@ class TestLatestPerSuiteStaysInTheDatabase:
 
         runs = client.get("/api/test-runs?latest_per_suite=true").json()["runs"]
 
-        # "Latest" has to mean the most recent, not merely the first one the
-        # query happened to reach.
         assert [r["test_case_list"] for r in runs] == ["newer"]
 
     @pytest.mark.asyncio
     async def test_counts_the_deduplicated_set_when_paging(self, client, db_session, bench):
+        """Three suites run twice each: six rows, three after deduplication."""
         ids = await bench()
         now = datetime.utcnow()
-        # Three suites, run twice each: six rows, three after deduplication.
         db_session.add_all(
             [
                 TestRun(
@@ -292,6 +284,7 @@ class TestLatestPerSuiteStaysInTheDatabase:
 
     @pytest.mark.asyncio
     async def test_narrows_before_deduplicating(self, client, db_session, bench):
+        """Both runs share a suite name; the location filter applies before deduplication."""
         ids = await bench()
         now = datetime.utcnow()
         db_session.add_all(
@@ -316,7 +309,5 @@ class TestLatestPerSuiteStaysInTheDatabase:
 
         body = client.get("/api/test-runs?latest_per_suite=true&location=Lab%20B").json()
 
-        # Both runs share a suite name. Deduplicating first would keep only
-        # bench-01's and then filter it away, leaving Lab B looking idle.
         assert body["total"] == 1
         assert body["runs"][0]["runner_account"] == "bench-02"

@@ -17,7 +17,6 @@ interface Recorded {
 
 const requests: Recorded[] = []
 
-/** `url -> queued responses`; a status >= 400 is thrown, as a real adapter does. */
 let script: Record<string, Array<{ status: number; data?: unknown }>> = {}
 
 function scriptedFor(url: string): { status: number; data?: unknown } {

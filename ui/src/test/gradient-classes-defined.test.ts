@@ -1,5 +1,3 @@
-import { describe, expect, it } from 'vitest'
-
 /**
  * Every custom bg-gradient-* class must exist in this app's theme in index.css.
  *
@@ -12,6 +10,8 @@ import { describe, expect, it } from 'vitest'
  * Reads the sources through import.meta.glob rather than node:fs, matching the
  * other source-scanning tests here — the UI tsconfig carries no Node types.
  */
+import { describe, expect, it } from 'vitest'
+
 const sources = import.meta.glob('../{pages,components}/**/*.tsx', {
   eager: true,
   query: '?raw',
@@ -24,7 +24,6 @@ const configs = import.meta.glob('../index.css', {
   import: 'default',
 }) as Record<string, string>
 
-/** Built-in Tailwind gradient direction utilities, which need no definition. */
 const BUILT_IN_DIRECTIONS = /^to-(t|tr|r|br|b|bl|l|tl)$/
 
 describe('custom gradient classes', () => {

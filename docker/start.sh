@@ -6,8 +6,6 @@ APP_UID="$(id -u "$APP_USER")"
 APP_GID="$(id -g "$APP_USER")"
 RUN_DIR=/run/bud
 
-# /run is recreated on Cloudron boot, and using it in every environment keeps
-# one image/startup path honest.
 mkdir -p "$RUN_DIR" \
   /run/nginx/body /run/nginx/proxy /run/nginx/fastcgi /run/nginx/uwsgi /run/nginx/scgi
 chown -R "$APP_UID:$APP_GID" "$RUN_DIR" /run/nginx
@@ -44,11 +42,6 @@ if [ -n "${CLOUDRON_APP_ORIGIN:-}" ]; then
     export SMTP_PASSWORD="${CLOUDRON_MAIL_SMTP_PASSWORD:-}"
     export SMTP_FROM_EMAIL="${CLOUDRON_MAIL_FROM:?Cloudron mail sender missing}"
     export SMTP_SSL=false
-    # The port and the TLS mode have to agree. Cloudron's relay offers STARTTLS
-    # only on CLOUDRON_MAIL_STARTTLS_PORT (2587); CLOUDRON_MAIL_SMTP_PORT (2525)
-    # is plaintext and answers a STARTTLS command with "extension not supported",
-    # which surfaced as a 500 on every invite. Prefer the encrypted port and
-    # fall back to plaintext only when the platform does not offer one.
     if [ -n "${CLOUDRON_MAIL_STARTTLS_PORT:-}" ]; then
       export SMTP_PORT="$CLOUDRON_MAIL_STARTTLS_PORT"
       export SMTP_STARTTLS=true
@@ -69,8 +62,6 @@ if [ -n "${CLOUDRON_APP_ORIGIN:-}" ]; then
   export RUN_STARTUP_DATA_REPAIR=false
   export AUTO_SEED_ADMIN=false
 
-  # These satisfy the production guard but are never seeded. The operator
-  # creates the only initial administrator through /setup.
   export ADMIN_EMAIL="admin@$CLOUDRON_APP_DOMAIN"
   export ADMIN_PASSWORD="$(python3 -c 'import secrets; print(secrets.token_urlsafe(32))')"
 

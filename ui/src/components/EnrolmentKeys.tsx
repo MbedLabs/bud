@@ -6,18 +6,16 @@ import type { RunnerApiKey, RunnerApiKeyCreated } from '../api/client'
 import ConfirmDialog from './ConfirmDialog'
 import RowMenu from './RowMenu'
 
-/**
- * Administrator management for Test Station enrolment keys.
- *
- * The minted secret is held in component state only, never in localStorage or
- * sessionStorage.
- */
 const STATION_NAME = /^[a-zA-Z0-9_-]{3,50}$/
 
 function isValidStationName(value: string): boolean {
   return STATION_NAME.test(value)
 }
 
+/**
+ * Administrator management for Test Station enrolment keys. The minted secret is held in component
+ * state only, never in localStorage or sessionStorage.
+ */
 export default function EnrolmentKeys() {
   const queryClient = useQueryClient()
 

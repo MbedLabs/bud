@@ -40,8 +40,10 @@ async def get_uploader_entity(
     """Identifies the uploader via either:
     1. A valid JWT (User or Runner).
     2. The Test Station's own enrolment key, which names one station.
+
+    A runner may present an expired JWT while its last heartbeat is recent. Without a valid
+    credential the request ends in 401.
     """
-    # 1. Try JWT first (standard path for UI; runners may use expired JWT + heartbeat)
     if token:
         runner = await authenticate_runner_token(token, db)
         if runner:
@@ -52,11 +54,8 @@ async def get_uploader_entity(
             if isinstance(entity, User):
                 return entity
         except HTTPException:
-            # An enrolment key below may still authenticate a station; with no
-            # fallback credential the request ends in the standard 401.
             pass
 
-    # 2. Fall back to the station's enrolment key.
     if x_api_key:
         record = await resolve_key(x_api_key, db)
         if record is not None and record.runner_id is not None:
@@ -65,7 +64,6 @@ async def get_uploader_entity(
                 mark_used(record)
                 return runner
 
-    # 3. If no valid auth method found
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Authentication required. Provide a valid JWT or a Test Station API key.",
@@ -80,7 +78,13 @@ async def upload_results(
     db: AsyncSession = Depends(get_db, scope="function"),
     _current_entity: User | Runner = Depends(get_uploader_entity),
 ):
-    """Record raw execution results submitted by their authenticated station."""
+    """Record raw execution results submitted by their authenticated station.
+
+    Results sent without a run create one. A test class passes only when every method in it
+    passed, the run duration is the sum of its method durations, and the finished run is
+    synced to Bloom (when a Bloom URL and credential are saved) and notified in the
+    background.
+    """
     if not isinstance(_current_entity, Runner):
         raise HTTPException(status_code=403, detail="Only stations can submit test results")
     target_run_id = data.test_run_id
@@ -89,9 +93,7 @@ async def upload_results(
     if target_run_id is not None:
         await load_run(db, _current_entity, target_run_id, mutate=True)
 
-    # AUTO-ALIGNMENT: Create a TestRun if results are uploaded without one
     if not target_run_id:
-        # Determine a meaningful name
         suite_name = data.test_suite_name or "Ad-hoc"
         product_name = "Unknown Project"
 
@@ -141,13 +143,10 @@ async def upload_results(
 
     await db.flush()
 
-    # Update test run statistics
     res = await db.execute(select(TestRun).where(TestRun.id == target_run_id))
     test_run = res.scalar_one_or_none()
 
     if test_run:
-        # Aggregate at the test-class (test file) level: a class passes
-        # only when every method inside it passed.
         class_stats = await db.execute(
             select(
                 TestResult.test_class,
@@ -164,7 +163,6 @@ async def upload_results(
         skipped = sum(1 for r in rows if r.all_skipped == 1)
         passed = sum(1 for r in rows if r.all_passed == 1 and r.all_skipped != 1)
 
-        # Duration stays as the sum across all method rows.
         dur_res = await db.execute(
             select(func.sum(TestResult.duration_seconds)).where(
                 TestResult.test_run_id == target_run_id
@@ -179,7 +177,6 @@ async def upload_results(
             test_run.skipped_tests = skipped
         test_run.duration_seconds = duration
 
-        # Ensure completion status
         if test_run.status != "Completed":
             test_run.status = "Completed"
         if not test_run.completed_at:
@@ -200,7 +197,6 @@ async def upload_results(
 
     await db.commit()
 
-    # Saving both the Bloom URL and scoped credential enables synchronization.
     background_tasks.add_task(sync_results_to_bloom, target_run_id)
     background_tasks.add_task(notify_run_finished, target_run_id)
 

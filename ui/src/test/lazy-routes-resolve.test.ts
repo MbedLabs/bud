@@ -28,8 +28,6 @@ const declared = [
 
 describe('lazy routes', () => {
   it('declares some', () => {
-    // Guards the regex itself: if App.tsx stops matching, the cases below would
-    // silently pass by iterating nothing.
     expect(declared.length).toBeGreaterThan(0)
   })
 

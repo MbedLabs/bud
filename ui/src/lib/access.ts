@@ -12,7 +12,6 @@ export function canManageAccess(user: Pick<User, 'role' | 'permissions'> | null 
   return can(user, 'access.manage')
 }
 
-/** Readable names for the permission catalogue, in the Policies and Users tabs. */
 export const RESOURCE_LABELS: Record<string, string> = {
   evidence: 'Runs, results and artifacts',
   reports: 'Reports',

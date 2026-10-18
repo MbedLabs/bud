@@ -34,8 +34,6 @@ from app.core.timestamps import second_utc
 
 ASSETS = Path(__file__).resolve().parent.parent / "assets"
 BUD_LOGO = ASSETS / "bud-logo.png"
-# Optional: drop an EmbedLabs logo here and the footer picks it up automatically.
-# Until then the footer shows the EmbedLabs wordmark, still linked.
 EMBEDLABS_LOGO = ASSETS / "embedlabs-logo.png"
 
 EMBEDLABS_URL = "https://www.embedlabs.net"
@@ -175,7 +173,7 @@ class OutcomePie(Flowable):
         self.width = width
         self.height = height
 
-    def wrap(self, availWidth, availHeight):  # noqa: N802 - reportlab API
+    def wrap(self, availWidth, availHeight):  # noqa: N802
         self.width = min(self.width, availWidth)
         return self.width, self.height
 
@@ -282,6 +280,9 @@ def _display(value: object) -> str:
 def _assertions_table(
     assertions: list[AssertionDetail], styles: dict[str, ParagraphStyle]
 ) -> Table:
+    """Build the assertions table; evidence cells hold whole tracebacks, and a row may split
+    across pages.
+    """
     data: list[Sequence[object]] = [
         ["Test / method", "Assertion", "Outcome", "Expected", "Actual", "Evidence"]
     ]
@@ -327,8 +328,6 @@ def _assertions_table(
         colWidths=[34 * mm, 27 * mm, 17 * mm, 24 * mm, 24 * mm, None],
         repeatRows=1,
         hAlign="LEFT",
-        # Evidence cells carry whole tracebacks, so a single row can be taller
-        # than the frame. Without this reportlab refuses to place it at all.
         splitInRow=1,
     )
     table.setStyle(
@@ -352,7 +351,11 @@ def _draw_footer(canvas, doc) -> None:
     """ "Powered by EmbedLabs" on every page, with the page number.
 
     Tamper-evidence branding, deployment-agnostic - always present. The
-    customer's own company logo lives on the header (top-left), not here."""
+    customer's own company logo lives on the header (top-left), not here.
+
+    The footer shows EMBEDLABS_LOGO when that file exists and the linked EmbedLabs wordmark
+    otherwise, with the mark on the optical centre of the text.
+    """
     canvas.saveState()
     width, _ = A4
     baseline = FOOTER_HEIGHT - 4 * mm
@@ -371,7 +374,6 @@ def _draw_footer(canvas, doc) -> None:
         logo = ImageReader(str(EMBEDLABS_LOGO))
         iw, ih = logo.getSize()
         logo_width = logo_height * (iw / ih)
-        # Sit the mark on the text's optical centre rather than its baseline.
         canvas.drawImage(
             logo,
             x,
@@ -398,6 +400,9 @@ def _draw_footer(canvas, doc) -> None:
 
 
 def _header(request: ReportRequest, styles: dict[str, ParagraphStyle], company_logo=None) -> list:
+    """Draw the page header: the customer's company logo top-left, fitted inside a box with its
+    alpha channel kept, and the Bud mark top-right.
+    """
     generated = request.generated_at or datetime.now(timezone.utc).replace(tzinfo=None)
     meta = [
         Paragraph(f"<b>{request.title}</b>", styles["title"]),
@@ -409,16 +414,12 @@ def _header(request: ReportRequest, styles: dict[str, ParagraphStyle], company_l
         ),
     ]
 
-    # mask="auto" honours each logo's alpha channel; without it the artwork is
-    # composited onto an opaque box.
     from reportlab.platypus import Image as PlatypusImage
 
     cells: list = []
     widths: list = []
     align_cmds: list = []
 
-    # Customer company logo, top-left. Fit inside a box so a wide or tall logo
-    # is never cropped or pushed off the page edge.
     if company_logo:
         try:
             ciw, cih = ImageReader(BytesIO(company_logo)).getSize()
@@ -427,18 +428,15 @@ def _header(request: ReportRequest, styles: dict[str, ParagraphStyle], company_l
             if cw > 45 * mm:
                 cw = 45 * mm
                 ch = cw * (cih / ciw)
-            # Pass a fresh BytesIO (a file-like), not the ImageReader: reportlab's
-            # Image runs os.path.splitext on its first arg and rejects an ImageReader.
             cells.append(PlatypusImage(BytesIO(company_logo), width=cw, height=ch, mask="auto"))
             widths.append(cw + 6)
             align_cmds.append(("ALIGN", (0, 0), (0, 0), "LEFT"))
-        except Exception:  # noqa: BLE001 - a bad logo must never break the report
+        except Exception:  # noqa: BLE001
             pass
 
     cells.append(meta)
     widths.append(None)
 
-    # Bud application mark, top-right.
     if BUD_LOGO.exists():
         logo = ImageReader(str(BUD_LOGO))
         iw, ih = logo.getSize()

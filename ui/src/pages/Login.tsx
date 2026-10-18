@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { APP_VERSION, extractApiErrorMessage, setupApi } from '../api/client'
 import { BUD_LOGO_DARK, BUD_LOGO_LIGHT } from '../brandAssets'
 
+/** The sign-in page. An instance without accounts sends the visitor to /setup. */
 export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -12,8 +13,6 @@ export default function Login() {
   const { login } = useAuth()
   const navigate = useNavigate()
 
-  // An instance with no accounts cannot be signed in to; send the first visitor to
-  // create the administrator instead of showing them a form that can only fail.
   useEffect(() => {
     let cancelled = false
     setupApi

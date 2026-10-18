@@ -30,6 +30,9 @@ def render_template(template_name: str, context: dict[str, str]) -> str:
 def send_email(
     *, to_email: str, subject: str, text_body: str, html_body: str | None = None
 ) -> None:
+    """Send one email through the configured SMTP relay. A delivery failure raises
+    MailDeliveryError naming the host, port and TLS mode.
+    """
     if not settings.SMTP_ENABLED:
         raise MailConfigurationError("SMTP is disabled")
     if not settings.SMTP_HOST or not settings.SMTP_FROM_EMAIL:
@@ -56,9 +59,6 @@ def send_email(
                 smtp.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
             smtp.send_message(message)
     except (smtplib.SMTPException, OSError) as exc:
-        # Name the endpoint and the TLS mode: the failures seen in practice are
-        # a port/TLS mismatch or an unreachable relay, and neither is
-        # identifiable from the exception text alone.
         detail = (
             f"Could not send mail via {settings.SMTP_HOST}:{settings.SMTP_PORT} "
             f"(STARTTLS={settings.SMTP_STARTTLS}, SSL={settings.SMTP_SSL}): "

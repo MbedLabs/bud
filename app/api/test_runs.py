@@ -93,8 +93,6 @@ async def create_test_run(
     await db.commit()
     await db.refresh(test_run)
 
-    # Eager-load the runner relationship so the response can expose
-    # runner_account without a second round-trip.
     result = await db.execute(
         select(TestRun).options(selectinload(TestRun.runner)).where(TestRun.id == test_run.id)
     )
@@ -180,7 +178,11 @@ async def list_test_runs(
     db: AsyncSession = Depends(get_db, scope="function"),
     _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
 ):
-    """List test runs with optional filtering and pagination."""
+    """List test runs with optional filtering and pagination.
+
+    A location filter matches the runs of every runner at that location, and
+    latest_per_suite returns the most recent run of each suite.
+    """
     conditions = []
 
     if isinstance(_current_entity, Runner):
@@ -195,7 +197,6 @@ async def list_test_runs(
         conditions.append(TestRun.name == suite)
 
     if runner_account:
-        # Resolve the account → id once; avoids a join per row.
         runner_result = await db.execute(select(Runner.id).where(Runner.account == runner_account))
         runner_id = runner_result.scalar_one_or_none()
         if runner_id is None:
@@ -203,9 +204,6 @@ async def list_test_runs(
         conditions.append(TestRun.runner_id == runner_id)
 
     if location:
-        # A location is a set of runners, not one - "every bench in Lab A" is
-        # the question this answers, and it has to reach every run at that
-        # location rather than the ones that happen to be on this page.
         located = await db.execute(select(Runner.id).where(Runner.location == location))
         located_ids = list(located.scalars().all())
         if not located_ids:
@@ -224,7 +222,6 @@ async def list_test_runs(
         )
 
     if latest_per_suite:
-        # One row per suite, the most recent.
         ranked = (
             select(
                 TestRun.id,
@@ -451,12 +448,15 @@ async def update_test_run(
     db: AsyncSession = Depends(get_db, scope="function"),
     _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
 ):
-    """Record execution updates reported by the run's authenticated station."""
+    """Record execution updates reported by the run's authenticated station.
+
+    A Completed run gets its stored reports after its own state is committed; a Completed or
+    Cancelled run is notified in the background.
+    """
     if not isinstance(_current_entity, Runner):
         raise HTTPException(status_code=403, detail="Only stations can update test runs")
     test_run = await load_run(db, _current_entity, run_id, mutate=True)
 
-    # Update fields
     if data.status is not None:
         test_run.status = data.status.value
         if data.status.value in ("Completed", "Cancelled"):
@@ -488,7 +488,6 @@ async def update_test_run(
     await db.commit()
     await db.refresh(test_run)
 
-    # After the run's own state is committed; a report never blocks recording it.
     if data.status is not None and data.status.value == "Completed":
         await store_run_reports(db, test_run.id)
         await db.commit()

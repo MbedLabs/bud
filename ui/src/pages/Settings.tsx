@@ -154,10 +154,8 @@ export default function Settings() {
   const [currentPassword, setCurrentPassword] = useState('')
   const [emailMessage, setEmailMessage] = useState<string | null>(null)
 
-  // Timezone state
   const [timezone, setTimezone] = useState(() => localStorage.getItem('bud-timezone') || 'auto')
 
-  // PLM Integration local state
   const [bloomUrl, setBloomUrl] = useState('')
   const [bloomToken, setBloomToken] = useState('')
   const [hasBloomToken, setHasBloomToken] = useState(false)
@@ -236,7 +234,6 @@ export default function Settings() {
 
   return (
     <div className="max-w-2xl space-y-6 animate-fade-in pb-20">
-      {/* Account */}
       <div className="bg-card rounded-lg border border-border shadow-elegant overflow-hidden">
         <div className="px-5 py-4 border-b border-border flex items-center gap-2 bg-muted/30">
           <Mail className="h-4 w-4 text-primary" />
@@ -376,7 +373,6 @@ export default function Settings() {
         </div>
       </div>
 
-      {/* Appearance */}
       <div className="bg-card rounded-lg border border-border shadow-elegant overflow-hidden">
         <div className="px-5 py-4 border-b border-border flex items-center gap-2 bg-muted/30">
           <Monitor className="h-4 w-4 text-primary" />
@@ -404,7 +400,6 @@ export default function Settings() {
         </div>
       </div>
 
-      {/* Regional Settings */}
       <div className="bg-card rounded-lg border border-border shadow-elegant overflow-hidden">
         <div className="px-5 py-4 border-b border-border flex items-center gap-2 bg-muted/30">
           <Globe className="h-4 w-4 text-primary" />
@@ -585,7 +580,6 @@ export default function Settings() {
         </div>
       )}
 
-      {/* About */}
       <div className="bg-card rounded-lg border border-border shadow-elegant overflow-hidden">
         <div className="px-5 py-4 border-b border-border flex items-center gap-2 bg-muted/30">
           <Info className="h-4 w-4 text-primary" />

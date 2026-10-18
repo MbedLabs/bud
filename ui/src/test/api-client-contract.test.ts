@@ -30,9 +30,6 @@ let nextResponse: { status: number; data: unknown; headers: Record<string, strin
   headers: {},
 }
 
-// Installed before the client module is imported: `axios.create()` copies the
-// adapter out of the defaults at creation time, so the instance the client
-// builds picks this up and no request ever leaves the process.
 axios.defaults.adapter = async (config: InternalAxiosRequestConfig) => {
   requests.push({
     method: (config.method ?? '').toLowerCase(),
@@ -53,7 +50,6 @@ axios.defaults.adapter = async (config: InternalAxiosRequestConfig) => {
 
 const client = await import('../api/client')
 
-/** A body carrying every field the unwrapping methods reach into. */
 const BODY = {
   id: 1,
   runs: [],
@@ -183,8 +179,6 @@ describe('api client request contract', () => {
     expect(requests).toHaveLength(1)
     expect(requests[0].method).toBe(method)
     expect(requests[0].url).toBe(url)
-    // A template literal that names the wrong variable fails here rather than
-    // in the browser.
     expect(requests[0].url).not.toMatch(/undefined|NaN|\[object Object\]/)
   })
 
@@ -294,7 +288,6 @@ describe('saveBlob', () => {
     expect(created).toEqual(['blob:stub'])
     expect(clicks).toEqual(['report.pdf'])
     expect(revoked).toEqual(['blob:stub'])
-    // The anchor is a means to an end and must not be left in the document.
     expect(document.querySelector('a[download]')).toBeNull()
 
     clickSpy.mockRestore()

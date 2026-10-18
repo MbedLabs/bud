@@ -71,7 +71,6 @@ def promote(image, aliases, inspect=digest, execute=run):
     for reference in (image, *aliases):
         checked_reference(reference)
     expected = image.split("@", 1)[1]
-    # Preflight every exact version before changing any aliases.
     for alias in aliases:
         tag = alias.rsplit(":", 1)[1]
         if re.fullmatch(r"v?\d+\.\d+\.\d+(?:[-+].+)?", tag):

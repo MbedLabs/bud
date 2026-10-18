@@ -1,4 +1,10 @@
-"""FastAPI application for the Bud test automation platform"""
+"""FastAPI application for the Bud test automation platform
+
+The API documentation is served only when ENABLE_DOCS is true. CORS allows the configured
+origins with credentials, explicit methods and explicit headers. The custom runs router,
+whose paths (/test-runs/custom, /runners/claim-run) sit under both prefixes, is registered
+before the test-runs and runners routers.
+"""
 
 import asyncio
 import contextlib
@@ -54,8 +60,9 @@ logger = logging.getLogger(__name__)
 
 
 async def seed_admin_user():
-    # Always use the module's current session factory so tests can swap the engine
-    # (``from db import async_session_maker`` would keep the import-time binding).
+    """Create the configured administrator, or give the existing account the admin role,
+    through the session factory current in app.db.
+    """
     async with db.async_session_maker() as session:
         result = await session.execute(select(User).where(User.email == app_settings.ADMIN_EMAIL))
         admin = result.scalar_one_or_none()
@@ -203,7 +210,6 @@ async def lifespan(app: FastAPI):
             await cleanup_task
 
 
-# L1: Hide docs endpoints in production; set ENABLE_DOCS=true for local dev
 app = FastAPI(
     title=f"{app_settings.BUD_APP_NAME} API",
     description="Backend API for the Bud test automation platform",
@@ -214,7 +220,6 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# H2: Attach rate-limiter state and error handler
 app.state.limiter = limiter
 
 
@@ -285,10 +290,8 @@ app.add_exception_handler(Exception, _unhandled_exception_handler)
 
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
-# Outermost middleware: request-id propagation, access logs, Prometheus metrics
 app.add_middleware(RequestObservabilityMiddleware)
 
-# M1: Restrict CORS — only listed origins, explicit methods, no wildcard headers
 app.add_middleware(
     CORSMiddleware,
     allow_origins=app_settings.CORS_ORIGINS,
@@ -297,7 +300,6 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type", "Accept", "X-API-Key"],
 )
 
-# Include routers
 app.include_router(health.router, prefix="/api", tags=["Health"])
 app.include_router(metrics_router, prefix="/api", tags=["Observability"])
 app.include_router(auth_api.router, prefix="/api/auth", tags=["Auth"])
@@ -310,9 +312,6 @@ app.include_router(groups.router, prefix="/api/groups", tags=["Groups"])
 app.include_router(groups.access_router, prefix="/api/access", tags=["Access"])
 app.include_router(policies.router, prefix="/api/policies", tags=["Policies"])
 app.include_router(products.router, prefix="/api/products", tags=["Products"])
-# Before the test-runs and runners routers: its paths sit under both prefixes
-# (/test-runs/custom, /runners/claim-run) and registering it first keeps the
-# match deterministic rather than dependent on how the other routers evolve.
 app.include_router(custom_runs.router, prefix="/api", tags=["Custom Runs"])
 app.include_router(test_runs.router, prefix="/api/test-runs", tags=["Test Runs"])
 app.include_router(report_requests.router, prefix="/api/report-requests", tags=["Report requests"])

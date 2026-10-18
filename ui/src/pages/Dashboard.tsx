@@ -25,6 +25,11 @@ const TIME_RANGES: { label: string; days?: number }[] = [
   { label: 'All time', days: undefined },
 ]
 
+/**
+ * The dashboard. Every counter is aggregated by the server over the whole filtered set. The run
+ * pass rate counts a run as failed when one of its tests fails, and the test pass rate counts
+ * executed tests.
+ */
 export default function Dashboard() {
   const [days, setDays] = useState<number | undefined>(DEFAULT_DAYS)
   const [station, setStation] = useState('')
@@ -67,8 +72,6 @@ export default function Dashboard() {
   const runners = runnersData?.runners || []
   const onlineRunners = runners.filter(r => r.is_online).length
 
-  // Every counter below is aggregated server-side across the whole filtered set,
-  // so it no longer depends on how many runs the listing happens to load.
   const totalRuns = stats?.total_runs ?? 0
   const passedRuns = stats?.passed_runs ?? 0
   const failedRuns = stats?.failed_runs ?? 0
@@ -81,7 +84,6 @@ export default function Dashboard() {
   return (
     <div className="space-y-6 animate-fade-in">
       <ReportRequests />
-      {/* Filters */}
       <div className="bg-card rounded-lg border border-border shadow-elegant p-4">
         <div className="flex flex-col gap-3">
           <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,12rem),1fr))]">
@@ -138,7 +140,6 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Total Test Runs"
@@ -171,9 +172,6 @@ export default function Dashboard() {
         />
       </div>
 
-      {/* Two pass rates, because they answer different questions: a run counts
-          as failed the moment one test in it fails, so the run rate is always
-          the harsher of the two and the gap between them is the signal. */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <PassRateMeter
           title="Run Pass Rate"
@@ -195,7 +193,6 @@ export default function Dashboard() {
         />
       </div>
 
-      {/* Outcome splits */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <OutcomeDonut
           title="Test Outcomes"
@@ -249,7 +246,6 @@ export default function Dashboard() {
         />
       </div>
 
-      {/* Recent Test Runs */}
       <div className="bg-card rounded-lg border border-border shadow-elegant overflow-hidden">
         <div className="px-5 py-4 border-b border-border flex justify-between items-center">
           <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
@@ -306,7 +302,6 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* Test Station Status */}
       <div className="bg-card rounded-lg border border-border shadow-elegant overflow-hidden">
         <div className="px-5 py-4 border-b border-border flex justify-between items-center">
           <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">

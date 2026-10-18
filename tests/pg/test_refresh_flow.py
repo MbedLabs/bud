@@ -27,7 +27,7 @@ def test_login_sets_httponly_refresh_cookie(client):
     assert COOKIE in set_cookie
     assert "HttpOnly" in set_cookie
     assert "Path=/api/auth" in set_cookie
-    assert client.cookies.get(COOKIE)  # jar now holds the refresh cookie
+    assert client.cookies.get(COOKIE)
 
 
 def test_refresh_issues_a_working_access_token(client):
@@ -49,13 +49,12 @@ def test_refresh_rotates_and_replayed_old_token_is_rejected(client):
     _login(client)
     old_value = client.cookies.get(COOKIE)
 
-    first = client.post("/api/auth/refresh")  # rotates: jar now holds a new token
+    first = client.post("/api/auth/refresh")
     assert first.status_code == 200
     new_value = client.cookies.get(COOKIE)
     assert new_value
     assert new_value != old_value
 
-    # Replaying the burned original refresh token must fail.
     client.cookies.clear()
     replay = client.post("/api/auth/refresh", cookies={COOKIE: old_value})
     assert replay.status_code == 401
@@ -64,5 +63,4 @@ def test_refresh_rotates_and_replayed_old_token_is_rejected(client):
 def test_logout_revokes_refresh_token(client):
     _login(client)
     assert client.post("/api/auth/logout").status_code == 200
-    # The refresh token no longer works after logout.
     assert client.post("/api/auth/refresh").status_code == 401

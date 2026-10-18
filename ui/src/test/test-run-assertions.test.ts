@@ -13,7 +13,7 @@ describe('summarizeAssertions', () => {
         assertions: [
           { passed: true },
           { passed: false },
-          {}, // omitted passed → treated as pass
+          {},
         ],
       },
       {
@@ -44,7 +44,6 @@ describe('summarizeTestCases', () => {
   const run = { total_tests: 3, passed_tests: 2, failed_tests: 1, skipped_tests: 0 }
 
   it('reports the run statistics, not the assertion count', () => {
-    // Two test cases carrying four assertions between them must still count as two.
     const rows: Partial<TestResult>[] = [
       { passed: true, assertions: [{ passed: true }, { passed: true }] },
       { passed: false, assertions: [{ passed: true }, { passed: false }] },

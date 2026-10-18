@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# Prove that the normal product image satisfies Cloudron's runtime contract.
 set -euo pipefail
 
 IMAGE="${1:?usage: cloudron_image_smoke.sh <image-ref> <bloom|bud>}"

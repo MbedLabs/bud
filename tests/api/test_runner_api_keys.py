@@ -76,7 +76,6 @@ async def test_key_cannot_file_results_as_another_station(
 
     runs = (await db_session.execute(select(TestRun))).scalars().all()
     assert len(runs) == 1
-    # Attribution follows the credential, never the payload.
     assert runs[0].runner_id == mine.id
     assert runs[0].runner_id != theirs.id
 
@@ -145,7 +144,6 @@ async def test_removing_a_station_keeps_its_runs_and_revokes_its_keys(client, db
     """Retiring a bench must not unmake the evidence it produced."""
     station = await _make_station(db_session, "bench-retired")
     await _pin_key(db_session, "bench-retired key", station)
-    # Read out before the row goes: an expired attribute would try to refresh.
     station_id = station.id
     account = station.account
 
@@ -164,12 +162,10 @@ async def test_removing_a_station_keeps_its_runs_and_revokes_its_keys(client, db
 
     db_session.expire_all()
 
-    # The station is gone.
     assert (
         await db_session.execute(select(Runner).where(Runner.account == account))
     ).scalar_one_or_none() is None
 
-    # Its credentials went with it.
     remaining_keys = (
         (await db_session.execute(select(RunnerApiKey).where(RunnerApiKey.runner_id == station_id)))
         .scalars()
@@ -177,7 +173,6 @@ async def test_removing_a_station_keeps_its_runs_and_revokes_its_keys(client, db
     )
     assert remaining_keys == []
 
-    # The run survives, detached rather than deleted.
     surviving = await db_session.get(TestRun, run_id)
     assert surviving is not None
     assert surviving.runner_id is None
@@ -196,12 +191,10 @@ async def test_minted_key_is_returned_once_and_never_listed(client, db_session):
     assert listed.status_code == 200, listed.text
     rows = listed.json()
     assert len(rows) == 1
-    # The listing carries enough to tell keys apart and nothing more.
     assert "api_key" not in rows[0]
     assert rows[0]["key_prefix"] == secret[:12]
     assert secret not in listed.text
 
-    # Nothing anywhere stores the plaintext.
     stored = (await db_session.execute(select(RunnerApiKey))).scalars().all()
     assert len(stored) == 1
     assert stored[0].key_hash != secret
@@ -246,5 +239,4 @@ async def test_admin_can_revoke_a_key(client, db_session):
     db_session.expire_all()
     assert await db_session.get(RunnerApiKey, key_id) is None
 
-    # A second attempt has nothing left to act on.
     assert client.delete(f"/api/runners/api-keys/{key_id}").status_code == 404
