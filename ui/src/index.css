@@ -476,7 +476,6 @@
   :root {
     color-scheme: light;
 
-    /* Bud brand: logo green + gear orange on very light mint */
     --background: 120 40% 97%;
     --foreground: 140 30% 12%;
     --card: 0 0% 100%;
@@ -489,12 +488,6 @@
     --secondary-foreground: 140 30% 12%;
     --muted: 120 30% 94%;
     --muted-foreground: 140 10% 42%;
-    /*
-     * `accent` is the hover/selection surface - every `hover:bg-accent` in the
-     * app paints with it. Holding the gear orange here turned every hovered
-     * row, button and menu item into a solid orange block. The brand orange is
-     * still available as `bud-orange` for the places that ask for it by name.
-     */
     --accent: 120 28% 91%;
     --accent-foreground: 134 55% 24%;
     --destructive: 0 84% 60%;

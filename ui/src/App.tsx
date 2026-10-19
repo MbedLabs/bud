@@ -11,10 +11,7 @@ import ConfirmEmailChange from './pages/ConfirmEmailChange'
 import Setup from './pages/Setup'
 import { useAuth } from './contexts/AuthContext'
 
-/* v8 ignore start -- these thunks hold no logic, and React only invokes them
-   when a lazy route renders, which renderToString never does. Their one real
-   failure mode is a path that does not resolve, which
-   src/test/lazy-routes-resolve.test.ts checks for every entry below. */
+/* v8 ignore start */
 const CustomRun = lazy(() => import('./pages/CustomRun'))
 const Dashboard = lazy(() => import('./pages/Dashboard'))
 const Settings = lazy(() => import('./pages/Settings'))

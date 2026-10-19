@@ -182,7 +182,7 @@ async def test_refusal_requires_publisher_and_confirmed_remote_answer(
         assert client.post(path, json={"reason": "Evidence incomplete"}).status_code == 200
     await db_session.refresh(row)
     assert row.status == "refused"
-    assert b"Bud user #1" in captured[0].content
+    assert b"Bud TMP user #1" in captured[0].content
 
 
 @pytest.mark.asyncio

@@ -22,7 +22,6 @@ const getBloomUrl = (): string | null => {
 
 const BLOOM_PLM_URL = getBloomUrl()
 
-/** Must match Tailwind w-60 / w-14 and main ml-* — also positions the seam toggle. */
 const SIDEBAR_EDGE = { expanded: '15rem', collapsed: '3.5rem' } as const
 
 const navigation = [
@@ -32,6 +31,11 @@ const navigation = [
   { name: 'Test Stations', href: '/test-stations', icon: Server },
 ]
 
+/**
+ * The app shell with the sidebar, the account menu and the routed page. SIDEBAR_EDGE matches the
+ * Tailwind sidebar widths (w-60 expanded, w-14 collapsed) and the main ml-* offsets, and positions
+ * the seam toggle.
+ */
 export default function Layout() {
   const location = useLocation()
   const { user, logout } = useAuth()
@@ -82,12 +86,12 @@ export default function Layout() {
         <div className={`${sidebarCollapsed ? 'px-2 pt-4 pb-2.5' : 'px-3 pt-4 pb-2.5'}`}>
           <div className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-2.5'}`}>
             <div className="w-9 h-9 rounded-lg overflow-hidden flex items-center justify-center shrink-0 bg-white/10">
-              <img src="/favicon-96x96.png" alt="Bud" className="w-full h-full object-contain" />
+              <img src="/favicon-96x96.png" alt="Bud TMP by EmbedLabs" className="w-full h-full object-contain" />
             </div>
             {!sidebarCollapsed && (
               <div className="min-w-0">
-                <h1 className="text-base font-bold text-lime-50 tracking-tight">Bud</h1>
-                <p className="text-[10px] text-lime-200/60 font-medium uppercase tracking-wider leading-snug">Test Management Platform</p>
+                <h1 className="text-base font-bold text-lime-50 tracking-tight">Bud TMP</h1>
+                <p className="text-[10px] text-lime-200/60 font-medium uppercase tracking-wider leading-snug">by EmbedLabs</p>
               </div>
             )}
           </div>

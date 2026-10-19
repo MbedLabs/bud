@@ -296,6 +296,7 @@ async def revoke_invite(
     _admin: User = Depends(require_admin),
     db: AsyncSession = Depends(get_db, scope="function"),
 ):
+    """Revoke a pending invitation: invalidate its emailed link and deactivate the account."""
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if not user:
@@ -303,9 +304,6 @@ async def revoke_invite(
     if user.password_set_at is not None:
         raise HTTPException(status_code=400, detail="Invite already accepted")
 
-    # Deactivating the account is not enough on its own: the emailed link stays live
-    # until its TTL, so whoever holds it can still accept the invitation and choose a
-    # password.
     await invalidate_tokens(db, user.id, purpose=UserTokenPurpose.invite)
 
     user.is_active = False
@@ -450,6 +448,9 @@ async def delete_user(
     admin: User = Depends(require_admin),
     db: AsyncSession = Depends(get_db, scope="function"),
 ):
+    """Delete a user and their tokens, and clear the user as creator of other tokens and as
+    inviter of other users.
+    """
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if not user:
@@ -462,15 +463,12 @@ async def delete_user(
         )
 
     try:
-        # Delete tokens for this user
         await db.execute(delete(UserToken).where(UserToken.user_id == user_id))
-        # Nullify creator of tokens
         await db.execute(
             update(UserToken)
             .where(UserToken.created_by_user_id == user_id)
             .values(created_by_user_id=None)
         )
-        # Nullify invited_by references
         await db.execute(
             update(User).where(User.invited_by_user_id == user_id).values(invited_by_user_id=None)
         )

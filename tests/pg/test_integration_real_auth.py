@@ -56,7 +56,6 @@ def test_wrong_password_is_rejected(client):
 
 
 def test_unauthenticated_write_is_rejected(client):
-    # Real auth (not an override): the create endpoint must reject a missing JWT.
     resp = client.post("/api/products", json={"name": "should-not-persist"})
     assert resp.status_code == 401
 
@@ -73,7 +72,6 @@ def test_real_login_then_db_backed_write_and_read(client):
     assert created.status_code == 201, created.text
     product_id = created.json()["id"]
 
-    # Round-trips through PostgreSQL: the row is really there on a fresh read.
     listed = client.get("/api/products", headers=headers)
     assert listed.status_code == 200
     assert any(p["id"] == product_id for p in listed.json())

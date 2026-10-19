@@ -31,13 +31,14 @@ def test_cloudron_metadata_uses_canonical_product_positioning():
 
 
 def test_cloudron_release_metadata_matches_product_version():
+    """The changelog may open with an entry for the next unreleased version; the shipped
+    version has its own section.
+    """
     manifest = json.loads(MANIFEST.read_text())
     version = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]["version"]
     assert manifest["version"] == version
     assert manifest["upstreamVersion"] == version
     changelog = (ROOT / "cloudron" / "CHANGELOG").read_text()
-    # The changelog may open with a prerelease entry for the next, unreleased
-    # version; what must hold is that the shipped version has its own section.
     assert f"[{version}]\n" in changelog
     top = changelog.splitlines()[0]
     match = re.fullmatch(r"\[(\d+(?:\.\d+){0,2})[^\]]*\]", top)

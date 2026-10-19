@@ -84,8 +84,6 @@ AUTH_REFRESH = "auth.refresh"
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-# Refresh token is delivered as an httpOnly cookie scoped to the auth endpoints,
-# rotated on every use, and revocable via the user_tokens table.
 REFRESH_COOKIE_NAME = "bud_refresh_token"
 REFRESH_COOKIE_PATH = "/api/auth"
 
@@ -113,12 +111,16 @@ def _clear_refresh_cookie(response: Response) -> None:
 
 
 async def _issue_refresh_cookie(db: AsyncSession, response: Response, user_id: int) -> None:
+    """Create a refresh token for the user and set it as the httpOnly refresh cookie, scoped to
+    the auth endpoints, rotated on every use and revocable in user_tokens. Earlier refresh
+    tokens stay valid, one per signed-in device or tab.
+    """
     raw_token = await create_user_token(
         db,
         user_id=user_id,
         purpose=UserTokenPurpose.refresh,
         ttl_hours=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24,
-        invalidate_existing=False,  # allow concurrent sessions (multiple devices/tabs)
+        invalidate_existing=False,
     )
     _set_refresh_cookie(response, raw_token)
 
@@ -127,6 +129,10 @@ async def get_current_active_entity(
     token: str = Depends(oauth2_scheme),
     db: AsyncSession = Depends(get_db, scope="function"),
 ) -> User | Runner:
+    """Return the active user or runner named by the access token. A user token issued before
+    the user's session_version changed (password change or reset, confirmed email change) is
+    refused.
+    """
     payload = decode_access_token(token)
     if payload is None:
         raise HTTPException(
@@ -150,8 +156,6 @@ async def get_current_active_entity(
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user ID")
         result = await db.execute(select(User).where(User.id == entity_id))
         entity = result.scalar_one_or_none()
-        # Reject tokens minted before a password/reset/email-change bumped the user's
-        # session_version.
         if entity is not None and payload.get("ver") != entity.session_version:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -168,7 +172,6 @@ async def get_current_active_entity(
     if entity is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Entity not found")
 
-    # Both models have is_active
     if not entity.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account is deactivated")
     if isinstance(entity, User):
@@ -291,15 +294,17 @@ async def refresh(
 ):
     """Exchange a valid refresh cookie for a new access token, rotating the
     refresh token (single-use). If a stolen token is replayed after the real
-    client has rotated, it is already marked used and is rejected."""
+    client has rotated, it is marked used and rejected.
+
+    The presented token is consumed atomically: of concurrent requests with the same cookie
+    only one receives a replacement, issued in the same transaction.
+    """
     unauthorized = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Invalid or expired session",
     )
     if not refresh_token:
         raise unauthorized
-    # Atomically consume the presented token. Two requests racing on the same
-    # cookie can only produce one winner here, so only one replacement is issued.
     try:
         claimed = await claim_token(db, token=refresh_token, purpose=UserTokenPurpose.refresh)
     except TokenValidationError:
@@ -323,7 +328,6 @@ async def refresh(
         )
         raise unauthorized
 
-    # Consumed above; issue the replacement in the same transaction.
     await _issue_refresh_cookie(db, response, user.id)
     await record_audit_event(
         db,
@@ -378,10 +382,11 @@ async def update_me(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db, scope="function"),
 ):
+    """Update the signed-in user's profile. The email address changes only through the email
+    change request, which takes the current password and a confirmation of the new address.
+    """
     if data.full_name is not None:
         current_user.full_name = data.full_name
-    # Email changes are not applied here: they require the current password and a
-    # confirmation of the new address via POST /me/email.
 
     await db.flush()
     await db.refresh(current_user)
@@ -590,7 +595,11 @@ async def confirm_email_change(
     response: Response,
     db: AsyncSession = Depends(get_db, scope="function"),
 ):
-    """Advance or complete a verified email change."""
+    """Advance or complete a verified email change.
+
+    The new address is checked again for another account at confirmation, and a confirmed
+    change ends every existing session.
+    """
     try:
         candidate = await get_valid_token(
             db,
@@ -626,7 +635,6 @@ async def confirm_email_change(
     if claimed.target_email != candidate.target_email:
         raise HTTPException(status_code=400, detail=INVALID_TOKEN)
 
-    # Guard against the address being taken between request and confirmation.
     existing = await db.execute(
         select(User).where(User.email == candidate.target_email, User.id != user.id)
     )
@@ -675,7 +683,6 @@ async def confirm_email_change(
     user.email = candidate.target_email
     user.clear_pending_email_change()
     user.email_verified_at = datetime.now(timezone.utc).replace(tzinfo=None)
-    # Confirmed identity change ends every existing session.
     user.session_version += 1
     await invalidate_all_refresh_tokens(db, user.id)
     _clear_refresh_cookie(response)
@@ -700,6 +707,10 @@ async def change_password(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db, scope="function"),
 ):
+    """Change the signed-in user's password and end every existing session: access tokens are
+    retired by a session_version bump, refresh tokens are revoked and this device's refresh
+    cookie is cleared.
+    """
     if not verify_password(data.current_password, current_user.hashed_password):
         await record_audit_failure(
             db,
@@ -711,8 +722,6 @@ async def change_password(
         raise HTTPException(status_code=400, detail="Current password is incorrect")
     current_user.hashed_password = get_password_hash(data.new_password)
     current_user.password_set_at = datetime.now(timezone.utc).replace(tzinfo=None)
-    # End every existing session: retire outstanding access tokens (version bump) and
-    # refresh tokens, and drop this device's refresh cookie.
     current_user.session_version += 1
     await invalidate_all_refresh_tokens(db, current_user.id)
     _clear_refresh_cookie(response)
@@ -761,6 +770,7 @@ async def get_invite_info(
 async def accept_invite(
     data: AcceptInviteRequest, db: AsyncSession = Depends(get_db, scope="function")
 ):
+    """Accept an invitation: set the password and mark the invited address as verified."""
     try:
         claimed = await claim_token(db, token=data.token, purpose=UserTokenPurpose.invite)
     except TokenValidationError as exc:
@@ -776,8 +786,6 @@ async def accept_invite(
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     user.invite_accepted_at = now
     user.password_set_at = now
-    # Accepting an invitation proves control of the invited address, so treat it as
-    # verification.
     user.email_verified_at = now
 
     await db.flush()
@@ -929,6 +937,9 @@ async def reset_password(
     response: Response,
     db: AsyncSession = Depends(get_db, scope="function"),
 ):
+    """Set a new password with a reset token and end every existing session, as a password
+    change does.
+    """
     try:
         claimed = await claim_token(
             db,
@@ -949,7 +960,6 @@ async def reset_password(
 
     user.hashed_password = get_password_hash(data.new_password)
     user.password_set_at = datetime.now(timezone.utc).replace(tzinfo=None)
-    # End every existing session, exactly as on password change.
     user.session_version += 1
     await invalidate_all_refresh_tokens(db, user.id)
     _clear_refresh_cookie(response)

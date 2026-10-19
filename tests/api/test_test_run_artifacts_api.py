@@ -14,6 +14,8 @@ from app.models import Artifact, TestRun
 @pytest.fixture
 def run_with_artifacts(db_session):
     async def _make():
+        """Seed two runs with their artifacts, and an artifact uploaded by an admin without a run,
+        which belongs to no listing; return the two run ids."""
         run = TestRun(name="Nightly", test_case_list="SmokeTests", status="Completed")
         other = TestRun(name="Other", test_case_list="SmokeTests", status="Completed")
         db_session.add_all([run, other])
@@ -53,7 +55,6 @@ def run_with_artifacts(db_session):
                     test_run_id=other.id,
                     created_at=now,
                 ),
-                # Uploaded by an admin without a run: it belongs to no listing.
                 Artifact(
                     filename="d.log",
                     original_filename="unattached.log",
@@ -88,8 +89,6 @@ class TestListingARunsArtifacts:
 
         items = client.get(f"/api/test-runs/{run_id}/artifacts").json()
 
-        # A run produces evidence in the order it executes, and reading it back
-        # in that order is what makes a failure legible.
         stamps = [item["created_at"] for item in items]
         assert stamps == sorted(stamps)
 
@@ -126,8 +125,6 @@ class TestListingARunsArtifacts:
 
         item = client.get(f"/api/test-runs/{run_id}/artifacts").json()[0]
 
-        # The stored name is a UUID under the upload root; the download route
-        # rebuilds the path from it. Publishing it invites a client to try.
         assert "storage_path" not in item
 
     def test_a_run_with_nothing_attached_is_an_empty_list(self, client, station_request):

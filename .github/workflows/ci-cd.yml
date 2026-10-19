@@ -39,16 +39,16 @@ jobs:
           --health-retries 5
 
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
       - name: Set up Python
-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
         with:
           python-version: '3.11'
           cache: 'pip'
 
       - name: Set up Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version: '24'
           cache: 'npm'
@@ -61,7 +61,7 @@ jobs:
           pip install black==25.1.0 isort==5.13.2 bandit==1.8.3 pip-audit
 
       - name: Install UI dependencies
-        run: npm --prefix ui ci
+        run: npm --prefix ui ci --ignore-scripts
 
       - name: Audit UI dependencies
         run: npm --prefix ui run audit
@@ -75,13 +75,8 @@ jobs:
       - name: Run backend security scans
         run: |
           bandit -r app/ -ll
-          # Blocking: a vulnerable *pinned* dependency fails CI. We audit the
-          # locked closure (constraints.txt), not the ambient runner tooling.
           pip-audit -r constraints.txt
 
-      # The documented fresh-install path: alembic alone must build the full
-      # schema on a truly EMPTY database, from explicit DDL. No create_all
-      # pre-step — that used to mask exactly this path.
       - name: Alembic upgrade on an empty database
         env:
           DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_bud
@@ -92,9 +87,6 @@ jobs:
           alembic current
           alembic current | grep -q "(head)" || { echo "database is not at alembic head" >&2; exit 1; }
 
-      # A fresh install only proves the newest revision can build a schema from
-      # nothing. A deployed database instead runs that revision's downgrade/upgrade
-      # DDL against existing objects, so exercise that path too.
       - name: Alembic downgrade and re-upgrade (deployed-database path)
         env:
           DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_bud
@@ -115,10 +107,6 @@ jobs:
         run: |
           pytest --cov=app --cov-report=xml --cov-report=term-missing --cov-fail-under=85 tests/api tests/logic tests/sec -v
 
-      # Real-auth integration layer: runs against the alembic-built PostgreSQL
-      # schema with NO dependency overrides — real login, real JWT, real DB I/O.
-      # Also proves the empty-DB alembic schema fully serves the application
-      # (RUN_STARTUP_DATA_REPAIR=false, so the app never falls back to create_all).
       - name: Postgres tests
         env:
           DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_bud
@@ -135,12 +123,6 @@ jobs:
         run: |
           pytest tests/pg -v
 
-      # These run against a real database that keeps its rows between
-      # invocations, so they must survive being run twice. CI alone would never
-      # catch a test that hardcodes a unique value - it gets a new service
-      # container every time - but a developer running them locally hits "Email
-      # already registered" on the second run and has to drop the database to
-      # work. This step is the only thing that keeps that honest.
       - name: Postgres tests again on the same database
         env:
           DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_bud
@@ -160,7 +142,7 @@ jobs:
       - name: Run UI checks
         run: |
           npm --prefix ui run lint
-          npx --prefix ui tsc --project ui/tsconfig.json --noEmit
+          ui/node_modules/.bin/tsc --project ui/tsconfig.json --noEmit
           npm --prefix ui run test -- --coverage
 
   build-image:
@@ -173,7 +155,7 @@ jobs:
       cancel-in-progress: false
 
     permissions:
-      contents: write  # Attach the SBOM to an existing GitHub release.
+      contents: write
       packages: write
 
     outputs:
@@ -181,7 +163,7 @@ jobs:
       aliases: ${{ steps.aliases.outputs.list }}
 
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
       - name: Validate release tag
         if: startsWith(github.ref, 'refs/tags/v')
@@ -207,8 +189,6 @@ jobs:
         env:
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
-          # The tag's MAJOR.MINOR.PATCH must match every source of truth for the
-          # version, so a release can never ship mismatched numbers.
           base="${RELEASE_TAG#v}"; base="${base%%-*}"; base="${base%%+*}"
           gate_fail() { echo "::error::version gate: $*"; exit 1; }
           check() { [ "$2" = "$base" ] || gate_fail "$1 is '$2' but the tag is '$base'"; }
@@ -218,7 +198,6 @@ jobs:
             "$(sed -nE 's/.*"version": *"([^"]+)".*/\1/p' ui/package.json | head -1)"
           check "app/__init__.py __version__" \
             "$(sed -nE 's/^__version__ = "([^"]+)".*/\1/p' app/__init__.py | head -1)"
-          # BUD_APP_VERSION is what /api/version reports at runtime.
           check "BUD_APP_VERSION (/api/version)" \
             "$(sed -nE 's/.*BUD_APP_VERSION[^"]*"([^"]+)".*/\1/p' app/core/config.py | head -1)"
           check "Cloudron package version" "$(python -c 'import json; print(json.load(open("cloudron/CloudronManifest.json"))["version"])')"
@@ -231,10 +210,6 @@ jobs:
       - name: Verify the tagged commit is contained in main history
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
-          # A release tag must be cut from the reviewed release commit on main:
-          # nothing is ever built or promoted from a commit that never landed on
-          # main. The checkout is shallow, so fetch main's full history and prove
-          # the tagged commit is contained in it before anything else runs.
           if [ -f "$(git rev-parse --git-dir)/shallow" ]; then
             git fetch --no-tags --unshallow origin main
           else
@@ -254,7 +229,7 @@ jobs:
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069
 
       - name: Log in to Container Registry
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -262,7 +237,7 @@ jobs:
 
       - name: Extract metadata for Docker
         id: meta
-        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302
         with:
           images: ${{ env.REGISTRY }}/${{ github.repository }}
           flavor: latest=false
@@ -278,7 +253,7 @@ jobs:
 
       - name: Extract the immutable sha-only tag
         id: metasha
-        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302
         with:
           images: ${{ env.REGISTRY }}/${{ github.repository }}
           flavor: latest=false
@@ -297,9 +272,6 @@ jobs:
         with:
           context: .
           push: true
-          # Only the immutable sha-<commit> tag is pushed here. Moving aliases
-          # (branch/latest/stable/semver) are promoted to this same manifest by
-          # the promote-image job, and only after e2e-image passes.
           tags: ${{ steps.metasha.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
@@ -319,10 +291,6 @@ jobs:
         env:
           ALL_TAGS: ${{ steps.meta.outputs.tags }}
         run: |
-          # Every tag EXCEPT the immutable sha-<commit> one. These are the moving
-          # deploy aliases (branch / latest / stable / semver). They are NOT pushed
-          # by the build; the promote-image job attaches them to the tested manifest
-          # only after e2e-image passes, so a failing build never moves a deploy tag.
           aliases="$(printf '%s\n' "$ALL_TAGS" | grep -v ':sha-' || true)"
           {
             echo "list<<ALIAS_EOF"
@@ -357,7 +325,7 @@ jobs:
           '
 
       - name: Generate SBOM (SPDX)
-        uses: anchore/sbom-action@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26 # v0.24.2
+        uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c
         with:
           image: ${{ steps.sha-image.outputs.image }}
           format: spdx-json
@@ -374,15 +342,15 @@ jobs:
       packages: read
 
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
       - name: Set up Python
-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
         with:
           python-version: '3.11'
 
       - name: Log in to Container Registry
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -391,9 +359,6 @@ jobs:
       - name: Pull the published image
         run: docker pull --platform linux/amd64 "${{ needs.build-image.outputs.image }}"
 
-      # Real end-to-end proof against the exact image that was just built and
-      # pushed: empty DB -> boot -> alembic upgrade head -> admin login ->
-      # DB-backed call -> >1 MB upload through nginx -> restart -> data persists.
       - name: End-to-end smoke test
         run: bash scripts/e2e_image_smoke.sh "${{ needs.build-image.outputs.image }}"
 
@@ -414,7 +379,7 @@ jobs:
       packages: write
 
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 0
 
@@ -422,18 +387,12 @@ jobs:
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069
 
       - name: Log in to Container Registry
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # The build published ONLY the immutable sha-<commit> manifest, and
-      # e2e-image has now proven that exact manifest boots and serves. Point every
-      # moving alias (branch / latest / stable / semver) at it via a registry-side
-      # manifest copy (no rebuild, both platforms preserved). Until this job runs,
-      # the aliases still reference the previous image that passed e2e, so a broken
-      # build can never become what `latest`/`stable`/a branch tag resolves to.
       - name: Promote the tested image to its moving aliases
         env:
           SHA_IMAGE: ${{ needs.build-image.outputs.image }}

@@ -22,8 +22,6 @@ def _result(passed: bool = False, **overrides) -> dict:
             {
                 "passed": False,
                 "message": "3 != 4",
-                # The assertion carries its own trace, and this is the one the
-                # run detail renders.
                 "traceback": "assertion-level trace",
             }
         ],
@@ -57,8 +55,6 @@ class TestTheListing:
     def test_keeps_every_column_the_run_detail_draws(self, client, run_with_a_failure):
         row = client.get(f"/api/results/{run_with_a_failure}").json()[0]
 
-        # The page groups by test case out of `test_metadata`, counts pass and
-        # fail out of `assertions`, and labels rows from the class and method.
         for field in (
             "id",
             "test_class",
@@ -77,8 +73,6 @@ class TestTheListing:
     def test_keeps_the_trace_that_lives_inside_an_assertion(self, client, run_with_a_failure):
         row = client.get(f"/api/results/{run_with_a_failure}").json()[0]
 
-        # This is the trace the reader sees when they expand a failure. Losing
-        # it would empty the panel while the listing still looked healthy.
         assert row["assertions"][0]["traceback"] == "assertion-level trace"
 
     def test_orders_results_as_they_were_recorded(self, client, station_request):
@@ -118,8 +112,6 @@ class TestTheSingleResult:
 
         detail = client.get(f"/api/results/detail/{result_id}").json()
 
-        # Dropping it from the listing must not mean dropping it from the
-        # database or from the endpoint that fetches one result in full.
         assert detail["traceback"] == TRACE
 
     @pytest.mark.asyncio

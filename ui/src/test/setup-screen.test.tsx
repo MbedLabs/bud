@@ -61,7 +61,7 @@ describe('first-run setup screen', () => {
     mockedApi.getStatus.mockResolvedValue({ setup_required: true })
     renderSetup()
 
-    expect(await screen.findByText('Welcome to Bud')).toBeTruthy()
+    expect(await screen.findByText('Welcome to Bud TMP')).toBeTruthy()
     expect(screen.getByPlaceholderText('you@example.com')).toBeTruthy()
   })
 
@@ -73,7 +73,6 @@ describe('first-run setup screen', () => {
   })
 
   it('does not offer to claim an instance it cannot reach', async () => {
-    // A backend that cannot answer must not be treated as unclaimed.
     mockedApi.getStatus.mockRejectedValue(new Error('network down'))
     renderSetup()
 
@@ -84,7 +83,7 @@ describe('first-run setup screen', () => {
     mockedApi.getStatus.mockResolvedValue({ setup_required: true })
     mockedApi.createFirstAdmin.mockResolvedValue({ message: 'created' })
     renderSetup()
-    await screen.findByText('Welcome to Bud')
+    await screen.findByText('Welcome to Bud TMP')
 
     await fillForm()
     fireEvent.click(screen.getByRole('button', { name: 'Create Administrator' }))
@@ -102,7 +101,7 @@ describe('first-run setup screen', () => {
   it('rejects a mismatched confirmation without calling the backend', async () => {
     mockedApi.getStatus.mockResolvedValue({ setup_required: true })
     renderSetup()
-    await screen.findByText('Welcome to Bud')
+    await screen.findByText('Welcome to Bud TMP')
 
     await fillForm({ confirm: 'a-different-password' })
     fireEvent.click(screen.getByRole('button', { name: 'Create Administrator' }))
@@ -114,7 +113,7 @@ describe('first-run setup screen', () => {
   it('rejects a password below the policy without calling the backend', async () => {
     mockedApi.getStatus.mockResolvedValue({ setup_required: true })
     renderSetup()
-    await screen.findByText('Welcome to Bud')
+    await screen.findByText('Welcome to Bud TMP')
 
     await fillForm({ password: 'short', confirm: 'short' })
     fireEvent.click(screen.getByRole('button', { name: 'Create Administrator' }))
@@ -127,7 +126,7 @@ describe('first-run setup screen', () => {
     mockedApi.getStatus.mockResolvedValue({ setup_required: true })
     mockedApi.createFirstAdmin.mockRejectedValue(new Error('boom'))
     renderSetup()
-    await screen.findByText('Welcome to Bud')
+    await screen.findByText('Welcome to Bud TMP')
 
     await fillForm()
     fireEvent.click(screen.getByRole('button', { name: 'Create Administrator' }))
@@ -149,7 +148,7 @@ describe('setup hands over no secret', () => {
 
   it('goes straight to login once the administrator exists', async () => {
     renderSetup()
-    await screen.findByText('Welcome to Bud')
+    await screen.findByText('Welcome to Bud TMP')
     await fillForm()
     fireEvent.click(screen.getByRole('button', { name: 'Create Administrator' }))
 
@@ -158,7 +157,7 @@ describe('setup hands over no secret', () => {
 
   it('never puts a key on screen or in browser storage', async () => {
     renderSetup()
-    await screen.findByText('Welcome to Bud')
+    await screen.findByText('Welcome to Bud TMP')
     await fillForm()
     fireEvent.click(screen.getByRole('button', { name: 'Create Administrator' }))
     await waitFor(() => expect(mockedApi.createFirstAdmin).toHaveBeenCalled())

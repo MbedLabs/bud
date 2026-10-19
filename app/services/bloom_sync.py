@@ -12,6 +12,7 @@ from tenacity import (
     wait_exponential,
 )
 
+from app.core.identity import BUD_PRODUCT_NAME
 from app.db import database as db
 from app.models import TestResult, TestRun
 from app.services.bloom_publish import bloom_post
@@ -28,6 +29,8 @@ async def _coalesce_results_by_tc_id(
 
     Results without a tc_id, and skipped results, are not sent. When ``tally`` is
     given, it counts them under ``unidentified`` and ``skipped``.
+
+    A test case keeps the latest execution time of its methods.
     """
     grouped: dict[str, dict] = {}
     counts = tally if tally is not None else {}
@@ -56,17 +59,15 @@ async def _coalesce_results_by_tc_id(
             {
                 "tc_id": tc_id,
                 "status": "Passed",
-                "comment": f"Last result from Bud run {test_run_id}, executed at {executed_at}",
+                "comment": f"Last result from {BUD_PRODUCT_NAME} run {test_run_id}, executed at {executed_at}",
                 "executed_at": executed_at,
                 "bud_run_id": test_run_id,
             },
         )
 
-        # Preserve the latest execution timestamp seen for the TC.
         if executed_at > entry["executed_at"]:
             entry["executed_at"] = executed_at
 
-        # Any failing method makes the overall TC execution fail.
         if not res.passed:
             entry["status"] = "Failed"
             if res.error_message:
@@ -127,10 +128,14 @@ def _suite_reference(data: dict, synced: int) -> dict | None:
 
 
 async def sync_results_to_bloom(test_run_id: int):
-    """Background task to sync test results from Bud to Bloom PLM."""
+    """Background task to sync test results from Bud to Bloom PLM.
+
+    It reads the Bloom configuration from the system settings, collects the run's results
+    that carry a tc_id in their metadata and posts them to Bloom's campaign-agnostic sync
+    endpoint.
+    """
     async with db.async_session_maker() as session:
         try:
-            # 1. Get Bloom Configuration from SystemSettings
             from app.models import SystemSetting
 
             url_setting = await session.get(SystemSetting, "bloom_url")
@@ -151,7 +156,7 @@ async def sync_results_to_bloom(test_run_id: int):
                     stage="bloom_sync",
                     status="skipped",
                     title="Bloom sync skipped",
-                    message="Bloom URL or access token is not configured in Bud settings.",
+                    message=f"Bloom URL or access token is not configured in {BUD_PRODUCT_NAME} settings.",
                 )
                 await session.commit()
                 return
@@ -159,7 +164,6 @@ async def sync_results_to_bloom(test_run_id: int):
             bloom_url = url_setting.value.rstrip("/")
             bloom_token = decrypt_integration_secret(token_setting.value)
 
-            # 2. Get all results for this run that carry a tc_id in their metadata
             results_stream = await session.stream_scalars(
                 select(TestResult)
                 .where(TestResult.test_run_id == test_run_id)
@@ -185,7 +189,6 @@ async def sync_results_to_bloom(test_run_id: int):
                 await session.commit()
                 return
 
-            # 3. Push to Bloom's campaign-agnostic sync endpoint
             await record_test_run_event(
                 session,
                 test_run_id=test_run_id,

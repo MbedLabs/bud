@@ -24,11 +24,13 @@ router = APIRouter()
 
 
 def _pdf_response(pdf: bytes, filename: str) -> Response:
+    """Return the PDF as an attachment named in both the plain and the RFC 5987 filename forms,
+    which carry non-ASCII suite names.
+    """
     return Response(
         content=pdf,
         media_type="application/pdf",
         headers={
-            # RFC 5987 form as well, so non-ASCII suite names survive.
             "Content-Disposition": (
                 f'attachment; filename="{filename}"; ' f"filename*=UTF-8''{quote(filename)}"
             ),
@@ -54,12 +56,13 @@ async def test_run_summary_report(
     db: AsyncSession = Depends(get_db, scope="function"),
     current_entity: User | Runner = Depends(get_current_active_entity),
 ):
-    """A filtered test report: overall pie chart plus per-suite, per-station and per-day tables."""
+    """A filtered test report: overall pie chart plus per-suite, per-station and per-day tables.
+
+    An unknown Test Station filter matches no runs, as in the statistics endpoint.
+    """
     conditions = await _scope_conditions(
         db, current_entity, days=days, runner_account=runner_account, suite=suite
     )
-    # An unknown Test Station scopes to nothing rather than erroring, matching
-    # the statistics endpoint.
     conditions = conditions if conditions is not None else [TestRun.id.is_(None)]
 
     await record_audit_event(

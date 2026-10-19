@@ -1,4 +1,3 @@
-import { selectValue } from './select-value'
 // @vitest-environment jsdom
 /**
  * Every signed-in screen, rendered with real data and driven the way a user
@@ -9,6 +8,7 @@ import { selectValue } from './select-value'
  * answering in the shapes the backend returns, wait for the page to settle, and
  * assert on what a user would see or on the call the page makes.
  */
+import { selectValue } from './select-value'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router'
@@ -82,7 +82,6 @@ beforeEach(() => {
   sessionStorage.clear()
   localStorage.clear()
   window.confirm = () => true
-  // Settings reports its save with `alert`, which jsdom does not implement.
   window.alert = () => {}
   window.matchMedia = ((query: string) => ({
     matches: false,
@@ -96,9 +95,6 @@ beforeEach(() => {
   })) as unknown as typeof window.matchMedia
 })
 
-// Explicit rather than relying on the `globals` setting to register Testing
-// Library's own cleanup: without it the previous test's DOM stays mounted and
-// every query finds two of everything.
 afterEach(cleanup)
 
 /** The arguments of the most recent call to a mocked endpoint. */
@@ -117,8 +113,6 @@ describe('the dashboard', () => {
   it('shows the aggregated counters the server returns', async () => {
     renderAt('/', '/', <Dashboard />)
 
-    // The headings render before the counters arrive, so wait for a counter rather than
-    // for the card that will hold it.
     expect(await within(card('Total Test Runs')).findByText('5')).toBeTruthy()
     expect(screen.getAllByText('60%').length).toBeGreaterThan(0)
     expect(screen.getAllByText('30 tests').length).toBeGreaterThan(0)
@@ -127,9 +121,6 @@ describe('the dashboard', () => {
   it('separates the run pass rate from the test pass rate', async () => {
     renderAt('/', '/', <Dashboard />)
 
-    // A run fails the moment one of its tests does, so the two rates answer
-    // different questions and the fixture deliberately disagrees: 60% of runs
-    // passed, but 80% of tests did.
     expect(await within(card('Run Pass Rate')).findByText('60%')).toBeTruthy()
     expect(within(card('Test Pass Rate')).getByText('80%')).toBeTruthy()
   })
@@ -137,8 +128,6 @@ describe('the dashboard', () => {
   it('accounts for the tests that were skipped', async () => {
     renderAt('/', '/', <Dashboard />)
 
-    // Skipped tests are neither passes nor failures, so they are excluded from
-    // the rate and have to be reported somewhere or they vanish.
     expect(await screen.findByText(/1 test\(s\) skipped/)).toBeTruthy()
     expect(within(card('Test Outcomes')).getByText('Skipped')).toBeTruthy()
   })
@@ -147,7 +136,6 @@ describe('the dashboard', () => {
     renderAt('/', '/', <Dashboard />)
     await within(card('Test Outcomes')).findByText('24')
 
-    // Scoped to each donut: the recent-runs list carries status words too.
     const tests = within(card('Test Outcomes'))
     const runs = within(card('Run Outcomes'))
     expect(tests.getByText('Passed')).toBeTruthy()
@@ -203,7 +191,6 @@ describe('the run list', () => {
       target: { value: 'nothing matches' },
     })
 
-    // The page holds twenty of however many runs there are.
     await waitFor(() => {
       const [params] = lastCall(client.testRunsApi.list) as [{ q?: string }]
       expect(params.q).toBe('nothing matches')
@@ -254,8 +241,6 @@ describe('the run list', () => {
   })
 
   it('shows whatever the server matched, whichever field it matched on', async () => {
-    // The endpoint matches the run name, the test case list and the runner account;
-    // which of the three hit is its business.
     const other = {
       ...testRun,
       id: 43,
@@ -275,15 +260,9 @@ describe('the run list', () => {
       const [params] = lastCall(client.testRunsApi.list) as [{ q?: string }]
       expect(params.q).toBe('boottests')
     })
-    // "BootTests" is the test case list, which is not the row's title.
     expect(screen.getByText(other.name)).toBeTruthy()
   })
 
-  /**
-   * A location holds as many benches as the lab has - "Lab A" here is two
-   * stations, not one. That is what makes the filter a set membership test
-   * rather than a lookup, so the fixture has to have it.
-   */
   const labA = { ...testStation, account: 'bench-01', location: 'Lab A' }
   const labAsecond = { ...testStation, account: 'bench-03', location: 'Lab A' }
   const labB = { ...testStation, account: 'bench-02', location: 'Lab B' }
@@ -309,9 +288,6 @@ describe('the run list', () => {
     fireEvent.click(screen.getAllByRole('button', { name: /^Filters/ })[0])
     fireEvent.click(await screen.findByRole('button', { name: 'Lab A' }))
 
-    // Lab A holds two benches, and their runs interleave with everyone else's across
-    // pages - so resolving the location to bench accounts in the browser and filtering
-    // the current page drops whatever sits on the next one.
     await waitFor(() => {
       const [params] = lastCall(client.testRunsApi.list) as [{ location?: string }]
       expect(params.location).toBe('Lab A')
@@ -325,7 +301,6 @@ describe('the run list', () => {
 
     fireEvent.click(screen.getAllByRole('button', { name: /^Filters/ })[0])
 
-    // Two benches at Lab A, one chip.
     expect(await screen.findAllByRole('button', { name: 'Lab A' })).toHaveLength(1)
     expect(screen.getAllByRole('button', { name: 'Lab B' })).toHaveLength(1)
   })
@@ -367,7 +342,6 @@ describe('the run list', () => {
       const [params] = lastCall(client.testRunsApi.list) as [
         { status?: string; q?: string; location?: string; runner_account?: string },
       ]
-      // Cleared means the parameter is dropped, not sent empty.
       expect(params.status).toBeUndefined()
       expect(params.q).toBeUndefined()
       expect(params.location).toBeUndefined()
@@ -380,7 +354,6 @@ describe('the run list', () => {
     renderAt('/runs', '/runs', <TestRuns />)
     await screen.findByText(testRun.name)
 
-    // The first page cannot go back.
     expect((screen.getByTitle('Previous page') as HTMLButtonElement).disabled).toBe(true)
 
     fireEvent.click(screen.getByTitle('Next page'))
@@ -464,7 +437,6 @@ describe('a run in detail', () => {
     renderAt('/runs/:id', '/runs/42', <TestRunDetail />)
 
     expect(await screen.findByText(testRun.name)).toBeTruthy()
-    // Two methods of one class: one passed, one failed.
     expect(screen.getAllByText(testResult.test_class).length).toBeGreaterThan(0)
     expect(screen.getByText('1 / 2 passed')).toBeTruthy()
     expect(screen.getAllByText('1 failed').length).toBeGreaterThan(0)
@@ -481,7 +453,6 @@ describe('a run in detail', () => {
     renderAt('/runs/:id', '/runs/42', <TestRunDetail />)
     await screen.findByText(testRun.name)
 
-    // 3 tests, 2 passed, 1 failed, and the run's own status.
     expect(screen.getAllByText('3').length).toBeGreaterThan(0)
     expect(screen.getAllByText(testRun.status).length).toBeGreaterThan(0)
     expect(screen.getAllByText(testRun.runner_account as string).length).toBeGreaterThan(0)
@@ -554,7 +525,6 @@ describe('a run in detail', () => {
 
     expect(await screen.findByText(/no results to report on/i)).toBeTruthy()
     expect(client.saveBlob).not.toHaveBeenCalled()
-    // The button comes back rather than staying stuck on "Preparing…".
     await waitFor(() =>
       expect((screen.getByTitle(/download this run as a pdf/i) as HTMLButtonElement).disabled).toBe(
         false,
@@ -565,13 +535,11 @@ describe('a run in detail', () => {
   it('hides passing test cases when the results are filtered to failures', async () => {
     renderAt('/runs/:id', '/runs/42', <TestRunDetail />)
     await screen.findByText(testRun.name)
-    // Both methods belong to one class, and that class contains a failure.
     expect(screen.getAllByText(testResult.test_class).length).toBeGreaterThan(0)
 
     fireEvent.click(screen.getByRole('button', { name: /^Filters/ }))
     fireEvent.click(await screen.findByRole('button', { name: 'Passed' }))
 
-    // Nothing here passed outright, so filtering to passes empties the table.
     await waitFor(() => expect(screen.queryByText(testResult.test_class)).toBeNull())
   })
 
@@ -603,8 +571,6 @@ describe('a run in detail', () => {
     renderAt('/runs/:id', '/runs/42', <TestRunDetail />)
     await screen.findByText(testRun.name)
 
-    // An artifact used to be reachable only by someone who already knew its
-    // integer id: it could be uploaded and downloaded, but never enumerated.
     expect(await screen.findByText(artifact.original_filename)).toBeTruthy()
     expect(lastCall(client.testRunsApi.getArtifacts)[0]).toBe(42)
   })
@@ -613,7 +579,6 @@ describe('a run in detail', () => {
     renderAt('/runs/:id', '/runs/42', <TestRunDetail />)
     await screen.findByText(artifact.original_filename)
 
-    // 4,718,592 bytes. Printing the byte count would be honest and useless.
     expect(screen.getByText(/4\.5 MB/)).toBeTruthy()
   })
 
@@ -630,8 +595,6 @@ describe('a run in detail', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /download/i }))
 
-    // The endpoint is authenticated. An <a href> would arrive without a token
-    // and redirect the reader to the login screen.
     await waitFor(() =>
       expect(lastCall(client.artifactsApi.download)[0]).toBe(artifact.id),
     )
@@ -645,8 +608,6 @@ describe('a run in detail', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /download/i }))
 
-    // The retention sweep can remove the file while the page still lists it,
-    // so a failed download is an ordinary outcome and has to be visible.
     expect(await screen.findByText(/File not found on disk/)).toBeTruthy()
   })
 
@@ -732,6 +693,33 @@ describe('the Test Stations screen', () => {
     expect(renamed.mock.calls[0].slice(0, 2)).toEqual([testStation.account, 'bench-renamed'])
   })
 
+  it('closes the rename dialog with Escape or its backdrop without renaming', async () => {
+    renderAt('/test-stations', '/test-stations', <TestStations />)
+    await screen.findByText(testStation.account)
+
+    fireEvent.click(screen.getByRole('button', { name: `Actions for ${testStation.account}` }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Rename' }))
+    const field = await screen.findByLabelText('Rename station to')
+    fireEvent.keyDown(field, { key: 'Enter' })
+    fireEvent.click(field)
+    expect(screen.getByRole('dialog', { name: 'Rename Test Station' })).toBeTruthy()
+    fireEvent.keyDown(field, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Rename Test Station' })).toBeNull())
+
+    fireEvent.click(screen.getByRole('button', { name: `Actions for ${testStation.account}` }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Rename' }))
+    await screen.findByLabelText('Rename station to')
+    fireEvent.keyDown(document.body, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Rename Test Station' })).toBeNull())
+
+    fireEvent.click(screen.getByRole('button', { name: `Actions for ${testStation.account}` }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Rename' }))
+    await screen.findByLabelText('Rename station to')
+    fireEvent.click(screen.getByRole('button', { name: 'Close Rename Test Station backdrop' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Rename Test Station' })).toBeNull())
+    expect(client.testStationsApi.rename).not.toHaveBeenCalled()
+  })
+
   it('offers to revoke the key from the station that holds it', async () => {
     vi.mocked(client.testStationsApi.listApiKeys).mockResolvedValue([
       {
@@ -812,7 +800,6 @@ describe('settings', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /clear credential/i }))
 
-    // Losing the credential silently would stop every result sync from Bud.
     await settle()
     expect(client.settingsApi.updatePLM).not.toHaveBeenCalled()
   })
@@ -864,7 +851,6 @@ describe('users', () => {
 
     fireEvent.click(within(row as HTMLElement).getByTitle('Delete user'))
 
-    // react-query hands the mutation a context object alongside the id.
     await waitFor(() => expect(client.usersApi.delete).toHaveBeenCalled())
     expect(vi.mocked(client.usersApi.delete).mock.calls[0][0]).toBe(otherUser.id)
   })
@@ -876,8 +862,6 @@ describe('users', () => {
 
     fireEvent.click(within(row as HTMLElement).getByTitle('Delete user'))
 
-    // The mutation is not called synchronously, so a bare assertion here would
-    // pass whether the confirmation was honoured or not.
     await settle()
     expect(client.usersApi.delete).not.toHaveBeenCalled()
   })
@@ -907,7 +891,6 @@ describe('users', () => {
     const field = (await screen.findByTitle(
       'Generated invitation link',
     )) as HTMLInputElement
-    // The token belongs in the fragment, so it stays out of server logs.
     expect(field.value).toContain('#token=')
     expect(field.readOnly).toBe(true)
   })

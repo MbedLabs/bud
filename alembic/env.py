@@ -1,6 +1,8 @@
 """
 Alembic async migration environment for Bud.
 Reads DATABASE_URL from app.core.config, overridable via BUD_DATABASE_URL or DATABASE_URL env.
+
+Importing app.models registers every model on Base.metadata.
 """
 
 import asyncio
@@ -17,7 +19,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from app.core.config import settings  # noqa: E402
 from app.db.database import Base  # noqa: E402
 
-# Import all models so Base.metadata sees them
 import app.models  # noqa: E402, F401
 import app.models.user  # noqa: E402, F401
 

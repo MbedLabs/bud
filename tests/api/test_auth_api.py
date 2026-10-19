@@ -154,7 +154,6 @@ class TestRefreshRotation:
         assert rotation.status_code == 200
         assert refresh_cookie(rotation) != first_token, "the token must rotate"
 
-        # Clear the jar so only the consumed token is presented.
         unauthenticated_client.cookies.clear()
         replay = unauthenticated_client.post(
             "/api/auth/refresh", cookies={"refresh_token": first_token}

@@ -1,9 +1,9 @@
-import { selectValue } from './select-value'
 // @vitest-environment jsdom
 /**
  * The admin audit log screen: it lists events newest first and filters them by
  * event group and outcome.
  */
+import { selectValue } from './select-value'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'

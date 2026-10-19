@@ -3,7 +3,7 @@ FROM --platform=$BUILDPLATFORM node:24-alpine AS ui-build
 WORKDIR /ui
 
 COPY ui/package.json ui/package-lock.json ./
-RUN npm ci
+RUN npm ci --ignore-scripts
 
 COPY ui/ ./
 RUN npm run build
@@ -45,8 +45,6 @@ COPY --from=backend-build /usr/local /usr/local
 COPY --from=backend-build /build /app
 
 COPY --chmod=0644 docker/nginx.conf /etc/nginx/sites-enabled/default
-# Included from the server block and from every location that sets a header of
-# its own: nginx drops inherited add_header directives at those levels.
 COPY --chmod=0644 docker/security-headers.conf /etc/nginx/security-headers.conf
 COPY --chmod=0644 docker/runtime-paths.conf /etc/nginx/conf.d/runtime-paths.conf
 COPY --chmod=0644 docker/supervisord.conf /etc/supervisord.conf
@@ -67,14 +65,10 @@ RUN useradd -m appuser \
     && rm -f /var/www/app/runtime-config.js \
     && ln -s /run/bud/runtime-config.js /var/www/app/runtime-config.js
 
-# PID 1 prepares Cloudron's writable mounts, then supervisord/nginx drop their
-# application-facing processes to appuser. The same image is used everywhere.
 USER root
 
 EXPOSE 8080
 
-# Readiness (not liveness): reports healthy only once the database is reachable.
-# Generous start-period covers first-boot schema creation before probing begins.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s \
     CMD curl -f http://localhost:8080/api/ready || exit 1
 

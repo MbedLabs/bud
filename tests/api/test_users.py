@@ -11,7 +11,6 @@ from app.models.user_token import UserToken, UserTokenPurpose
 
 @pytest.mark.asyncio
 async def test_delete_user_success(client: TestClient, db_session: AsyncSession):
-    # 1. Create a user to delete
     user_to_delete = User(
         email="to_delete@example.com",
         full_name="To Delete",
@@ -23,7 +22,6 @@ async def test_delete_user_success(client: TestClient, db_session: AsyncSession)
     await db_session.flush()
     user_id = user_to_delete.id
 
-    # 2. Add a token for this user
     token = UserToken(
         user_id=user_id,
         purpose=UserTokenPurpose.invite,
@@ -33,11 +31,9 @@ async def test_delete_user_success(client: TestClient, db_session: AsyncSession)
     db_session.add(token)
     await db_session.commit()
 
-    # 3. Delete the user (using /api/users prefix)
     response = client.delete(f"/api/users/{user_id}")
     assert response.status_code == 204
 
-    # 4. Verify user and tokens are gone
     result = await db_session.execute(select(User).where(User.id == user_id))
     assert result.scalar_one_or_none() is None
 
@@ -47,7 +43,6 @@ async def test_delete_user_success(client: TestClient, db_session: AsyncSession)
 
 @pytest.mark.asyncio
 async def test_delete_user_with_invites(client: TestClient, db_session: AsyncSession):
-    # 1. Create an inviter and an invitee
     inviter = User(
         email="inviter@example.com",
         full_name="Inviter",
@@ -68,18 +63,15 @@ async def test_delete_user_with_invites(client: TestClient, db_session: AsyncSes
     db_session.add(invitee)
     await db_session.commit()
 
-    # 2. Delete the inviter
     response = client.delete(f"/api/users/{inviter_id}")
     assert response.status_code == 204
 
-    # 3. Verify invitee's invited_by_user_id is now None
     await db_session.refresh(invitee)
     assert invitee.invited_by_user_id is None
 
 
 @pytest.mark.asyncio
 async def test_delete_self_fails(client: TestClient, test_user: User):
-    # test_user.id is 1 (from conftest)
     response = client.delete(f"/api/users/{test_user.id}")
     assert response.status_code == 400
     assert response.json()["detail"] == "Admin users cannot delete their own account"

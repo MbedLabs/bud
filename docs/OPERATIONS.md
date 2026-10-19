@@ -2,7 +2,7 @@
 
 A practical guide for running Bud in production: monitoring, logs, backup and
 restore, upgrades, and disaster recovery. Runtime configuration lives in
-environment variables — see [`.env.example`](../.env.example) for the full list.
+environment variables; see [`.env.example`](../.env.example) for the full list.
 
 ## Image tags
 
@@ -11,21 +11,21 @@ Images are published to `ghcr.io/mbedlabs/bud`:
 | Tag | Moves? | Use for |
 |---|---|---|
 | `sha-<commit>` | immutable | exact reproducibility / debugging |
-| `1.2.3` (full semver) | immutable | **production — pin this** |
+| `1.2.3` (full semver) | immutable | **production: pin this** |
 | `1.2`, `1` | moving (stable releases) | tracking a minor/major line |
 | `stable` | moving → newest stable release | low-maintenance production |
 | `latest` | moving → newest `main` build | **development / staging only** |
 
 Set `BUD_VERSION` in `.env` to a pinned version (e.g. `1.2.3`) or `stable`.
-Never run `latest` in production — it is the rolling development build. `stable`
+Never run `latest` in production: it is the rolling development build. `stable`
 starts existing once you publish your first `vX.Y.Z` release tag.
 
 ## Health checks
 
-- `GET /api/health` — **liveness**. Reports only that the API process is up; it
+- `GET /api/health`: **liveness**. Reports only that the API process is up; it
   does not touch PostgreSQL, so it never claims a database connection it has not
   verified. Use it for a cheap "is the process alive?" signal.
-- `GET /api/ready` — **readiness**. Runs `SELECT 1` against PostgreSQL and returns
+- `GET /api/ready`: **readiness**. Runs `SELECT 1` against PostgreSQL and returns
   `200` only when the database is reachable, `503` otherwise. This is what the
   container `HEALTHCHECK` and `docker-compose` healthcheck probe, and it is the
   right target for load-balancer / orchestrator readiness checks.
@@ -34,12 +34,12 @@ starts existing once you publish your first `vX.Y.Z` release tag.
 
 Two independent token lifetimes, tunable via environment variables (no code change):
 
-- **User sessions** — `ACCESS_TOKEN_EXPIRE_MINUTES` (default `10080`, i.e. 7 days).
+- **User sessions**: `ACCESS_TOKEN_EXPIRE_MINUTES` (default `10080`, i.e. 7 days).
   The bearer token a browser receives at login. Seven days favours convenience;
   if a leaked token's exposure window matters more than staying signed in,
   shorten it (e.g. `1440` for 24h). Users are re-prompted to log in once both the
   access and refresh sessions expire.
-- **Runner tokens** — `RUNNER_TOKEN_EXPIRE_HOURS` (default `2160`, i.e. 90 days).
+- **Runner tokens**: `RUNNER_TOKEN_EXPIRE_HOURS` (default `2160`, i.e. 90 days).
   Issued at runner registration and intentionally long-lived; a runner stays
   usable for heartbeat/results while its `last_heartbeat` is within
   `RUNNER_HEARTBEAT_TIMEOUT`. This is separate from user sessions above.
@@ -118,9 +118,9 @@ Bud, and your log aggregator. Pass the header from your edge (nginx:
 
 ## Metrics (Prometheus)
 
-- `GET /api/metrics` — Prometheus text format.
-- `http_requests_total{method,path,status}` — request counts by route template.
-- `http_request_duration_seconds{method,path}` — latency histogram.
+- `GET /api/metrics`: Prometheus text format.
+- `http_requests_total{method,path,status}`: request counts by route template.
+- `http_request_duration_seconds{method,path}`: latency histogram.
 - Plus standard Python process/GC metrics.
 
 Scrape config:
@@ -171,7 +171,7 @@ then log in and confirm recent runs and artifacts are visible.
 `MAX_RUN_UPLOAD_BYTES` defaults to 250 MiB. A runner creates a `TestRun` for a
 suite execution and may attach multiple artifacts to it: the first setting caps
 each file, and the second caps the combined committed and reserved bytes for
-that run. The aggregate boundary is the run—not the suite name—so separate
+that run. The aggregate boundary is the run, not the suite name, so separate
 executions of the same named suite receive separate run budgets.
 
 Bud reserves run capacity before an upload. `UPLOADS_PER_15_MINUTES` and
@@ -217,11 +217,11 @@ Cloudron's backup.
 
 Security-relevant events are written to the `audit_events` table in the same transaction as the action: sign-in, sign-out, session refresh, password change and reset, email verification and email change; user creation, invitation, role change, activation, deletion; groups, station registration, enrolment keys and station removal; configuration changes; deletions, exports, imports and attachments. A failed sign-in or password reset is recorded even though the request itself fails. Each event carries the acting user or `anonymous`/`service`/`runner`, the action, the target, the request id (the `x-request-id` response header), the client address and user agent, the outcome and details without secrets.
 
-Administrators read the log under Audit log in the sidebar, or with `GET /api/audit` (filters: `actor_user_id`, `action` or an action prefix ending in `.`, `target_type`, `target_id`, `product`, `outcome`, `since`, `until`, `limit`, `offset`). No endpoint changes or deletes an event.
+Users with the `audit.view` permission read the log under Audit log in the sidebar, or with `GET /api/audit`. Every Admin has it; any other user has it through a group with a policy that grants it, such as the shipped Audit log policy, which the shipped Application Administrators group includes. Filters: `actor_user_id`, `action` or an action prefix ending in `.`, `target_type`, `target_id`, `product_id`, `outcome`, `since`, `until`; paging: `limit` (1 to 500, default 50) and `offset`. No endpoint changes or deletes an event.
 
 The client address is the one the image's own nginx received. Behind another reverse proxy (Cloudron, a load balancer) it is that proxy's address.
 
-Access requests are emailed to every active administrator through the transactional mail settings; without SMTP the request is still recorded and shown on the Users page, and the user is told the email could not be sent.
+Access requests are emailed through the transactional mail settings to every active Admin and every active user with `access.manage`, with a link to Access, where they are listed under Requests. When the email cannot be sent (SMTP is disabled or not fully configured, or the send fails), the request is still recorded and listed there, and the user is told the email could not be sent.
 
 Retention is the operator's choice. The application never deletes events; to remove old ones, run on a schedule:
 
@@ -252,7 +252,7 @@ tag. Never run a newer schema against an older application version.
 
 ## Disaster recovery
 
-- **RPO** equals your backup cadence — nightly dumps mean up to 24h of loss;
+- **RPO** equals your backup cadence: nightly dumps mean up to 24h of loss;
   schedule to your tolerance and copy backups off the host.
 - **RTO** is dominated by Postgres restore time; rehearse the restore path
   against a scratch database at least once before you depend on it.
@@ -277,6 +277,6 @@ pip install pip-tools
 pip-compile --strip-extras --output-file=constraints.txt pyproject.toml
 ```
 
-The container runs unprivileged end to end (`USER appuser` — supervisord,
+The container runs unprivileged end to end (`USER appuser`: supervisord,
 nginx on port 8080, and uvicorn), which also satisfies Kubernetes
 `runAsNonRoot` policies.

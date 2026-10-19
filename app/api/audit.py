@@ -1,4 +1,4 @@
-"""Audit log API (admin only): read the audit events, newest first, with filters.
+"""Audit log API for users with ``audit.view``: read the audit events, newest first, with filters.
 
 There is no endpoint that changes or deletes an event.
 """

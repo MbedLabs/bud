@@ -1,8 +1,8 @@
 Hello ${publisher_name},
 
-${requester_name} (${requester_email}) requested the report for Bud run #${run_id} in Bloom project ${project}.
+${requester_name} (${requester_email}) requested the report for ${app_name} run #${run_id} in Bloom project ${project}.
 
 Open the run to publish its report to Bloom or refuse the request with a reason:
 ${review_link}
 
-${app_name}
+${app_identity}

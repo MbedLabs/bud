@@ -1,4 +1,3 @@
-import { selectValue } from './select-value'
 // @vitest-environment jsdom
 /**
  * Building a custom run.
@@ -10,6 +9,7 @@ import { selectValue } from './select-value'
  * picks the run up when it next checks in - so nothing here may claim a run is
  * under way.
  */
+import { selectValue } from './select-value'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
@@ -100,8 +100,6 @@ describe('choosing what to run', () => {
     renderScreen()
     await screen.findByText('VoltageTest')
 
-    // An absolute path on the bench means nothing off that machine; this is the
-    // form the station's loader actually resolves.
     expect(screen.getByText('demo_voltage.VoltageTest')).toBeTruthy()
   })
 
@@ -109,8 +107,6 @@ describe('choosing what to run', () => {
     renderScreen()
     await screen.findByText('VoltageTest')
 
-    // Which station a case can run on is the whole constraint, so it cannot be
-    // something the reader has to go and look up.
     const voltage = screen.getByText('VoltageTest').closest('label') as HTMLElement
     const boot = screen.getByText('BootTest').closest('label') as HTMLElement
     expect(within(voltage).getByText('bench-01')).toBeTruthy()
@@ -131,8 +127,6 @@ describe('choosing what to run', () => {
 
     pick('VoltageTest')
 
-    // Two numbers because they answer different questions: how much was picked,
-    // and how much will actually execute.
     expect(await screen.findByText(/1 test case, 2 methods/)).toBeTruthy()
   })
 
@@ -147,8 +141,6 @@ describe('choosing what to run', () => {
 
     await waitFor(() => expect(screen.queryByText('VoltageTest')).toBeNull())
     expect(screen.getByText('ThermalTest')).toBeTruthy()
-    // The catalogue arrives whole and is not paged, so this filter sees all of
-    // it - unlike the run list, where searching locally would be a bug.
     expect(vi.mocked(client.catalogApi.list).mock.calls.length).toBe(before)
   })
 
@@ -177,8 +169,6 @@ describe('warning before the selection splits', () => {
     pick('VoltageTest')
     pick('BootTest')
 
-    // Boot runs on both benches, so the server places it alongside Voltage on
-    // bench-01. Warning here would show a split that never happens.
     await waitFor(() => expect(screen.getByText(/2 test cases/)).toBeTruthy())
     expect(screen.queryByText(/separate runs/i)).toBeNull()
   })
@@ -190,8 +180,6 @@ describe('warning before the selection splits', () => {
     pick('VoltageTest')
     pick('ThermalTest')
 
-    // Voltage has only run on bench-01 and Thermal only on bench-02, so neither
-    // can move. The reader is told before committing, not after.
     const warning = await screen.findByText(/2 separate runs/i)
     expect(warning.textContent).toContain('bench-01')
     expect(warning.textContent).toContain('bench-02')
@@ -224,7 +212,6 @@ describe('queueing', () => {
       }),
     )
 
-    // The narrowed list replaces the old one in place rather than blanking.
     await screen.findByText('VoltageTest')
     pick('VoltageTest')
     fireEvent.click(queueButton())
@@ -260,8 +247,6 @@ describe('queueing', () => {
 
     fireEvent.click(queueButton())
 
-    // The station picks it up on its own schedule. Saying "started" would be a
-    // claim Bud cannot make.
     expect(await screen.findByText(/1 request queued/i)).toBeTruthy()
     expect(screen.getByText(/waiting for the station to check in/i)).toBeTruthy()
   })
@@ -290,8 +275,6 @@ describe('queueing', () => {
 
     fireEvent.click(queueButton())
 
-    // A partial success that only reported the successful half would leave the
-    // reader believing they queued something they did not.
     expect(await screen.findByText('Not queued')).toBeTruthy()
     expect(screen.getByText(/Has not run on bench-01/)).toBeTruthy()
   })
@@ -304,7 +287,6 @@ describe('queueing', () => {
     fireEvent.click(queueButton())
     await screen.findByText(/1 request queued/i)
 
-    // Otherwise the next click queues the same tests a second time.
     expect(checkbox('VoltageTest').checked).toBe(false)
     expect(queueButton().hasAttribute('disabled')).toBe(true)
   })
@@ -331,8 +313,6 @@ describe('an empty catalogue', () => {
     vi.mocked(client.catalogApi.list).mockResolvedValue({ entries: [], total: 0 } as never)
     renderScreen()
 
-    // "No test cases" with no reason reads as a bug. The reason is that Bud
-    // learns test cases from runs, and has not seen one yet.
     expect(await screen.findByText(/no test cases yet/i)).toBeTruthy()
     expect(screen.getByText(/does not read a station/i)).toBeTruthy()
   })
@@ -355,8 +335,6 @@ describe('the catalogue rows', () => {
     renderScreen()
     await screen.findByText('VoltageTest')
 
-    // Picking a case that has been failing is a decision the reader should be
-    // able to make from this screen.
     const voltage = screen.getByText('VoltageTest').closest('label') as HTMLElement
     const boot = screen.getByText('BootTest').closest('label') as HTMLElement
     expect(within(voltage).getByLabelText(/passed when last run/i)).toBeTruthy()
