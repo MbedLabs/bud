@@ -10,12 +10,12 @@ export default function AuthPageShell({ children }: Readonly<{ children: ReactNo
         <div className="flex flex-col items-center mb-6">
           <img
             src={BUD_LOGO_DARK}
-            alt="Bud by EmbedLabs"
+            alt="Bud TMP by EmbedLabs"
             className="h-16 w-auto max-w-full object-contain mb-3 hidden dark:block"
           />
           <img
             src={BUD_LOGO_LIGHT}
-            alt="Bud by EmbedLabs"
+            alt="Bud TMP by EmbedLabs"
             className="h-16 w-auto max-w-full object-contain mb-3 dark:hidden"
           />
         </div>

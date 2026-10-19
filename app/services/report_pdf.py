@@ -30,6 +30,7 @@ from reportlab.platypus import (
     TableStyle,
 )
 
+from app.core.identity import BUD_PRODUCT_IDENTITY, BUD_PRODUCT_NAME
 from app.core.timestamps import second_utc
 
 ASSETS = Path(__file__).resolve().parent.parent / "assets"
@@ -409,7 +410,9 @@ def _header(request: ReportRequest, styles: dict[str, ParagraphStyle], company_l
         Paragraph(request.subtitle, styles["subtitle"]),
         Paragraph(
             f"Generated {second_utc(generated)}"
-            + (f" &middot; Bud {request.app_version}" if request.app_version else ""),
+            + (
+                f" &middot; {BUD_PRODUCT_NAME} {request.app_version}" if request.app_version else ""
+            ),
             styles["subtitle"],
         ),
     ]
@@ -499,7 +502,7 @@ def _run_facts(run: RunDetail, styles: dict[str, ParagraphStyle]) -> Table:
         ["Software under test", repo(run.software_under_test_url, run.software_under_test_ref)],
     ]
     if run.run_url:
-        rows.append(["Open in Bud", Paragraph(link(run.run_url), styles["body"])])
+        rows.append([f"Open in {BUD_PRODUCT_NAME}", Paragraph(link(run.run_url), styles["body"])])
 
     table = Table(rows, colWidths=[38 * mm, None], hAlign="LEFT")
     table.setStyle(
@@ -530,7 +533,7 @@ def render_report(request: ReportRequest, company_logo=None) -> bytes:
         topMargin=PAGE_MARGIN,
         bottomMargin=FOOTER_HEIGHT + 6 * mm,
         title=request.title,
-        author="Bud TMP by EmbedLabs",
+        author=BUD_PRODUCT_IDENTITY,
         subject=request.subtitle,
     )
 

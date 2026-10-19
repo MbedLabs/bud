@@ -12,6 +12,7 @@ from tenacity import (
     wait_exponential,
 )
 
+from app.core.identity import BUD_PRODUCT_NAME
 from app.db import database as db
 from app.models import TestResult, TestRun
 from app.services.bloom_publish import bloom_post
@@ -58,7 +59,7 @@ async def _coalesce_results_by_tc_id(
             {
                 "tc_id": tc_id,
                 "status": "Passed",
-                "comment": f"Last result from Bud run {test_run_id}, executed at {executed_at}",
+                "comment": f"Last result from {BUD_PRODUCT_NAME} run {test_run_id}, executed at {executed_at}",
                 "executed_at": executed_at,
                 "bud_run_id": test_run_id,
             },
@@ -155,7 +156,7 @@ async def sync_results_to_bloom(test_run_id: int):
                     stage="bloom_sync",
                     status="skipped",
                     title="Bloom sync skipped",
-                    message="Bloom URL or access token is not configured in Bud settings.",
+                    message=f"Bloom URL or access token is not configured in {BUD_PRODUCT_NAME} settings.",
                 )
                 await session.commit()
                 return

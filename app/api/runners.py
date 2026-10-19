@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.auth import get_current_user, require_permission
 from app.core.config import settings
 from app.core.deps import get_current_runner, limiter, require_runner_api_key
+from app.core.identity import BUD_PRODUCT_NAME
 from app.core.runner_keys import mark_used, mint_key
 from app.core.security import generate_runner_token, get_password_hash, verify_password
 from app.db import get_db
@@ -88,7 +89,7 @@ async def register_runner(
                     status_code=409,
                     detail=(
                         "This Test Station already has an API key. Delete it in "
-                        "Bud before enrolling the station with a new one."
+                        f"{BUD_PRODUCT_NAME} before enrolling the station with a new one."
                     ),
                 )
         if runner.account != account:

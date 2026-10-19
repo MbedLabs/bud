@@ -84,7 +84,7 @@ export default function AcceptInvite() {
       {!submitMessage && (
         <>
           <h1 className="text-2xl font-bold text-foreground mb-2">Accept Invitation</h1>
-          <p className="text-sm text-muted-foreground mb-6">Set your account password to activate Bud access.</p>
+          <p className="text-sm text-muted-foreground mb-6">Set your account password to activate Bud TMP access.</p>
         </>
       )}
 

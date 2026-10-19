@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
+from app.core.identity import BUD_PRODUCT_NAME
 from app.models import Artifact, Runner, TestResult, TestRun
 from app.services.report_pdf import (
     AssertionDetail,
@@ -119,12 +120,12 @@ async def _build_run_scoped_report(db: AsyncSession, run: TestRun, *, title: str
 
 
 async def build_run_report(db: AsyncSession, run: TestRun) -> ReportRequest:
-    return await _build_run_scoped_report(db, run, title="Bud Run Report")
+    return await _build_run_scoped_report(db, run, title=f"{BUD_PRODUCT_NAME} Run Report")
 
 
 async def build_suite_report(db: AsyncSession, run: TestRun) -> ReportRequest:
     """The generating run's suite report, never historical runs with the same name."""
-    return await _build_run_scoped_report(db, run, title="Bud Suite Report")
+    return await _build_run_scoped_report(db, run, title=f"{BUD_PRODUCT_NAME} Suite Report")
 
 
 async def build_summary_report(
@@ -182,7 +183,7 @@ async def build_summary_report(
     per_day = sorted(day_outcomes.items(), key=lambda item: item[0], reverse=True)[:60]
 
     return ReportRequest(
-        title="Bud Test Report",
+        title=f"{BUD_PRODUCT_NAME} Test Report",
         subtitle="Test outcomes across the selected runs",
         filters=[
             ("Window", f"Last {days} days" if days else "All time"),
