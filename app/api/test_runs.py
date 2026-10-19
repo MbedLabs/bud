@@ -2,7 +2,7 @@
 Test runs API endpoints.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Literal, Optional, Union
 
 import httpx
@@ -72,7 +72,11 @@ async def create_test_run(
         ref_software_under_test=data.ref_software_under_test,
         product_id=data.product_composition_id,
         runner_id=runner_id,
-        started_at=datetime.utcnow() if data.status.value == "Running" else None,
+        started_at=(
+            datetime.now(timezone.utc).replace(tzinfo=None)
+            if data.status.value == "Running"
+            else None
+        ),
     )
 
     db.add(test_run)
@@ -295,7 +299,10 @@ async def _scope_conditions(
         conditions.append(TestRun.name == suite)
 
     if days is not None:
-        conditions.append(TestRun.created_at >= datetime.utcnow() - timedelta(days=days))
+        conditions.append(
+            TestRun.created_at
+            >= datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=days)
+        )
 
     return conditions
 
@@ -460,7 +467,7 @@ async def update_test_run(
     if data.status is not None:
         test_run.status = data.status.value
         if data.status.value in ("Completed", "Cancelled"):
-            test_run.completed_at = datetime.utcnow()
+            test_run.completed_at = datetime.now(timezone.utc).replace(tzinfo=None)
         await record_test_run_event(
             db,
             test_run_id=test_run.id,
