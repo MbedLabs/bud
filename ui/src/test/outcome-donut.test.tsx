@@ -73,8 +73,6 @@ describe('what the donut tells the reader', () => {
   it('carries an icon alongside each colour', () => {
     const { container } = renderDonut()
 
-    // Colour alone would leave pass and fail indistinguishable to a
-    // deuteranope; every legend row pairs its colour with a glyph.
     for (const outcome of outcomes) {
       expect(legendRow(outcome.label).querySelector('svg')).toBeTruthy()
     }
@@ -102,7 +100,6 @@ describe('the arithmetic behind the arcs', () => {
 
     const [passed] = arcs(container)
     const [length] = (passed.getAttribute('stroke-dasharray') ?? '').split(' ').map(Number)
-    // 70% of the ring, less the gap that separates it from the next arc.
     expect(length).toBeCloseTo(0.7 * circumference - 3, 1)
   })
 
@@ -111,7 +108,6 @@ describe('the arithmetic behind the arcs', () => {
     const circumference = 2 * Math.PI * 42
     const offsets = arcs(container).map((arc) => Number(arc.getAttribute('stroke-dashoffset')))
 
-    // Offsets run negative as the ring fills: 0, then 70%, then 90%.
     expect(offsets[0]).toBeCloseTo(0, 5)
     expect(offsets[1]).toBeCloseTo(-0.7 * circumference, 1)
     expect(offsets[2]).toBeCloseTo(-0.9 * circumference, 1)
@@ -126,8 +122,6 @@ describe('the arithmetic behind the arcs', () => {
       ],
     })
 
-    // A zero-length arc still paints its own end caps, which reads as a stray
-    // tick on the ring.
     expect(arcs(container)).toHaveLength(1)
   })
 
@@ -140,8 +134,6 @@ describe('the arithmetic behind the arcs', () => {
       ],
     })
 
-    // "No failures" is information; an absent row would just look like a
-    // shorter legend.
     expect(within(legendRow('Failed')).getByText('0')).toBeTruthy()
     expect(within(legendRow('Failed')).getByText('0%')).toBeTruthy()
   })
@@ -155,8 +147,6 @@ describe('the arithmetic behind the arcs', () => {
       ],
     })
 
-    // A filter that empties one outcome must not repaint the survivors, or
-    // failures would be reading as passes.
     const drawn = arcs(container)
     expect(drawn[0].getAttribute('class')).toContain('text-red-600')
     expect(drawn[1].getAttribute('class')).toContain('text-muted-foreground')
@@ -171,9 +161,7 @@ describe('the arithmetic behind the arcs', () => {
     })
 
     expect(arcs(container)).toHaveLength(0)
-    // "0" is the hero total and both legend counts, so scope to each.
     expect(within(legendRow('Passed')).getByText('0')).toBeTruthy()
-    // 0/0 is not 0%, and printing one would be a claim the data cannot support.
     expect(within(legendRow('Passed')).getByText('—')).toBeTruthy()
     expect(within(legendRow('Failed')).getByText('—')).toBeTruthy()
   })

@@ -20,7 +20,7 @@ from app.schemas.auth import (
     UserCreate,
 )
 
-VALID = "correct horse battery"  # 21 chars, well within limits
+VALID = "correct horse battery"
 
 
 def test_validator_accepts_minimum_length():
@@ -35,20 +35,16 @@ def test_validator_rejects_short(length):
 
 
 def test_validator_rejects_overlong_bytes():
-    # Multi-byte chars must be counted as bytes, not characters, because bcrypt
-    # truncates on bytes.
+    """Length is counted in bytes: 37 two-byte characters are 74 bytes, over the 72-byte limit."""
     too_long = "a" * (PASSWORD_MAX_BYTES + 1)
     with pytest.raises(ValueError, match="too long"):
         validate_password_strength(too_long)
-    # 37 two-byte chars = 74 bytes > 72, even though only 37 "characters".
     multibyte = "é" * 37
     assert len(multibyte) < PASSWORD_MAX_BYTES
     with pytest.raises(ValueError, match="too long"):
         validate_password_strength(multibyte)
 
 
-# Each schema that carries a user-chosen password must reject a short one and
-# accept a compliant one.
 SHORT = "short"
 
 

@@ -65,6 +65,11 @@ def _replace_pending_email_directly(user_id: int, pending_email: str) -> None:
 
 
 def test_email_change_requires_confirmation_and_ends_sessions(client):
+    """The account holder requests the change, and no email is sent before an administrator
+    approves it. After approval the login email is unchanged, the confirmation names both
+    addresses and only the old address logs in. After confirmation the earlier access and
+    refresh tokens are rejected, only the new address logs in and the account is verified.
+    """
     admin_access = _admin_access(client)
     old_email = unique_email("mover-old")
     new_email = unique_email("mover-new")
@@ -76,8 +81,6 @@ def test_email_change_requires_confirmation_and_ends_sessions(client):
     access1 = login1.json()["access_token"]
     refresh1 = client.cookies.get(COOKIE)
 
-    # The account holder can only request the change. No email is sent before an
-    # administrator approves it.
     captured: dict[str, str] = {}
     import app.api.users as users_module
 
@@ -107,8 +110,6 @@ def test_email_change_requires_confirmation_and_ends_sessions(client):
     finally:
         users_module.send_email_change_email = original
 
-    # Approved but unconfirmed: login email is unchanged and the confirmation
-    # email names both addresses.
     me = client.get("/api/auth/me", headers=_bearer(access1))
     assert me.status_code == 200
     assert me.json()["email"] == old_email
@@ -116,7 +117,6 @@ def test_email_change_requires_confirmation_and_ends_sessions(client):
     assert me.json()["email_change_status"] == "awaiting_confirmation"
     assert captured["old_email"] == old_email
     assert captured["new_email"] == new_email
-    # The new address cannot log in yet; the old one still can.
     assert _login(client, new_email, password).status_code == 401
     assert _login(client, old_email, password).status_code == 200
 
@@ -125,8 +125,6 @@ def test_email_change_requires_confirmation_and_ends_sessions(client):
     confirm = client.post("/api/auth/confirm-email-change", json={"token": match.group(1)})
     assert confirm.status_code == 200, confirm.text
 
-    # Confirmed: pre-change access/refresh tokens are dead, old address cannot log
-    # in, new address can, and the account is verified.
     assert client.get("/api/auth/me", headers=_bearer(access1)).status_code == 401
     client.cookies.clear()
     assert client.post("/api/auth/refresh", cookies={COOKIE: refresh1}).status_code == 401

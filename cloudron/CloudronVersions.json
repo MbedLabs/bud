@@ -22,7 +22,7 @@
                 },
                 "description": "Bud TMP by EmbedLabs provides test management and execution for automated software, hardware and system testing.\n",
                 "changelog": "* Per-station enrolment credentials and updated Test Stations management.\n* Improved run actions and Available test cases catalogue.\n* Clearer API conflict and error responses.\n",
-                "postInstallMessage": "Open Bud at $CLOUDRON-APP-ORIGIN and create your administrator account.\n\nThe instance starts with no accounts, so the first visit shows a setup screen\nthat asks for your name, email address and a password. It stops being reachable\nthe moment the account exists \u2014 nobody else can claim the instance.\n\nEmail \u2014 invitations, password resets and address changes \u2014 works only if you\nenabled the Email addon for this app. Without it, the administrator you create\nhere is the only way in.\n",
+                "postInstallMessage": "Open Bud at $CLOUDRON-APP-ORIGIN and create your administrator account.\n\nThe instance starts with no accounts, so the first visit shows a setup screen\nthat asks for your name, email address and a password. It stops being reachable\nthe moment the account exists; nobody else can claim the instance.\n\nEmail (invitations, password resets and address changes) works only if you\nenabled the Email addon for this app. Without it, the administrator you create\nhere is the only way in.\n",
                 "website": "https://embedlabs.net",
                 "documentationUrl": "https://github.com/MbedLabs/bud#readme",
                 "forumUrl": "https://github.com/MbedLabs/bud/discussions",
@@ -67,8 +67,8 @@
                     }
                 },
                 "description": "Bud TMP by EmbedLabs provides test management and execution for automated software, hardware and system testing.\n\nManage Test Stations and execution requests, collect results and artifacts, generate reports, and publish completed run reports to Bloom PLM. Manage users and policy groups, customize report branding, and receive run notifications.\n",
-                "changelog": "* Admin company logo on test-run PDF reports, alongside the EmbedLabs branding.\n",
-                "postInstallMessage": "Open Bud at $CLOUDRON-APP-ORIGIN and create your administrator account.\n\nThe instance starts with no accounts, so the first visit shows a setup screen\nthat asks for your name, email address and a password. It stops being reachable\nthe moment the account exists \u2014 nobody else can claim the instance.\n\nEmail \u2014 invitations, password resets and address changes \u2014 works only if you\nenabled the Email addon for this app. Without it, the administrator you create\nhere is the only way in.\n",
+                "changelog": "* Access control with groups and policies, a developer role, and separate Users and Access pages.\n* Run notifications to Microsoft Teams, Slack, Discord or any JSON endpoint.\n* Audit log of security-relevant events.\n* Optional S3-compatible storage for run artifacts and generated reports.\n* Robot Framework runs from bud-runner keep their log and report pages with the run.\n* Receive Bloom report requests, notify report publishers, and publish or refuse with a reason.\n* Company logo on test-run PDF reports, alongside the EmbedLabs branding.\n* Saved profile pictures across user displays, with initials fallback and refresh after replacement or removal.\n",
+                "postInstallMessage": "Open Bud at $CLOUDRON-APP-ORIGIN and create your administrator account.\n\nThe instance starts with no accounts, so the first visit shows a setup screen\nthat asks for your name, email address and a password. It stops being reachable\nthe moment the account exists; nobody else can claim the instance.\n\nEmail (invitations, password resets and address changes) works only if you\nenabled the Email addon for this app. Without it, the administrator you create\nhere is the only way in.\n",
                 "website": "https://embedlabs.net",
                 "documentationUrl": "https://embedlabs.net/docs#install-bud",
                 "forumUrl": "https://github.com/MbedLabs/bud/discussions",
@@ -91,7 +91,7 @@
             },
             "creationDate": "Tue, 13 Oct 2026 20:01:18 GMT",
             "ts": "Tue, 13 Oct 2026 20:01:18 GMT",
-            "publishState": "testing"
+            "publishState": "published"
         }
     }
 }

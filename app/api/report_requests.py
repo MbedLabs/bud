@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.auth import require_permission
+from app.core.identity import BUD_PRODUCT_NAME
 from app.db import get_db
 from app.models import ReportRequest, TestRun, User
 from app.services.audit import record_audit_event
@@ -93,7 +94,10 @@ async def refuse_request(
             response = await client.post(
                 f"{url}/api/bud/report-requests/{row.remote_id}/refuse",
                 headers={"Authorization": f"Bearer {token}"},
-                json={"reason": reason, "publisher": f"{user.full_name} (Bud user #{user.id})"},
+                json={
+                    "reason": reason,
+                    "publisher": f"{user.full_name} ({BUD_PRODUCT_NAME} user #{user.id})",
+                },
             )
             response.raise_for_status()
     except httpx.HTTPStatusError as exc:

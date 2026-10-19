@@ -23,7 +23,7 @@ const ACTION_GROUPS: { value: string; label: string }[] = [
   { value: 'export.', label: 'Reports' },
 ]
 
-/** The admin audit log: security-relevant events, newest first, filterable. */
+/** The audit log for users with audit.view: security-relevant events, newest first, filterable. */
 export default function AuditPage() {
   const [action, setAction] = useState('')
   const [outcome, setOutcome] = useState('')

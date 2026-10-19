@@ -41,8 +41,6 @@ describe('reading a one-time token', () => {
 
     const { result } = renderHook(() => useOneTimeToken())
 
-    // A query-string token reaches the server on every request, so it lands in
-    // access logs and in the Referer header. There is no fallback to it.
     expect(result.current).toBe('')
   })
 
@@ -77,8 +75,6 @@ describe('what is left in the address bar', () => {
 
     renderHook(() => useOneTimeToken())
 
-    // Left in place it would sit in the address bar, in browser history, and
-    // in the Referer of anything the page navigates to next.
     expect(window.location.hash).toBe('')
     expect(window.location.pathname).toBe('/accept-invite')
   })
@@ -89,8 +85,6 @@ describe('what is left in the address bar', () => {
     const { result, rerender } = renderHook(() => useOneTimeToken())
     rerender()
 
-    // The form still has to submit it, so it is held in state rather than
-    // re-read from a URL that no longer has it.
     expect(result.current).toBe('abc123')
     expect(window.location.hash).toBe('')
   })

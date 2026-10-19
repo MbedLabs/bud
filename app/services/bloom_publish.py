@@ -10,6 +10,7 @@ import httpx
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.identity import BUD_PRODUCT_NAME
 from app.models import Artifact, SystemSetting, TestResult, TestRun
 from app.services.integration_secrets import decrypt_integration_secret
 
@@ -31,7 +32,9 @@ async def bloom_credentials(db: AsyncSession) -> tuple[str, str]:
     url_setting = await db.get(SystemSetting, "bloom_url")
     token_setting = await db.get(SystemSetting, "bloom_token_encrypted")
     if not (url_setting and token_setting and url_setting.value and token_setting.value):
-        raise BloomNotConfigured("Bloom URL or access token is not configured in Bud settings.")
+        raise BloomNotConfigured(
+            f"Bloom URL or access token is not configured in {BUD_PRODUCT_NAME} settings."
+        )
     return url_setting.value.rstrip("/"), decrypt_integration_secret(token_setting.value)
 
 

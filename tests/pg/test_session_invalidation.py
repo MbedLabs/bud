@@ -62,12 +62,9 @@ def test_password_change_invalidates_all_sessions(client):
     )
     assert change.status_code == 200, change.text
 
-    # Pre-change access token is now rejected (session_version bumped).
     assert client.get("/api/auth/me", headers=_bearer(access1)).status_code == 401
-    # Pre-change refresh token is revoked.
     client.cookies.clear()
     assert client.post("/api/auth/refresh", cookies={COOKIE: refresh1}).status_code == 401
-    # Old password no longer works; the new one does.
     assert _login(client, email, old_pw).status_code == 401
     assert _login(client, email, new_pw).status_code == 200
 
@@ -87,7 +84,6 @@ def test_password_reset_invalidates_all_sessions(client):
     refresh1 = client.cookies.get(COOKIE)
     assert client.get("/api/auth/me", headers=_bearer(access1)).status_code == 200
 
-    # Capture the one-time reset token from the email the endpoint would send.
     captured: dict[str, str] = {}
     original = auth_module.send_password_reset_email
 
@@ -108,10 +104,8 @@ def test_password_reset_invalidates_all_sessions(client):
     reset = client.post("/api/auth/reset-password", json={"token": token, "new_password": new_pw})
     assert reset.status_code == 200, reset.text
 
-    # Pre-reset access token rejected, pre-reset refresh revoked.
     assert client.get("/api/auth/me", headers=_bearer(access1)).status_code == 401
     client.cookies.clear()
     assert client.post("/api/auth/refresh", cookies={COOKIE: refresh1}).status_code == 401
-    # Old password rejected; new password works.
     assert _login(client, email, old_pw).status_code == 401
     assert _login(client, email, new_pw).status_code == 200

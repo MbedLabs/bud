@@ -27,7 +27,6 @@ class TestRunCreation:
         assert response.status_code == 201, response.text
         body = response.json()
         assert body["name"] == "Nightly"
-        # The runner creates the run as execution starts, so it is already Running.
         assert body["status"] == "Running"
 
     def test_records_a_creation_event(self, client, station_request):

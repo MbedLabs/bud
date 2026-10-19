@@ -39,15 +39,16 @@ class Product(Base):
         onupdate=datetime.utcnow,
     )
 
-    # Relationships
     test_runs: Mapped[List["TestRun"]] = relationship(back_populates="product")
-    results: Mapped[List["TestResult"]] = relationship(
-        "TestResult", backref="product_ref"
-    )  # backref to avoid collision with existing attributes
+    results: Mapped[List["TestResult"]] = relationship("TestResult", backref="product_ref")
 
 
 class Runner(Base):
-    """Test runner (test bench) registration."""
+    """Test runner (test bench) registration.
+
+    Its test runs and API keys carry no ORM cascade; deleting a runner clears them by
+    statement.
+    """
 
     __tablename__ = "runners"
 
@@ -61,20 +62,22 @@ class Runner(Base):
     last_heartbeat: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
-    # Relationships. No ORM cascade: the delete handler clears both by statement.
     test_runs: Mapped[List["TestRun"]] = relationship(back_populates="runner")
     api_keys: Mapped[List["RunnerApiKey"]] = relationship(back_populates="runner")
 
 
 class RunnerApiKey(Base):
-    """An enrolment key for a single Test Station."""
+    """An enrolment key for a single Test Station.
+
+    key_prefix holds the leading characters of the key, which tell keys apart in the key
+    list.
+    """
 
     __tablename__ = "runner_api_keys"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     label: Mapped[str] = mapped_column(String(100))
     key_hash: Mapped[str] = mapped_column(String(255), unique=True, index=True)
-    # Leading characters, so the list can tell two keys apart.
     key_prefix: Mapped[str] = mapped_column(String(12))
     station_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     runner_id: Mapped[Optional[int]] = mapped_column(
@@ -90,7 +93,12 @@ class RunnerApiKey(Base):
 
 
 class TestRun(Base):
-    """A test run execution."""
+    """A test run execution.
+
+    claim_id is the client-generated idempotency key that binds retries to one queue claim.
+    selected_tests lists the explicit test cases of a custom run as importable module.Class
+    paths.
+    """
 
     __tablename__ = "test_runs"
 
@@ -102,27 +110,22 @@ class TestRun(Base):
         String(20), nullable=False, default="execution", server_default="execution"
     )
 
-    # Test software repository
     url_test_software: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     ref_test_software: Mapped[str] = mapped_column(String(100), default="main")
 
-    # Software under test repository
     url_software_under_test: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     ref_software_under_test: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
 
-    # Statistics
     total_tests: Mapped[int] = mapped_column(Integer, default=0)
     passed_tests: Mapped[int] = mapped_column(Integer, default=0)
     failed_tests: Mapped[int] = mapped_column(Integer, default=0)
     skipped_tests: Mapped[int] = mapped_column(Integer, default=0)
     duration_seconds: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
 
-    # Timestamps
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     started_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
-    # A client-generated idempotency key binds retries to one queue claim.
     claim_id: Mapped[Optional[str]] = mapped_column(
         String(36), unique=True, index=True, nullable=True
     )
@@ -130,15 +133,12 @@ class TestRun(Base):
     runner_exit_code: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     runner_error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
-    # The explicit test cases a custom run was built from, as importable `module.Class`
-    # paths.
     selected_tests: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
 
     bloom_artefact_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     bloom_artefact_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     bloom_artefact_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
 
-    # Foreign keys
     product_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("products.id"), index=True, nullable=True
     )
@@ -146,7 +146,6 @@ class TestRun(Base):
         ForeignKey("runners.id"), index=True, nullable=True
     )
 
-    # Relationships
     product: Mapped[Optional["Product"]] = relationship(back_populates="test_runs")
     runner: Mapped[Optional["Runner"]] = relationship(back_populates="test_runs")
     results: Mapped[List["TestResult"]] = relationship(
@@ -179,7 +178,10 @@ class TestRunEvent(Base):
 
 
 class TestResult(Base):
-    """Result of a single test case execution."""
+    """Result of a single test case execution.
+
+    test_run_id is optional for results stored before their run exists.
+    """
 
     __tablename__ = "test_results"
 
@@ -193,12 +195,10 @@ class TestResult(Base):
     assertions: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     test_metadata: Mapped[Optional[dict]] = mapped_column("test_metadata", JSON, nullable=True)
 
-    # OpenProject integration
     work_package_id: Mapped[Optional[int]] = mapped_column(Integer, index=True, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
-    # Foreign keys (optional: detached uploads before a TestRun exists)
     test_run_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey(TEST_RUNS_ID), index=True, nullable=True
     )
@@ -206,7 +206,6 @@ class TestResult(Base):
         ForeignKey("products.id"), index=True, nullable=True
     )
 
-    # Relationships
     test_run: Mapped[Optional["TestRun"]] = relationship(back_populates="results")
 
 
@@ -227,12 +226,10 @@ class Artifact(Base):
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
 
-    # Foreign key
     test_run_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey(TEST_RUNS_ID), nullable=True, index=True
     )
 
-    # Relationships
     test_run: Mapped[Optional["TestRun"]] = relationship(back_populates="artifacts")
 
 

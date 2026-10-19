@@ -6,11 +6,11 @@ from pathlib import Path
 from string import Template
 
 from app.core.config import settings
+from app.core.identity import BUD_PRODUCT_IDENTITY, BUD_PRODUCT_NAME
 
 logger = logging.getLogger(__name__)
 
 TEMPLATE_DIR = Path(__file__).resolve().parent.parent / "templates" / "email"
-BUD_FROM_NAME = "Bud TMP by EmbedLabs"
 
 
 class MailConfigurationError(Exception):
@@ -30,6 +30,9 @@ def render_template(template_name: str, context: dict[str, str]) -> str:
 def send_email(
     *, to_email: str, subject: str, text_body: str, html_body: str | None = None
 ) -> None:
+    """Send one email through the configured SMTP relay. A delivery failure raises
+    MailDeliveryError naming the host, port and TLS mode.
+    """
     if not settings.SMTP_ENABLED:
         raise MailConfigurationError("SMTP is disabled")
     if not settings.SMTP_HOST or not settings.SMTP_FROM_EMAIL:
@@ -37,7 +40,7 @@ def send_email(
 
     message = EmailMessage()
     message["Subject"] = subject
-    message["From"] = f"{BUD_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
+    message["From"] = f"{BUD_PRODUCT_IDENTITY} <{settings.SMTP_FROM_EMAIL}>"
     message["To"] = to_email
     if settings.SMTP_REPLY_TO:
         message["Reply-To"] = settings.SMTP_REPLY_TO
@@ -56,9 +59,6 @@ def send_email(
                 smtp.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
             smtp.send_message(message)
     except (smtplib.SMTPException, OSError) as exc:
-        # Name the endpoint and the TLS mode: the failures seen in practice are
-        # a port/TLS mismatch or an unreachable relay, and neither is
-        # identifiable from the exception text alone.
         detail = (
             f"Could not send mail via {settings.SMTP_HOST}:{settings.SMTP_PORT} "
             f"(STARTTLS={settings.SMTP_STARTTLS}, SSL={settings.SMTP_SSL}): "
@@ -71,8 +71,9 @@ def send_email(
 
 
 def _send_template(to_email: str, subject: str, template: str, context: dict[str, str]) -> None:
-    """Send the text and HTML versions of a template, with the app name in its context."""
-    context = {**context, "app_name": settings.BUD_APP_NAME}
+    """Send the text and HTML versions of a template, with the product name and identity in
+    its context."""
+    context = {**context, "app_name": BUD_PRODUCT_NAME, "app_identity": BUD_PRODUCT_IDENTITY}
     send_email(
         to_email=to_email,
         subject=subject,
@@ -84,7 +85,7 @@ def _send_template(to_email: str, subject: str, template: str, context: dict[str
 def send_invite_email(*, to_email: str, full_name: str, invite_link: str) -> None:
     _send_template(
         to_email,
-        f"You're invited to {settings.BUD_APP_NAME}",
+        f"You're invited to {BUD_PRODUCT_NAME}",
         "invite",
         {"full_name": full_name, "invite_link": invite_link},
     )
@@ -93,7 +94,7 @@ def send_invite_email(*, to_email: str, full_name: str, invite_link: str) -> Non
 def send_verification_email(*, to_email: str, full_name: str, verification_link: str) -> None:
     _send_template(
         to_email,
-        f"Verify your email for {settings.BUD_APP_NAME}",
+        f"Verify your email for {BUD_PRODUCT_NAME}",
         "verify_email",
         {"full_name": full_name, "verification_link": verification_link},
     )
@@ -110,7 +111,7 @@ def send_email_change_email(
     """Ask the approved new mailbox to confirm an administrator-controlled change."""
     _send_template(
         to_email,
-        f"Confirm your approved email change for {settings.BUD_APP_NAME}",
+        f"Confirm your approved email change for {BUD_PRODUCT_NAME}",
         "email_change",
         {
             "full_name": full_name,
@@ -132,7 +133,7 @@ def send_email_change_authorization_email(
     """Ask the current administrator mailbox to authorize a login change."""
     _send_template(
         to_email,
-        f"Authorize your email change for {settings.BUD_APP_NAME}",
+        f"Authorize your email change for {BUD_PRODUCT_NAME}",
         "email_change_authorization",
         {
             "full_name": full_name,
@@ -146,7 +147,7 @@ def send_email_change_authorization_email(
 def send_password_reset_email(*, to_email: str, full_name: str, reset_link: str) -> None:
     _send_template(
         to_email,
-        f"Reset your password for {settings.BUD_APP_NAME}",
+        f"Reset your password for {BUD_PRODUCT_NAME}",
         "reset_password",
         {"full_name": full_name, "reset_link": reset_link},
     )
@@ -156,7 +157,7 @@ def send_admin_welcome_email(*, to_email: str, full_name: str, login_link: str) 
     """Confirm to the first administrator that their account exists."""
     _send_template(
         to_email,
-        f"You are the administrator of {settings.BUD_APP_NAME}",
+        f"You are the administrator of {BUD_PRODUCT_NAME}",
         "admin_welcome",
         {"full_name": full_name, "login_link": login_link},
     )
@@ -184,11 +185,12 @@ def send_access_request_email(
         "requested_at": requested_at,
         "request_id": request_id,
         "review_link": review_link,
-        "app_name": settings.BUD_APP_NAME,
+        "app_name": BUD_PRODUCT_NAME,
+        "app_identity": BUD_PRODUCT_IDENTITY,
     }
     send_email(
         to_email=to_email,
-        subject=f"Access requested on {settings.BUD_APP_NAME}: {resource}",
+        subject=f"Access requested on {BUD_PRODUCT_NAME}: {resource}",
         text_body=render_template("access_request.txt", context),
         html_body=render_template(
             "access_request.html", {key: html.escape(value) for key, value in context.items()}
@@ -214,11 +216,12 @@ def send_report_request_email(
         "project": project,
         "run_id": run_id,
         "review_link": review_link,
-        "app_name": settings.BUD_APP_NAME,
+        "app_name": BUD_PRODUCT_NAME,
+        "app_identity": BUD_PRODUCT_IDENTITY,
     }
     send_email(
         to_email=to_email,
-        subject=f"Report requested on {settings.BUD_APP_NAME}: run #{run_id}",
+        subject=f"Report requested on {BUD_PRODUCT_NAME}: run #{run_id}",
         text_body=render_template("report_request.txt", context),
         html_body=render_template(
             "report_request.html", {key: html.escape(value) for key, value in context.items()}

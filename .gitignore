@@ -17,4 +17,3 @@ uploads/
 .coverage
 coverage.xml
 .worktrees/
-*.mutation-backup

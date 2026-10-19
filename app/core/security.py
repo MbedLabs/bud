@@ -14,10 +14,8 @@ from app.core.config import settings
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
-# Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# JWT settings
 ALGORITHM = "HS256"
 
 

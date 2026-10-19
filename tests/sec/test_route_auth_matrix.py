@@ -1,4 +1,7 @@
-"""Structural guard against accidentally publishing a Bud API route."""
+"""Structural guard against accidentally publishing a Bud API route.
+
+The first-run setup endpoints are public and refuse to act once any user exists.
+"""
 
 from fastapi.dependencies.models import Dependant
 from fastapi.routing import APIRoute
@@ -21,9 +24,6 @@ PUBLIC_ENDPOINTS = {
     "reset_password",
     "confirm_email_change",
     "register_runner",
-    # First-run setup. Unauthenticated by necessity — there is no account to
-    # authenticate as yet — and safe because both endpoints refuse to act once any user
-    # exists.
     "setup_status",
     "create_first_admin",
 }

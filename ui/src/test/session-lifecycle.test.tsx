@@ -43,8 +43,6 @@ function Probe() {
         {isLoading ? 'loading' : isAuthenticated ? `signed in as ${current?.email}` : 'signed out'}
       </output>
       <button onClick={() => login('ada@example.com', 'pw')}>sign in</button>
-      {/* `logout` re-raises after clearing locally; a real caller handles that,
-          and swallowing it here keeps the failure out of the test output. */}
       <button onClick={() => void logout().catch(() => {})}>sign out</button>
     </div>
   )
@@ -95,7 +93,6 @@ describe('restoring a session on load', () => {
 
     await waitFor(() => expect(state()).toBe(`signed in as ${user.email}`))
     expect(authApi.getMe).toHaveBeenCalled()
-    // The cookie path is for when there is no token; it must not run here.
     expect(authApi.refresh).not.toHaveBeenCalled()
   })
 
@@ -110,7 +107,6 @@ describe('restoring a session on load', () => {
 
     await waitFor(() => expect(state()).toBe(`signed in as ${user.email}`))
     expect(authApi.refresh).toHaveBeenCalled()
-    // The recovered token is kept, so the next request carries it.
     expect(getAuthToken()).toBe('from-cookie')
   })
 
@@ -140,7 +136,6 @@ describe('restoring a session on load', () => {
     )
 
     await waitFor(() => expect(state()).toBe('signed out'))
-    // Leaving it behind would send a token known to be dead with every request.
     expect(getAuthToken()).toBeNull()
   })
 })
@@ -177,7 +172,6 @@ describe('signing in and out', () => {
 
     screen.getByRole('button', { name: 'sign out' }).click()
 
-    // A failed revoke must not leave the browser believing it is signed in.
     await waitFor(() => expect(state()).toBe('signed out'))
     expect(getAuthToken()).toBeNull()
   })
@@ -226,7 +220,6 @@ describe('the protected-route guard', () => {
   it('holds the screen while the session is still being decided', () => {
     setAuthToken('stored-token')
     renderGuarded()
-    // Synchronously, before getMe resolves: neither outcome has been committed.
     expect(screen.getByText('Loading...')).toBeTruthy()
     expect(screen.queryByText('the dashboard')).toBeNull()
     expect(screen.queryByText('the login screen')).toBeNull()

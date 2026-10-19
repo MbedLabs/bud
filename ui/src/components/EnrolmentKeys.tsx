@@ -6,18 +6,16 @@ import type { RunnerApiKey, RunnerApiKeyCreated } from '../api/client'
 import ConfirmDialog from './ConfirmDialog'
 import RowMenu from './RowMenu'
 
-/**
- * Administrator management for Test Station enrolment keys.
- *
- * The minted secret is held in component state only, never in localStorage or
- * sessionStorage.
- */
 const STATION_NAME = /^[a-zA-Z0-9_-]{3,50}$/
 
 function isValidStationName(value: string): boolean {
   return STATION_NAME.test(value)
 }
 
+/**
+ * Administrator management for Test Station enrolment keys. The minted secret is held in component
+ * state only, never in localStorage or sessionStorage.
+ */
 export default function EnrolmentKeys() {
   const queryClient = useQueryClient()
 
@@ -93,7 +91,7 @@ export default function EnrolmentKeys() {
           <div className="flex items-start gap-2 mb-3">
             <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
             <p className="text-sm text-amber-700 dark:text-amber-400">
-              <strong>Shown once.</strong> Copy it onto the bench now &mdash; it is not
+              <strong>Shown once.</strong> Copy it onto the bench now; it is not
               stored and cannot be retrieved afterwards.
             </p>
           </div>

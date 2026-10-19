@@ -1,26 +1,4 @@
 #!/usr/bin/env bash
-#
-# End-to-end smoke test against a *published* Bud image.
-#
-# Proves the release-blocking path the unit suite cannot, using real named
-# volumes and a full container teardown/recreate (not just a restart):
-#   empty named-volume PostgreSQL
-#     -> `alembic upgrade head` builds the schema on the real image (before the
-#        app boots; RUN_STARTUP_DATA_REPAIR=false, so no create_all rescue)
-#     -> `alembic current` is at head (migrations are complete on their own)
-#     -> app boots against the migrated schema
-#     -> admin can log in; a database-backed API call works
-#     -> a >1 MB artifact upload succeeds THROUGH nginx (client_max_body_size)
-#     -> BOTH containers are removed and recreated with the SAME named volumes
-#     -> the database records still exist and the artifact's bytes + SHA-256
-#        survive (the uploads volume persisted)
-#     -> /api/health is liveness-only; /api/ready confirms the database
-#
-# Usage:
-#   scripts/e2e_image_smoke.sh <image-ref>
-#
-# Requires: docker, curl, python3, sha256sum. No repo checkout of the app is
-# needed — the published image supplies the application and alembic.
 set -euo pipefail
 
 IMAGE="${1:?usage: e2e_image_smoke.sh <image-ref>}"
@@ -41,9 +19,8 @@ DB_NAME="e2e_bud"
 DATABASE_URL="postgresql://${DB_USER}:${DB_PASSWORD}@${PG}:5432/${DB_NAME}"
 
 ADMIN_EMAIL="e2e-admin@e2e.example.com"
-ADMIN_PASSWORD="E2eAdminPassword-1234567"   # >= 16 chars, non-default
+ADMIN_PASSWORD="E2eAdminPassword-1234567"
 
-# Production-grade secrets so the fail-closed config accepts them.
 ENV_ARGS=(
   -e "BUD_ENV=production"
   -e "DATABASE_URL=${DATABASE_URL}"
@@ -53,10 +30,6 @@ ENV_ARGS=(
   -e "ADMIN_PASSWORD=${ADMIN_PASSWORD}"
   -e "ADMIN_FULL_NAME=E2E Admin"
   -e "AUTO_SEED_ADMIN=true"
-  # Production-path migration test: the app must NOT build or repair the schema.
-  # alembic (run explicitly below, before the app boots) is the only schema
-  # builder, so a missing/incomplete migration fails instead of being rescued by
-  # create_all().
   -e "RUN_STARTUP_DATA_REPAIR=false"
   -e "ENABLE_DOCS=false"
 )
@@ -93,7 +66,6 @@ wait_ready() {
 }
 
 start_pg() {
-  # Reuses the named PGVOL so data survives a container recreate.
   docker run -d --name "$PG" --network "$NET" \
     -v "${PGVOL}:/var/lib/postgresql/data" \
     -e "POSTGRES_USER=${DB_USER}" \
@@ -109,7 +81,6 @@ start_pg() {
 }
 
 start_app() {
-  # Reuses the named UPVOL so uploaded artifacts survive a container recreate.
   local publish="127.0.0.1::8080"
   if [ -n "$APP_PORT" ]; then publish="127.0.0.1:${APP_PORT}:8080"; fi
   docker run -d --name "$APP" --network "$NET" \
@@ -199,7 +170,7 @@ run_id="$(curl -fsS -X POST "${BASE}/api/test-runs" \
 
 log "Uploading a >1 MB artifact through nginx (exercises client_max_body_size)"
 upload_file="$(mktemp)"
-head -c 2097152 /dev/zero | tr '\0' 'A' > "$upload_file"   # 2 MiB, well over nginx's 1 MB default
+head -c 2097152 /dev/zero | tr '\0' 'A' > "$upload_file"
 upload_sha="$(sha256sum "$upload_file" | awk '{print $1}')"
 human_upload_status="$(curl -sS -o /dev/null -w '%{http_code}' -X POST "${BASE}/api/uploads" \
   -H "Authorization: Bearer ${token}" \
@@ -217,7 +188,6 @@ echo "    uploaded artifact id = ${artifact_id}, sha256 = ${upload_sha}"
 log "Removing BOTH containers and recreating them with the SAME named volumes"
 docker rm -f "$APP" "$PG" >/dev/null
 start_pg
-# No alembic re-run: the schema and data live in the persistent PGVOL.
 start_app
 wait_ready "after container recreation"
 

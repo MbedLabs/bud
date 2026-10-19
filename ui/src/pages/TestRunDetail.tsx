@@ -35,6 +35,7 @@ import { isAccessDenied } from '../lib/accessDenied'
 import RunStatusBadge from '../components/RunStatusBadge'
 import PdfReportButton from '../components/PdfReportButton'
 
+/** The run page. Test cases and assertions are counted separately. */
 export default function TestRunDetail() {
   const { id } = useParams<{ id: string }>()
   const runId = parseInt(id || '0')
@@ -92,8 +93,6 @@ export default function TestRunDetail() {
     )
   }
 
-  // Test cases and assertions are counted separately: a single test case normally
-  // carries several assertions, so the two totals are not interchangeable.
   const assertionSummary = summarizeAssertions(results || [])
   const testSummary = summarizeTestCases(run, results || [])
   const passRate = testSummary.total > 0
@@ -105,7 +104,6 @@ export default function TestRunDetail() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4 min-w-0">
           <Link to="/runs" className="p-2 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors shrink-0">
@@ -132,7 +130,6 @@ export default function TestRunDetail() {
         </p>
       )}
 
-      {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <SummaryCard
           label="Total"
@@ -183,7 +180,6 @@ export default function TestRunDetail() {
         </div>
       </div>
 
-      {/* Run Details */}
       <div className="bg-card rounded-lg border border-border shadow-elegant p-5">
         <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
           <Activity className="h-4 w-4 text-primary" />
@@ -233,7 +229,6 @@ export default function TestRunDetail() {
         </dl>
       </div>
 
-      {/* Test Results */}
       <div className="bg-card rounded-lg border border-border shadow-elegant overflow-hidden">
         <div className="flex flex-col gap-3 border-b border-border p-4 md:flex-row md:items-center md:justify-between">
           <h3 className="text-sm font-semibold text-foreground">Test Results</h3>
@@ -319,7 +314,6 @@ export default function TestRunDetail() {
         )}
       </div>
 
-      {/* System Report */}
       <div className="bg-card rounded-lg border border-border shadow-elegant overflow-hidden">
         <button
           type="button"
@@ -376,6 +370,8 @@ export default function TestRunDetail() {
  * integer id. Downloads go through the API client rather than a bare link,
  * because the endpoint is authenticated and a plain href arrives without a
  * token.
+ *
+ * A failed download, such as a file a retention sweep removed, shows the error.
  */
 function RunArtifacts({ artifacts, isLoading }: Readonly<{ artifacts?: Artifact[]; isLoading: boolean }>) {
   const [downloading, setDownloading] = useState<number | null>(null)
@@ -388,8 +384,6 @@ function RunArtifacts({ artifacts, isLoading }: Readonly<{ artifacts?: Artifact[
       const { blob, filename } = await artifactsApi.download(artifact.id, artifact.original_filename)
       saveBlob(blob, filename)
     } catch (failure) {
-      // A retention sweep can remove the file while the page still lists it, so
-      // a failed download is a normal outcome and has to say so.
       setError(extractApiErrorMessage(failure, 'Could not download the artifact'))
     } finally {
       setDownloading(null)

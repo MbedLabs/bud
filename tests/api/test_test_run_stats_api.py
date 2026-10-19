@@ -22,7 +22,11 @@ def _run(name: str, *, status: str, passed: int, failed: int, created_at: dateti
 
 
 async def _seed(db_session):
-    """Two suites on two stations, spread across time, with a pending run."""
+    """Two suites on two stations, spread across time, with a pending run.
+
+    One run is older than any 7-day window, and the pending run counts in the total and not
+    in the pass rate.
+    """
     station_a = Runner(account="lab-station-01", password_hash="x", token="t1")
     station_b = Runner(account="lab-station-02", password_hash="x", token="t2")
     db_session.add_all([station_a, station_b])
@@ -55,7 +59,6 @@ async def _seed(db_session):
                 created_at=now,
                 runner_id=station_b.id,
             ),
-            # Older than any 7-day window.
             _run(
                 "Nightly",
                 status="Completed",
@@ -64,7 +67,6 @@ async def _seed(db_session):
                 created_at=now - timedelta(days=40),
                 runner_id=station_a.id,
             ),
-            # Undecided: counted in the total but excluded from the pass rate.
             _run(
                 "Smoke",
                 status="Running",
@@ -80,16 +82,15 @@ async def _seed(db_session):
 
 @pytest.mark.asyncio
 async def test_stats_aggregate_every_run_not_just_the_first_page(client, db_session):
+    """All five runs are counted; three of the four decided runs passed."""
     await _seed(db_session)
 
     body = client.get("/api/test-runs/stats").json()
 
-    # All five runs are counted even though a listing page would show fewer.
     assert body["total_runs"] == 5
-    assert body["passed_runs"] == 3  # Completed with zero failures
-    assert body["failed_runs"] == 1  # the run carrying 2 failed tests
-    assert body["in_progress_runs"] == 1  # the Running run is neither
-    # Pending work must not drag the rate down: 3 of 4 decided runs passed.
+    assert body["passed_runs"] == 3
+    assert body["failed_runs"] == 1
+    assert body["in_progress_runs"] == 1
     assert body["run_pass_rate"] == 75.0
     assert body["total_tests"] == 28
     assert body["passed_tests"] == 26
@@ -102,7 +103,7 @@ async def test_stats_filter_by_time_window(client, db_session):
 
     body = client.get("/api/test-runs/stats", params={"days": 7}).json()
 
-    assert body["total_runs"] == 4  # the 40-day-old run drops out
+    assert body["total_runs"] == 4
     assert body["total_tests"] == 25
 
 

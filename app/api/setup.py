@@ -1,4 +1,9 @@
-"""First-run setup: create the very first administrator."""
+"""First-run setup: create the very first administrator.
+
+On PostgreSQL concurrent setup requests are serialised by a transaction-level advisory lock
+under the fixed key _SETUP_LOCK_KEY; SQLite, used by the unit tests, serialises writes
+itself.
+"""
 
 import logging
 
@@ -23,8 +28,6 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-# Arbitrary but fixed: the key identifies "the Bud first-admin bootstrap" to
-# PostgreSQL's advisory lock namespace, and must not change between releases.
 _SETUP_LOCK_KEY = 8_314_502_119
 
 
@@ -50,17 +53,15 @@ async def create_first_admin(
     data: CreateFirstAdminRequest,
     db: AsyncSession = Depends(get_db, scope="function"),
 ) -> SetupCompletedResponse:
-    """Create the first administrator, once, on an instance that has no users."""
-    # Serialise concurrent attempts so two simultaneous requests cannot both see
-    # an empty table and both create an administrator. The lock is held to the
-    # end of this transaction. SQLite (unit tests) has no equivalent and needs
-    # none: its writes are already serialised.
+    """Create the first administrator, once, on an instance that has no users.
+
+    Once a user exists the request answers 409. The welcome email is best effort: setup
+    completes on a deployment without SMTP.
+    """
     if db.bind is not None and db.bind.dialect.name == "postgresql":
         await db.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": _SETUP_LOCK_KEY})
 
     if await _user_count(db) > 0:
-        # Not 403: the request was well-formed and authorised, the instance has
-        # simply moved past the state in which it is meaningful.
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="This instance has already been set up.",
@@ -87,9 +88,6 @@ async def create_first_admin(
 
     logger.info("First administrator created via setup flow: %s", data.email)
 
-    # Best effort, never fatal. Setup must complete on a deployment with no SMTP at all
-    # — the docker-compose default, and any Cloudron install with the optional mail
-    # addon disabled.
     try:
         send_admin_welcome_email(
             to_email=admin.email,

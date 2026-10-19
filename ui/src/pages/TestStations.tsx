@@ -8,6 +8,7 @@ import { can } from '../lib/access'
 import ConfirmDialog from '../components/ConfirmDialog'
 import RowMenu from '../components/RowMenu'
 import EnrolmentKeys from '../components/EnrolmentKeys'
+import { useEscapeKey } from '../hooks/useEscapeKey'
 import {
   Server, Wifi, WifiOff, Clock, MapPin, Monitor, Radio,
   Trash2, AlertTriangle, Pencil, KeyRound,
@@ -19,6 +20,10 @@ function isValidStationName(value: string): boolean {
   return STATION_NAME.test(value)
 }
 
+/**
+ * The Test Stations page. Its enrolment key query shares the runnerApiKeys cache entry with
+ * EnrolmentKeys.
+ */
 export default function TestStations() {
   const { user } = useAuth()
   const canManageStations = can(user, 'stations.manage')
@@ -34,6 +39,7 @@ export default function TestStations() {
   const [renaming, setRenaming] = useState<string | null>(null)
   const [pendingKeyRevoke, setPendingKeyRevoke] = useState<RunnerApiKey | null>(null)
   const [newName, setNewName] = useState('')
+  useEscapeKey(() => setRenaming(null), renaming !== null)
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['testStations'],
@@ -41,7 +47,6 @@ export default function TestStations() {
     refetchInterval: 15000,
   })
 
-  // Shares its cache entry with EnrolmentKeys.
   const { data: apiKeys } = useQuery({
     queryKey: ['runnerApiKeys'],
     queryFn: testStationsApi.listApiKeys,
@@ -125,7 +130,7 @@ export default function TestStations() {
           <h3 className="text-lg font-semibold text-foreground mb-2">No Test Stations Registered</h3>
           <p className="text-muted-foreground max-w-md mx-auto text-sm">
             A Test Station is a{' '}
-            <span className="font-medium text-foreground">Bud runner</span> — the two
+            <span className="font-medium text-foreground">Bud runner</span>; the two
             are the same thing. Each location runs one or more of them, so a single
             machine can host several stations, each with its own account. Register one
             with the <code>bud_runner</code> CLI:
@@ -187,61 +192,67 @@ export default function TestStations() {
         </ul>
       </section>
       {renaming && (
-        <div
-          className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50"
-          onClick={() => setRenaming(null)}
-        >
-          <form
-            role="dialog"
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50">
+          <button
+            type="button"
+            aria-label="Close Rename Test Station backdrop"
+            tabIndex={-1}
+            className="absolute inset-0 h-full w-full cursor-default"
+            onClick={() => setRenaming(null)}
+          />
+          <dialog
+            open
             aria-modal="true"
             aria-label="Rename Test Station"
-            className="bg-card rounded-lg shadow-elegant p-6 max-w-sm w-full mx-4"
-            onClick={(event) => event.stopPropagation()}
-            onSubmit={(event) => {
-              event.preventDefault()
-              if (isValidStationName(newName)) {
-                renameStation.mutate({ account: renaming, next: newName })
-              }
-            }}
+            className="relative m-0 bg-card rounded-lg shadow-elegant p-6 max-w-sm w-full mx-4 text-foreground"
           >
-            <h3 className="text-lg font-semibold text-foreground mb-2">Rename this Test Station?</h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              The station keeps its credentials and its runs, and picks the new name up on its
-              next heartbeat.
-            </p>
-            <input
-              value={newName}
-              onChange={(event) => setNewName(event.target.value)}
-              aria-label="Rename station to"
-              maxLength={50}
-              autoFocus
-              className="w-full mb-4 px-3 py-2 bg-background border border-input rounded-lg text-sm text-foreground"
-            />
-            {actionError && (
-              <div className="mb-4 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-sm text-destructive">
-                {actionError}
+            <form
+              onSubmit={(event) => {
+                event.preventDefault()
+                if (isValidStationName(newName)) {
+                  renameStation.mutate({ account: renaming, next: newName })
+                }
+              }}
+            >
+              <h3 className="text-lg font-semibold text-foreground mb-2">Rename this Test Station?</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                The station keeps its credentials and its runs, and picks the new name up on its
+                next heartbeat.
+              </p>
+              <input
+                value={newName}
+                onChange={(event) => setNewName(event.target.value)}
+                aria-label="Rename station to"
+                maxLength={50}
+                autoFocus
+                className="w-full mb-4 px-3 py-2 bg-background border border-input rounded-lg text-sm text-foreground"
+              />
+              {actionError && (
+                <div className="mb-4 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-sm text-destructive">
+                  {actionError}
+                </div>
+              )}
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRenaming(null)
+                    setActionError('')
+                  }}
+                  className="px-4 py-2 border border-input rounded-md text-foreground hover:bg-accent/50 text-sm"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={!isValidStationName(newName) || renameStation.isPending}
+                  className="px-4 py-2 bg-gradient-button text-white rounded-md hover:opacity-90 disabled:opacity-50 text-sm"
+                >
+                  {renameStation.isPending ? 'Renaming...' : 'Rename'}
+                </button>
               </div>
-            )}
-            <div className="flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setRenaming(null)
-                  setActionError('')
-                }}
-                className="px-4 py-2 border border-input rounded-md text-foreground hover:bg-accent/50 text-sm"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={!isValidStationName(newName) || renameStation.isPending}
-                className="px-4 py-2 bg-gradient-button text-white rounded-md hover:opacity-90 disabled:opacity-50 text-sm"
-              >
-                {renameStation.isPending ? 'Renaming...' : 'Rename'}
-              </button>
-            </div>
-          </form>
+            </form>
+          </dialog>
         </div>
       )}
 
@@ -317,7 +328,6 @@ function TestStationCard({
           : 'border-border opacity-70'
       }`}
     >
-      {/* Top accent bar */}
       <div className={`h-1 rounded-t-lg ${
         runner.is_online
           ? 'bg-linear-to-r/srgb from-primary via-bud-forest to-bud-orange'
@@ -325,7 +335,6 @@ function TestStationCard({
       }`} />
 
       <div className="p-5">
-        {/* Header */}
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-3">
             <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
@@ -378,7 +387,6 @@ function TestStationCard({
           </div>
         )}
 
-        {/* Details */}
         <div className="space-y-2.5">
           {runner.location && (
             <div className="flex items-center text-xs text-muted-foreground min-w-0">
@@ -404,7 +412,6 @@ function TestStationCard({
           )}
         </div>
 
-        {/* Status Badge */}
         {runner.is_online && !runner.current_run && (
           <div className="mt-4 pt-3 border-t border-border">
             <div className="flex items-center justify-center py-2 bg-emerald-500/10 rounded-md">

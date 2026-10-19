@@ -30,6 +30,7 @@ class _DummySMTP:
 
 
 def test_send_email_uses_fixed_bud_sender_name(monkeypatch):
+    """The sender name has the form '<product> <suffix> by EmbedLabs', as Bloom's does."""
     captured = {}
 
     def smtp_factory(host: str, port: int, timeout: int):
@@ -57,7 +58,6 @@ def test_send_email_uses_fixed_bud_sender_name(monkeypatch):
 
     smtp = captured["smtp"]
     assert len(smtp.messages) == 1
-    # Matches Bloom's "<product> <suffix> by EmbedLabs" sender style ("Bloom PLM by EmbedLabs").
     assert smtp.messages[0]["From"] == "Bud TMP by EmbedLabs <noreply@example.com>"
 
 
@@ -94,7 +94,6 @@ def test_starttls_on_a_plaintext_port_reports_where_and_why(monkeypatch):
     else:
         raise AssertionError("a failing STARTTLS handshake must not look like success")
 
-    # The operator needs the endpoint and the TLS mode, not just the library text.
     assert "mail:2525" in message
     assert "STARTTLS=True" in message
     assert "SMTPNotSupportedError" in message
@@ -108,7 +107,7 @@ def test_delivery_failures_reach_the_existing_error_handlers(monkeypatch):
 
 
 def test_an_unreachable_relay_is_also_reported(monkeypatch):
-    """OSError, not SMTPException — a refused connection must be translated too."""
+    """OSError, not SMTPException: a refused connection must be translated too."""
     _configure_smtp(monkeypatch, starttls=False, port=2525)
 
     def _refused(host, port, timeout):

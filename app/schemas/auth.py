@@ -1,5 +1,8 @@
 """
 Auth and user schemas.
+
+PasswordStr applies the shared password policy of app.core.passwords to every password a
+user chooses.
 """
 
 from datetime import datetime
@@ -17,8 +20,6 @@ from pydantic import (
 from app.core.passwords import validate_password_strength
 from app.models.user import UserRole
 
-# Every place a user chooses a password shares this policy (>= 12 chars, within
-# the hashing backend's safe byte limit) so the rules cannot drift per endpoint.
 PasswordStr = Annotated[str, AfterValidator(validate_password_strength)]
 
 

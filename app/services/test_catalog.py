@@ -45,7 +45,11 @@ async def build_catalog(
     runner_account: Optional[str] = None,
     suite: Optional[str] = None,
 ) -> list[CatalogEntry]:
-    """Every test case Bud has a record of, newest evidence winning."""
+    """Every test case Bud has a record of, newest evidence winning.
+
+    Rows are read oldest first, and the last row seen gives a test case its suite and
+    outcome.
+    """
     query = (
         select(
             TestResult.test_class,
@@ -82,8 +86,6 @@ async def build_catalog(
             entries[test_path] = entry
             methods[test_path] = set()
 
-        # Ordered oldest first, so the last row seen is the most recent - the
-        # suite and outcome a reader would expect to see against it.
         entry.suite = row.suite
         entry.last_run_at = row.created_at
         entry.last_passed = row.passed
@@ -126,7 +128,11 @@ def plan_custom_run(
     runner_ids: dict[str, int],
     pinned_runner: Optional[str] = None,
 ) -> Plan:
-    """Work out which bench runs what, before anything is written."""
+    """Work out which bench runs what, before anything is written.
+
+    A test case that ran on one bench only is placed on it. A test case that ran on several
+    benches is placed afterwards, preferring a bench that has work in this run.
+    """
     known = {entry.test_path: entry for entry in catalog}
     grouped: dict[str, list[str]] = {}
     unassigned: list[Unassigned] = []
@@ -167,14 +173,10 @@ def plan_custom_run(
             continue
 
         if len(available) == 1:
-            # Forced: there is one bench that has ever run this.
             grouped.setdefault(available[0], []).append(test_path)
         else:
             undecided.append((test_path, available))
 
-    # Placed second, and deliberately: a test case that could run on either bench should
-    # follow the ones that had no choice, rather than splitting the selection into two
-    # runs for no reason.
     for test_path, available in undecided:
         already_used = [account for account in available if account in grouped]
         chosen = already_used[-1] if already_used else available[-1]

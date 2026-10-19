@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import type { ReactNode } from 'react'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router'
 
@@ -88,7 +88,8 @@ beforeEach(() => {
 describe('route smoke (Bud)', () => {
   it('shows public auth screens without redirect loops', async () => {
     renderAt('/login')
-    expect(screen.getByRole('heading', { name: /Welcome to Bud/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Welcome to Bud TMP' })).toBeInTheDocument()
+    expect(screen.getAllByAltText('Bud TMP by EmbedLabs')).toHaveLength(2)
     const attribution = screen.getByRole('link', { name: 'Powered by EmbedLabs' })
     expect(attribution).toHaveAttribute(
       'href',
@@ -166,12 +167,20 @@ describe('route smoke (Bud)', () => {
     expect(layout).toHaveClass('h-screen', 'overflow-hidden')
     expect(main).toHaveClass('min-h-0', 'overflow-auto')
     expect(sidebar).toHaveClass('overflow-x-hidden')
+    const brand = within(sidebar as HTMLElement)
+    expect(brand.getByRole('heading', { name: 'Bud TMP' })).toBeInTheDocument()
+    expect(brand.getByText('by EmbedLabs')).toBeInTheDocument()
+    expect(brand.queryByRole('link', { name: 'by EmbedLabs' })).not.toBeInTheDocument()
+    expect(brand.getByAltText('Bud TMP by EmbedLabs')).toBeInTheDocument()
     expect(
       screen.getByRole('link', { name: 'Powered by EmbedLabs' }).closest('aside'),
     ).toBe(sidebar)
     expect(screen.getByText(`v${packageJson.version}`)).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Collapse sidebar' }))
+    expect(brand.queryByRole('heading', { name: 'Bud TMP' })).not.toBeInTheDocument()
+    expect(brand.queryByText('by EmbedLabs')).not.toBeInTheDocument()
+    expect(brand.getByAltText('Bud TMP by EmbedLabs')).toBeInTheDocument()
 
     const collapsedAttribution = screen.getByRole('link', {
       name: 'Powered by EmbedLabs © 2026',

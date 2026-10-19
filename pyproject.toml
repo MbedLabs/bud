@@ -45,7 +45,6 @@ dev = [
     "aiosqlite>=0.19.0",
     "moto[s3]>=5.0.0",
     "black>=23.0.0",
-    # Parses generated PDFs so the report assertions are real, not skipped.
     "pymupdf>=1.24.0",
     "mypy>=1.0.0",
 ]
@@ -70,10 +69,6 @@ warn_return_any = true
 ignore_missing_imports = true
 
 [tool.coverage.run]
-# SQLAlchemy's async bridge runs endpoint bodies inside greenlets, and the
-# TestClient drives the ASGI app from a worker thread. Without both concurrency
-# modes coverage simply does not see that code: an endpoint could be exercised
-# by a passing HTTP test and still be reported as entirely unhit.
 concurrency = ["thread", "greenlet"]
 source = ["app"]
 
@@ -82,5 +77,4 @@ minversion = "7.0"
 addopts = "-ra -q"
 testpaths = ["tests"]
 asyncio_mode = "auto"
-# Prefer this package when multiple editable installs expose an ``app`` package (e.g. Bloom).
 pythonpath = ["."]
