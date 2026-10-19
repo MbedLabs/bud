@@ -1,17 +1,17 @@
+import { describe, expect, it } from 'vitest'
+
 /**
  * Every custom bg-gradient-* class must exist in this app's theme in index.css.
  *
  * Bud and Bloom define different gradient names, so a class copied from one repo
- * into the other produces no CSS at all — Tailwind silently emits nothing for a
+ * into the other produces no CSS at all: Tailwind silently emits nothing for a
  * name it does not know. The element then renders with no background and no
  * error: build, lint and tests all stay green. That is how the setup screen
  * shipped to Bloom with an invisible submit button.
  *
  * Reads the sources through import.meta.glob rather than node:fs, matching the
- * other source-scanning tests here — the UI tsconfig carries no Node types.
+ * other source-scanning tests here; the UI tsconfig carries no Node types.
  */
-import { describe, expect, it } from 'vitest'
-
 const sources = import.meta.glob('../{pages,components}/**/*.tsx', {
   eager: true,
   query: '?raw',
