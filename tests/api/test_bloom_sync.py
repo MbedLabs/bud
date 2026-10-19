@@ -52,7 +52,7 @@ async def test_coalesce_results_by_tc_id_reduces_methods_to_one_tc_result():
         },
         {
             "bud_run_id": 5,
-            "comment": f"Last result from Bud run 5, executed at {payload[1]['executed_at']}",
+            "comment": f"Last result from Bud TMP run 5, executed at {payload[1]['executed_at']}",
             "executed_at": payload[1]["executed_at"],
             "status": "Passed",
             "tc_id": "FLT-TC-035",

@@ -47,15 +47,15 @@ export default function Login() {
           <div className="flex flex-col items-center mb-8">
             <img
               src={BUD_LOGO_DARK}
-              alt="Bud by EmbedLabs"
+              alt="Bud TMP by EmbedLabs"
               className="h-24 w-auto max-w-full object-contain mb-4 hidden dark:block"
             />
             <img
               src={BUD_LOGO_LIGHT}
-              alt="Bud by EmbedLabs"
+              alt="Bud TMP by EmbedLabs"
               className="h-24 w-auto max-w-full object-contain mb-4 dark:hidden"
             />
-            <h1 className="text-2xl font-bold text-foreground">Welcome to Bud</h1>
+            <h1 className="text-2xl font-bold text-foreground">Welcome to Bud TMP</h1>
             <p className="text-sm text-muted-foreground mt-1">Sign in to your account</p>
           </div>
 

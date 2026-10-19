@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${app_name}</title>
+<title>${app_identity}</title>
 </head>
 <body style="margin:0;padding:0;background:#f4faf4;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;padding:24px 12px;">
@@ -15,7 +15,7 @@
         <tr><td style="height:3px;background:#f3801b;font-size:0;line-height:0;">&nbsp;</td></tr>
         <tr><td style="padding:32px;color:#15281c;font-size:15px;line-height:1.65;">
             <p style="margin:0 0 14px;">Hello ${publisher_name},</p>
-            <p style="margin:0 0 14px;"><strong>${requester_name}</strong> (${requester_email}) requested the report for Bud run <strong>#${run_id}</strong> in Bloom project <strong>${project}</strong>.</p>
+            <p style="margin:0 0 14px;"><strong>${requester_name}</strong> (${requester_email}) requested the report for ${app_name} run <strong>#${run_id}</strong> in Bloom project <strong>${project}</strong>.</p>
             <p style="text-align:center;margin:28px 0;">
                 <a href="${review_link}" style="display:inline-block;padding:13px 28px;background:#29a847;color:#15281c;text-decoration:none;border-radius:8px;font-weight:600;font-size:15px;">Open the run</a>
             </p>

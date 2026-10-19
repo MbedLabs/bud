@@ -80,7 +80,7 @@ export default function Setup() {
   return (
     <AuthPageShell>
 
-      <h1 className="text-2xl font-bold text-foreground mb-2">Welcome to Bud</h1>
+      <h1 className="text-2xl font-bold text-foreground mb-2">Welcome to Bud TMP</h1>
       <p className="text-sm text-muted-foreground mb-6">
         This instance has no accounts yet. Create the administrator to get started.
       </p>

@@ -30,6 +30,7 @@ from tenacity import (
 )
 
 from app.core.config import settings
+from app.core.identity import BUD_PRODUCT_NAME
 from app.db import database as db
 from app.models import (
     NotificationChannel,
@@ -42,7 +43,7 @@ from app.services.integration_secrets import decrypt_integration_secret
 from app.services.run_events import record_test_run_event
 
 OPEN_IN_BLOOM = "Open in Bloom"
-OPEN_IN_BUD = "Open in Bud"
+OPEN_IN_BUD = f"Open in {BUD_PRODUCT_NAME}"
 
 logger = logging.getLogger(__name__)
 
@@ -565,7 +566,7 @@ def sample_summary() -> RunSummary:
     """The summary posted by "Send test message"."""
     return RunSummary(
         run_id=None,
-        name="Bud test message",
+        name=f"{BUD_PRODUCT_NAME} test message",
         product="Example product",
         station="example-station",
         software_under_test="1.0.0",

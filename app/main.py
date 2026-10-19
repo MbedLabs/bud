@@ -43,6 +43,7 @@ from app.api import users as users_api
 from app.core.access import seed_default_access
 from app.core.config import settings as app_settings
 from app.core.deps import limiter
+from app.core.identity import BUD_PRODUCT_IDENTITY, BUD_PRODUCT_NAME
 from app.core.observability import (
     RequestObservabilityMiddleware,
     metrics_router,
@@ -211,8 +212,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title=f"{app_settings.BUD_APP_NAME} API",
-    description="Backend API for the Bud test automation platform",
+    title=BUD_PRODUCT_IDENTITY,
+    description=f"Backend API for {BUD_PRODUCT_NAME}",
     version=app_settings.BUD_APP_VERSION,
     docs_url="/api/docs" if app_settings.ENABLE_DOCS else None,
     redoc_url="/api/redoc" if app_settings.ENABLE_DOCS else None,
@@ -328,6 +329,6 @@ app.include_router(company_logo.router, prefix="/api/company-logo", tags=["Compa
 async def root():
     """Root endpoint."""
     return {
-        "message": "Bud TMP API",
+        "message": BUD_PRODUCT_IDENTITY,
         "version": app_settings.BUD_APP_VERSION,
     }
