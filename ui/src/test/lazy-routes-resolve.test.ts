@@ -1,4 +1,6 @@
 // @vitest-environment jsdom
+import { describe, expect, it } from 'vitest'
+
 /**
  * Every lazily-imported route must actually resolve.
  *
@@ -8,10 +10,8 @@
  * path App.tsx declares and asserts a component comes back.
  *
  * Reads App.tsx through import.meta.glob rather than node:fs, matching the other
- * source-scanning tests here — the UI tsconfig carries no Node types.
+ * source-scanning tests here; the UI tsconfig carries no Node types.
  */
-import { describe, expect, it } from 'vitest'
-
 const appSources = import.meta.glob('../App.tsx', {
   eager: true,
   query: '?raw',
