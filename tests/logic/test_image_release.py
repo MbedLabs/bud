@@ -16,6 +16,28 @@ DIGEST = "sha256:" + "a" * 64
 OTHER = "sha256:" + "b" * 64
 REPOSITORY = "ghcr.io/mbedlabs/product"
 IMAGE = REPOSITORY + "@" + DIGEST
+MALFORMED_REFERENCES = [
+    "",
+    "-v",
+    "--format={{json .}}",
+    "image:stable",
+    "mbedlabs/product:1.1.0",
+    "ghcr.io/MbedLabs/product:1.1.0",
+    "ghcr.io/mbedlabs/product@sha256:abc",
+    "ghcr.io/mbedlabs/product:sha-1@" + DIGEST,
+    "ghcr.io/mbedlabs/product:1.1.0 --push",
+    "ghcr.io/mbedlabs/product:-latest",
+    "ghcr.io/mbedlabs/product/",
+    None,
+]
+WELL_FORMED_REFERENCES = [
+    REPOSITORY,
+    REPOSITORY + ":sha-" + "0" * 40,
+    REPOSITORY + ":v1.2.0",
+    IMAGE,
+    "localhost:5000/team/product_name:1.2.0-beta.1",
+    "registry.example.com:443/a/b-c/d__e:latest",
+]
 
 
 def test_older_release_does_not_move_floating_tags():
@@ -57,27 +79,13 @@ def test_repeated_promotion_preserves_digest():
 
 
 def test_post_promotion_digest_mismatch_fails():
+    aliases = [REPOSITORY + ":stable"]
+    execute = Mock()
     with pytest.raises(RuntimeError, match="Digest verification"):
-        release.promote(IMAGE, [REPOSITORY + ":stable"], lambda _: OTHER, Mock())
+        release.promote(IMAGE, aliases, lambda _: OTHER, execute)
 
 
-@pytest.mark.parametrize(
-    "reference",
-    [
-        "",
-        "-v",
-        "--format={{json .}}",
-        "image:stable",
-        "mbedlabs/product:1.1.0",
-        "ghcr.io/MbedLabs/product:1.1.0",
-        "ghcr.io/mbedlabs/product@sha256:abc",
-        "ghcr.io/mbedlabs/product:sha-1@" + DIGEST,
-        "ghcr.io/mbedlabs/product:1.1.0 --push",
-        "ghcr.io/mbedlabs/product:-latest",
-        "ghcr.io/mbedlabs/product/",
-        None,
-    ],
-)
+@pytest.mark.parametrize("reference", MALFORMED_REFERENCES)
 def test_digest_refuses_malformed_reference_before_calling_docker(monkeypatch, reference):
     docker = Mock()
     monkeypatch.setattr(release.subprocess, "run", docker)
@@ -86,22 +94,22 @@ def test_digest_refuses_malformed_reference_before_calling_docker(monkeypatch, r
     docker.assert_not_called()
 
 
-@pytest.mark.parametrize(
-    "reference",
-    [
-        REPOSITORY,
-        REPOSITORY + ":sha-" + "0" * 40,
-        REPOSITORY + ":v1.2.0",
-        IMAGE,
-        "localhost:5000/team/product_name:1.2.0-beta.1",
-        "registry.example.com:443/a/b-c/d__e:latest",
-    ],
-)
+@pytest.mark.parametrize("reference", WELL_FORMED_REFERENCES)
 def test_digest_inspects_a_registry_reference(monkeypatch, reference):
     docker = Mock(return_value=subprocess.CompletedProcess([], 0, stdout=DIGEST + "\n", stderr=""))
     monkeypatch.setattr(release.subprocess, "run", docker)
     assert release.digest(reference) == DIGEST
     assert docker.call_args.args[0][:5] == ["docker", "buildx", "imagetools", "inspect", reference]
+
+
+@pytest.mark.parametrize(
+    ("reference", "accepted"),
+    [(reference, False) for reference in MALFORMED_REFERENCES]
+    + [(reference, True) for reference in WELL_FORMED_REFERENCES],
+)
+def test_image_reference_check_matches_what_digest_accepts(reference, accepted):
+    """is_image_reference accepts exactly the references digest passes to docker."""
+    assert release.is_image_reference(reference) is accepted
 
 
 @pytest.mark.parametrize(
