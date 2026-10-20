@@ -42,7 +42,7 @@ fail() { printf '\nFAIL: %s\n' "$*" >&2; exit 1; }
 
 cleanup() {
   local code=$?
-  if [ "$code" -ne 0 ]; then
+  if [[ "$code" -ne 0 ]]; then
     docker logs "$APP" 2>&1 | tail -120 || true
   fi
   docker rm -f "$APP" "$PG" >/dev/null 2>&1 || true
@@ -52,7 +52,8 @@ cleanup() {
 trap cleanup EXIT
 
 json_field() {
-  python3 -c 'import json,sys; print(json.load(sys.stdin)[sys.argv[1]])' "$1"
+  local field="$1"
+  python3 -c 'import json,sys; print(json.load(sys.stdin)[sys.argv[1]])' "$field"
 }
 
 wait_for_postgres() {
@@ -67,14 +68,14 @@ refresh_base() {
   local binding
   binding="$(docker port "$APP" 8080/tcp | head -n 1)"
   APP_PORT="${binding##*:}"
-  [ -n "$APP_PORT" ] || fail "Docker did not allocate an app port"
+  [[ -n "$APP_PORT" ]] || fail "Docker did not allocate an app port"
   BASE="http://127.0.0.1:${APP_PORT}"
 }
 
 wait_for_app() {
   for _ in $(seq 1 60); do
     curl -fsS "${BASE}/api/ready" >/dev/null 2>&1 && return 0
-    [ "$(docker inspect -f '{{.State.Running}}' "$APP" 2>/dev/null || true)" = true ] \
+    [[ "$(docker inspect -f '{{.State.Running}}' "$APP" 2>/dev/null || true)" = true ]] \
       || fail "normal image exited under Cloudron constraints"
     sleep 2
   done
@@ -83,7 +84,7 @@ wait_for_app() {
 
 start_app() {
   local publish=127.0.0.1::8080
-  if [ -n "$APP_PORT" ]; then publish="127.0.0.1:${APP_PORT}:8080"; fi
+  if [[ -n "$APP_PORT" ]]; then publish="127.0.0.1:${APP_PORT}:8080"; fi
   docker run -d --name "$APP" --network "$NET" --platform "$PLATFORM" \
     --read-only \
     --tmpfs /run:rw,exec,nosuid,size=64m \
@@ -120,7 +121,7 @@ start_app
 wait_for_app
 
 log "Checking first-run setup and runtime peer link"
-[ "$(curl -fsS "${BASE}/api/setup/status" | json_field setup_required)" = True ] \
+[[ "$(curl -fsS "${BASE}/api/setup/status" | json_field setup_required)" = True ]] \
   || fail "fresh Cloudron instance did not require setup"
 curl -fsS "${BASE}/runtime-config.js" | grep -F "$PEER_URL" >/dev/null \
   || fail "runtime-config.js did not contain ${PEER_ENV}"
@@ -129,7 +130,7 @@ curl -fsS -X POST "${BASE}/api/setup" \
   -H 'Content-Type: application/json' \
   -d "{\"email\":\"${ADMIN_EMAIL}\",\"password\":\"${ADMIN_PASSWORD}\",\"full_name\":\"Cloudron Owner\"}" \
   >/dev/null
-[ -n "$(login)" ] || fail "first administrator could not sign in"
+[[ -n "$(login)" ]] || fail "first administrator could not sign in"
 
 log "Checking persistent layout and secrets"
 docker exec "$APP" test -d "$DATA_DIR" || fail "$DATA_DIR was not created"
@@ -140,10 +141,10 @@ log "Recreating the app with the same PostgreSQL and /app/data volumes"
 docker rm -f "$APP" >/dev/null
 start_app
 wait_for_app
-[ "$(curl -fsS "${BASE}/api/setup/status" | json_field setup_required)" = False ] \
+[[ "$(curl -fsS "${BASE}/api/setup/status" | json_field setup_required)" = False ]] \
   || fail "setup reopened after container recreation"
-[ -n "$(login)" ] || fail "administrator login did not survive recreation"
-[ "$(docker exec "$APP" sha256sum /app/data/secrets.env | awk '{print $1}')" = "$secret_digest" ] \
+[[ -n "$(login)" ]] || fail "administrator login did not survive recreation"
+[[ "$(docker exec "$APP" sha256sum /app/data/secrets.env | awk '{print $1}')" = "$secret_digest" ]] \
   || fail "persistent secrets changed across recreation"
 
 log "PASS: the normal ${APP_KIND} image is Cloudron compatible"

@@ -20,6 +20,7 @@ DATABASE_URL="postgresql://${DB_USER}:${DB_PASSWORD}@${PG}:5432/${DB_NAME}"
 
 ADMIN_EMAIL="e2e-admin@e2e.example.com"
 ADMIN_PASSWORD="E2eAdminPassword-1234567"
+JSON_HEADER="Content-Type: application/json"
 
 ENV_ARGS=(
   -e "BUD_ENV=production"
@@ -39,20 +40,20 @@ fail() { printf '\n\033[1;31mFAIL:\033[0m %s\n' "$*" >&2; exit 1; }
 
 cleanup() {
   local code=$?
-  [ "$code" = 0 ] || { log "Dumping app logs (exit ${code})"; docker logs "$APP" 2>&1 | tail -80 || true; }
+  [[ "$code" = 0 ]] || { log "Dumping app logs (exit ${code})"; docker logs "$APP" 2>&1 | tail -80 || true; }
   docker rm -f "$APP" "$PG" >/dev/null 2>&1 || true
   docker volume rm "$PGVOL" "$UPVOL" >/dev/null 2>&1 || true
   docker network rm "$NET" >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
 
-json_field() { python3 -c 'import sys,json;print(json.load(sys.stdin)["'"$1"'"])'; }
+json_field() { local field="$1"; python3 -c 'import sys,json;print(json.load(sys.stdin)["'"$field"'"])'; }
 
 refresh_base() {
   local port_binding
   port_binding="$(docker port "$APP" 8080/tcp | head -n 1)"
   APP_PORT="${port_binding##*:}"
-  [ -n "$APP_PORT" ] || fail "Docker did not allocate an application port"
+  [[ -n "$APP_PORT" ]] || fail "Docker did not allocate an application port"
   BASE="http://127.0.0.1:${APP_PORT}"
 }
 
@@ -82,7 +83,7 @@ start_pg() {
 
 start_app() {
   local publish="127.0.0.1::8080"
-  if [ -n "$APP_PORT" ]; then publish="127.0.0.1:${APP_PORT}:8080"; fi
+  if [[ -n "$APP_PORT" ]]; then publish="127.0.0.1:${APP_PORT}:8080"; fi
   docker run -d --name "$APP" --network "$NET" \
     -p "$publish" \
     -v "${UPVOL}:/app/uploads" \
@@ -94,7 +95,7 @@ start_app() {
 
 login_token() {
   curl -fsS -X POST "${BASE}/api/auth/login" \
-    -H 'Content-Type: application/json' \
+    -H "$JSON_HEADER" \
     -d "{\"email\":\"${ADMIN_EMAIL}\",\"password\":\"${ADMIN_PASSWORD}\"}" | json_field access_token
 }
 
@@ -137,17 +138,17 @@ printf '%s' "$ready" | grep -q '"database":"connected"' \
 
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
 expected_version="$(sed -nE 's/^version = "([^"]+)".*/\1/p' "${repo_root}/pyproject.toml" | head -1)"
-[ -n "$expected_version" ] || fail "could not read the version from pyproject.toml"
+[[ -n "$expected_version" ]] || fail "could not read the version from pyproject.toml"
 
 log "/api/version must report the released version (${expected_version})"
 version="$(curl -fsS "${BASE}/api/version" | json_field version)"
 echo "    /api/version = ${version}"
-[ "$version" = "$expected_version" ] \
+[[ "$version" = "$expected_version" ]] \
   || fail "/api/version reported '${version}', expected ${expected_version}"
 
 log "Admin login"
 token="$(login_token)"
-[ -n "$token" ] || fail "login returned no access_token"
+[[ -n "$token" ]] || fail "login returned no access_token"
 
 log "Database-backed API call (list products)"
 curl -fsS "${BASE}/api/products" -H "Authorization: Bearer ${token}" >/dev/null \
@@ -156,17 +157,17 @@ curl -fsS "${BASE}/api/products" -H "Authorization: Bearer ${token}" >/dev/null 
 log "Enrolling a Test Station and creating its own test run"
 station_key="$(curl -fsS -X POST "${BASE}/api/runners/api-keys" \
   -H "Authorization: Bearer ${token}" \
-  -H 'Content-Type: application/json' \
+  -H "$JSON_HEADER" \
   -d '{"label":"E2E evidence","station_name":"e2e-evidence"}' | json_field api_key)"
 station_token="$(curl -fsS -X POST "${BASE}/api/runners/register" \
   -H "X-API-Key: ${station_key}" \
-  -H 'Content-Type: application/json' \
+  -H "$JSON_HEADER" \
   -d '{"username":"e2e-evidence","password":"E2eStationPassword-1234567"}' | json_field token)"
 run_id="$(curl -fsS -X POST "${BASE}/api/test-runs" \
   -H "Authorization: Bearer ${station_token}" \
-  -H 'Content-Type: application/json' \
+  -H "$JSON_HEADER" \
   -d '{"test_case_list":"[]","test_suite_name":"E2E artifact persistence"}' | json_field id)"
-[ -n "$run_id" ] || fail "station did not create a test run"
+[[ -n "$run_id" ]] || fail "station did not create a test run"
 
 log "Uploading a >1 MB artifact through nginx (exercises client_max_body_size)"
 upload_file="$(mktemp)"
@@ -176,13 +177,13 @@ human_upload_status="$(curl -sS -o /dev/null -w '%{http_code}' -X POST "${BASE}/
   -H "Authorization: Bearer ${token}" \
   -F "run_id=${run_id}" \
   -F "file=@${upload_file};type=text/plain;filename=e2e.txt")"
-[ "$human_upload_status" = 403 ] || fail "human artifact upload returned ${human_upload_status}, expected 403"
+[[ "$human_upload_status" = 403 ]] || fail "human artifact upload returned ${human_upload_status}, expected 403"
 artifact_id="$(curl -fsS -X POST "${BASE}/api/uploads" \
   -H "Authorization: Bearer ${station_token}" \
   -F "run_id=${run_id}" \
   -F "file=@${upload_file};type=text/plain;filename=e2e.txt" | json_field id)"
 rm -f "$upload_file"
-[ -n "$artifact_id" ] || fail "upload did not return an artifact id"
+[[ -n "$artifact_id" ]] || fail "upload did not return an artifact id"
 echo "    uploaded artifact id = ${artifact_id}, sha256 = ${upload_sha}"
 
 log "Removing BOTH containers and recreating them with the SAME named volumes"
@@ -193,7 +194,7 @@ wait_ready "after container recreation"
 
 log "Database records must still exist (re-login uses the persisted admin row)"
 token="$(login_token)"
-[ -n "$token" ] || fail "admin login failed after recreation (database did not persist)"
+[[ -n "$token" ]] || fail "admin login failed after recreation (database did not persist)"
 curl -fsS "${BASE}/api/uploads/info/${artifact_id}" -H "Authorization: Bearer ${token}" >/dev/null \
   || fail "artifact ${artifact_id} row did not persist across recreation"
 
@@ -203,7 +204,7 @@ curl -fsS "${BASE}/api/uploads/${artifact_id}" -H "Authorization: Bearer ${token
   || fail "artifact ${artifact_id} bytes did not persist across recreation"
 download_sha="$(sha256sum "$downloaded" | awk '{print $1}')"
 rm -f "$downloaded"
-[ "$download_sha" = "$upload_sha" ] \
+[[ "$download_sha" = "$upload_sha" ]] \
   || fail "artifact SHA-256 mismatch after recreation: uploaded ${upload_sha}, got ${download_sha}"
 echo "    verified sha256 = ${download_sha}"
 
