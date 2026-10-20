@@ -213,7 +213,7 @@ describe('enrolment keys', () => {
     fireEvent.click(await screen.findByRole('menuitem', { name: 'Revoke' }))
     fireEvent.click(await screen.findByRole('button', { name: 'Revoke' }))
 
-    await waitFor(() => expect(mockedApi.deleteApiKey.mock.calls.length).toBe(1))
+    await waitFor(() => expect(mockedApi.deleteApiKey.mock.calls).toHaveLength(1))
     expect(mockedApi.deleteApiKey.mock.calls[0][0]).toBe(2)
     expect(
       await screen.findByText('No key is waiting for a station. Name one above to enrol a new bench.')
@@ -264,6 +264,6 @@ describe('enrolment keys', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Revoke' }))
 
     expect(await screen.findByText('That key is still enrolling a station.')).toBeTruthy()
-    expect(screen.queryByRole('dialog')).toBeTruthy()
+    expect(screen.getByRole('dialog')).toBeTruthy()
   })
 })

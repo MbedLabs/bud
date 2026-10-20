@@ -17,7 +17,7 @@ export function useOneTimeToken(): string {
 
   useEffect(() => {
     const loc = typeof window !== 'undefined' ? window.location : undefined
-    if (loc && loc.hash) {
+    if (loc?.hash) {
       window.history.replaceState(null, '', loc.pathname)
     }
   }, [])

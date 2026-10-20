@@ -1,6 +1,18 @@
 import type { ReactNode } from 'react'
 import { ArrowUpDown, ChevronDown, ChevronUp, X } from 'lucide-react'
 
+/** The aria-sort value of a column: its direction when it is the sort column, otherwise none. */
+function ariaSort(active: boolean, sortDir: 'asc' | 'desc'): 'ascending' | 'descending' | 'none' {
+  if (!active) return 'none'
+  return sortDir === 'asc' ? 'ascending' : 'descending'
+}
+
+/** The sort indicator of a column: its direction when it is the sort column, otherwise a neutral icon. */
+function sortIcon(active: boolean, sortDir: 'asc' | 'desc'): ReactNode {
+  if (!active) return <ArrowUpDown className="h-3 w-3 opacity-30" />
+  return sortDir === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />
+}
+
 /** A sortable table column with its current direction. */
 export function AccessHeader<F extends string>({ field, sortField, sortDir, onSort, children, className = 'text-left font-medium px-4 py-2' }: Readonly<{
   field: F
@@ -10,10 +22,10 @@ export function AccessHeader<F extends string>({ field, sortField, sortDir, onSo
   children: ReactNode
   className?: string
 }>) {
-  return <th aria-sort={sortField === field ? sortDir === 'asc' ? 'ascending' : 'descending' : 'none'} className={className} onClick={() => onSort(field)}>
+  return <th aria-sort={ariaSort(sortField === field, sortDir)} className={className} onClick={() => onSort(field)}>
     <button type="button" className="flex items-center gap-1 hover:text-foreground transition-colors">
       {children}
-      {sortField === field ? sortDir === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" /> : <ArrowUpDown className="h-3 w-3 opacity-30" />}
+      {sortIcon(sortField === field, sortDir)}
     </button>
   </th>
 }

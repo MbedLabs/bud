@@ -536,6 +536,8 @@ async def notify_run_finished(test_run_id: int, *, wait: Optional[Callable] = No
                 delivery = await deliver(session, channel, summary, wait=wait)
                 ok = bool(delivery and delivery.delivered)
                 sent += int(ok)
+                attempts = delivery.attempt if delivery else ATTEMPTS
+                error = delivery.error if delivery else "no response"
                 await record_test_run_event(
                     session,
                     test_run_id=run.id,
@@ -546,8 +548,7 @@ async def notify_run_finished(test_run_id: int, *, wait: Optional[Callable] = No
                         f"Posted to {channel.name} ({channel.format})."
                         if ok
                         else f"{channel.name} did not accept the message after "
-                        f"{delivery.attempt if delivery else ATTEMPTS} attempt(s): "
-                        f"{delivery.error if delivery else 'no response'}"
+                        f"{attempts} attempt(s): {error}"
                     ),
                     event_metadata={
                         "channel_id": channel.id,

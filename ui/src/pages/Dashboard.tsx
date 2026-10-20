@@ -1,6 +1,6 @@
 import ReportRequests from '../components/ReportRequests'
 import SelectField from '../components/SelectField'
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router'
 import {
@@ -257,11 +257,7 @@ export default function Dashboard() {
           </Link>
         </div>
 
-        {runsLoading ? (
-          <div className="p-8 text-center text-muted-foreground">Loading...</div>
-        ) : runs.length === 0 ? (
-          <div className="p-8 text-center text-muted-foreground">No test runs yet</div>
-        ) : (
+        {listNotice(runsLoading, runs.length, 'No test runs yet') ?? (
           <div className="divide-y divide-border">
             {runs.map((run) => (
               <Link
@@ -313,11 +309,7 @@ export default function Dashboard() {
           </Link>
         </div>
 
-        {runnersLoading ? (
-          <div className="p-8 text-center text-muted-foreground">Loading...</div>
-        ) : runners.length === 0 ? (
-          <div className="p-8 text-center text-muted-foreground">No test stations registered</div>
-        ) : (
+        {listNotice(runnersLoading, runners.length, 'No test stations registered') ?? (
           <div className="divide-y divide-border">
             {runners.map((runner) => (
               <Link
@@ -344,6 +336,20 @@ export default function Dashboard() {
       </div>
     </div>
   )
+}
+
+/** A dashboard list's message while it loads or when it is empty; null when it has rows. */
+function listNotice(isLoading: boolean, count: number, emptyText: string): ReactNode {
+  if (isLoading) return <div className="p-8 text-center text-muted-foreground">Loading...</div>
+  if (count === 0) return <div className="p-8 text-center text-muted-foreground">{emptyText}</div>
+  return null
+}
+
+/** The text and bar colours of a pass rate: green from 80, amber from 50, red below. */
+function passRateColours(rate: number): { tone: string; track: string } {
+  if (rate >= 80) return { tone: 'text-emerald-600 dark:text-emerald-400', track: 'bg-emerald-500' }
+  if (rate >= 50) return { tone: 'text-amber-600 dark:text-amber-400', track: 'bg-amber-500' }
+  return { tone: 'text-red-600 dark:text-red-400', track: 'bg-red-500' }
 }
 
 /** Labelled dropdown used by the dashboard filter bar. An empty value means "no
@@ -380,18 +386,7 @@ function FilterSelect({ label, value, onChange, options, placeholder }: Readonly
  * out beside it.
  */
 function PassRateMeter({ title, caption, rate }: Readonly<{ title: string; caption: string; rate: number }>) {
-  const tone =
-    rate >= 80
-      ? 'text-emerald-600 dark:text-emerald-400'
-      : rate >= 50
-        ? 'text-amber-600 dark:text-amber-400'
-        : 'text-red-600 dark:text-red-400'
-  const track =
-    rate >= 80
-      ? 'bg-emerald-500'
-      : rate >= 50
-        ? 'bg-amber-500'
-        : 'bg-red-500'
+  const { tone, track } = passRateColours(rate)
 
   return (
     <div className="bg-card rounded-lg border border-border shadow-elegant p-5">

@@ -547,23 +547,29 @@ def render_report(request: ReportRequest, company_logo=None) -> bytes:
         story.append(Spacer(1, 4 * mm))
 
     if request.run:
-        story.append(Paragraph("Run", styles["h2"]))
-        story.append(_run_facts(request.run, styles))
-        story.append(Spacer(1, 4 * mm))
-
-    story.append(Paragraph("Outcomes", styles["h2"]))
-    story.append(
-        Paragraph(
-            f"{request.overall.total} assertions &middot; "
-            f"{request.overall.passed} passed &middot; "
-            f"{request.overall.failed} failed &middot; "
-            f"{request.overall.skipped} skipped &middot; "
-            f"pass rate {request.overall.pass_rate}%",
-            styles["body"],
+        story.extend(
+            [
+                Paragraph("Run", styles["h2"]),
+                _run_facts(request.run, styles),
+                Spacer(1, 4 * mm),
+            ]
         )
+
+    story.extend(
+        [
+            Paragraph("Outcomes", styles["h2"]),
+            Paragraph(
+                f"{request.overall.total} assertions &middot; "
+                f"{request.overall.passed} passed &middot; "
+                f"{request.overall.failed} failed &middot; "
+                f"{request.overall.skipped} skipped &middot; "
+                f"pass rate {request.overall.pass_rate}%",
+                styles["body"],
+            ),
+            Spacer(1, 2 * mm),
+            OutcomePie(request.overall),
+        ]
     )
-    story.append(Spacer(1, 2 * mm))
-    story.append(OutcomePie(request.overall))
 
     for breakdown in request.breakdowns:
         story.append(
@@ -576,9 +582,13 @@ def render_report(request: ReportRequest, company_logo=None) -> bytes:
         )
 
     if request.run is not None:
-        story.append(PageBreak())
-        story.append(Paragraph("Assertion evidence", styles["h2"]))
-        story.append(_assertions_table(request.assertions, styles))
+        story.extend(
+            [
+                PageBreak(),
+                Paragraph("Assertion evidence", styles["h2"]),
+                _assertions_table(request.assertions, styles),
+            ]
+        )
 
     doc.build(story, onFirstPage=_draw_footer, onLaterPages=_draw_footer)
     return buffer.getvalue()

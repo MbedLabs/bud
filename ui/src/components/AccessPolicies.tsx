@@ -128,6 +128,12 @@ export default function AccessPolicies({ canEdit }: Readonly<{ canEdit: boolean 
   )
 }
 
+/** The policy dialog title for viewing, editing or creating a policy. */
+function policyEditorTitle(readOnly: boolean, editing: boolean): string {
+  if (readOnly) return 'View policy'
+  return editing ? 'Edit policy' : 'New policy'
+}
+
 function PolicyEditor({
   policy,
   catalogue,
@@ -158,7 +164,7 @@ function PolicyEditor({
     })
 
   return (
-    <AccessModal title={readOnly ? 'View policy' : policy ? 'Edit policy' : 'New policy'} onClose={onCancel}>
+    <AccessModal title={policyEditorTitle(readOnly, Boolean(policy))} onClose={onCancel}>
       {error && <div role="alert" className="mb-4 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">{error}</div>}
       <form className="space-y-4" onSubmit={(event) => { event.preventDefault(); if (!readOnly) onSave({ name: name.trim(), description: description.trim() || null, permissions: matrix }) }}>
         <label className="block text-sm font-medium text-foreground">Name<input value={name} onChange={(event) => setName(event.target.value)} aria-label="Policy name" required readOnly={readOnly} className={`${inputClass} w-full`} /></label>

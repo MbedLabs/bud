@@ -52,8 +52,7 @@ export default function ReportRequests({ runId }: Readonly<{ runId?: number }>) 
           </div>
           {refusing === row.id ? (
             <form className="space-y-2" onSubmit={(event) => { event.preventDefault(); decide.mutate({ row, refuse: true }) }}>
-              <label className="block text-sm">Reason
-                <textarea required maxLength={2000} aria-label="Refusal reason" value={reason} onChange={(event) => setReason(event.target.value)}
+              <label className="block text-sm">Reason<textarea required maxLength={2000} aria-label="Refusal reason" value={reason} onChange={(event) => setReason(event.target.value)}
                   className="mt-1 block w-full rounded border border-border bg-background px-3 py-2" />
               </label>
               <div className="flex gap-2">
