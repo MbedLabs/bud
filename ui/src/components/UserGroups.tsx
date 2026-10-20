@@ -117,6 +117,12 @@ export default function UserGroups() {
   )
 }
 
+/** The group dialog title for viewing, editing or creating a group. */
+function groupEditorTitle(readOnly: boolean, editing: boolean): string {
+  if (readOnly) return 'View group'
+  return editing ? 'Edit group' : 'New group'
+}
+
 function GroupEditor({
   group,
   policies,
@@ -147,7 +153,7 @@ function GroupEditor({
     })
 
   return (
-    <AccessModal title={readOnly ? 'View group' : group ? 'Edit group' : 'New group'} onClose={onCancel}>
+    <AccessModal title={groupEditorTitle(readOnly, Boolean(group))} onClose={onCancel}>
       {error && <div role="alert" className="mb-4 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">{error}</div>}
       <form className="space-y-4" onSubmit={(event) => { event.preventDefault(); if (!readOnly) onSave({ name: name.trim(), description: description.trim() || null, policy_ids: [...selected] }) }}>
         <label className="block text-sm font-medium text-foreground">Name<input value={name} onChange={(event) => setName(event.target.value)} aria-label="Group name" required readOnly={readOnly} className={`${inputClass} w-full`} /></label>

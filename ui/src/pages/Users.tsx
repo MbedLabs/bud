@@ -464,8 +464,9 @@ function InviteUserModal({
         )}
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1">Full Name</label>
+            <label htmlFor="invite-full-name" className="block text-sm font-medium text-foreground mb-1">Full Name</label>
             <input
+              id="invite-full-name"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               required
@@ -475,8 +476,9 @@ function InviteUserModal({
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1">Email</label>
+            <label htmlFor="invite-email" className="block text-sm font-medium text-foreground mb-1">Email</label>
             <input
+              id="invite-email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -487,8 +489,9 @@ function InviteUserModal({
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1">Role</label>
+            <label htmlFor="invite-role" className="block text-sm font-medium text-foreground mb-1">Role</label>
             <SelectField
+              id="invite-role"
               value={role}
               onChange={(e) => setRole(e.target.value as UserRole)}
               title="Role"

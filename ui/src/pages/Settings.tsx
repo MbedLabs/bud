@@ -39,6 +39,21 @@ const COMMON_TIMEZONES = [
   { label: 'UTC-12', value: 'Etc/GMT+12' },
 ]
 
+/** The explanation shown under a pending email change for its current step. */
+function emailChangeStatusText(status: User['email_change_status']): string {
+  if (status === 'requested') return 'Waiting for an administrator to approve or reject this request.'
+  if (status === 'awaiting_current_confirmation') {
+    return 'Use the authorization link sent to your current address before Bud contacts the new address.'
+  }
+  return 'Current address authorized. Use the verification link sent to the new address to finish the change.'
+}
+
+/** The email change button label for an administrator or another user, while sending or idle. */
+function emailChangeButtonLabel(isAdmin: boolean, isPending: boolean): string {
+  if (isAdmin) return isPending ? 'Sending…' : 'Send authorization email'
+  return isPending ? 'Requesting…' : 'Request email change'
+}
+
 export default function Settings() {
   const { user, refreshUser } = useAuth()
   const isAdmin = user?.role === 'admin'
@@ -296,11 +311,7 @@ export default function Settings() {
               <div>
                 <p className="text-sm font-medium text-foreground">Requested email: {user.pending_email}</p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {user.email_change_status === 'requested'
-                    ? 'Waiting for an administrator to approve or reject this request.'
-                    : user.email_change_status === 'awaiting_current_confirmation'
-                      ? 'Use the authorization link sent to your current address before Bud contacts the new address.'
-                      : 'Current address authorized. Use the verification link sent to the new address to finish the change.'}
+                  {emailChangeStatusText(user.email_change_status)}
                 </p>
               </div>
               <button
@@ -359,9 +370,7 @@ export default function Settings() {
                   className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 disabled:opacity-50"
                 >
                   {requestEmailMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-                  {requestEmailMutation.isPending
-                    ? (isAdmin ? 'Sending…' : 'Requesting…')
-                    : (isAdmin ? 'Send authorization email' : 'Request email change')}
+                  {emailChangeButtonLabel(isAdmin, requestEmailMutation.isPending)}
                 </button>
               </div>
             </form>
@@ -442,10 +451,11 @@ export default function Settings() {
             ) : (
               <>
                 <div>
-                  <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5">
+                  <label htmlFor="bloom-url" className="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5">
                     Bloom URL
                   </label>
                   <input
+                    id="bloom-url"
                     type="url"
                     value={bloomUrl}
                     onChange={(e) => setBloomUrl(e.target.value)}

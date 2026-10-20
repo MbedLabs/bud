@@ -127,8 +127,9 @@ export default function AcceptInvite() {
       {!submitMessage && (
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1.5">New Password</label>
+            <label htmlFor="accept-invite-password" className="block text-sm font-medium text-foreground mb-1.5">New Password</label>
             <input
+              id="accept-invite-password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -140,8 +141,9 @@ export default function AcceptInvite() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1.5">Confirm Password</label>
+            <label htmlFor="accept-invite-confirm-password" className="block text-sm font-medium text-foreground mb-1.5">Confirm Password</label>
             <input
+              id="accept-invite-confirm-password"
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
