@@ -291,9 +291,13 @@ async def test_station_group_recipients_follow_role_hierarchy(client, db_session
 
     unchanged = await db_session.get(User, account[0], populate_existing=True)
     assert unchanged is not None
-    assert (
-        unchanged.id, unchanged.email, unchanged.full_name, unchanged.role, unchanged.is_active
-    ) == account
+    assert account == (
+        unchanged.id,
+        unchanged.email,
+        unchanged.full_name,
+        unchanged.role,
+        unchanged.is_active,
+    )
 
 
 @pytest.mark.asyncio

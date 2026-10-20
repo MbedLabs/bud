@@ -230,9 +230,9 @@ async def test_run_without_station_was_started_by_ci(db_session):
 
 
 @pytest.mark.asyncio
-async def test_delivery_retries_and_records_each_attempt(db_session):
+async def test_delivery_retries_and_records_each_attempt(db_session, monkeypatch):
     channel = await _channel(db_session, secret="s3cr3t")
-    _Recorder.statuses = [500, "error", 204]
+    monkeypatch.setattr(_Recorder, "statuses", [500, "error", 204])
 
     delivery = await notify.deliver(db_session, channel, _summary(), wait=wait_none())
     await db_session.commit()
@@ -251,9 +251,9 @@ async def test_delivery_retries_and_records_each_attempt(db_session):
 
 
 @pytest.mark.asyncio
-async def test_delivery_gives_up_after_three_attempts(db_session):
+async def test_delivery_gives_up_after_three_attempts(db_session, monkeypatch):
     channel = await _channel(db_session)
-    _Recorder.statuses = [500, 500, 500]
+    monkeypatch.setattr(_Recorder, "statuses", [500, 500, 500])
     delivery = await notify.deliver(db_session, channel, _summary(), wait=wait_none())
     assert delivery.delivered is False
     assert delivery.attempt == 3
@@ -350,13 +350,13 @@ def test_discord_embed_has_a_timestamp():
 
 
 @pytest.mark.asyncio
-async def test_teams_delivery_picks_the_card_from_the_url(db_session):
+async def test_teams_delivery_picks_the_card_from_the_url(db_session, monkeypatch):
     connector = await _channel(db_session, "teams", name="connector")
     connector.url_encrypted = encrypt_integration_secret(CONNECTOR_URL)
     workflow = await _channel(db_session, "teams", name="workflow")
     workflow.url_encrypted = encrypt_integration_secret(WORKFLOW_URLS[1])
     await db_session.commit()
-    _Recorder.statuses = [200, 202]
+    monkeypatch.setattr(_Recorder, "statuses", [200, 202])
 
     assert (await notify.deliver(db_session, connector, _summary(), wait=wait_none())).delivered
     assert (await notify.deliver(db_session, workflow, _summary(), wait=wait_none())).delivered
@@ -365,9 +365,9 @@ async def test_teams_delivery_picks_the_card_from_the_url(db_session):
 
 
 @pytest.mark.asyncio
-async def test_a_redirect_is_not_a_delivery(db_session):
+async def test_a_redirect_is_not_a_delivery(db_session, monkeypatch):
     channel = await _channel(db_session)
-    _Recorder.statuses = [302, 302, 302]
+    monkeypatch.setattr(_Recorder, "statuses", [302, 302, 302])
     delivery = await notify.deliver(db_session, channel, _summary(), wait=wait_none())
     assert delivery.delivered is False
     assert delivery.status_code == 302
