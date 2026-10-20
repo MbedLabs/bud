@@ -65,9 +65,9 @@ class RunnerResponse(BaseModel):
     id: int
     account: str
     socket_port: int
-    location: Optional[str]
+    location: str | None
     is_active: bool
-    last_heartbeat: Optional[datetime]
+    last_heartbeat: datetime | None
     created_at: datetime
 
     @field_serializer("last_heartbeat", "created_at")
@@ -193,23 +193,23 @@ class TestRunResponse(BaseModel):
     name: str
     test_case_list: str
     status: str
-    url_test_software: Optional[str]
+    url_test_software: str | None
     ref_test_software: str
-    url_software_under_test: Optional[str]
-    ref_software_under_test: Optional[str]
+    url_software_under_test: str | None
+    ref_software_under_test: str | None
     total_tests: int
     passed_tests: int
     failed_tests: int
     skipped_tests: int
-    duration_seconds: Optional[float]
+    duration_seconds: float | None
     created_at: datetime
-    started_at: Optional[datetime]
-    completed_at: Optional[datetime]
+    started_at: datetime | None
+    completed_at: datetime | None
     claim_acknowledged_at: Optional[datetime] = None
     runner_exit_code: Optional[int] = None
     runner_error: Optional[str] = None
-    product_id: Optional[int]
-    runner_id: Optional[int]
+    product_id: int | None
+    runner_id: int | None
     runner_account: Optional[str] = None
     selected_tests: Optional[List[str]] = None
     bloom_artefact_id: Optional[str] = None
@@ -241,8 +241,8 @@ class TestRunEventResponse(BaseModel):
     stage: str
     status: str
     title: str
-    message: Optional[str]
-    event_metadata: Optional[Dict[str, Any]]
+    message: str | None
+    event_metadata: Dict[str, Any] | None
     created_at: datetime
 
     @field_serializer("created_at")
@@ -310,11 +310,11 @@ class TestResultResponse(BaseModel):
     test_method: str
     passed: bool
     duration_seconds: float
-    error_message: Optional[str]
-    traceback: Optional[str]
-    assertions: Optional[List[Dict[str, Any]]]
-    test_metadata: Optional[Dict[str, Any]]
-    work_package_id: Optional[int]
+    error_message: str | None
+    traceback: str | None
+    assertions: List[Dict[str, Any]] | None
+    test_metadata: Dict[str, Any] | None
+    work_package_id: int | None
     created_at: datetime
     test_run_id: Optional[int] = None
 
@@ -334,10 +334,10 @@ class TestResultListItem(BaseModel):
     test_method: str
     passed: bool
     duration_seconds: float
-    error_message: Optional[str]
-    assertions: Optional[List[Dict[str, Any]]]
-    test_metadata: Optional[Dict[str, Any]]
-    work_package_id: Optional[int]
+    error_message: str | None
+    assertions: List[Dict[str, Any]] | None
+    test_metadata: Dict[str, Any] | None
+    work_package_id: int | None
     created_at: datetime
     test_run_id: Optional[int] = None
 
@@ -459,9 +459,9 @@ class ArtifactResponse(BaseModel):
     content_type: str
     size_bytes: int
     sha256: Optional[str] = None
-    test_case: Optional[str]
+    test_case: str | None
     created_at: datetime
-    test_run_id: Optional[int]
+    test_run_id: int | None
 
     @field_serializer("created_at")
     def serialize_dt(self, dt: datetime, _info):
