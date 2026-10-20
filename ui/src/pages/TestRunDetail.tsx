@@ -1,8 +1,7 @@
 import ReportRequests from '../components/ReportRequests'
-import { useMemo, useState } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMemo, useState, type ReactNode } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useParams, Link } from 'react-router'
-import { useQuery } from '@tanstack/react-query'
 import {
   accessRequestsApi,
   artifactsApi,
@@ -38,7 +37,7 @@ import PdfReportButton from '../components/PdfReportButton'
 /** The run page. Test cases and assertions are counted separately. */
 export default function TestRunDetail() {
   const { id } = useParams<{ id: string }>()
-  const runId = parseInt(id || '0')
+  const runId = Number.parseInt(id || '0')
   const [reportError, setReportError] = useState<string | null>(null)
   const [systemReportOpen, setSystemReportOpen] = useState(false)
   const [resultsFiltersOpen, setResultsFiltersOpen] = useState(false)
@@ -101,6 +100,7 @@ export default function TestRunDetail() {
   const assertionPassRate = assertionSummary.total > 0
     ? ((assertionSummary.passed / assertionSummary.total) * 100).toFixed(1)
     : null
+  const stepCount = `${events?.length || 0} reported step${events?.length === 1 ? '' : 's'}`
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -164,13 +164,13 @@ export default function TestRunDetail() {
               </p>
             </div>
             <span className={`text-lg font-bold ${
-              parseFloat(passRate) >= 80 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'
+              Number.parseFloat(passRate) >= 80 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'
             }`}>{passRate}%</span>
           </div>
           <div className="h-2 bg-muted rounded-full overflow-hidden">
             <div
               className={`h-full rounded-full transition-all duration-700 ${
-                parseFloat(passRate) >= 80
+                Number.parseFloat(passRate) >= 80
                   ? 'bg-linear-to-r/srgb from-emerald-500 to-emerald-400'
                   : 'bg-linear-to-r/srgb from-amber-500 to-amber-400'
               }`}
@@ -191,13 +191,7 @@ export default function TestRunDetail() {
           <DetailItem label="Duration" value={run.duration_seconds ? formatDuration(run.duration_seconds) : '-'} />
           <DetailItem
             label="Test Station"
-            value={
-              run.runner_account
-                ? run.runner_account
-                : run.runner_id
-                ? `Station #${run.runner_id}`
-                : 'Not assigned'
-            }
+            value={stationLabel(run.runner_account, run.runner_id)}
           />
           {run.bloom_artefact_id && (
             <div>
@@ -305,12 +299,8 @@ export default function TestRunDetail() {
           </div>
         )}
 
-        {resultsLoading ? (
-          <div className="p-8 text-center text-muted-foreground">Loading results...</div>
-        ) : !results || results.length === 0 ? (
-          <div className="p-8 text-center text-muted-foreground">No test results yet</div>
-        ) : (
-          <ResultsTable results={results} outcomeFilters={outcomeFilters} />
+        {panelMessage(resultsLoading, results?.length ?? 0, 'Loading results...', 'No test results yet') ?? (
+          <ResultsTable results={results ?? []} outcomeFilters={outcomeFilters} />
         )}
       </div>
 
@@ -326,9 +316,7 @@ export default function TestRunDetail() {
               <div className="min-w-0">
                 <h3 className="text-sm font-semibold text-foreground">System Report</h3>
                 <p className="text-xs text-muted-foreground">
-                  {eventsLoading
-                    ? 'Loading system steps...'
-                    : `${events?.length || 0} reported step${events?.length === 1 ? '' : 's'}`}
+                  {eventsLoading ? 'Loading system steps...' : stepCount}
                 </p>
               </div>
             </div>
@@ -341,13 +329,15 @@ export default function TestRunDetail() {
         </button>
         {systemReportOpen && (
           <>
-            {eventsLoading ? (
-              <div className="p-8 text-center text-muted-foreground border-t border-border">Loading system steps...</div>
-            ) : !events || events.length === 0 ? (
-              <div className="p-8 text-center text-muted-foreground border-t border-border">No system steps reported yet</div>
-            ) : (
+            {panelMessage(
+              eventsLoading,
+              events?.length ?? 0,
+              'Loading system steps...',
+              'No system steps reported yet',
+              'p-8 text-center text-muted-foreground border-t border-border',
+            ) ?? (
               <div className="border-t border-border">
-                <RunEventTimeline events={events} />
+                <RunEventTimeline events={events ?? []} />
               </div>
             )}
           </>
@@ -383,12 +373,15 @@ function RunArtifacts({ artifacts, isLoading }: Readonly<{ artifacts?: Artifact[
     try {
       const { blob, filename } = await artifactsApi.download(artifact.id, artifact.original_filename)
       saveBlob(blob, filename)
-    } catch (failure) {
-      setError(extractApiErrorMessage(failure, 'Could not download the artifact'))
+    } catch (error_) {
+      setError(extractApiErrorMessage(error_, 'Could not download the artifact'))
     } finally {
       setDownloading(null)
     }
   }
+
+  const items = artifacts ?? []
+  const fileCount = `${artifacts?.length || 0} file${artifacts?.length === 1 ? '' : 's'} uploaded for this run`
 
   return (
     <div className="bg-card rounded-lg border border-border shadow-elegant overflow-hidden">
@@ -398,9 +391,7 @@ function RunArtifacts({ artifacts, isLoading }: Readonly<{ artifacts?: Artifact[
           <div>
             <h3 className="text-sm font-semibold text-foreground">Artifacts</h3>
             <p className="text-xs text-muted-foreground">
-              {isLoading
-                ? 'Loading artifacts...'
-                : `${artifacts?.length || 0} file${artifacts?.length === 1 ? '' : 's'} uploaded for this run`}
+              {isLoading ? 'Loading artifacts...' : fileCount}
             </p>
           </div>
         </div>
@@ -412,15 +403,9 @@ function RunArtifacts({ artifacts, isLoading }: Readonly<{ artifacts?: Artifact[
         </p>
       )}
 
-      {isLoading ? (
-        <div className="p-8 text-center text-muted-foreground">Loading artifacts...</div>
-      ) : !artifacts || artifacts.length === 0 ? (
-        <div className="p-8 text-center text-muted-foreground">
-          No artifacts uploaded for this run
-        </div>
-      ) : (
+      {panelMessage(isLoading, items.length, 'Loading artifacts...', 'No artifacts uploaded for this run') ?? (
         <ul className="divide-y divide-border">
-          {artifacts.map((artifact) => (
+          {items.map((artifact) => (
             <li key={artifact.id} className="flex items-center gap-3 px-5 py-3">
               <FileText className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
               <div className="min-w-0 flex-1">
@@ -448,6 +433,37 @@ function RunArtifacts({ artifacts, isLoading }: Readonly<{ artifacts?: Artifact[
       )}
     </div>
   )
+}
+
+/** A panel's message while it loads or when it has no rows; null when it has rows. */
+function panelMessage(
+  isLoading: boolean,
+  count: number,
+  loadingText: string,
+  emptyText: string,
+  className = 'p-8 text-center text-muted-foreground',
+): ReactNode {
+  if (isLoading) return <div className={className}>{loadingText}</div>
+  if (count === 0) return <div className={className}>{emptyText}</div>
+  return null
+}
+
+/** The station a run is assigned to: its account, otherwise its id, otherwise none. */
+function stationLabel(account: string | null, runnerId: number | null): string {
+  if (account) return account
+  return runnerId ? `Station #${runnerId}` : 'Not assigned'
+}
+
+/** The border and background classes of an assertion row: neutral, passed or failed. */
+function assertionRowTone(neutral: boolean, passed: boolean): string {
+  if (neutral) return 'border-border bg-transparent'
+  return passed ? 'border-emerald-500/50 bg-emerald-500/2' : 'border-red-500/70 bg-red-500/3'
+}
+
+/** The text colour of an assertion's type label: neutral, passed or failed. */
+function assertionTypeTone(neutral: boolean, passed: boolean): string {
+  if (neutral) return 'text-foreground'
+  return passed ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400'
 }
 
 /** A byte count as a reader would say it. */
@@ -760,13 +776,7 @@ function AssertionRow({ assertion, index }: Readonly<{ assertion: AssertionViewM
   const message = assertion.message || '(no message)'
   const assertionType = assertion.assertion_type || inferAssertionType(assertion)
   return (
-    <div className={`border-l-2 py-2 pl-3 pr-2 text-xs ${
-      neutral
-        ? 'border-border bg-transparent'
-        : passed
-          ? 'border-emerald-500/50 bg-emerald-500/2'
-          : 'border-red-500/70 bg-red-500/3'
-    }`}>
+    <div className={`border-l-2 py-2 pl-3 pr-2 text-xs ${assertionRowTone(neutral, passed)}`}>
       <div className="flex items-start gap-2">
         {passed ? (
           <CheckCircle className={`h-3.5 w-3.5 mt-0.5 shrink-0 ${neutral ? 'text-foreground' : 'text-emerald-500'}`} />
@@ -776,13 +786,7 @@ function AssertionRow({ assertion, index }: Readonly<{ assertion: AssertionViewM
         <div className="flex-1 min-w-0">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
             <span className="font-mono text-[11px] text-muted-foreground">#{index}</span>
-            <span className={`text-[11px] font-semibold ${
-              neutral
-                ? 'text-foreground'
-                : passed
-                  ? 'text-emerald-700 dark:text-emerald-400'
-                  : 'text-red-700 dark:text-red-400'
-            }`}>
+            <span className={`text-[11px] font-semibold ${assertionTypeTone(neutral, passed)}`}>
               {assertionType}
             </span>
             <span className="max-w-full truncate text-[11px] text-muted-foreground">{assertion.methodName}</span>

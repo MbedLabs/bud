@@ -244,7 +244,12 @@ async def _require_station_name_free(db: AsyncSession, name: str, exclude_runner
         )
 
 
-@router.post("/api-keys", response_model=RunnerApiKeyCreated, status_code=201)
+@router.post(
+    "/api-keys",
+    response_model=RunnerApiKeyCreated,
+    status_code=201,
+    responses={409: {"description": "Conflict"}},
+)
 async def create_runner_api_key(
     data: RunnerApiKeyCreate,
     db: AsyncSession = Depends(get_db, scope="function"),
@@ -349,7 +354,9 @@ async def get_runner(
 
 
 @router.patch(
-    "/{account}", response_model=RunnerResponse, responses={404: {"description": "Not Found"}}
+    "/{account}",
+    response_model=RunnerResponse,
+    responses={404: {"description": "Not Found"}, 409: {"description": "Conflict"}},
 )
 async def rename_runner(
     account: str,

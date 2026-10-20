@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useSearchParams } from 'react-router'
 import { testRunsApi, testStationsApi, type TestRun } from '../api/client'
@@ -13,7 +13,7 @@ const EMPTY_TEST_RUNS: TestRun[] = []
 
 const STATUS_OPTIONS = ['Pending', 'Running', 'Completed', 'Cancelled'] as const
 type SortField = 'name' | 'status' | 'runner_account' | 'duration_seconds' | 'started_at' | 'completed_at'
-const SORT_FIELDS: SortField[] = ['name', 'status', 'runner_account', 'duration_seconds', 'started_at', 'completed_at']
+const SORT_FIELDS = new Set<SortField>(['name', 'status', 'runner_account', 'duration_seconds', 'started_at', 'completed_at'])
 const headerClass = 'px-5 py-3 text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider'
 
 export default function TestRuns() {
@@ -25,7 +25,7 @@ export default function TestRuns() {
   const [locationFilter, setLocationFilter] = useState<string>(searchParams.get('location') || '')
   const [filtersOpen, setFiltersOpen] = useState(false)
   const requestedSort = searchParams.get('sort') as SortField | null
-  const sortField = requestedSort && SORT_FIELDS.includes(requestedSort) ? requestedSort : null
+  const sortField = requestedSort && SORT_FIELDS.has(requestedSort) ? requestedSort : null
   const sortDir = searchParams.get('dir') === 'desc' ? 'desc' : 'asc'
   const toggleSort = (field: SortField) => {
     setPage(1)
@@ -233,20 +233,7 @@ export default function TestRuns() {
       </section>
 
       <div className="bg-card rounded-lg border border-border shadow-elegant overflow-hidden">
-        {isLoading ? (
-          <div className="p-8 text-center text-muted-foreground">Loading...</div>
-        ) : error ? (
-          <div className="p-8 text-center text-destructive">Error loading test runs</div>
-        ) : runs.length === 0 ? (
-          <div className="p-12 text-center">
-            <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
-              <PlayCircle className="h-8 w-8 text-muted-foreground/50" />
-            </div>
-            <p className="text-sm text-muted-foreground">
-              {hasActiveFilters ? 'No test runs match the current filters' : 'No test runs found'}
-            </p>
-          </div>
-        ) : (
+        {runsMessage(isLoading, Boolean(error), runs.length, hasActiveFilters) ?? (
           <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-border">
             <thead>
@@ -350,6 +337,23 @@ export default function TestRuns() {
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+/** The runs table's message while it loads, when loading failed or when no run matches; null when there are runs. */
+function runsMessage(isLoading: boolean, failed: boolean, count: number, filtered: boolean): ReactNode {
+  if (isLoading) return <div className="p-8 text-center text-muted-foreground">Loading...</div>
+  if (failed) return <div className="p-8 text-center text-destructive">Error loading test runs</div>
+  if (count > 0) return null
+  return (
+    <div className="p-12 text-center">
+      <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
+        <PlayCircle className="h-8 w-8 text-muted-foreground/50" />
+      </div>
+      <p className="text-sm text-muted-foreground">
+        {filtered ? 'No test runs match the current filters' : 'No test runs found'}
+      </p>
     </div>
   )
 }

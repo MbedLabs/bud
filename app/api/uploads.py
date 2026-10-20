@@ -46,7 +46,7 @@ def get_upload_root() -> Path:
     return _UPLOAD_ROOT
 
 
-async def ensure_upload_dir() -> Path:
+def ensure_upload_dir() -> Path:
     """Ensure the upload directory exists and return its resolved path."""
     upload_path = get_upload_root()
     upload_path.mkdir(parents=True, exist_ok=True)
@@ -68,7 +68,7 @@ def _can_runner_access_artifact(runner: Runner, artifact: Artifact) -> bool:
     )
 
 
-async def _can_user_delete_artifact(db: AsyncSession, user: User) -> bool:
+def _can_user_delete_artifact(user: User) -> bool:
     """Deleting evidence is fixed to the Admin base role."""
     return user.role == UserRole.admin
 
@@ -125,6 +125,7 @@ async def _validate_runner_upload_run(
     responses={
         403: {"description": HTTPStatus(403).phrase},
         400: {"description": "Bad Request"},
+        404: {"description": "Not Found"},
         415: {"description": "Unsupported Media Type"},
     },
 )
@@ -163,7 +164,7 @@ async def upload_file(
 
     unique_filename = f"{uuid.uuid4()}{ext}"
 
-    upload_dir = await ensure_upload_dir()
+    upload_dir = ensure_upload_dir()
     storage_path = upload_dir / unique_filename
 
     resolved_storage = storage_path.resolve()
@@ -218,6 +219,7 @@ async def upload_file(
     responses={
         503: {"description": HTTPStatus(503).phrase},
         400: {"description": "Bad Request"},
+        403: {"description": "Forbidden"},
         404: {"description": "Not Found"},
     },
 )
@@ -276,7 +278,11 @@ async def download_artifact(
     )
 
 
-@router.get("/info/{artifact_id}", response_model=ArtifactResponse)
+@router.get(
+    "/info/{artifact_id}",
+    response_model=ArtifactResponse,
+    responses={403: {"description": "Forbidden"}, 404: {"description": "Not Found"}},
+)
 async def get_artifact_info(
     artifact_id: int,
     db: AsyncSession = Depends(get_db, scope="function"),
@@ -307,7 +313,7 @@ async def delete_artifact(
     if not artifact:
         raise HTTPException(status_code=404, detail="Artifact not found")
 
-    if not await _can_user_delete_artifact(db, _current_user):
+    if not _can_user_delete_artifact(_current_user):
         raise HTTPException(status_code=403, detail="Only admins may delete artifacts")
 
     storage_key = artifact.storage_path

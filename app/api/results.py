@@ -263,6 +263,6 @@ async def get_result(
         test_run = await db.get(TestRun, test_result.test_run_id)
         if test_run is None:
             raise HTTPException(status_code=404, detail=TEST_RESULT_NOT_FOUND)
-        await require_run_access(db, _current_entity, test_run)
+        require_run_access(_current_entity, test_run)
 
     return test_result

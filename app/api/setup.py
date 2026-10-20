@@ -6,6 +6,7 @@ itself.
 """
 
 import logging
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import func, select, text
@@ -36,22 +37,20 @@ async def _user_count(db: AsyncSession) -> int:
     return int(result.scalar_one())
 
 
-@router.get("/setup/status", response_model=SetupStatusResponse)
-async def setup_status(db: AsyncSession = Depends(get_db, scope="function")) -> SetupStatusResponse:
+@router.get("/setup/status")
+async def setup_status(
+    db: Annotated[AsyncSession, Depends(get_db, scope="function")],
+) -> SetupStatusResponse:
     """Report whether the instance still needs its first administrator."""
     return SetupStatusResponse(setup_required=await _user_count(db) == 0)
 
 
-@router.post(
-    "/setup",
-    response_model=SetupCompletedResponse,
-    status_code=status.HTTP_201_CREATED,
-)
+@router.post("/setup", status_code=status.HTTP_201_CREATED)
 @limiter.limit("5/minute")
 async def create_first_admin(
     request: Request,
     data: CreateFirstAdminRequest,
-    db: AsyncSession = Depends(get_db, scope="function"),
+    db: Annotated[AsyncSession, Depends(get_db, scope="function")],
 ) -> SetupCompletedResponse:
     """Create the first administrator, once, on an instance that has no users.
 

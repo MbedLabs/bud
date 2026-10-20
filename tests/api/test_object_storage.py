@@ -90,7 +90,7 @@ def test_a_refused_upload_leaves_nothing(client, s3, monkeypatch, station_upload
 
 
 async def test_read_stored_prefers_the_bucket_then_the_mirror(s3, monkeypatch):
-    root = await uploads.ensure_upload_dir()
+    root = uploads.ensure_upload_dir()
     (root / "r.txt").write_bytes(b"local")
     assert await artifact_storage.read_stored(root, "r.txt") == b"local"
     await artifact_storage.persist(root / "r.txt", "r.txt", "text/plain")
@@ -107,7 +107,7 @@ async def test_cleanup_reconciles_the_bucket(s3, db_session, monkeypatch):
 
     from app.models import Artifact
 
-    root = await uploads.ensure_upload_dir()
+    root = uploads.ensure_upload_dir()
     for name in ("kept.txt", "orphan.txt", "old.txt"):
         (root / name).write_bytes(b"x")
         await artifact_storage.persist(root / name, name, "text/plain")
@@ -147,7 +147,7 @@ async def test_cleanup_reconciles_the_bucket(s3, db_session, monkeypatch):
 
 
 async def test_migrate_copies_once_and_checks_sizes(s3, monkeypatch):
-    root = await uploads.ensure_upload_dir()
+    root = uploads.ensure_upload_dir()
     (root / "m1.txt").write_bytes(b"one")
     (root / "m2.txt").write_bytes(b"two two")
     (root / ".upload-x.part").write_bytes(b"partial")

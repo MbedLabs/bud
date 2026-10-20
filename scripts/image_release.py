@@ -17,11 +17,18 @@ def run(*args):
     return subprocess.run(args, text=True, capture_output=True, check=True).stdout.strip()
 
 
+def is_image_reference(image):
+    """Return True for a string of the form registry/name, optionally followed by
+    :tag or @sha256:<64 hex digits>, and False for any other value, including one
+    that starts with '-'."""
+    return isinstance(image, str) and IMAGE_REFERENCE.fullmatch(image) is not None
+
+
 def checked_reference(image):
     """Return an image reference of the form registry/name, optionally followed by
     :tag or @sha256:<64 hex digits>, and raise ValueError for any other value,
     including one that starts with '-'."""
-    if not isinstance(image, str) or not IMAGE_REFERENCE.fullmatch(image):
+    if not is_image_reference(image):
         raise ValueError(f"Invalid image reference: {image!r}")
     return image
 
@@ -29,7 +36,8 @@ def checked_reference(image):
 def digest(image):
     """Return the registry manifest digest of a checked image reference, or None
     when the registry does not hold it."""
-    checked_reference(image)
+    if not is_image_reference(image):
+        raise ValueError(f"Invalid image reference: {image!r}")
     result = subprocess.run(
         ["docker", "buildx", "imagetools", "inspect", image, "--format", "{{.Manifest.Digest}}"],
         text=True,

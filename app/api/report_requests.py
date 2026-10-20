@@ -139,6 +139,7 @@ async def refuse_request(
     responses={
         404: {"description": HTTPStatus(404).phrase},
         409: {"description": HTTPStatus(409).phrase},
+        502: {"description": HTTPStatus(502).phrase},
     },
 )
 async def publish_request(

@@ -71,8 +71,9 @@ export default function ResetPassword() {
       {!message && (
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1.5">New Password</label>
+            <label htmlFor="reset-password-new" className="block text-sm font-medium text-foreground mb-1.5">New Password</label>
             <input
+              id="reset-password-new"
               type="password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
@@ -84,8 +85,9 @@ export default function ResetPassword() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1.5">Confirm Password</label>
+            <label htmlFor="reset-password-confirm" className="block text-sm font-medium text-foreground mb-1.5">Confirm Password</label>
             <input
+              id="reset-password-confirm"
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}

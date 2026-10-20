@@ -1,5 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
-import { Suspense } from 'react'
+import { useState, useEffect, useRef, Suspense } from 'react'
 import { Outlet, Link, useLocation } from 'react-router'
 import {
   LayoutDashboard, ListChecks, PlayCircle, Server, Settings, Sun, Moon,
@@ -30,6 +29,22 @@ const navigation = [
   { name: 'Custom Run', href: '/custom-run', icon: ListChecks },
   { name: 'Test Stations', href: '/test-stations', icon: Server },
 ]
+
+/** The role badge colours for a base role. */
+function roleBadgeClasses(role?: string): string {
+  if (role === 'admin') return 'bg-red-500/10 text-red-400'
+  if (role === 'developer') return 'bg-blue-500/10 text-blue-400'
+  return 'bg-green-500/10 text-green-400'
+}
+
+/** The header title of a page that is not in the sidebar navigation. */
+function otherPageTitle(pathname: string): string {
+  if (pathname === '/settings') return 'Settings'
+  if (pathname === '/users') return 'Users'
+  if (pathname === '/access') return 'Access'
+  if (pathname === '/audit') return 'Audit log'
+  return 'Dashboard'
+}
 
 /**
  * The app shell with the sidebar, the account menu and the routed page. SIDEBAR_EDGE matches the
@@ -66,11 +81,7 @@ export default function Layout() {
     (n.href !== '/' && location.pathname.startsWith(n.href))
   )
 
-  const roleBadgeColor = user?.role === 'admin'
-    ? 'bg-red-500/10 text-red-400'
-    : user?.role === 'developer'
-      ? 'bg-blue-500/10 text-blue-400'
-      : 'bg-green-500/10 text-green-400'
+  const roleBadgeColor = roleBadgeClasses(user?.role)
 
   const [signingOut, setSigningOut] = useState(false)
 
@@ -239,7 +250,7 @@ export default function Layout() {
           <div className="px-6 py-4 flex items-center justify-between">
             <div className="pl-6">
               <h2 className="text-lg font-semibold text-foreground">
-                {activeNav?.name || (location.pathname === '/settings' ? 'Settings' : location.pathname === '/users' ? 'Users' : location.pathname === '/access' ? 'Access' : location.pathname === '/audit' ? 'Audit log' : 'Dashboard')}
+                {activeNav?.name || otherPageTitle(location.pathname)}
               </h2>
               <p className="text-xs text-muted-foreground mt-0.5">
                 {location.pathname === '/' && 'Overview of test activities'}
