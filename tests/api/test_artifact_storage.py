@@ -49,9 +49,10 @@ async def test_only_one_active_upload_is_allowed_per_principal(db_session, monke
     monkeypatch.setattr(settings, "MAX_UPLOAD_SIZE", 25)
     monkeypatch.setattr(settings, "MAX_RUN_UPLOAD_BYTES", 250)
     first = await reserve_upload(db_session, _admin(), test_run_id=None)
+    admin = _admin()
 
     with pytest.raises(HTTPException) as error:
-        await reserve_upload(db_session, _admin(), test_run_id=None)
+        await reserve_upload(db_session, admin, test_run_id=None)
 
     assert error.value.status_code == 429
     await release_upload(db_session, first.id)
@@ -64,9 +65,10 @@ async def test_upload_start_rate_is_database_backed(db_session, monkeypatch):
     await release_upload(db_session, first.id)
     second = await reserve_upload(db_session, _admin(), test_run_id=None)
     await release_upload(db_session, second.id)
+    admin = _admin()
 
     with pytest.raises(HTTPException) as error:
-        await reserve_upload(db_session, _admin(), test_run_id=None)
+        await reserve_upload(db_session, admin, test_run_id=None)
 
     assert error.value.status_code == 429
     assert "rate" in error.value.detail.lower()

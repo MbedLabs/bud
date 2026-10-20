@@ -107,7 +107,7 @@ async def db_session(_engine) -> AsyncGenerator:
         yield session
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture
 def test_user():
     """A stand-in authenticated administrator for endpoints protected by get_current_user."""
     from app.models.user import User, UserRole
@@ -207,7 +207,7 @@ async def station_run(db_session, test_station):
     return run
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture
 def station_upload(station_request, station_run):
     """Upload one file as the fixture station to its own run."""
 
@@ -221,7 +221,7 @@ def station_upload(station_request, station_run):
     return upload
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture
 def station_request(client, test_station):
     """Send an HTTP request as a station and restore the human client afterward."""
     from app.api.auth import get_current_active_entity
