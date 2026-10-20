@@ -72,6 +72,7 @@ from app.services.token_service import (
     get_valid_token,
     invalidate_all_refresh_tokens,
     invalidate_tokens,
+    is_cli_access_token_active,
     mark_token_used,
 )
 
@@ -156,7 +157,10 @@ async def get_current_active_entity(
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user ID")
         result = await db.execute(select(User).where(User.id == entity_id))
         entity = result.scalar_one_or_none()
-        if entity is not None and payload.get("ver") != entity.session_version:
+        if entity is not None and (
+            payload.get("ver") != entity.session_version
+            or not await is_cli_access_token_active(db, payload, entity.id)
+        ):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Session expired, please log in again",

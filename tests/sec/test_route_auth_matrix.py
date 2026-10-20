@@ -26,6 +26,9 @@ PUBLIC_ENDPOINTS = {
     "register_runner",
     "setup_status",
     "create_first_admin",
+    "cli_start",
+    "cli_exchange",
+    "cli_refresh",
 }
 
 AUTH_DEPENDENCIES = {

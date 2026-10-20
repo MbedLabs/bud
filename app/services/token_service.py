@@ -155,6 +155,25 @@ async def invalidate_all_refresh_tokens(db: AsyncSession, user_id: int) -> None:
     await invalidate_tokens(db, user_id, purpose=UserTokenPurpose.refresh)
 
 
+async def is_cli_access_token_active(db: AsyncSession, payload: dict, user_id: int) -> bool:
+    """Validate a CLI access token's live refresh binding while retaining ordinary JWTs."""
+    if "cli_refresh_id" not in payload:
+        return True
+    refresh_id = payload["cli_refresh_id"]
+    if type(refresh_id) is not int:
+        return False
+    result = await db.execute(
+        select(UserToken.id).where(
+            UserToken.id == refresh_id,
+            UserToken.user_id == user_id,
+            UserToken.purpose == UserTokenPurpose.refresh,
+            UserToken.used_at.is_(None),
+            UserToken.expires_at > datetime.now(timezone.utc).replace(tzinfo=None),
+        )
+    )
+    return result.scalar_one_or_none() is not None
+
+
 async def cancel_pending_email_change(db: AsyncSession, user) -> None:
     """Forget the user's pending email change and burn its confirmation tokens."""
     user.clear_pending_email_change()
