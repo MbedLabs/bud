@@ -77,15 +77,17 @@ export default function NotificationChannels() {
 
   const test = useMutation({
     mutationFn: (channel: NotificationChannel) => notificationsApi.testChannel(channel.id),
-    onSuccess: (result, channel) =>
+    onSuccess: (result, channel) => {
+      const reason = result.error ? `: ${result.error}` : ''
       setMessage(
         result.delivered
           ? { ok: true, text: `Test message delivered to ${channel.name}.` }
           : {
               ok: false,
-              text: `${channel.name} did not accept the test message after ${result.attempts} attempt(s)${result.error ? `: ${result.error}` : ''}.`,
+              text: `${channel.name} did not accept the test message after ${result.attempts} attempt(s)${reason}.`,
             },
-      ),
+      )
+    },
     onError: (error) => setMessage({ ok: false, text: extractApiErrorMessage(error, 'Could not send the test message') }),
   })
 
@@ -122,8 +124,7 @@ export default function NotificationChannels() {
                     checked={channel.enabled}
                     onChange={(e) => update.mutate({ id: channel.id, enabled: e.target.checked })}
                     aria-label={`Enable ${channel.name}`}
-                  />
-                  Enabled
+                  />Enabled
                 </label>
                 <button
                   type="button"

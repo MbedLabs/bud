@@ -1,5 +1,5 @@
 import SelectField from '../components/SelectField'
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -132,6 +132,8 @@ export default function CustomRun() {
     },
   })
 
+  const catalogueCount = `${visible.length} of ${entries.length} test case${entries.length === 1 ? '' : 's'}`
+
   return (
     <div className="space-y-5 animate-fade-in">
       <section className="bg-card rounded-lg border border-border shadow-elegant">
@@ -199,28 +201,12 @@ export default function CustomRun() {
             <div>
               <h3 className="text-sm font-semibold text-foreground">Available test cases</h3>
               <p className="text-xs text-muted-foreground">
-                {isLoading
-                  ? 'Loading the catalogue...'
-                  : `${visible.length} of ${entries.length} test case${entries.length === 1 ? '' : 's'}`}
+                {isLoading ? 'Loading the catalogue...' : catalogueCount}
               </p>
             </div>
           </div>
 
-          {isLoading ? (
-            <div className="p-8 text-center text-muted-foreground">Loading the catalogue...</div>
-          ) : entries.length === 0 ? (
-            <div className="p-8 text-center text-muted-foreground">
-              <p>No test cases yet.</p>
-              <p className="mt-1 text-xs">
-                A test case appears here once it has run at least once and reported the file it
-                came from. Bud does not read a station&rsquo;s workspace.
-              </p>
-            </div>
-          ) : visible.length === 0 ? (
-            <div className="p-8 text-center text-muted-foreground">
-              No test cases match that search
-            </div>
-          ) : (
+          {catalogueNotice(isLoading, entries.length, visible.length) ?? (
             <div className="divide-y divide-border">
               {bySuite.map(([suite, group]) => (
                 <div key={suite}>
@@ -249,17 +235,7 @@ export default function CustomRun() {
                             {entry.method_count} method{entry.method_count === 1 ? '' : 's'}
                           </span>
                           <span className="flex shrink-0 items-center gap-1.5">
-                            {entry.last_passed === null ? null : entry.last_passed ? (
-                              <CheckCircle
-                                className="h-3.5 w-3.5 text-emerald-600"
-                                aria-label="Passed when last run"
-                              />
-                            ) : (
-                              <XCircle
-                                className="h-3.5 w-3.5 text-red-600"
-                                aria-label="Failed when last run"
-                              />
-                            )}
+                            {lastRunIcon(entry.last_passed)}
                             <span className="hidden text-xs text-muted-foreground md:inline">
                               {entry.last_run_at ? formatDateTime(entry.last_run_at) : '—'}
                             </span>
@@ -334,6 +310,48 @@ export default function CustomRun() {
         </aside>
       </div>
     </div>
+  )
+}
+
+/** The catalogue panel's message while it loads, when it is empty or when the search matches nothing; null otherwise. */
+function catalogueNotice(isLoading: boolean, entryCount: number, visibleCount: number): ReactNode {
+  if (isLoading) {
+    return <div className="p-8 text-center text-muted-foreground">Loading the catalogue...</div>
+  }
+  if (entryCount === 0) {
+    return (
+      <div className="p-8 text-center text-muted-foreground">
+        <p>No test cases yet.</p>
+        <p className="mt-1 text-xs">
+          A test case appears here once it has run at least once and reported the file it
+          came from. Bud does not read a station&rsquo;s workspace.
+        </p>
+      </div>
+    )
+  }
+  if (visibleCount === 0) {
+    return (
+      <div className="p-8 text-center text-muted-foreground">
+        No test cases match that search
+      </div>
+    )
+  }
+  return null
+}
+
+/** The icon for a test case's last result: passed, failed, or none before its first run. */
+function lastRunIcon(lastPassed: boolean | null): ReactNode {
+  if (lastPassed === null) return null
+  return lastPassed ? (
+    <CheckCircle
+      className="h-3.5 w-3.5 text-emerald-600"
+      aria-label="Passed when last run"
+    />
+  ) : (
+    <XCircle
+      className="h-3.5 w-3.5 text-red-600"
+      aria-label="Failed when last run"
+    />
   )
 }
 

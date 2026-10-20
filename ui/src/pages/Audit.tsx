@@ -3,7 +3,7 @@ import DateField from '../components/DateField'
 import SelectField from '../components/SelectField'
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { auditApi, type AuditFilters } from '../api/client'
+import { auditApi, type AuditEvent, type AuditFilters } from '../api/client'
 import { formatDateTime } from '../test/date-utils'
 
 const PAGE_SIZE = 50
@@ -22,6 +22,11 @@ const ACTION_GROUPS: { value: string; label: string }[] = [
   { value: 'artifact.', label: 'Artifacts' },
   { value: 'export.', label: 'Reports' },
 ]
+
+/** The actor text of an event without a named actor: the user id, otherwise the actor type. */
+function unnamedActor(event: AuditEvent): string {
+  return event.actor_user_id != null ? `User ${event.actor_user_id}` : event.actor_type
+}
 
 /** The audit log for users with audit.view: security-relevant events, newest first, filterable. */
 export default function AuditPage() {
@@ -126,7 +131,7 @@ export default function AuditPage() {
                       }} className="w-6 h-6" />
                       {event.actor_name}
                     </span>
-                  ) : (event.actor_user_id != null ? `User ${event.actor_user_id}` : event.actor_type)}
+                  ) : unnamedActor(event)}
                 </td>
                 <td className="px-4 py-2 text-foreground font-mono text-xs">{event.action}</td>
                 <td className="px-4 py-2 text-muted-foreground">

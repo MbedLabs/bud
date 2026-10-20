@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import { executionRequestsApi, extractApiErrorMessage, testStationsApi } from '../api/client'
 import type { RunnerApiKey } from '../api/client'
@@ -114,40 +114,7 @@ export default function TestStations() {
 
       {canManageStations && <EnrolmentKeys />}
 
-      {isLoading ? (
-        <div className="bg-card rounded-lg border border-border shadow-elegant p-8 text-center text-muted-foreground">
-          Loading test stations...
-        </div>
-      ) : error ? (
-        <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-6 text-center text-destructive">
-          Error loading test stations
-        </div>
-      ) : runners.length === 0 ? (
-        <div className="bg-card rounded-lg border border-border shadow-elegant p-16 text-center">
-          <div className="w-20 h-20 rounded-2xl bg-linear-to-br/srgb from-primary/10 to-lime-500/10 flex items-center justify-center mx-auto mb-5">
-            <Server className="h-10 w-10 text-primary/40" />
-          </div>
-          <h3 className="text-lg font-semibold text-foreground mb-2">No Test Stations Registered</h3>
-          <p className="text-muted-foreground max-w-md mx-auto text-sm">
-            A Test Station is a{' '}
-            <span className="font-medium text-foreground">Bud runner</span>; the two
-            are the same thing. Each location runs one or more of them, so a single
-            machine can host several stations, each with its own account. Register one
-            with the <code>bud_runner</code> CLI:
-          </p>
-          <div className="mt-6 p-3 bg-muted rounded-lg inline-block text-left">
-            <code className="text-xs text-foreground font-mono block">
-              export RUNNER_API_KEY=... # the key you created above
-            </code>
-            <code className="text-xs text-foreground font-mono block">
-              export BUD_BACKEND_URL=&lt;your Bud backend URL&gt;
-            </code>
-            <code className="text-xs text-foreground font-mono block">
-              bud_runner register --username my-station # the name you chose above
-            </code>
-          </div>
-        </div>
-      ) : (
+      {stationsMessage(isLoading, Boolean(error), runners.length) ?? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {runners.map((runner) => (
             <TestStationCard
@@ -302,6 +269,51 @@ interface TestStationInfo {
     id: number
     name: string
   }
+}
+
+/** The stations page's message while it loads, when loading failed or when no station is registered; null otherwise. */
+function stationsMessage(isLoading: boolean, failed: boolean, count: number): ReactNode {
+  if (isLoading) {
+    return (
+      <div className="bg-card rounded-lg border border-border shadow-elegant p-8 text-center text-muted-foreground">
+        Loading test stations...
+      </div>
+    )
+  }
+  if (failed) {
+    return (
+      <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-6 text-center text-destructive">
+        Error loading test stations
+      </div>
+    )
+  }
+  if (count > 0) return null
+  return (
+    <div className="bg-card rounded-lg border border-border shadow-elegant p-16 text-center">
+      <div className="w-20 h-20 rounded-2xl bg-linear-to-br/srgb from-primary/10 to-lime-500/10 flex items-center justify-center mx-auto mb-5">
+        <Server className="h-10 w-10 text-primary/40" />
+      </div>
+      <h3 className="text-lg font-semibold text-foreground mb-2">No Test Stations Registered</h3>
+      <p className="text-muted-foreground max-w-md mx-auto text-sm">
+        A Test Station is a{' '}
+        <span className="font-medium text-foreground">Bud runner</span>; the two
+        are the same thing. Each location runs one or more of them, so a single
+        machine can host several stations, each with its own account. Register one
+        with the <code>bud_runner</code> CLI:
+      </p>
+      <div className="mt-6 p-3 bg-muted rounded-lg inline-block text-left">
+        <code className="text-xs text-foreground font-mono block">
+          export RUNNER_API_KEY=... # the key you created above
+        </code>
+        <code className="text-xs text-foreground font-mono block">
+          export BUD_BACKEND_URL=&lt;your Bud backend URL&gt;
+        </code>
+        <code className="text-xs text-foreground font-mono block">
+          bud_runner register --username my-station # the name you chose above
+        </code>
+      </div>
+    </div>
+  )
 }
 
 function TestStationCard({

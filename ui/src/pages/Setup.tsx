@@ -93,8 +93,9 @@ export default function Setup() {
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-foreground mb-1.5">Full Name</label>
+          <label htmlFor="setup-full-name" className="block text-sm font-medium text-foreground mb-1.5">Full Name</label>
           <input
+            id="setup-full-name"
             type="text"
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
@@ -105,8 +106,9 @@ export default function Setup() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-foreground mb-1.5">Email</label>
+          <label htmlFor="setup-email" className="block text-sm font-medium text-foreground mb-1.5">Email</label>
           <input
+            id="setup-email"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -117,8 +119,9 @@ export default function Setup() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-foreground mb-1.5">Password</label>
+          <label htmlFor="setup-password" className="block text-sm font-medium text-foreground mb-1.5">Password</label>
           <input
+            id="setup-password"
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -130,8 +133,9 @@ export default function Setup() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-foreground mb-1.5">Confirm Password</label>
+          <label htmlFor="setup-confirm-password" className="block text-sm font-medium text-foreground mb-1.5">Confirm Password</label>
           <input
+            id="setup-confirm-password"
             type="password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
