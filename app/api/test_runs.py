@@ -3,7 +3,7 @@ Test runs API endpoints.
 """
 
 from datetime import datetime, timedelta, timezone
-from typing import Literal, Optional, Union
+from typing import Literal, Optional
 
 import httpx
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
@@ -49,11 +49,16 @@ router = APIRouter()
 from app.services.notify import notify_run_finished
 
 
-@router.post("", response_model=TestRunResponse, status_code=201)
+@router.post(
+    "",
+    response_model=TestRunResponse,
+    status_code=201,
+    responses={403: {"description": "Forbidden"}},
+)
 async def create_test_run(
     data: TestRunCreate,
     db: AsyncSession = Depends(get_db, scope="function"),
-    _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
+    _current_entity: User | Runner = Depends(get_current_active_entity),
 ):
     """Record a test run reported by its authenticated station."""
     if not isinstance(_current_entity, Runner):
@@ -116,7 +121,7 @@ async def _run_rows(db: AsyncSession, entity, run_id: int, model, *order_by) -> 
 async def get_test_run_events(
     run_id: int,
     db: AsyncSession = Depends(get_db, scope="function"),
-    _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
+    _current_entity: User | Runner = Depends(get_current_active_entity),
 ):
     """
     Get system-reported execution and integration events for a test run.
@@ -136,19 +141,19 @@ async def get_test_run_events(
 async def get_test_run_artifacts(
     run_id: int,
     db: AsyncSession = Depends(get_db, scope="function"),
-    _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
+    _current_entity: User | Runner = Depends(get_current_active_entity),
 ):
     """List the artifacts uploaded against a test run."""
     return await _run_rows(db, _current_entity, run_id, Artifact, Artifact.created_at, Artifact.id)
 
 
-@router.get("", response_model=TestRunList)
+@router.get("", response_model=TestRunList, responses={403: {"description": "Forbidden"}})
 async def list_test_runs(
     status: Optional[str] = Query(None, description="Filter by status"),
     runner_account: Optional[str] = Query(
         None,
         description=(
-            "Filter to test runs executed by the given Bud runner account " "(a.k.a. Test Station)."
+            "Filter to test runs executed by the given Bud runner account (a.k.a. Test Station)."
         ),
     ),
     location: Optional[str] = Query(
@@ -180,7 +185,7 @@ async def list_test_runs(
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_db, scope="function"),
-    _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
+    _current_entity: User | Runner = Depends(get_current_active_entity),
 ):
     """List test runs with optional filtering and pagination.
 
@@ -273,7 +278,7 @@ async def list_test_runs(
 
 async def _scope_conditions(
     db: AsyncSession,
-    current_entity: Union[User, Runner],
+    current_entity: User | Runner,
     *,
     days: Optional[int],
     runner_account: Optional[str],
@@ -307,7 +312,7 @@ async def _scope_conditions(
     return conditions
 
 
-@router.get("/stats", response_model=TestRunStats)
+@router.get("/stats", response_model=TestRunStats, responses={403: {"description": "Forbidden"}})
 async def get_test_run_stats(
     days: Optional[int] = Query(
         None,
@@ -321,7 +326,7 @@ async def get_test_run_stats(
     ),
     suite: Optional[str] = Query(None, description="Only count runs for this test suite name."),
     db: AsyncSession = Depends(get_db, scope="function"),
-    _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
+    _current_entity: User | Runner = Depends(get_current_active_entity),
 ):
     """Aggregate the dashboard counters over every run matching the filters."""
     conditions = await _scope_conditions(
@@ -404,7 +409,7 @@ async def get_test_run_filter_options(
         description="Only consider runs created within the last N days.",
     ),
     db: AsyncSession = Depends(get_db, scope="function"),
-    _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
+    _current_entity: User | Runner = Depends(get_current_active_entity),
 ):
     """List the suite names and Test Stations that actually appear in test runs."""
     conditions = await _scope_conditions(
@@ -437,7 +442,7 @@ async def get_test_run_filter_options(
 async def get_test_run(
     run_id: int,
     db: AsyncSession = Depends(get_db, scope="function"),
-    _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
+    _current_entity: User | Runner = Depends(get_current_active_entity),
 ):
     """
     Get a test run by ID.
@@ -447,13 +452,15 @@ async def get_test_run(
     return TestRunResponse.from_orm_with_runner(test_run)
 
 
-@router.patch("/{run_id}", response_model=TestRunResponse)
+@router.patch(
+    "/{run_id}", response_model=TestRunResponse, responses={403: {"description": "Forbidden"}}
+)
 async def update_test_run(
     run_id: int,
     data: TestRunUpdate,
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db, scope="function"),
-    _current_entity: Union[User, Runner] = Depends(get_current_active_entity),
+    _current_entity: User | Runner = Depends(get_current_active_entity),
 ):
     """Record execution updates reported by the run's authenticated station.
 
@@ -509,7 +516,11 @@ async def update_test_run(
     return TestRunResponse.from_orm_with_runner(test_run)
 
 
-@router.post("/{run_id}/publish-to-bloom", response_model=BloomPublishResponse)
+@router.post(
+    "/{run_id}/publish-to-bloom",
+    response_model=BloomPublishResponse,
+    responses={409: {"description": "Conflict"}, 502: {"description": "Bad Gateway"}},
+)
 async def publish_run_to_bloom(
     run_id: int,
     db: AsyncSession = Depends(get_db, scope="function"),
@@ -641,7 +652,7 @@ async def publish_report(
     )
 
 
-@router.delete("/{run_id}", status_code=204)
+@router.delete("/{run_id}", status_code=204, responses={404: {"description": "Not Found"}})
 async def delete_test_run(
     run_id: int,
     db: AsyncSession = Depends(get_db, scope="function"),

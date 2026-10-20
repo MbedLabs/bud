@@ -12,14 +12,13 @@ from app.models.user import User, UserRole
 RunPrincipal = Union[User, Runner]
 
 
-async def require_mutating_user(db: AsyncSession, user: User) -> None:
+def require_mutating_user(user: User) -> None:
     """Let only users whose base role is Admin change runs, results and artifacts."""
     if user.role != UserRole.admin:
         raise HTTPException(status_code=403, detail="Administrator privileges required")
 
 
-async def require_run_access(
-    db: AsyncSession,
+def require_run_access(
     principal: RunPrincipal,
     test_run: TestRun,
     *,
@@ -31,7 +30,7 @@ async def require_run_access(
             raise HTTPException(status_code=404, detail="Test run not found")
         return
     if mutate:
-        await require_mutating_user(db, principal)
+        require_mutating_user(principal)
 
 
 async def load_run(
@@ -48,5 +47,5 @@ async def load_run(
     ).scalar_one_or_none()
     if test_run is None:
         raise HTTPException(status_code=404, detail="Test run not found")
-    await require_run_access(db, principal, test_run, mutate=mutate)
+    require_run_access(principal, test_run, mutate=mutate)
     return test_run

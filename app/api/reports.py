@@ -44,7 +44,7 @@ def _safe_filename(stem: str) -> str:
     return (cleaned or "bud-report") + ".pdf"
 
 
-@router.get("/test-runs.pdf")
+@router.get("/test-runs.pdf", responses={403: {"description": "Forbidden"}})
 async def test_run_summary_report(
     days: Optional[int] = Query(
         None, ge=1, le=3650, description="Only include runs created within the last N days."

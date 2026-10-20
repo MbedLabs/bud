@@ -218,7 +218,7 @@ async def _store_bytes(
     from app.api.uploads import ensure_upload_dir
     from app.services.artifact_storage import persist
 
-    upload_dir = await ensure_upload_dir()
+    upload_dir = ensure_upload_dir()
     suffix = Path(original_filename).suffix
     stored_name = f"{uuid.uuid4()}{suffix if suffix[1:].isalnum() else ''}"
     (upload_dir / stored_name).write_bytes(payload)
