@@ -141,7 +141,7 @@ describe('choosing what to run', () => {
 
     await waitFor(() => expect(screen.queryByText('VoltageTest')).toBeNull())
     expect(screen.getByText('ThermalTest')).toBeTruthy()
-    expect(vi.mocked(client.catalogApi.list).mock.calls.length).toBe(before)
+    expect(vi.mocked(client.catalogApi.list).mock.calls).toHaveLength(before)
   })
 
   it('will not queue nothing', async () => {
