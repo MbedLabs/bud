@@ -667,7 +667,7 @@ describe('the Test Stations screen', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Remove' }))
 
     const removed = vi.mocked(client.testStationsApi.remove)
-    await waitFor(() => expect(removed.mock.calls.length).toBe(1))
+    await waitFor(() => expect(removed.mock.calls).toHaveLength(1))
     expect(removed.mock.calls[0][0]).toBe(testStation.account)
   })
 
@@ -689,7 +689,7 @@ describe('the Test Stations screen', () => {
     fireEvent.click(submit)
 
     const renamed = vi.mocked(client.testStationsApi.rename)
-    await waitFor(() => expect(renamed.mock.calls.length).toBe(1))
+    await waitFor(() => expect(renamed.mock.calls).toHaveLength(1))
     expect(renamed.mock.calls[0].slice(0, 2)).toEqual([testStation.account, 'bench-renamed'])
   })
 
@@ -741,7 +741,7 @@ describe('the Test Stations screen', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Revoke' }))
 
     const revoked = vi.mocked(client.testStationsApi.deleteApiKey)
-    await waitFor(() => expect(revoked.mock.calls.length).toBe(1))
+    await waitFor(() => expect(revoked.mock.calls).toHaveLength(1))
     expect(revoked.mock.calls[0][0]).toBe(9)
   })
 
@@ -770,7 +770,7 @@ describe('the Test Stations screen', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Remove' }))
 
     expect(await screen.findByText('That station is running a test.')).toBeTruthy()
-    expect(screen.queryByRole('dialog')).toBeTruthy()
+    expect(screen.getByRole('dialog')).toBeTruthy()
   })
 })
 
