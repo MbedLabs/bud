@@ -188,25 +188,31 @@ async def test_cli_migration_installs_on_an_empty_database():
         await admin_connection.close()
 
 
-def _race(call):
-    """Begin two independent HTTP requests at the same barrier."""
+def _race(call, other=None):
+    """Begin two independent HTTP requests at the same barrier, the same one twice by default."""
     barrier = Barrier(2)
 
-    def run():
+    def run(operation):
         """Call the operation after both worker threads are ready."""
         barrier.wait()
-        return call()
+        return operation()
 
     with ThreadPoolExecutor(max_workers=2) as executor:
-        return list(executor.map(lambda _: run(), range(2)))
+        return list(executor.map(run, (call, other or call)))
 
 
-def test_cli_approval_exchange_and_refresh_each_have_one_winner(client):
+def _admin_headers(client):
+    """Sign in as the seeded administrator and return its bearer header."""
     email = os.environ.get("ADMIN_EMAIL", "ci-admin@example.com")
     password = os.environ.get("ADMIN_PASSWORD", "ci-admin-password-123")
     login = client.post("/api/auth/login", json={"email": email, "password": password})
     assert login.status_code == 200, login.text
-    headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+    return {"Authorization": f"Bearer {login.json()['access_token']}"}
+
+
+def test_cli_approval_exchange_and_refresh_each_have_one_winner(client, monkeypatch):
+    monkeypatch.setattr("app.core.config.settings.CLI_CODE_MODE_ENABLED", True)
+    headers = _admin_headers(client)
     start = client.post(
         "/api/auth/cli/start",
         json={
@@ -243,6 +249,39 @@ def test_cli_approval_exchange_and_refresh_each_have_one_winner(client):
     assert sorted(response.status_code for response in refreshes) == [200, 401]
 
 
+def _start_callback(client):
+    """Start a callback-mode request and return its session id."""
+    start = client.post(
+        "/api/auth/cli/start",
+        json={
+            "client_name": "Concurrent client",
+            "mode": "callback",
+            "redirect_uri": "http://127.0.0.1:1234/callback",
+            "code_challenge": CHALLENGE,
+            "state": "state",
+        },
+    )
+    assert start.status_code == 200, start.text
+    return start.json()["session_id"]
+
+
+def test_cli_approve_and_deny_of_one_request_have_one_winner(client):
+    headers = _admin_headers(client)
+    session_id = _start_callback(client)
+    body = {"session_id": session_id}
+    outcomes = _race(
+        lambda: client.post("/api/auth/cli/approve", json=body, headers=headers),
+        lambda: client.post("/api/auth/cli/deny", json=body, headers=headers),
+    )
+    assert sorted(response.status_code for response in outcomes) == [200, 400]
+    assert client.get(f"/api/auth/cli/sessions/{session_id}", headers=headers).status_code == 400
+    session_id = _start_callback(client)
+    denials = _race(
+        lambda: client.post("/api/auth/cli/deny", json={"session_id": session_id}, headers=headers)
+    )
+    assert sorted(response.status_code for response in denials) == [200, 400]
+
+
 @pytest.fixture
 async def cli_pg_sessions():
     """Open independent test-loop sessions without the application's pooled connections."""
@@ -259,8 +298,12 @@ async def cli_pg_sessions():
         await engine.dispose()
 
 
-async def test_cli_user_lock_allows_browser_refresh_foreign_key_checks(cli_pg_sessions):
+async def test_cli_user_lock_allows_browser_refresh_foreign_key_checks(
+    cli_pg_sessions, monkeypatch
+):
     import secrets
+
+    monkeypatch.setattr("app.core.config.settings.CLI_CODE_MODE_ENABLED", True)
 
     from app.models import User, UserRole, UserTokenPurpose
     from app.schemas.cli_auth import CliStartRequest

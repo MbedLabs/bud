@@ -33,6 +33,12 @@ def reset_limits(fresh_auth_rate_limits):
     """Reset authorization limits between cases."""
 
 
+@pytest.fixture(autouse=True)
+def code_sign_in_enabled(monkeypatch):
+    """Turn code sign-in on for every case in this module."""
+    monkeypatch.setattr("app.core.config.settings.CLI_CODE_MODE_ENABLED", True)
+
+
 @pytest.fixture
 async def cli_account(db_session):
     """Create a normal account and its existing JWT."""
@@ -298,3 +304,54 @@ def test_public_cli_routes_are_rate_limited(unauthenticated_client, path, body):
     ]
     assert 429 in statuses
     assert limiter.enabled
+
+
+@pytest.mark.parametrize("mode", ["callback", "code"])
+async def test_deny_requires_a_signed_in_account_and_keeps_the_request(
+    unauthenticated_client, db_session, cli_account, mode
+):
+    client = unauthenticated_client
+    _, headers = cli_account
+    body = START | (
+        {"mode": "callback", "redirect_uri": "http://127.0.0.1:1234/callback"}
+        if mode == "callback"
+        else {}
+    )
+    session_id = client.post("/api/auth/cli/start", json=body).json()["session_id"]
+    assert client.post("/api/auth/cli/deny", json={"session_id": session_id}).status_code == 401
+    runner = create_access_token({"sub": "cli-test-station", "type": "runner"})
+    assert client.post(
+        "/api/auth/cli/deny",
+        json={"session_id": session_id},
+        headers={"Authorization": f"Bearer {runner}"},
+    ).status_code in (401, 403)
+    stored = (await db_session.execute(text("SELECT id FROM cli_auth_sessions"))).scalars().all()
+    assert stored == [session_id.replace("-", "")]
+    assert client.get(f"/api/auth/cli/sessions/{session_id}", headers=headers).status_code == 200
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        {},
+        {"session_id": "invalid"},
+        {"session_id": "00000000-0000-0000-0000-000000000001", "extra": "field"},
+    ],
+)
+def test_deny_rejects_malformed_bodies(unauthenticated_client, cli_account, body):
+    _, headers = cli_account
+    response = unauthenticated_client.post("/api/auth/cli/deny", json=body, headers=headers)
+    assert response.status_code == 422
+
+
+def test_deny_is_not_rate_limited(unauthenticated_client, cli_account):
+    _, headers = cli_account
+    statuses = {
+        unauthenticated_client.post(
+            "/api/auth/cli/deny",
+            json={"session_id": "00000000-0000-0000-0000-000000000001"},
+            headers=headers,
+        ).status_code
+        for _ in range(31)
+    }
+    assert statuses == {400}

@@ -9,6 +9,7 @@ from urllib.parse import parse_qs, urlsplit
 import pytest
 from sqlalchemy import select, text
 
+from app.core.config import Settings
 from app.core.security import (
     create_access_token,
     decode_access_token,
@@ -16,17 +17,34 @@ from app.core.security import (
 )
 from app.models import AuditEvent, User, UserRole, UserToken, UserTokenPurpose
 from app.models.access import AccessGroup, AccessGroupMember, Policy
+from app.services.cli_auth import request_code
 from app.services.token_service import invalidate_all_refresh_tokens
 
 VERIFIER = "v" * 43
 CHALLENGE = (
     base64.urlsafe_b64encode(hashlib.sha256(VERIFIER.encode()).digest()).decode().rstrip("=")
 )
+RFC7636_VERIFIER = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+RFC7636_CHALLENGE = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
+RFC7636_REQUEST_CODE = "BUUZ-WHVV"
+CODE_MODE_OFF = "Code sign-in is turned off on this instance. Use callback mode."
+INVALID_AUTHORIZATION = "Invalid or expired authorization session"
 
 
 @pytest.fixture(autouse=True)
 def reset_limits(fresh_auth_rate_limits):
     """Give each authorization test an independent rate-limit window."""
+
+
+@pytest.fixture(autouse=True)
+def code_sign_in_enabled(monkeypatch):
+    """Turn code sign-in on for the tests that use code mode; tests that need it off say so."""
+    monkeypatch.setattr("app.core.config.settings.CLI_CODE_MODE_ENABLED", True)
+
+
+def code_sign_in(monkeypatch, enabled):
+    """Turn the instance's code sign-in switch on or off."""
+    monkeypatch.setattr("app.core.config.settings.CLI_CODE_MODE_ENABLED", enabled)
 
 
 @pytest.fixture
@@ -128,6 +146,8 @@ async def test_cli_authorization_issues_the_approving_user_and_one_audit_event(
         "redirect_uri",
         "expires_at",
         "consumed",
+        "created_at",
+        "request_code",
     }
     approved = approve(client, cli_user, pending)
     if mode == "callback":
@@ -399,3 +419,240 @@ async def test_cli_refresh_consumes_any_refresh_purpose_token_as_the_ticket_spec
     assert rotated.status_code == 200, rotated.text
     assert isinstance(decode_access_token(rotated.json()["access_token"])["cli_refresh_id"], int)
     assert client.post("/api/auth/refresh").status_code == 401
+
+
+def test_code_sign_in_is_off_by_default_and_read_from_both_setting_names(monkeypatch):
+    for name in ("BUD_CLI_CODE_MODE_ENABLED", "CLI_CODE_MODE_ENABLED"):
+        monkeypatch.delenv(name, raising=False)
+    assert Settings.model_fields["CLI_CODE_MODE_ENABLED"].default is False
+    assert Settings(_env_file=None).CLI_CODE_MODE_ENABLED is False
+    for name in ("BUD_CLI_CODE_MODE_ENABLED", "CLI_CODE_MODE_ENABLED"):
+        monkeypatch.setenv(name, "true")
+        assert Settings(_env_file=None).CLI_CODE_MODE_ENABLED is True
+        monkeypatch.delenv(name)
+
+
+def test_request_code_matches_the_shared_rfc7636_vector():
+    challenge = (
+        base64.urlsafe_b64encode(hashlib.sha256(RFC7636_VERIFIER.encode()).digest())
+        .decode()
+        .rstrip("=")
+    )
+    assert challenge == RFC7636_CHALLENGE
+    assert request_code(RFC7636_CHALLENGE) == RFC7636_REQUEST_CODE
+    assert (
+        base64.b32encode(hashlib.sha256(RFC7636_CHALLENGE.encode()).digest()[:5]).decode()
+        == "BUUZWHVV"
+    )
+
+
+@pytest.mark.parametrize("mode", ["callback", "code"])
+def test_session_shows_the_request_time_and_the_request_code_of_its_challenge(
+    unauthenticated_client, cli_user, mode
+):
+    client = unauthenticated_client
+    before = datetime.utcnow()
+    pending = start(client, mode, code_challenge=RFC7636_CHALLENGE)
+    metadata = client.get(
+        f"/api/auth/cli/sessions/{pending['session_id']}", headers=bearer(cli_user)
+    ).json()
+    assert metadata["request_code"] == RFC7636_REQUEST_CODE
+    assert metadata["created_at"].endswith("Z")
+    created = datetime.fromisoformat(metadata["created_at"][:-1])
+    expires = datetime.fromisoformat(metadata["expires_at"][:-1])
+    assert before - timedelta(seconds=5) <= created <= datetime.utcnow() + timedelta(seconds=5)
+    assert timedelta(minutes=9) < expires - created <= timedelta(minutes=10, seconds=5)
+
+
+async def test_code_sign_in_off_refuses_start_with_403_and_stores_nothing(
+    unauthenticated_client, db_session, monkeypatch
+):
+    code_sign_in(monkeypatch, False)
+    response = unauthenticated_client.post(
+        "/api/auth/cli/start",
+        json={
+            "client_name": "Terminal",
+            "mode": "code",
+            "code_challenge": CHALLENGE,
+            "state": "client-state",
+        },
+    )
+    assert response.status_code == 403
+    assert response.json() == {"detail": CODE_MODE_OFF}
+    assert await _session_ids(db_session) == set()
+
+
+@pytest.mark.parametrize("approved", [False, True])
+async def test_code_sign_in_off_refuses_lookup_and_approve_of_any_code_session(
+    unauthenticated_client, db_session, cli_user, monkeypatch, approved
+):
+    client = unauthenticated_client
+    pending = start(client)
+    session_id = pending["session_id"]
+    if approved:
+        approve(client, cli_user, pending)
+    code_sign_in(monkeypatch, False)
+    lookup = client.get(f"/api/auth/cli/sessions/{session_id}", headers=bearer(cli_user))
+    assert lookup.status_code == 403
+    assert lookup.json() == {"detail": CODE_MODE_OFF}
+    refused = client.post(
+        "/api/auth/cli/approve", json={"session_id": session_id}, headers=bearer(cli_user)
+    )
+    assert refused.status_code == 403
+    assert refused.json() == {"detail": CODE_MODE_OFF}
+    [event] = await _failures(db_session, "auth.cli_approve")
+    assert event.details == {"reason": "code_mode_disabled"}
+    assert event.actor_user_id == cli_user.id
+    assert event.target_id == session_id
+    stored = (
+        await db_session.execute(
+            text("SELECT user_id FROM cli_auth_sessions WHERE id = :id"),
+            {"id": session_id.replace("-", "")},
+        )
+    ).scalar_one()
+    assert stored == (cli_user.id if approved else None)
+
+
+async def test_code_sign_in_off_answers_exchange_with_the_generic_400_and_audits_the_reason(
+    unauthenticated_client, db_session, cli_user, monkeypatch
+):
+    client = unauthenticated_client
+    pending = start(client)
+    code = approve(client, cli_user, pending)["exchange_code"]
+    code_sign_in(monkeypatch, False)
+    response = exchange(client, pending, code)
+    assert response.status_code == 400
+    assert response.json() == {"detail": INVALID_AUTHORIZATION}
+    [event] = await _failures(db_session, "auth.cli_exchange")
+    assert event.details == {"reason": "code_mode_disabled"}
+    assert event.actor_type == "anonymous"
+    assert event.target_id == pending["session_id"]
+    assert not list((await db_session.execute(select(UserToken))).scalars())
+    code_sign_in(monkeypatch, True)
+    assert exchange(client, pending, code).status_code == 200
+
+
+def test_a_missing_session_keeps_400_while_code_sign_in_is_off(
+    unauthenticated_client, cli_user, monkeypatch
+):
+    client = unauthenticated_client
+    code_sign_in(monkeypatch, False)
+    missing = "00000000-0000-0000-0000-000000000001"
+    lookup = client.get(f"/api/auth/cli/sessions/{missing}", headers=bearer(cli_user))
+    assert lookup.status_code == 400
+    assert lookup.json() == {"detail": INVALID_AUTHORIZATION}
+    refused = client.post(
+        "/api/auth/cli/approve", json={"session_id": missing}, headers=bearer(cli_user)
+    )
+    assert refused.status_code == 400
+
+
+def test_callback_sign_in_works_while_code_sign_in_is_off(
+    unauthenticated_client, cli_user, monkeypatch
+):
+    client = unauthenticated_client
+    code_sign_in(monkeypatch, False)
+    pending = start(client, "callback")
+    lookup = client.get(f"/api/auth/cli/sessions/{pending['session_id']}", headers=bearer(cli_user))
+    assert lookup.status_code == 200
+    assert lookup.json()["mode"] == "callback"
+    approved = approve(client, cli_user, pending)
+    code = parse_qs(urlsplit(approved["redirect_to"]).query)["code"][0]
+    assert exchange(client, pending, code).status_code == 200
+
+
+def deny(client, user, pending):
+    """Deny a pending client using normal user authentication."""
+    return client.post(
+        "/api/auth/cli/deny", json={"session_id": pending["session_id"]}, headers=bearer(user)
+    )
+
+
+async def _assert_denied_and_gone(client, db_session, user, pending):
+    """Check the deny audit event and that lookup, approve and exchange find no request."""
+    session_id = pending["session_id"]
+    assert session_id.replace("-", "") not in await _session_ids(db_session)
+    events = (
+        await db_session.execute(select(AuditEvent).where(AuditEvent.action == "auth.cli_deny"))
+    ).scalars()
+    assert [
+        (event.outcome, event.actor_user_id, event.target_type, event.target_id) for event in events
+    ] == [("success", user.id, "cli_auth_session", session_id)]
+    lookup = client.get(f"/api/auth/cli/sessions/{session_id}", headers=bearer(user))
+    assert lookup.status_code == 400
+    refused = client.post(
+        "/api/auth/cli/approve", json={"session_id": session_id}, headers=bearer(user)
+    )
+    assert refused.status_code == 400
+    assert exchange(client, pending, "any-code").status_code == 400
+
+
+async def test_deny_in_callback_mode_returns_access_denied_to_the_loopback_and_deletes_it(
+    unauthenticated_client, db_session, cli_user
+):
+    client = unauthenticated_client
+    pending = start(client, "callback")
+    response = deny(client, cli_user, pending)
+    assert response.status_code == 200, response.text
+    assert response.headers["cache-control"] == "no-store"
+    assert set(response.json()) == {"redirect_to"}
+    target = urlsplit(response.json()["redirect_to"])
+    assert (target.scheme, target.netloc, target.path) == ("http", "127.0.0.1:41234", "/callback")
+    assert parse_qs(target.query) == {
+        "client": ["terminal"],
+        "error": ["access_denied"],
+        "state": ["client-state"],
+    }
+    await _assert_denied_and_gone(client, db_session, cli_user, pending)
+
+
+async def test_deny_in_code_mode_answers_empty_and_deletes_the_request(
+    unauthenticated_client, db_session, cli_user
+):
+    client = unauthenticated_client
+    pending = start(client)
+    response = deny(client, cli_user, pending)
+    assert response.status_code == 200, response.text
+    assert response.json() == {}
+    await _assert_denied_and_gone(client, db_session, cli_user, pending)
+
+
+async def test_deny_ends_a_code_request_while_code_sign_in_is_off(
+    unauthenticated_client, db_session, cli_user, monkeypatch
+):
+    client = unauthenticated_client
+    pending = start(client)
+    code_sign_in(monkeypatch, False)
+    response = deny(client, cli_user, pending)
+    assert response.status_code == 200, response.text
+    assert response.json() == {}
+    await _assert_denied_and_gone(client, db_session, cli_user, pending)
+
+
+@pytest.mark.parametrize("state", ["approved", "denied", "expired", "unknown"])
+async def test_deny_refuses_a_request_that_is_not_pending(
+    unauthenticated_client, db_session, cli_user, state
+):
+    client = unauthenticated_client
+    pending = start(client, "callback")
+    if state == "approved":
+        approve(client, cli_user, pending)
+    if state == "denied":
+        assert deny(client, cli_user, pending).status_code == 200
+    if state == "expired":
+        await db_session.execute(
+            text("UPDATE cli_auth_sessions SET expires_at = :expiry"),
+            {"expiry": datetime.utcnow() - timedelta(seconds=1)},
+        )
+        await db_session.commit()
+    if state == "unknown":
+        pending = {"session_id": "00000000-0000-0000-0000-000000000001"}
+    response = deny(client, cli_user, pending)
+    assert response.status_code == 400
+    assert response.json() == {"detail": INVALID_AUTHORIZATION}
+    [event] = await _failures(db_session, "auth.cli_deny")
+    assert event.details == {"reason": "not_pending"}
+    assert event.actor_user_id == cli_user.id
+    assert event.target_id == pending["session_id"]
+    if state in ("approved", "expired"):
+        assert pending["session_id"].replace("-", "") in await _session_ids(db_session)

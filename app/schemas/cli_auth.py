@@ -96,13 +96,20 @@ class CliStartResponse(CliExpiringResponse):
 
 
 class CliSessionResponse(CliExpiringResponse):
-    """Public client metadata displayed to an authenticated approver."""
+    """Client metadata, request time and request code shown to an authenticated approver."""
 
     session_id: UUID
     client_name: str
     mode: Literal["callback", "code"]
     redirect_uri: str | None
     consumed: bool
+    created_at: datetime
+    request_code: str
+
+    @field_serializer("created_at")
+    def serialize_created_at(self, value: datetime) -> str:
+        """Represent the stored UTC request time with a timezone for browser clients."""
+        return value.isoformat() + "Z"
 
 
 class CliApproveRequest(BaseModel):
@@ -112,10 +119,27 @@ class CliApproveRequest(BaseModel):
     session_id: UUID
 
 
+class CliDenyRequest(BaseModel):
+    """The pending session selected for denial."""
+
+    model_config = ConfigDict(extra="forbid")
+    session_id: UUID
+
+
 class CliCallbackApproval(BaseModel):
     """A validated loopback target carrying the single-use approval code."""
 
     redirect_to: str
+
+
+class CliCallbackDenial(BaseModel):
+    """A validated loopback target carrying error=access_denied and the original state."""
+
+    redirect_to: str
+
+
+class CliCodeDenial(BaseModel):
+    """An empty answer to a denied code-mode request."""
 
 
 class CliCodeApproval(CliExpiringResponse):
