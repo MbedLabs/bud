@@ -11,7 +11,7 @@ license = {text = "LicenseRef-EmbedLabs-Source-Available-1.0"}
 authors = [
     {name = "EmbedLabs", email = "dev@embedlabs.net"}
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.121.2",
     "uvicorn[standard]>=0.24.0",
@@ -49,6 +49,21 @@ dev = [
     "mypy>=1.0.0",
 ]
 
+[dependency-groups]
+ci = [
+    "black==25.1.0",
+    "isort==5.13.2",
+    "bandit==1.8.3",
+    "pip-audit==2.10.1",
+]
+image = [
+    "supervisor==4.3.0",
+]
+build = [
+    "setuptools>=61.0",
+    "wheel",
+]
+
 [project.urls]
 Homepage = "https://www.embedlabs.net"
 Repository = "https://github.com/MbedLabs/bud"
@@ -61,10 +76,10 @@ include = ["app*"]
 
 [tool.black]
 line-length = 100
-target-version = ["py310", "py311", "py312"]
+target-version = ["py311", "py312"]
 
 [tool.mypy]
-python_version = "3.10"
+python_version = "3.11"
 warn_return_any = true
 ignore_missing_imports = true
 

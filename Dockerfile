@@ -10,18 +10,19 @@ RUN npm run build
 
 FROM python:3.11-slim AS backend-build
 
+COPY --from=ghcr.io/astral-sh/uv:0.11.14@sha256:1025398289b62de8269e70c45b91ffa37c373f38118d7da036fb8bb8efc85d97 /uv /bin/uv
+
 WORKDIR /build
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
-    libpq-dev \
-    && rm -rf /var/lib/apt/lists/*
-
-COPY pyproject.toml README.md LICENSE constraints.txt ./
+COPY pyproject.toml README.md LICENSE uv.lock ./
 COPY app/ app/
 COPY alembic/ alembic/
 COPY alembic.ini ./
-RUN pip install --no-cache-dir -c constraints.txt . "supervisor==4.3.0" \
+RUN uv export --frozen --no-dev --no-emit-project --group image \
+      --format requirements-txt --output-file /tmp/requirements.txt \
+    && uv pip install --system --no-build --require-hashes --compile-bytecode --no-cache \
+      -r /tmp/requirements.txt \
+    && rm /tmp/requirements.txt \
     && pip uninstall --yes pip setuptools wheel
 
 FROM debian:trixie-slim
