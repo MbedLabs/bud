@@ -279,6 +279,9 @@ watches uv, npm, Docker and GitHub Actions weekly. Refresh the pins with:
 uv lock --upgrade --no-build
 ```
 
-The container runs unprivileged end to end (`USER appuser`: supervisord,
-nginx on port 8080, and uvicorn), which also satisfies Kubernetes
-`runAsNonRoot` policies.
+The container starts as root only to prepare its runtime directories, the
+ownership of its data and of its standard output and error streams and, on
+Cloudron, the persistent secrets and the database migrations. It then runs
+everything as `appuser`: supervisord, nginx on port 8080 (master and
+workers), and uvicorn. Because the start needs root, Kubernetes
+`runAsNonRoot` policies are not supported.
