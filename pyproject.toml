@@ -52,7 +52,7 @@ dev = [
 [dependency-groups]
 ci = [
     "black==25.1.0",
-    "isort==5.13.2",
+    "isort==9.0.1",
     "bandit==1.8.3",
     "pip-audit==2.10.1",
 ]
