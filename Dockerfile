@@ -61,7 +61,7 @@ RUN useradd -m appuser \
       -e 's#^pid .*#pid /run/nginx/nginx.pid;#' \
       -e 's#^[[:space:]]*error_log[[:space:]].*#error_log /dev/stderr warn;#' \
       -e 's#^[[:space:]]*access_log[[:space:]].*#access_log /dev/stdout;#' \
-      -e 's#^[[:space:]]*user[[:space:]].*#user appuser;#' \
+      -e '/^[[:space:]]*user[[:space:]]/d' \
       /etc/nginx/nginx.conf \
     && rm -f /var/www/app/runtime-config.js \
     && ln -s /run/bud/runtime-config.js /var/www/app/runtime-config.js
