@@ -15,7 +15,7 @@ if [ -n "${CLOUDRON_APP_ORIGIN:-}" ]; then
   : "${CLOUDRON_POSTGRESQL_URL:?Cloudron did not provide PostgreSQL}"
 
   mkdir -p /app/data/uploads
-  chown "$APP_UID:$APP_GID" /app/data /app/data/uploads
+  chown -R "$APP_UID:$APP_GID" /app/data
 
   secrets_file=/app/data/secrets.env
   if [ ! -f "$secrets_file" ]; then
@@ -80,4 +80,10 @@ window.runtimeConfig = {
 EOF
 chown "$APP_UID:$APP_GID" "$RUN_DIR/runtime-config.js"
 
-exec /usr/local/bin/supervisord -c /etc/supervisord.conf
+for fd in 1 2; do
+  if ! gosu "$APP_USER" test -w "/proc/self/fd/$fd"; then
+    chown "$APP_UID:$APP_GID" "/proc/self/fd/$fd"
+  fi
+done
+
+exec gosu "$APP_USER" /usr/local/bin/supervisord -c /etc/supervisord.conf
