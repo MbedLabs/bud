@@ -9,6 +9,7 @@ import ForgotPassword from './pages/ForgotPassword'
 import ResetPassword from './pages/ResetPassword'
 import ConfirmEmailChange from './pages/ConfirmEmailChange'
 import Setup from './pages/Setup'
+import CliAuthApprovePage from './pages/CliAuthApprovePage'
 import { useAuth } from './contexts/AuthContext'
 
 /* v8 ignore start */
@@ -49,6 +50,7 @@ function App() {
     <Routes>
         <Route path="/setup" element={<Setup />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/auth/cli" element={<CliAuthApprovePage />} />
         <Route path="/accept-invite" element={<AcceptInvite />} />
         <Route path="/verify-email" element={<VerifyEmail />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />

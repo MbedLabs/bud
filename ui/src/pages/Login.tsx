@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router'
+import { Link, useNavigate, useSearchParams } from 'react-router'
 import { useAuth } from '../contexts/AuthContext'
 import { APP_VERSION, extractApiErrorMessage, setupApi } from '../api/client'
 import { BUD_LOGO_DARK, BUD_LOGO_LIGHT } from '../brandAssets'
@@ -12,6 +12,11 @@ export default function Login() {
   const [loading, setLoading] = useState(false)
   const { login } = useAuth()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const requestedNext = searchParams.get('next') ?? ''
+  const next = /^\/auth\/cli\?session_id=[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(requestedNext)
+    ? requestedNext
+    : '/'
 
   useEffect(() => {
     let cancelled = false
@@ -32,7 +37,7 @@ export default function Login() {
     setLoading(true)
     try {
       await login(email, password)
-      void navigate('/', { replace: true })
+      void navigate(next, { replace: true })
     } catch (err: unknown) {
       setError(extractApiErrorMessage(err, 'Login failed'))
     } finally {

@@ -45,7 +45,12 @@ jobs:
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
         with:
           python-version: '3.11'
-          cache: 'pip'
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7
+        with:
+          version: "0.11.14"
+          enable-cache: false
 
       - name: Set up Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
@@ -56,9 +61,9 @@ jobs:
 
       - name: Install backend dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]" -c constraints.txt
-          pip install black==25.1.0 isort==5.13.2 bandit==1.8.3 pip-audit
+          uv lock --check --no-build
+          uv sync --frozen --no-build --no-install-project --extra dev --group ci
+          echo "$GITHUB_WORKSPACE/.venv/bin" >> "$GITHUB_PATH"
 
       - name: Install UI dependencies
         run: npm --prefix ui ci --ignore-scripts
@@ -75,7 +80,8 @@ jobs:
       - name: Run backend security scans
         run: |
           bandit -r app/ -ll
-          pip-audit -r constraints.txt
+          uv export --frozen --no-dev --no-emit-project --format requirements-txt --output-file "$RUNNER_TEMP/runtime-requirements.txt"
+          pip-audit -r "$RUNNER_TEMP/runtime-requirements.txt" --require-hashes --disable-pip
 
       - name: Alembic upgrade on an empty database
         env:

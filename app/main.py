@@ -24,6 +24,7 @@ from app.api import access_requests as access_requests_api
 from app.api import audit as audit_api
 from app.api import auth as auth_api
 from app.api import (
+    cli_auth,
     company_logo,
     custom_runs,
     groups,
@@ -304,6 +305,7 @@ app.add_middleware(
 app.include_router(health.router, prefix="/api", tags=["Health"])
 app.include_router(metrics_router, prefix="/api", tags=["Observability"])
 app.include_router(auth_api.router, prefix="/api/auth", tags=["Auth"])
+app.include_router(cli_auth.router, prefix="/api/auth/cli", tags=["CLI authentication"])
 app.include_router(users_api.router, prefix="/api/users", tags=["Users"])
 app.include_router(audit_api.router, prefix="/api/audit", tags=["Audit"])
 app.include_router(

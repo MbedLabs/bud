@@ -233,6 +233,10 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("BUD_RUNNER_HEARTBEAT_TIMEOUT", "RUNNER_HEARTBEAT_TIMEOUT"),
     )
 
+    CLI_CODE_MODE_ENABLED: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("BUD_CLI_CODE_MODE_ENABLED", "CLI_CODE_MODE_ENABLED"),
+    )
     SMTP_ENABLED: bool = Field(
         default=False, validation_alias=AliasChoices("BUD_SMTP_ENABLED", "SMTP_ENABLED")
     )

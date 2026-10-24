@@ -267,16 +267,21 @@ Every release build publishes an SPDX SBOM as a CI artifact
 (`bud-sbom.spdx.json`) alongside the container image, and CI runs Bandit,
 `pip-audit`, and blocking `npm audit` checks on every push.
 
-Backend dependencies are pinned in [`constraints.txt`](../constraints.txt)
-(generated with `pip-compile`), and both the image build and CI install with
-`-c constraints.txt`, so builds are reproducible. Dependabot watches pip, npm,
-Docker and GitHub Actions weekly. Refresh the pins with:
+Backend dependencies, the CI tools and supervisor are pinned with their
+hashes in [`uv.lock`](../uv.lock). CI and the image build install from it with
+hash checks and without building any source distribution
+(`uv sync --frozen --no-build`, and `uv pip install --require-hashes --no-build`
+from `uv export` in the image), so builds are reproducible. CI checks that the
+lock matches `pyproject.toml` with `uv lock --check --no-build`. Dependabot
+watches uv, npm, Docker and GitHub Actions weekly. Refresh the pins with:
 
 ```bash
-pip install pip-tools
-pip-compile --strip-extras --output-file=constraints.txt pyproject.toml
+uv lock --upgrade --no-build
 ```
 
-The container runs unprivileged end to end (`USER appuser`: supervisord,
-nginx on port 8080, and uvicorn), which also satisfies Kubernetes
-`runAsNonRoot` policies.
+The container starts as root only to prepare its runtime directories, the
+ownership of its data and of its standard output and error streams and, on
+Cloudron, the persistent secrets and the database migrations. It then runs
+everything as `appuser`: supervisord, nginx on port 8080 (master and
+workers), and uvicorn. Because the start needs root, Kubernetes
+`runAsNonRoot` policies are not supported.
