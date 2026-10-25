@@ -4,6 +4,7 @@
 
 ### Changed
 
+- Every email uses one structure: the product identity in the heading, one linked action and the same copy in HTML and plain text. The invitation, verification, password reset, access request and report request emails name Bud TMP in their next step.
 - The product identity is fixed as Bud TMP by EmbedLabs across the application, emails, API, reports and run notifications. The sidebar shows Bud TMP with by EmbedLabs beneath it. The `BUD_APP_NAME` setting is removed; an existing environment variable or `.env` entry with that name is ignored.
 - The confirmation dialogs, the Test Station rename dialog and the invite and email change dialogs close with Escape wherever the focus is.
 - A source install needs Python 3.11 or later.
