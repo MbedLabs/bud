@@ -1,10 +1,11 @@
 Hello ${full_name},
 
-You have been invited to join the ${app_name} platform.
+You have been invited to join ${app_name}.
 
-Use the invitation link below to set your password and activate your account:
-${invite_link}
+Accept Invitation: ${invite_link}
+
+Use this link to set your password and activate your ${app_name} account.
 
 If you did not expect this invitation, you can safely ignore this email.
 
-© 2026 EmbedLabs Team. All rights reserved.
+(c) 2026 EmbedLabs. All rights reserved.
