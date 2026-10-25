@@ -119,9 +119,7 @@ async def migrate_user_columns() -> None:
 async def migrate_user_roles_to_viewer() -> None:
     async with db.engine.begin() as conn:
         if conn.dialect.name == "postgresql":
-            await conn.execute(
-                text(
-                    """
+            await conn.execute(text("""
                     DO $$
                     BEGIN
                         IF EXISTS (SELECT 1 FROM pg_type WHERE typname = 'userrole') THEN
@@ -133,9 +131,7 @@ async def migrate_user_roles_to_viewer() -> None:
                         END IF;
                     END
                     $$;
-                    """
-                )
-            )
+                    """))
 
     async with db.engine.begin() as conn:
         if conn.dialect.name == "postgresql":
