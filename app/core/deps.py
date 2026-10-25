@@ -1,5 +1,8 @@
 """Shared FastAPI dependencies."""
 
+import os
+import warnings
+
 from fastapi import Depends, Header, HTTPException, status
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -11,7 +14,17 @@ from app.core.security import oauth2_scheme
 from app.db import get_db
 from app.models import Runner, RunnerApiKey
 
-limiter = Limiter(key_func=get_remote_address)
+
+def _build_limiter() -> Limiter:
+    """Build the rate limiter, giving it no dotenv file when dotenv loading is disabled."""
+    if os.environ.get("BUD_DOTENV_DISABLED") != "1":
+        return Limiter(key_func=get_remote_address)
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", message="Config file .* not found", category=UserWarning)
+        return Limiter(key_func=get_remote_address, config_filename=os.devnull)
+
+
+limiter = _build_limiter()
 
 
 async def get_current_runner(
