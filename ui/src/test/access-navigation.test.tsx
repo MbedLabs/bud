@@ -16,6 +16,7 @@ vi.mock('../components/AccessPolicies', () => ({
   default: ({ canEdit }: { canEdit: boolean }) => <h2>Policies control {canEdit ? 'editable' : 'read-only'}</h2>,
 }))
 vi.mock('../components/AccessUsers', () => ({ default: () => <h2>Groups per user control</h2> }))
+vi.mock('../components/AccessPeople', () => ({ default: () => <h2>People control</h2> }))
 vi.mock('../api/client', () => ({
   APP_VERSION: 'test',
   usersApi: { list: vi.fn().mockResolvedValue([]) },
@@ -49,16 +50,19 @@ describe('Access page', () => {
     expect(screen.getByRole('link', { name: 'Users' }).getAttribute('href')).toBe('/users')
   })
 
-  it('has assignments, Groups, Policies and Requests without account administration', async () => {
+  it('has Assignments, People, Groups, Policies and Requests without account administration', async () => {
     renderPage(<Access />)
     expect(screen.getAllByRole('tab').map((tab) => tab.textContent?.replace(/\d+$/, ''))).toEqual([
       'Assignments',
+      'People',
       'Groups',
       'Policies',
       'Requests',
     ])
     expect(screen.queryByRole('button', { name: 'Invite User' })).toBeNull()
     expect(screen.getByText('Groups per user control')).toBeTruthy()
+    fireEvent.click(screen.getByRole('tab', { name: 'People' }))
+    expect(screen.getByText('People control')).toBeTruthy()
     fireEvent.click(screen.getByRole('tab', { name: 'Groups' }))
     expect(screen.getByText('Groups control')).toBeTruthy()
     fireEvent.click(screen.getByRole('tab', { name: 'Policies' }))

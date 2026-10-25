@@ -2,6 +2,10 @@
 
 ## 1.3.0 - unreleased
 
+### Added
+
+- Access has a People tab that shows each person's base role, every group they hold and their combined permissions.
+
 ### Changed
 
 - Every email uses one structure: the product identity in the heading, one linked action and the same copy in HTML and plain text. The invitation, verification, password reset, access request and report request emails name Bud TMP in their next step.

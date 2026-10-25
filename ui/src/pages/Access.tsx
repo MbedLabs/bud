@@ -1,5 +1,6 @@
 import { useSearchParams } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
+import AccessPeople from '../components/AccessPeople'
 import AccessPolicies from '../components/AccessPolicies'
 import AccessRequestsPanel from '../components/AccessRequestsPanel'
 import AccessUsers from '../components/AccessUsers'
@@ -10,6 +11,7 @@ import { canManageAccess } from '../lib/access'
 
 const TABS = [
   { key: 'assignments', label: 'Assignments' },
+  { key: 'people', label: 'People' },
   { key: 'groups', label: 'Groups' },
   { key: 'policies', label: 'Policies' },
   { key: 'requests', label: 'Requests' },
@@ -18,7 +20,7 @@ const TABS = [
 type TabKey = (typeof TABS)[number]['key']
 
 /**
- * Group assignments, groups, policies and access requests for access managers.
+ * Group assignments, each person's access, groups, policies and access requests for access managers.
  */
 export default function AccessPage() {
   const { user } = useAuth()
@@ -65,6 +67,7 @@ export default function AccessPage() {
       </div>
 
       {tab === 'assignments' && <AccessUsers />}
+      {tab === 'people' && <AccessPeople />}
       {tab === 'groups' && <UserGroups />}
       {tab === 'policies' && <AccessPolicies canEdit={isAdmin} />}
       {tab === 'requests' && <AccessRequestsPanel />}
