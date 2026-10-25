@@ -4,7 +4,7 @@
   "version": "1.2.0",
   "license": "SEE LICENSE IN ../LICENSE",
   "engines": {
-    "node": ">=22.22.0"
+    "node": "^22.23.4 || >=24.22.1"
   },
   "type": "module",
   "scripts": {
