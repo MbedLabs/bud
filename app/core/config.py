@@ -40,6 +40,12 @@ class Settings(BaseSettings):
         populate_by_name=True,
     )
 
+    def __init__(self, **values):
+        """Build settings without opening dotenv files when dotenv loading is disabled."""
+        if os.environ.get("BUD_DOTENV_DISABLED") == "1":
+            values["_env_file"] = None
+        super().__init__(**values)
+
     @classmethod
     def settings_customise_sources(
         cls, settings_cls, init_settings, env_settings, dotenv_settings, file_secret_settings
