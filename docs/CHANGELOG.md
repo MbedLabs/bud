@@ -4,7 +4,7 @@
 
 ### Added
 
-- Access has a People tab that shows each person's base role, every group they hold and their combined permissions.
+- Users shows, under each user, the groups that user holds; the list stays collapsed until it is opened for that user.
 
 ### Changed
 
