@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, Suspense } from 'react'
 import { Outlet, Link, useLocation } from 'react-router'
 import {
   LayoutDashboard, ListChecks, PlayCircle, Server, Settings, Sun, Moon,
-  LogOut, ChevronDown, ChevronLeft, ChevronRight, Users, ExternalLink, ScrollText, Shield,
+  LogOut, ChevronDown, ChevronLeft, ChevronRight, Users, ExternalLink, ScrollText, ShieldCheck,
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { can, canManageAccess } from '../lib/access'
@@ -168,7 +168,7 @@ export default function Layout() {
                 if (sidebarCollapsed && location.pathname !== '/access') setSidebarCollapsed(false)
               }}
             >
-              <Shield className="h-[18px] w-[18px] shrink-0 text-lime-300/50 group-hover:text-lime-200" />
+              <ShieldCheck className="h-[18px] w-[18px] shrink-0 text-lime-300/50 group-hover:text-lime-200" />
               {!sidebarCollapsed && 'Access'}
             </Link>
           )}

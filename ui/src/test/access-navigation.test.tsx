@@ -50,6 +50,11 @@ describe('Access page', () => {
     expect(screen.getByRole('link', { name: 'Users' }).getAttribute('href')).toBe('/users')
   })
 
+  it('marks the Access link with the shield check icon', () => {
+    renderPage(<Layout />)
+    expect(screen.getByRole('link', { name: 'Access' }).querySelector('svg')?.getAttribute('class')).toContain('lucide-shield-check')
+  })
+
   it('has Assignments, People, Groups, Policies and Requests without account administration', async () => {
     renderPage(<Access />)
     expect(screen.getAllByRole('tab').map((tab) => tab.textContent?.replace(/\d+$/, ''))).toEqual([
