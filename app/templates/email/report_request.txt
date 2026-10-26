@@ -2,7 +2,8 @@ Hello ${publisher_name},
 
 ${requester_name} (${requester_email}) requested the report for ${app_name} run #${run_id} in Bloom project ${project}.
 
-Open the run to publish its report to Bloom or refuse the request with a reason:
-${review_link}
+Open the run: ${review_link}
 
-${app_identity}
+Publish the report from ${app_name} to Bloom or refuse the request with a reason.
+
+(c) 2026 EmbedLabs. All rights reserved.

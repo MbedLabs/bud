@@ -23,7 +23,19 @@ jobs:
     name: Validate
     runs-on: ubuntu-latest
 
+    env:
+      BUD_DOTENV_DISABLED: "1"
+
     services:
+      mailpit:
+        image: axllent/mailpit@sha256:98b916bd3c8d61f7633a52d3ea2f58d00620cb01ca57ab59edde68c347a95365
+        ports:
+          - 11025:1025
+        options: >-
+          --health-cmd "/mailpit readyz"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
       postgres:
         image: postgres:16
         env:
@@ -31,7 +43,7 @@ jobs:
           POSTGRES_PASSWORD: test_password
           POSTGRES_DB: test_bud
         ports:
-          - 5432:5432
+          - 15432:5432
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -47,13 +59,13 @@ jobs:
           python-version: '3.11'
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7
+        uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884
         with:
           version: "0.11.14"
           enable-cache: false
 
       - name: Set up Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
           node-version: '24'
           cache: 'npm'
@@ -85,7 +97,7 @@ jobs:
 
       - name: Alembic upgrade on an empty database
         env:
-          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_bud
+          DATABASE_URL: postgresql://test_user:test_password@localhost:15432/test_bud
           PYTHONPATH: ${{ github.workspace }}
           SECRET_KEY: test-secret-key-for-ci-at-least-32-characters-long
         run: |
@@ -95,7 +107,7 @@ jobs:
 
       - name: Alembic downgrade and re-upgrade (deployed-database path)
         env:
-          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_bud
+          DATABASE_URL: postgresql://test_user:test_password@localhost:15432/test_bud
           PYTHONPATH: ${{ github.workspace }}
           SECRET_KEY: test-secret-key-for-ci-at-least-32-characters-long
         run: |
@@ -105,7 +117,7 @@ jobs:
 
       - name: Run backend tests
         env:
-          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_bud
+          DATABASE_URL: postgresql://test_user:test_password@localhost:15432/test_bud
           PYTHONPATH: ${{ github.workspace }}
           SECRET_KEY: test-secret-key-for-ci-at-least-32-characters-long
           RUNNER_API_KEY: test-runner-api-key
@@ -115,7 +127,7 @@ jobs:
 
       - name: Postgres tests
         env:
-          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_bud
+          DATABASE_URL: postgresql://test_user:test_password@localhost:15432/test_bud
           PYTHONPATH: ${{ github.workspace }}
           SECRET_KEY: test-secret-key-for-ci-at-least-32-characters-long
           RUNNER_API_KEY: test-runner-api-key
@@ -131,7 +143,7 @@ jobs:
 
       - name: Postgres tests again on the same database
         env:
-          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_bud
+          DATABASE_URL: postgresql://test_user:test_password@localhost:15432/test_bud
           PYTHONPATH: ${{ github.workspace }}
           SECRET_KEY: test-secret-key-for-ci-at-least-32-characters-long
           RUNNER_API_KEY: test-runner-api-key

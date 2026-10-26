@@ -26,7 +26,7 @@ interface CliDenial {
 
 type Denied = 'returning' | 'ended' | null
 
-const LOOPBACK_HOSTS = ['127.0.0.1', 'localhost', '[::1]']
+const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '[::1]'])
 const LOOPBACK_PREFIX = /^http:\/\/(?:127\.0\.0\.1|localhost|\[::1\]):\d+(?:[/?]|$)/i
 const CODE_MODE_OFF = 'Code sign-in is turned off on this instance. Use callback mode.'
 const WARNING = 'rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-800 dark:text-amber-300'
@@ -34,7 +34,7 @@ const WARNING = 'rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-
 /** Check that a target is an HTTP loopback URL on the stored callback's origin and path, without credentials. */
 function onStoredCallback(target: URL, redirectTo: string, original: URL) {
   return target.protocol === 'http:' &&
-    LOOPBACK_HOSTS.includes(target.hostname) &&
+    LOOPBACK_HOSTS.has(target.hostname) &&
     LOOPBACK_PREFIX.test(redirectTo) &&
     target.username === '' && target.password === '' && target.hash === '' &&
     target.origin === original.origin && target.pathname === original.pathname
