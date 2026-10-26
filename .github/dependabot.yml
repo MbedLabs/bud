@@ -73,8 +73,6 @@ updates:
         update-types: ["version-update:semver-major"]
       - dependency-name: "python"
         versions: [">=3.12"]
-      - dependency-name: "node"
-        versions: [">=21"]
 
   - package-ecosystem: github-actions
     directory: "/"

@@ -321,6 +321,11 @@ def _create_access_requests() -> None:
     op.create_index("ix_access_requests_status", "access_requests", ["status"])
 
 
+def _reflected_indexes(inspector, table):
+    """Return the table's indexes with include_columns present, as SQLAlchemy 2.0 reports them."""
+    return [{"include_columns": [], **index} for index in inspector.get_indexes(table)]
+
+
 def _signature(connection):
     """Hash the ordered schema shape excluding the migration ledger and revision value."""
     inspector = sa.inspect(connection)
@@ -347,7 +352,7 @@ def _signature(connection):
                     inspector.get_unique_constraints(name), key=lambda item: str(item)
                 ),
                 "checks": sorted(inspector.get_check_constraints(name), key=lambda item: str(item)),
-                "indexes": sorted(inspector.get_indexes(name), key=lambda item: str(item)),
+                "indexes": sorted(_reflected_indexes(inspector, name), key=lambda item: str(item)),
             }
         )
     return hashlib.sha256(json.dumps(tables, sort_keys=True, default=str).encode()).hexdigest()

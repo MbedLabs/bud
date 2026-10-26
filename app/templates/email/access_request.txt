@@ -7,6 +7,6 @@ Reference: ${request_id}
 
 Review the access: ${review_link}
 
-Grant it there, then mark the request granted or refused.
+Grant access in ${app_name}, then mark the request granted or refused.
 
 (c) 2026 EmbedLabs. All rights reserved.

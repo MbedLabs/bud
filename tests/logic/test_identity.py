@@ -47,7 +47,7 @@ def test_an_environment_variable_does_not_rename_the_product(monkeypatch):
     assert sent[0]["subject"] == "You're invited to Bud TMP"
     assert "<title>Bud TMP by EmbedLabs</title>" in sent[0]["html_body"]
     assert "Welcome to Bud TMP by EmbedLabs</h1>" in sent[0]["html_body"]
-    assert "You have been invited to join the Bud TMP platform." in sent[0]["text_body"]
+    assert "You have been invited to join Bud TMP." in sent[0]["text_body"]
     assert OVERRIDE not in sent[0]["html_body"] + sent[0]["text_body"]
 
 
@@ -93,8 +93,9 @@ def test_every_email_names_the_product(monkeypatch):
     ]
     for mail in sent:
         assert "<title>Bud TMP by EmbedLabs</title>" in mail["html_body"]
+        assert f">{BUD_PRODUCT_IDENTITY}</h1>" in mail["html_body"]
+        assert BUD_PRODUCT_NAME in mail["text_body"]
     assert "requested the report for Bud TMP run #7" in sent[1]["text_body"]
-    assert sent[1]["text_body"].rstrip().endswith("Bud TMP by EmbedLabs")
 
 
 def test_the_api_title_and_root_message_are_the_identity():

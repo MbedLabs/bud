@@ -51,9 +51,9 @@ dev = [
 
 [dependency-groups]
 ci = [
-    "black==25.1.0",
-    "isort==5.13.2",
-    "bandit==1.8.3",
+    "black==26.10.1",
+    "isort==9.0.2",
+    "bandit==1.9.4",
     "pip-audit==2.10.1",
 ]
 image = [
