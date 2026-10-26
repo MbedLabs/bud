@@ -1,9 +1,9 @@
 import ProfilePicture from '../components/ProfilePicture'
 import SelectField from '../components/SelectField'
-import { useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Check, Code2, Copy, Eye, Mail, Shield, Trash2, UserPlus, X } from 'lucide-react'
-import { extractApiErrorMessage, InviteUserResponse, User, UserRole, usersApi } from '../api/client'
+import { Fragment, useState } from 'react'
+import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query'
+import { Check, ChevronDown, ChevronRight, Code2, Copy, Eye, Mail, Shield, Trash2, UserPlus, X } from 'lucide-react'
+import { accessApi, AccessUser, extractApiErrorMessage, InviteUserResponse, User, UserRole, usersApi } from '../api/client'
 import { useAuth } from '../contexts/AuthContext'
 import { useEscapeKey } from '../hooks/useEscapeKey'
 import { formatDateTime } from '../test/date-utils'
@@ -22,11 +22,21 @@ export default function UsersPage() {
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [emailActionError, setEmailActionError] = useState<string | null>(null)
   const [pendingDeleteUserId, setPendingDeleteUserId] = useState<number | null>(null)
+  const [openUserIds, setOpenUserIds] = useState<number[]>([])
 
   const { data: users, isLoading } = useQuery({
     queryKey: ['users'],
     queryFn: usersApi.list,
   })
+
+  const access = useQuery({
+    queryKey: ['access-users'],
+    queryFn: accessApi.users,
+    enabled: openUserIds.length > 0,
+  })
+
+  const toggleUser = (id: number) =>
+    setOpenUserIds((ids) => (ids.includes(id) ? ids.filter((openId) => openId !== id) : [...ids, id]))
 
   const inviteMutation = useMutation({
     mutationFn: usersApi.invite,
@@ -141,10 +151,22 @@ export default function UsersPage() {
             {users?.map((u) => {
               const roleConf = ROLE_CONFIG[u.role as keyof typeof ROLE_CONFIG] || ROLE_CONFIG.viewer
               const isSelf = u.id === currentUser?.id
+              const isOpen = openUserIds.includes(u.id)
               return (
-                <tr key={u.id} className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
+                <Fragment key={u.id}>
+                <tr className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => toggleUser(u.id)}
+                        aria-expanded={isOpen}
+                        aria-label={`${isOpen ? 'Hide' : 'Show'} groups of ${u.full_name}`}
+                        title={isOpen ? 'Hide groups' : 'Show groups'}
+                        className="p-1 -ml-1 rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                      >
+                        {isOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                      </button>
                       <ProfilePicture user={u} />
                       <div className="min-w-0">
                         <p className="text-sm font-medium text-foreground truncate">{u.full_name}</p>
@@ -251,6 +273,14 @@ export default function UsersPage() {
                     )}
                   </td>
                 </tr>
+                {isOpen && (
+                  <tr className="border-b border-border last:border-0 bg-muted/10">
+                    <td colSpan={5} className="px-4 py-2">
+                      <UserGroupList userId={u.id} access={access} />
+                    </td>
+                  </tr>
+                )}
+                </Fragment>
               )
             })}
           </tbody>
@@ -286,6 +316,38 @@ export default function UsersPage() {
               : null
           }
         />
+      )}
+    </div>
+  )
+}
+
+/** The names of the groups a user holds, shown under their row. */
+function UserGroupList({ userId, access }: Readonly<{ userId: number; access: UseQueryResult<AccessUser[]> }>) {
+  if (access.isPending) {
+    return <p className="text-xs text-muted-foreground">Loading groups...</p>
+  }
+  if (access.isError) {
+    return (
+      <p role="alert" className="text-xs text-destructive">
+        Could not load groups.{' '}
+        <button type="button" onClick={() => { void access.refetch() }} className="underline">
+          Retry
+        </button>
+      </p>
+    )
+  }
+  const groups = access.data.find((person) => person.id === userId)?.groups ?? []
+  return (
+    <div className="flex flex-wrap items-center gap-1.5 text-xs">
+      <span className="font-medium text-muted-foreground">Groups</span>
+      {groups.length === 0 ? (
+        <span className="text-muted-foreground">No groups</span>
+      ) : (
+        groups.map((group) => (
+          <span key={group.id} className="rounded-full border border-border px-2 py-0.5 text-foreground">
+            {group.name}
+          </span>
+        ))
       )}
     </div>
   )
