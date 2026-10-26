@@ -112,7 +112,7 @@ except PermissionError:
 def test_mailpit_connection_is_allowed_by_guard():
     assert (
         run_bootstrap(
-            "sys.audit('smtplib.connect', smtplib.SMTP(), '127.0.0.1', 1025); print('allowed')"
+            "sys.audit('smtplib.connect', smtplib.SMTP(), '127.0.0.1', 11025); print('allowed')"
         )
         == "allowed"
     )
@@ -150,7 +150,7 @@ def test_database_connection_overrides_are_rejected(suffix):
         run_bootstrap(
             "",
             {
-                "DATABASE_URL": f"postgresql+asyncpg://test_user:test_password@localhost:5432/{database}{suffix}"
+                "DATABASE_URL": f"postgresql+asyncpg://test_user:test_password@localhost:15432/{database}{suffix}"
             },
         )
 
@@ -241,9 +241,72 @@ with tempfile.TemporaryDirectory() as directory:
     "database_url",
     [
         "sqlite+aiosqlite:////tmp/operator.db",
-        "postgresql+psycopg://test_user:test_password@localhost:5432/test_bud",
+        "postgresql+psycopg://test_user:test_password@localhost:15432/test_bud",
     ],
 )
 def test_non_test_database_paths_or_drivers_are_rejected(database_url):
     with pytest.raises(subprocess.CalledProcessError):
         run_bootstrap("", {"DATABASE_URL": database_url})
+
+
+@pytest.mark.parametrize("port", [5432, 5433, 5434, 80, ""])
+def test_local_development_postgres_ports_are_rejected(port):
+    suffix = f":{port}" if port != "" else ""
+    with pytest.raises(subprocess.CalledProcessError) as failure:
+        run_bootstrap(
+            "",
+            {
+                "DATABASE_URL": f"postgresql+asyncpg://test_user:test_password@localhost{suffix}/test_bud"
+            },
+        )
+    assert "Tests require the isolated test database" in failure.value.stderr
+
+
+def test_other_non_development_postgres_port_is_allowed():
+    run_bootstrap(
+        "",
+        {"DATABASE_URL": "postgresql+asyncpg://test_user:test_password@127.0.0.1:25432/test_bud"},
+    )
+
+
+def test_default_test_services_use_the_dedicated_ports():
+    observed = json.loads(
+        run_bootstrap(
+            "print(json.dumps({'database': os.environ['DATABASE_URL'], 'smtp': os.environ['SMTP_PORT']}))",
+            {"DATABASE_URL": ""},
+        )
+    )
+    assert observed == {
+        "database": "postgresql+asyncpg://test_user:test_password@localhost:15432/test_bud",
+        "smtp": "11025",
+    }
+
+
+@pytest.mark.parametrize(
+    "port", ["1025", "8025", "25", "587", "465", "2525", "0", "70000", "abc", ""]
+)
+def test_local_development_mailpit_ports_are_rejected(port):
+    with pytest.raises(subprocess.CalledProcessError) as failure:
+        run_bootstrap("", {"TEST_SMTP_PORT": port})
+    assert "dedicated test Mailpit port" in failure.value.stderr
+
+
+def test_other_non_development_smtp_port_is_allowed():
+    assert (
+        run_bootstrap(
+            "sys.audit('smtplib.connect', smtplib.SMTP(), '127.0.0.1', 21025); print('allowed')",
+            {"TEST_SMTP_PORT": "21025"},
+        )
+        == "allowed"
+    )
+
+
+@pytest.mark.parametrize("port", [1025, 8025, 25])
+def test_connection_to_local_development_mailpit_is_blocked(port):
+    outcome = run_bootstrap(f"""
+try:
+    smtplib.SMTP('127.0.0.1', {port})
+except PermissionError:
+    print('blocked before network')
+""")
+    assert outcome == "blocked before network"
