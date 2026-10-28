@@ -9,7 +9,12 @@ from fastapi import Depends, FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from app.core.observability import RequestObservabilityMiddleware, created_id
+from app.core.config import settings
+from app.core.observability import (
+    RequestObservabilityMiddleware,
+    created_id,
+    created_ids,
+)
 from app.core.runner_keys import mint_key
 from app.core.security import (
     create_access_token,
@@ -195,6 +200,8 @@ async def test_an_enrolment_key_names_its_station(unauthenticated_client, db_ses
     assert event.details["route"] == "/api/results"
     assert event.details["auth"] == "api-key"
     assert event.outcome == "success"
+    assert event.details["created_test_run_id"] == response.json()["test_run_id"]
+    assert "created_id" not in event.details
 
 
 async def test_a_created_object_and_its_path_parameters_are_recorded(
@@ -428,3 +435,41 @@ def test_created_id_reads_a_gzip_body_within_the_limit():
     assert created_id(json.dumps({"id": True}).encode(), "") is None
     assert created_id(gzip.compress(b"{" + b" " * 200_000 + b"}"), "gzip") is None
     assert created_id(body, "br") is None
+
+
+async def test_a_cors_preflight_is_recorded(unauthenticated_client, db_session):
+    response = unauthenticated_client.options(
+        "/api/auth/me",
+        headers={
+            "Origin": settings.CORS_ORIGINS[0],
+            "Access-Control-Request-Method": "GET",
+            "Access-Control-Request-Headers": "Authorization",
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.headers["access-control-allow-origin"] == settings.CORS_ORIGINS[0]
+    event = await _request_for(db_session, response)
+    assert event.details["method"] == "OPTIONS"
+    assert event.details["path"] == "/api/auth/me"
+    assert event.details["status"] == 200
+    assert event.actor_type == "anonymous"
+    assert event.outcome == "success"
+
+
+async def test_the_route_is_the_full_template_of_a_router_prefixed_route(
+    unauthenticated_client, db_session
+):
+    response = unauthenticated_client.get("/api/auth/me")
+
+    assert response.status_code == 401
+    event = await _request_for(db_session, response)
+    assert event.details["route"] == "/api/auth/me"
+    assert event.details["route"] != "/me"
+
+
+def test_a_results_answer_names_its_run_and_an_id_wins():
+    assert created_ids(b'{"test_run_id": 5, "count": 1}', "") == {"created_test_run_id": 5}
+    assert created_ids(b'{"id": 3, "test_run_id": 5}', "") == {"created_id": 3}
+    assert created_ids(b'{"id": null, "test_run_id": 5}', "") == {}
+    assert created_ids(b'{"count": 1}', "") == {}

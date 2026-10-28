@@ -110,8 +110,29 @@ def query_parameter_names(query_string: bytes) -> list[str]:
     return sorted({name[:100] for name, _ in pairs})[:QUERY_NAME_LIMIT]
 
 
-def created_id(body: bytes, content_encoding: str) -> int | str | None:
-    """Return the ``id`` of a JSON object response body, decoding gzip within the size limit."""
+def _identifier(value: Any) -> int | str | None:
+    """Return an integer or a string of at most 100 characters, else None."""
+    if isinstance(value, bool) or not isinstance(value, (int, str)):
+        return None
+    return value[:100] if isinstance(value, str) else value
+
+
+def created_ids(body: bytes, content_encoding: str) -> dict[str, int | str]:
+    """Return the ids a JSON object response body names: ``created_id`` for its ``id`` and,
+    when it has no ``id``, ``created_test_run_id`` for its ``test_run_id``; gzip is decoded
+    within the size limit."""
+    payload = _json_object(body, content_encoding)
+    if payload is None:
+        return {}
+    created = _identifier(payload.get("id"))
+    if created is not None:
+        return {"created_id": created}
+    run = _identifier(payload.get("test_run_id")) if "id" not in payload else None
+    return {} if run is None else {"created_test_run_id": run}
+
+
+def _json_object(body: bytes, content_encoding: str) -> dict[str, Any] | None:
+    """Decode a JSON object response body, gzip within the size limit, else None."""
     if content_encoding == "gzip":
         decompressor = zlib.decompressobj(16 + zlib.MAX_WBITS)
         try:
@@ -126,12 +147,12 @@ def created_id(body: bytes, content_encoding: str) -> int | str | None:
         payload = json.loads(body)
     except ValueError:
         return None
-    if not isinstance(payload, dict):
-        return None
-    value = payload.get("id")
-    if isinstance(value, bool) or not isinstance(value, (int, str)):
-        return None
-    return value[:100] if isinstance(value, str) else value
+    return payload if isinstance(payload, dict) else None
+
+
+def created_id(body: bytes, content_encoding: str) -> int | str | None:
+    """Return the ``id`` of a JSON object response body, decoding gzip within the size limit."""
+    return created_ids(body, content_encoding).get("created_id")
 
 
 class CreatedBodyCapture:
@@ -159,9 +180,9 @@ class CreatedBodyCapture:
             return
         self.body.extend(chunk)
 
-    def created_id(self) -> int | str | None:
-        """Return the id of the captured body, or None."""
-        return created_id(bytes(self.body), self.encoding) if self.active else None
+    def created(self) -> dict[str, int | str]:
+        """Return the ids the captured body names, empty when nothing was captured."""
+        return created_ids(bytes(self.body), self.encoding) if self.active else {}
 
 
 class RequestObservabilityMiddleware:
@@ -232,7 +253,7 @@ class RequestObservabilityMiddleware:
                     }
                 },
             )
-            await self._audit(scope, headers, status_code, duration, capture.created_id())
+            await self._audit(scope, headers, status_code, duration, capture.created())
             request_audit_var.reset(audit_token)
             request_id_var.reset(token)
             client_ip_var.reset(ip_token)
@@ -240,7 +261,7 @@ class RequestObservabilityMiddleware:
 
     @staticmethod
     async def _audit(
-        scope, headers: dict[str, bytes], status: int, duration: float, created: int | str | None
+        scope, headers: dict[str, bytes], status: int, duration: float, created: dict[str, Any]
     ) -> None:
         """Record the finished request as an api.request audit event, logging any failure."""
         try:
