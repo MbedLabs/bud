@@ -260,7 +260,7 @@ export default function Layout() {
                 {location.pathname === '/settings' && 'Manage your preferences'}
                 {location.pathname === '/users' && 'Invite and manage members'}
                 {location.pathname === '/access' && 'Groups, policies, assignments and access requests'}
-                {location.pathname === '/audit' && 'Who did what to accounts, access, configuration and data'}
+                {location.pathname === '/audit' && 'Every API request and every refused attempt is recorded'}
                 {location.pathname.startsWith('/runs/') && 'Test run details and results'}
               </p>
             </div>
