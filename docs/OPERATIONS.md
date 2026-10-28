@@ -227,7 +227,7 @@ The client address is the one the image's own nginx received. Behind another rev
 
 Access requests are emailed through the transactional mail settings to every active Admin and every active user with `access.manage`, with a link to Access, where they are listed under Requests. When the email cannot be sent (SMTP is disabled or not fully configured, or the send fails), the request is still recorded and listed there, and the user is told the email could not be sent.
 
-Retention is the operator's choice. Every request adds a row, so the table grows with traffic: one Test Station's heartbeat alone adds 1440 rows a day. The application never deletes events; to remove old ones, run on a schedule:
+Retention is the operator's choice. Every request adds a row, so the table grows with traffic: one Test Station's heartbeat alone adds 1440 rows a day, a health probe every 10 seconds adds 8640, and every metrics scrape and CORS preflight adds one more. The application never deletes events; to remove old ones, run on a schedule:
 
 ```
 python -m app.audit prune --older-than-days 365
