@@ -1,4 +1,8 @@
-"""Audit log: one row per security-relevant event, written with the action it records."""
+"""Audit log: one row per HTTP request (``api.request``) and per security-relevant event.
+
+A security-relevant event is written with the action it records; the ``api.request`` event of
+a request is written on its own session once the response is finished.
+"""
 
 from datetime import datetime
 from typing import Optional
@@ -10,7 +14,10 @@ from app.db.database import Base
 
 
 class AuditEvent(Base):
-    """Who did what to accounts, access, configuration or data, and with what outcome."""
+    """Who called which API or did what to accounts, access, configuration or data, from which
+    address, and with what outcome: ``success``, ``denied`` (a refused request: 401, 403 or
+    429) or ``failure``.
+    """
 
     __tablename__ = "audit_events"
     __table_args__ = (
@@ -19,6 +26,8 @@ class AuditEvent(Base):
         Index("ix_audit_events_action", "action"),
         Index("ix_audit_events_target", "target_type", "target_id"),
         Index("ix_audit_events_product_id", "product_id"),
+        Index("ix_audit_events_outcome", "outcome"),
+        Index("ix_audit_events_ip", "ip"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)

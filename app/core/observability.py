@@ -7,7 +7,10 @@ import logging
 import sys
 import time
 import uuid
+import zlib
 from contextvars import ContextVar
+from typing import Any
+from urllib.parse import parse_qsl
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import Response
@@ -16,8 +19,13 @@ from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_
 request_id_var: ContextVar[str] = ContextVar("request_id", default="-")
 client_ip_var: ContextVar[str | None] = ContextVar("client_ip", default=None)
 user_agent_var: ContextVar[str | None] = ContextVar("user_agent", default=None)
+request_audit_var: ContextVar[dict[str, Any] | None] = ContextVar("request_audit", default=None)
 
 access_logger = logging.getLogger("bud.access")
+logger = logging.getLogger(__name__)
+
+CREATED_BODY_LIMIT = 64 * 1024
+QUERY_NAME_LIMIT = 50
 
 HTTP_REQUESTS_TOTAL = Counter(
     "http_requests_total",
@@ -73,8 +81,95 @@ def setup_logging(level: str = "INFO", json_logs: bool = False) -> None:
     root.setLevel(level.upper())
 
 
+def credential_kind(headers: dict[str, bytes]) -> str:
+    """Name the kind of credential a request presents: bearer, api-key or none."""
+    authorization = headers.get("authorization", b"").decode("latin-1").strip()
+    if authorization[:7].lower() == "bearer " and authorization[7:].strip():
+        return "bearer"
+    if headers.get("x-api-key", b"").strip():
+        return "api-key"
+    return "none"
+
+
+def route_template(scope) -> str:
+    """Return the full path template of the matched route, router prefixes included, or
+    ``unmatched``."""
+    fastapi_scope = scope.get("fastapi")
+    context = (
+        fastapi_scope.get("effective_route_context") if isinstance(fastapi_scope, dict) else None
+    )
+    template = getattr(context, "path", None)
+    if template:
+        return template
+    return getattr(scope.get("route"), "path", None) or "unmatched"
+
+
+def query_parameter_names(query_string: bytes) -> list[str]:
+    """Return the sorted, distinct names of the query parameters, without their values."""
+    pairs = parse_qsl(query_string.decode("latin-1"), keep_blank_values=True)
+    return sorted({name[:100] for name, _ in pairs})[:QUERY_NAME_LIMIT]
+
+
+def created_id(body: bytes, content_encoding: str) -> int | str | None:
+    """Return the ``id`` of a JSON object response body, decoding gzip within the size limit."""
+    if content_encoding == "gzip":
+        decompressor = zlib.decompressobj(16 + zlib.MAX_WBITS)
+        try:
+            body = decompressor.decompress(body, CREATED_BODY_LIMIT)
+        except zlib.error:
+            return None
+        if decompressor.unconsumed_tail:
+            return None
+    elif content_encoding not in ("", "identity"):
+        return None
+    try:
+        payload = json.loads(body)
+    except ValueError:
+        return None
+    if not isinstance(payload, dict):
+        return None
+    value = payload.get("id")
+    if isinstance(value, bool) or not isinstance(value, (int, str)):
+        return None
+    return value[:100] if isinstance(value, str) else value
+
+
+class CreatedBodyCapture:
+    """Keep the body of a 201 JSON response, up to CREATED_BODY_LIMIT bytes, to read its id."""
+
+    def __init__(self) -> None:
+        self.active = False
+        self.encoding = ""
+        self.body = bytearray()
+
+    def start(self, status: int, headers: list[tuple[bytes, bytes]]) -> None:
+        """Begin capturing when the response is a 201 whose body is JSON."""
+        values = {k.decode("latin-1").lower(): v.decode("latin-1") for k, v in headers}
+        self.encoding = values.get("content-encoding", "").strip().lower()
+        content_type = values.get("content-type", "")
+        self.active = status == 201 and content_type.startswith("application/json")
+
+    def feed(self, chunk: bytes) -> None:
+        """Append a body chunk, giving up once the body would exceed the limit."""
+        if not self.active:
+            return
+        if len(self.body) + len(chunk) > CREATED_BODY_LIMIT:
+            self.active = False
+            self.body.clear()
+            return
+        self.body.extend(chunk)
+
+    def created_id(self) -> int | str | None:
+        """Return the id of the captured body, or None."""
+        return created_id(bytes(self.body), self.encoding) if self.active else None
+
+
 class RequestObservabilityMiddleware:
-    """Pure ASGI middleware: request id + access log + metrics."""
+    """Pure ASGI middleware: request id, access log, metrics and one api.request audit event.
+
+    The audit event is written after the response is finished, with the actor that the
+    authentication dependencies recorded in ``request_audit_var``; a failed write is logged.
+    """
 
     def __init__(self, app):
         self.app = app
@@ -92,9 +187,12 @@ class RequestObservabilityMiddleware:
         ip_token = client_ip_var.set(client[0] if client else None)
         agent = headers.get("user-agent", b"").decode("latin-1")
         agent_token = user_agent_var.set(agent or None)
+        audit_state: dict[str, Any] = {}
+        audit_token = request_audit_var.set(audit_state)
 
         status_code = 500
         start = time.perf_counter()
+        capture = CreatedBodyCapture()
 
         async def send_wrapper(message):
             nonlocal status_code
@@ -104,6 +202,9 @@ class RequestObservabilityMiddleware:
                 message["headers"] = [
                     (k, v) for k, v in message["headers"] if k.lower() != b"x-request-id"
                 ] + [(b"x-request-id", request_id.encode("latin-1"))]
+                capture.start(status_code, message["headers"])
+            elif message["type"] == "http.response.body":
+                capture.feed(message.get("body", b""))
             await send(message)
 
         try:
@@ -131,9 +232,33 @@ class RequestObservabilityMiddleware:
                     }
                 },
             )
+            await self._audit(scope, headers, status_code, duration, capture.created_id())
+            request_audit_var.reset(audit_token)
             request_id_var.reset(token)
             client_ip_var.reset(ip_token)
             user_agent_var.reset(agent_token)
+
+    @staticmethod
+    async def _audit(
+        scope, headers: dict[str, bytes], status: int, duration: float, created: int | str | None
+    ) -> None:
+        """Record the finished request as an api.request audit event, logging any failure."""
+        try:
+            from app.services.audit import record_api_request
+
+            await record_api_request(
+                method=scope.get("method", "-"),
+                route=route_template(scope),
+                path=scope.get("path", "-"),
+                status=status,
+                duration_ms=round(duration * 1000, 1),
+                query_params=query_parameter_names(scope.get("query_string", b"")),
+                auth=credential_kind(headers),
+                path_params=dict(scope.get("path_params") or {}),
+                created=created,
+            )
+        except Exception:
+            logger.exception("The api.request audit event could not be recorded")
 
 
 metrics_router = APIRouter()

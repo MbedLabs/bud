@@ -29,6 +29,10 @@ async def list_audit_events(
     target_id: Optional[str] = None,
     product_id: Optional[int] = None,
     outcome: Optional[str] = None,
+    actor_type: Optional[str] = None,
+    ip: Optional[str] = None,
+    request_id: Optional[str] = None,
+    status: Optional[int] = None,
     since: Optional[datetime] = None,
     until: Optional[datetime] = None,
     limit: int = Query(50, ge=1, le=500),
@@ -36,7 +40,10 @@ async def list_audit_events(
     db: AsyncSession = Depends(get_db, scope="function"),
     _admin: User = Depends(require_admin),
 ):
-    """List audit events matching every given filter; an action filter ending in "." is a prefix."""
+    """List audit events matching every given filter; an action filter ending in "." is a prefix.
+
+    ``status`` matches the HTTP status of api.request events.
+    """
     conditions = []
     if actor_user_id is not None:
         conditions.append(AuditEvent.actor_user_id == actor_user_id)
@@ -53,6 +60,14 @@ async def list_audit_events(
         conditions.append(AuditEvent.product_id == product_id)
     if outcome:
         conditions.append(AuditEvent.outcome == outcome)
+    if actor_type:
+        conditions.append(AuditEvent.actor_type == actor_type)
+    if ip:
+        conditions.append(AuditEvent.ip == ip)
+    if request_id:
+        conditions.append(AuditEvent.request_id == request_id)
+    if status is not None:
+        conditions.append(AuditEvent.details["status"].as_integer() == status)
     if since is not None:
         conditions.append(AuditEvent.occurred_at >= since)
     if until is not None:

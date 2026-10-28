@@ -38,7 +38,9 @@ def _alembic(*arguments, database_url):
 
 def test_cli_migration_has_one_append_only_head():
     script = ScriptDirectory.from_config(Config(str(ROOT / "alembic.ini")))
-    assert script.get_heads() == ["019_cli_auth_sessions"]
+    [head] = script.get_heads()
+    lineage = [revision.revision for revision in script.walk_revisions("base", head)]
+    assert "019_cli_auth_sessions" in lineage
     assert script.get_revision("019_cli_auth_sessions").down_revision == "018_report_requests"
 
 
@@ -117,7 +119,7 @@ async def test_cli_migration_upgrades_previous_head_and_downgrades_with_sessions
         before = await _snapshot(connection)
         assert before == {table: 1 for table in RETAINED_TABLES}
 
-        _alembic("upgrade", "head", database_url=scoped_url)
+        _alembic("upgrade", "019_cli_auth_sessions", database_url=scoped_url)
         assert await _snapshot(connection) == before
         columns = await connection.fetch(
             "SELECT column_name FROM information_schema.columns "
@@ -145,14 +147,14 @@ async def test_cli_migration_upgrades_previous_head_and_downgrades_with_sessions
             user_id,
         )
 
-        _alembic("downgrade", "-1", database_url=scoped_url)
+        _alembic("downgrade", "018_report_requests", database_url=scoped_url)
         assert await connection.fetchval("SELECT version_num FROM alembic_version") == (
             "018_report_requests"
         )
         assert not await _session_table_exists(connection)
         assert await _snapshot(connection) == before
 
-        _alembic("upgrade", "head", database_url=scoped_url)
+        _alembic("upgrade", "019_cli_auth_sessions", database_url=scoped_url)
         assert await connection.fetchval("SELECT version_num FROM alembic_version") == (
             "019_cli_auth_sessions"
         )
@@ -179,8 +181,9 @@ async def test_cli_migration_installs_on_an_empty_database():
     try:
         _alembic("upgrade", "head", database_url=scoped_url)
         assert await _session_table_exists(connection)
+        script = ScriptDirectory.from_config(Config(str(ROOT / "alembic.ini")))
         assert await connection.fetchval("SELECT version_num FROM alembic_version") == (
-            "019_cli_auth_sessions"
+            script.get_current_head()
         )
     finally:
         await connection.close()

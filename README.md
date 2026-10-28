@@ -16,6 +16,7 @@ Bud TMP is a test management and execution platform for automated software, hard
 - Runner-token and API-key authentication for automated uploads
 - Optional result synchronization to Bloom PLM test cases
 - Readiness, health, metrics, structured logging, and backup workflows
+- Audit log of every API call and every refused attempt, with repeated refusals from one address flagged
 
 ## Bud testing ecosystem
 
