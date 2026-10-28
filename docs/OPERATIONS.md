@@ -223,7 +223,15 @@ Security-relevant events are also written to the `audit_events` table in the sam
 
 Users with the `audit.view` permission read the log under Audit log in the sidebar, or with `GET /api/audit`. Every Admin has it; any other user has it through a group with a policy that grants it, such as the shipped Audit log policy, which the shipped Application Administrators group includes. Filters: `actor_user_id`, `actor_type`, `action` or an action prefix ending in `.`, `target_type`, `target_id`, `product_id`, `outcome`, `ip`, `request_id`, `status` (the HTTP status of `api.request` events), `since`, `until`; paging: `limit` (1 to 500, default 50) and `offset`. No endpoint changes or deletes an event.
 
-The client address is the one the image's own nginx received. Behind another reverse proxy (Cloudron, a load balancer) it is that proxy's address.
+The client address is the one the image's own nginx received: nginx appends it to `X-Forwarded-For`, and uvicorn, started with `--forwarded-allow-ips 127.0.0.1,::1` whatever `FORWARDED_ALLOW_IPS` holds, takes from that header the right-most address other than `127.0.0.1` and `::1`. A request that reaches nginx from `127.0.0.1`, the container's own loopback (another process in the container or pod, a port forward) is treated as part of the image, so the `X-Forwarded-For` it carries is read as well. Behind another reverse proxy (Cloudron, a Kubernetes ingress, a load balancer) that is the proxy's address, the same for every caller, unless the proxy is trusted with `TRUSTED_PROXY_NETWORKS`.
+
+`TRUSTED_PROXY_NETWORKS` (also read as `BUD_TRUSTED_PROXY_NETWORKS`) is a JSON array of the networks, in CIDR notation, that your reverse proxies connect from. When a request reaches the image's nginx from an address in one of them, the client address is the right-most `X-Forwarded-For` address outside those networks; addresses inside them are skipped as further proxies. A request from any other address outside the container keeps that address, whatever `X-Forwarded-For` it carries, so a forged header from such a sender never changes the recorded address. The default is empty: no forwarding header from outside the container is trusted and the client address is the one nginx received. Example, a reverse proxy on a private network:
+
+```
+TRUSTED_PROXY_NETWORKS=["10.10.0.0/16"]
+```
+
+An entry that is not a network address, such as `10.10.0.1/16` instead of `10.10.0.0/16`, stops Bud at start. List only the networks your proxies use: any host inside them can name another client address. The resolved address is the one the audit log stores as `ip`, the one `security.repeated_refusals` counts by and the one the per-address request rate limits (sign-in, for example) count by. On Cloudron the setting is set with `cloudron env set`.
 
 Access requests are emailed through the transactional mail settings to every active Admin and every active user with `access.manage`, with a link to Access, where they are listed under Requests. When the email cannot be sent (SMTP is disabled or not fully configured, or the send fails), the request is still recorded and listed there, and the user is told the email could not be sent.
 

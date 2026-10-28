@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ipaddress
 import json
 import logging
 import sys
@@ -185,8 +186,71 @@ class CreatedBodyCapture:
         return created_ids(bytes(self.body), self.encoding) if self.active else {}
 
 
+def _address(value: str) -> ipaddress.IPv4Address | ipaddress.IPv6Address | None:
+    """Parse an address, bare or with a port, an IPv4-mapped IPv6 address as IPv4; None when
+    the value is not an address."""
+    text = value.strip()
+    if text.startswith("["):
+        text = text[1:].split("]", 1)[0]
+    elif text.count(":") == 1:
+        text = text.split(":", 1)[0]
+    try:
+        address = ipaddress.ip_address(text)
+    except ValueError:
+        return None
+    if isinstance(address, ipaddress.IPv6Address) and address.ipv4_mapped:
+        return address.ipv4_mapped
+    return address
+
+
+def _in_networks(address, networks) -> bool:
+    """Whether ``address`` lies in one of ``networks``."""
+    return any(address in network for network in networks)
+
+
+def forwarded_client(peer: str | None, forwarded_for: list[bytes], networks) -> str | None:
+    """Return the client address of a request.
+
+    When ``peer`` lies in one of ``networks``, it is the right-most X-Forwarded-For address
+    outside them; the left-most address when all lie inside them, and the last address read
+    when an entry is not an address. Otherwise, and when ``networks`` is empty, it is ``peer``.
+    """
+    peer_address = _address(peer) if peer and networks else None
+    if peer_address is None or not _in_networks(peer_address, networks):
+        return peer
+    hops = ",".join(value.decode("latin-1") for value in forwarded_for).split(",")
+    resolved = peer
+    for hop in reversed(hops):
+        address = _address(hop)
+        if address is None:
+            break
+        resolved = str(address)
+        if not _in_networks(address, networks):
+            break
+    return resolved
+
+
+def resolve_client(scope) -> tuple[str, int] | None:
+    """Set ``scope["client"]`` to the forwarded client when the peer is in
+    TRUSTED_PROXY_NETWORKS, and return the client."""
+    from app.core.config import settings
+
+    client = scope.get("client")
+    networks = settings.TRUSTED_PROXY_NETWORKS
+    if not client or not networks:
+        return client
+    forwarded_for = [v for k, v in scope.get("headers", []) if k.lower() == b"x-forwarded-for"]
+    host = forwarded_client(client[0], forwarded_for, networks)
+    if host != client[0]:
+        scope["client"] = (host, 0)
+    return scope["client"]
+
+
 class RequestObservabilityMiddleware:
-    """Pure ASGI middleware: request id, access log, metrics and one api.request audit event.
+    """Pure ASGI middleware: client address, request id, access log, metrics and one
+    api.request audit event.
+
+    The client address is resolved first and written to ``scope["client"]``.
 
     The audit event is written after the response is finished, with the actor that the
     authentication dependencies recorded in ``request_audit_var``; a failed write is logged.
@@ -204,7 +268,7 @@ class RequestObservabilityMiddleware:
         incoming = headers.get("x-request-id", b"").decode("latin-1").strip()
         request_id = incoming[:64] if incoming else uuid.uuid4().hex
         token = request_id_var.set(request_id)
-        client = scope.get("client")
+        client = resolve_client(scope)
         ip_token = client_ip_var.set(client[0] if client else None)
         agent = headers.get("user-agent", b"").decode("latin-1")
         agent_token = user_agent_var.set(agent or None)
