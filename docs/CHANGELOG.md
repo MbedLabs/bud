@@ -17,6 +17,7 @@
 
 ### Fixed
 
+- An unexpected server error (500) quotes the id of the request that failed in its message, its `request_id` and its `x-request-id` header, the id the access log and the audit log hold for that request; before, it quoted `-`.
 - Administrator welcome emails confirm the account is ready and give product-specific next steps, with matching HTML and plain-text instructions. The obsolete one-time runner registration key instructions are removed.
 
 ### Security
