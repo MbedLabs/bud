@@ -132,7 +132,8 @@ async def get_current_active_entity(
 ) -> User | Runner:
     """Return the active user or runner named by the access token. A user token issued before
     the user's session_version changed (password change or reset, confirmed email change) is
-    refused.
+    refused. The entity is recorded as the request's audit actor: a user with its client, cli
+    for a CLI token and web otherwise, or a runner with its station id.
     """
     payload = decode_access_token(token)
     if payload is None:
@@ -179,9 +180,9 @@ async def get_current_active_entity(
     if not entity.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account is deactivated")
     if isinstance(entity, User):
-        set_audit_actor("user", entity.id)
+        set_audit_actor("user", entity.id, client="cli" if "cli_refresh_id" in payload else "web")
     else:
-        set_audit_actor("runner")
+        set_audit_actor("runner", runner_id=entity.id)
     return entity
 
 

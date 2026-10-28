@@ -5,6 +5,7 @@
 ### Added
 
 - Users shows, under each user, the groups that user holds; the list stays collapsed until it is opened for that user.
+- Audit log: every API call, health probes, metrics scrapes and Test Station heartbeats included, is recorded as an `api.request` event once the response is finished. It names the actor (a user with its client, `cli` or `web`; a Test Station with its id, for a station token or an enrolment key bound to a station; otherwise anonymous), the method, route, path, status, duration, the names of the query parameters, the kind of credential presented and the id a `201` answer created, and stores no body or header value. A refused request (401, 403, 429) has the outcome `denied`; an address refused `AUDIT_REFUSAL_THRESHOLD` times (default 20) within `AUDIT_REFUSAL_WINDOW_MINUTES` (default 10) is recorded once per window as `security.repeated_refusals`. `GET /api/audit` also filters by `actor_type`, `ip`, `request_id` and `status`. Migration `020_audit_request_indexes` adds indexes on the outcome and the client address.
 
 ### Changed
 
