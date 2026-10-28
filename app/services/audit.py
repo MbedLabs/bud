@@ -222,15 +222,16 @@ async def record_api_request(
     query_params: list[str],
     auth: str,
     path_params: dict[str, Any],
-    created: int | str | None = None,
+    created: Optional[dict[str, Any]] = None,
 ) -> None:
     """Commit one api.request event on its own session, then check the address for repeated
     refusals.
 
     The actor is the one the authentication dependencies recorded for the request, else
     ``anonymous``. Details hold the method, route template, path, status, duration, query
-    parameter names, the kind of credential presented and the id a 201 answer created; no
-    body or header value. A failure to write is logged and never raised.
+    parameter names, the kind of credential presented and the ids a 201 answer names
+    (``created_id``, ``created_test_run_id``); no body or header value. A failure to write is
+    logged and never raised.
     """
     request_state = request_audit_var.get() or {}
     actor_type = request_state.get("actor_type") or "anonymous"
@@ -248,8 +249,7 @@ async def record_api_request(
         details["client"] = request_state["client"]
     if request_state.get("runner_id") is not None:
         details["runner_id"] = request_state["runner_id"]
-    if created is not None:
-        details["created_id"] = created
+    details.update(created or {})
     target_type, target_id = _request_target(path_params)
     outcome = request_outcome(status)
     actor = {"actor_type": actor_type, "actor_user_id": actor_user_id}
