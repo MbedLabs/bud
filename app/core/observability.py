@@ -254,6 +254,8 @@ class RequestObservabilityMiddleware:
 
     The audit event is written after the response is finished, with the actor that the
     authentication dependencies recorded in ``request_audit_var``; a failed write is logged.
+    When an error escapes the application, ``request_id_var`` keeps the request's id for the
+    server error handler that answers outside this middleware.
     """
 
     def __init__(self, app):
@@ -292,8 +294,12 @@ class RequestObservabilityMiddleware:
                 capture.feed(message.get("body", b""))
             await send(message)
 
+        escaped = False
         try:
             await self.app(scope, receive, send_wrapper)
+        except BaseException:
+            escaped = True
+            raise
         finally:
             duration = time.perf_counter() - start
             route = scope.get("route")
@@ -319,7 +325,8 @@ class RequestObservabilityMiddleware:
             )
             await self._audit(scope, headers, status_code, duration, capture.created())
             request_audit_var.reset(audit_token)
-            request_id_var.reset(token)
+            if not escaped:
+                request_id_var.reset(token)
             client_ip_var.reset(ip_token)
             user_agent_var.reset(agent_token)
 

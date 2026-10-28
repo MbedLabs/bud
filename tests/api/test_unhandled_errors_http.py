@@ -7,11 +7,13 @@ import pytest
 from fastapi import Depends
 from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
 from app.db import database
 from app.db.database import get_db
 from app.main import app
+from app.models import AuditEvent
 
 
 @pytest.fixture
@@ -37,6 +39,32 @@ def test_a_500_carries_a_reference_the_user_can_quote(exploding_route):
     assert reference
     assert body["request_id"] == reference
     assert reference in body["detail"]
+
+
+async def test_a_500_quotes_the_id_of_the_failed_request(exploding_route, _engine, db_session):
+    client = TestClient(app, raise_server_exceptions=False)
+    response = client.get(exploding_route, headers={"X-Request-ID": "support-ref-42"})
+
+    assert response.status_code == 500
+    body = response.json()
+    assert response.headers["x-request-id"] == "support-ref-42"
+    assert body["request_id"] == "support-ref-42"
+    assert "Quote reference support-ref-42 when reporting this." in body["detail"]
+    query = select(AuditEvent).where(AuditEvent.action == "api.request")
+    [event] = list((await db_session.execute(query)).scalars())
+    assert event.request_id == "support-ref-42"
+    assert event.details["status"] == 500
+
+
+def test_a_500_without_a_supplied_id_quotes_the_generated_one(exploding_route):
+    client = TestClient(app, raise_server_exceptions=False)
+    response = client.get(exploding_route)
+
+    reference = response.headers["x-request-id"]
+    assert reference != "-"
+    assert len(reference) == 32
+    assert response.json()["request_id"] == reference
+    assert f"Quote reference {reference} when reporting this." in response.json()["detail"]
 
 
 def test_a_500_does_not_leak_the_exception(exploding_route):
