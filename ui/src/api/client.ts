@@ -415,11 +415,15 @@ export interface AuditEventPage {
 
 export interface AuditFilters {
   actor_user_id?: number
+  actor_type?: string
   action?: string
   target_type?: string
   target_id?: string
   product_id?: number
   outcome?: string
+  ip?: string
+  request_id?: string
+  status?: number
   since?: string
   until?: string
   limit?: number
@@ -607,6 +611,7 @@ export interface TestRunEvent {
 }
 
 export interface TestStation {
+  id: number
   account: string
   is_online: boolean
   is_active: boolean

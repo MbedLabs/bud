@@ -103,6 +103,7 @@ export const testRunEvent = {
 }
 
 export const testStation = {
+  id: 1,
   account: 'bench-01',
   is_online: true,
   is_active: true,
