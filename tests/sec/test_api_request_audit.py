@@ -264,6 +264,78 @@ async def test_insufficient_permissions_are_denied(unauthenticated_client, db_se
     assert event.ip == "testclient"
 
 
+async def test_a_deactivated_user_is_named_on_the_denied_request(
+    unauthenticated_client, db_session
+):
+    user = await _user(db_session, "gone@example.com")
+    headers = _login(unauthenticated_client, "gone@example.com")
+    user.is_active = False
+    await db_session.commit()
+
+    response = unauthenticated_client.get("/api/auth/me", headers=headers)
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Account is deactivated"
+    event = await _request_for(db_session, response)
+    assert event.outcome == "denied"
+    assert event.actor_type == "user"
+    assert event.actor_user_id == user.id
+    assert event.details["client"] == "web"
+
+
+async def test_a_deactivated_station_is_named_on_the_denied_request(
+    unauthenticated_client, db_session
+):
+    station = await _station(db_session, "station-03")
+    station.is_active = False
+    await db_session.commit()
+
+    response = unauthenticated_client.get(
+        "/api/auth/me", headers={"Authorization": f"Bearer {station.token}"}
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Account is deactivated"
+    event = await _request_for(db_session, response)
+    assert event.outcome == "denied"
+    assert event.actor_type == "runner"
+    assert event.actor_user_id is None
+    assert event.details["runner_id"] == station.id
+
+
+async def test_a_not_found_answer_to_an_anonymous_caller_is_denied(
+    unauthenticated_client, db_session
+):
+    response = unauthenticated_client.get("/api/wp-admin/setup-config.php")
+
+    assert response.status_code == 404
+    event = await _request_for(db_session, response)
+    assert event.outcome == "denied"
+    assert event.actor_type == "anonymous"
+    assert event.details["status"] == 404
+    assert event.ip == "testclient"
+
+
+async def test_a_not_found_answer_to_a_user_or_a_station_is_a_failure(
+    unauthenticated_client, db_session
+):
+    await _user(db_session, "finder@example.com", role=UserRole.admin)
+    station = await _station(db_session, "station-04")
+    signed_in = _login(unauthenticated_client, "finder@example.com")
+    station_headers = {"Authorization": f"Bearer {station.token}"}
+
+    by_user = unauthenticated_client.get("/api/test-runs/987654", headers=signed_in)
+    by_station = unauthenticated_client.get("/api/test-runs/987654", headers=station_headers)
+
+    assert by_user.status_code == 404, by_user.text
+    assert by_station.status_code == 404, by_station.text
+    user_event = await _request_for(db_session, by_user)
+    station_event = await _request_for(db_session, by_station)
+    assert (user_event.actor_type, user_event.outcome) == ("user", "failure")
+    assert (station_event.actor_type, station_event.outcome) == ("runner", "failure")
+    assert station_event.details["runner_id"] == station.id
+
+
 async def test_a_wrong_enrolment_key_is_denied(
     unauthenticated_client, db_session, fresh_auth_rate_limits
 ):

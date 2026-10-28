@@ -16,7 +16,7 @@ from app.db.database import Base
 class AuditEvent(Base):
     """Who called which API or did what to accounts, access, configuration or data, from which
     address, and with what outcome: ``success``, ``denied`` (a refused request: 401, 403 or
-    429) or ``failure``.
+    429, and a 404 answered to an anonymous caller) or ``failure``.
     """
 
     __tablename__ = "audit_events"

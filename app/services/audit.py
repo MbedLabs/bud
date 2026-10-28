@@ -136,11 +136,17 @@ async def record_audit_failure(db: AsyncSession, action: str, **fields: Any) -> 
         logger.exception("Audit event %s could not be recorded", action)
 
 
-def request_outcome(status: int) -> str:
-    """Map an HTTP status to an audit outcome: success, denied or failure."""
+def request_outcome(status: int, actor_type: str = "anonymous") -> str:
+    """Map an HTTP status to an audit outcome: success, denied or failure.
+
+    401, 403 and 429 are denied; a 404 is denied for an anonymous caller and a failure for a
+    user or a station.
+    """
     if status < 400:
         return "success"
     if status in DENIED_STATUSES:
+        return "denied"
+    if status == 404 and actor_type == "anonymous":
         return "denied"
     return "failure"
 
@@ -251,7 +257,7 @@ async def record_api_request(
         details["runner_id"] = request_state["runner_id"]
     details.update(created or {})
     target_type, target_id = _request_target(path_params)
-    outcome = request_outcome(status)
+    outcome = request_outcome(status, actor_type)
     actor = {"actor_type": actor_type, "actor_user_id": actor_user_id}
     try:
         async with database.async_session_maker() as session:
