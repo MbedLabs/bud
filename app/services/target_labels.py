@@ -83,7 +83,7 @@ CREATED_KINDS: dict[str, str] = {
 }
 
 MAX_ID = 2**31 - 1
-ID_PATTERN = re.compile(r"[0-9]{1,10}")
+ID_PATTERN = re.compile(r"\d{1,10}", re.ASCII)
 
 
 @dataclass(frozen=True)
