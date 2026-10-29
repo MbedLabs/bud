@@ -62,8 +62,8 @@ def lab(db_session):
 
         db_session.add_all(
             [
-                _result("VoltageTest", "test_idle", "/w/demo_voltage.py", run_a.id, now),
-                _result("VoltageTest", "test_load", "/w/demo_voltage.py", run_a.id, now),
+                _result("VoltageTest", "test_idle", "/w/example_voltage.py", run_a.id, now),
+                _result("VoltageTest", "test_load", "/w/example_voltage.py", run_a.id, now),
                 _result("BootTest", "test_cold", "/w/boot_suite.py", run_a.id, now),
                 _result("ThermalTest", "test_soak", "/w/thermal.py", run_b.id, now),
                 _result("BootTest", "test_cold", "/w/boot_suite.py", run_b.id, now),
@@ -117,7 +117,7 @@ class TestTheCatalogue:
         entries = client.get("/api/test-catalog").json()["entries"]
 
         paths = [entry["test_path"] for entry in entries]
-        assert paths.count("demo_voltage.VoltageTest") == 1
+        assert paths.count("example_voltage.VoltageTest") == 1
 
     @pytest.mark.asyncio
     async def test_derives_the_importable_path_the_runner_takes(self, client, lab):
@@ -126,7 +126,7 @@ class TestTheCatalogue:
 
         paths = {entry["test_path"] for entry in client.get("/api/test-catalog").json()["entries"]}
 
-        assert "demo_voltage.VoltageTest" in paths
+        assert "example_voltage.VoltageTest" in paths
         assert "thermal.ThermalTest" in paths
 
     @pytest.mark.asyncio
@@ -155,7 +155,7 @@ class TestTheCatalogue:
 
         entries = {e["test_path"]: e for e in client.get("/api/test-catalog").json()["entries"]}
 
-        assert entries["demo_voltage.VoltageTest"]["method_count"] == 2
+        assert entries["example_voltage.VoltageTest"]["method_count"] == 2
         assert entries["thermal.ThermalTest"]["method_count"] == 1
 
     @pytest.mark.asyncio
@@ -204,7 +204,7 @@ class TestQueueingACustomRun:
         await lab()
         before = await db_session.scalar(select(func.count()).select_from(TestRun))
         response = client.post(
-            "/api/test-runs/custom", json={"test_paths": ["demo_voltage.VoltageTest"]}
+            "/api/test-runs/custom", json={"test_paths": ["example_voltage.VoltageTest"]}
         )
         assert response.status_code == 201, response.text
         assert await db_session.scalar(select(func.count()).select_from(TestRun)) == before
@@ -219,7 +219,7 @@ class TestQueueingACustomRun:
 
         response = client.post(
             "/api/test-runs/custom",
-            json={"test_paths": ["demo_voltage.VoltageTest", "boot_suite.BootTest"]},
+            json={"test_paths": ["example_voltage.VoltageTest", "boot_suite.BootTest"]},
         )
 
         assert response.status_code == 201, response.text
@@ -234,7 +234,7 @@ class TestQueueingACustomRun:
 
         body = client.post(
             "/api/test-runs/custom",
-            json={"test_paths": ["demo_voltage.VoltageTest", "thermal.ThermalTest"]},
+            json={"test_paths": ["example_voltage.VoltageTest", "thermal.ThermalTest"]},
         ).json()
 
         assert len(body["requests"]) == 2
@@ -246,13 +246,13 @@ class TestQueueingACustomRun:
 
         body = client.post(
             "/api/test-runs/custom",
-            json={"test_paths": ["demo_voltage.VoltageTest", "boot_suite.BootTest"]},
+            json={"test_paths": ["example_voltage.VoltageTest", "boot_suite.BootTest"]},
         ).json()
 
         assert len(body["requests"]) == 1
         assert body["requests"][0]["runner_account"] == "bench-01"
         assert sorted(body["requests"][0]["selected_tests"]) == [
-            "demo_voltage.VoltageTest",
+            "example_voltage.VoltageTest",
             "boot_suite.BootTest",
         ]
 
@@ -272,10 +272,10 @@ class TestQueueingACustomRun:
 
         run = client.post(
             "/api/test-runs/custom",
-            json={"test_paths": ["demo_voltage.VoltageTest"]},
+            json={"test_paths": ["example_voltage.VoltageTest"]},
         ).json()["requests"][0]
 
-        assert run["selected_tests"] == ["demo_voltage.VoltageTest"]
+        assert run["selected_tests"] == ["example_voltage.VoltageTest"]
 
     @pytest.mark.asyncio
     async def test_inherits_the_repository_of_the_run_that_produced_the_tests(self, client, lab):
@@ -283,7 +283,7 @@ class TestQueueingACustomRun:
 
         run = client.post(
             "/api/test-runs/custom",
-            json={"test_paths": ["demo_voltage.VoltageTest"]},
+            json={"test_paths": ["example_voltage.VoltageTest"]},
         ).json()["requests"][0]
 
         assert run["source_metadata"]["url_test_software"] == "https://git.test/tests.git"
@@ -323,7 +323,7 @@ class TestQueueingACustomRun:
 
         body = client.post(
             "/api/test-runs/custom",
-            json={"test_paths": ["demo_voltage.VoltageTest", "nowhere.GhostTest"]},
+            json={"test_paths": ["example_voltage.VoltageTest", "nowhere.GhostTest"]},
         ).json()
 
         assert len(body["requests"]) == 1
@@ -346,13 +346,13 @@ class TestQueueingACustomRun:
             "/api/test-runs/custom",
             json={
                 "test_paths": [
-                    "demo_voltage.VoltageTest",
-                    "demo_voltage.VoltageTest",
+                    "example_voltage.VoltageTest",
+                    "example_voltage.VoltageTest",
                 ]
             },
         ).json()["requests"][0]
 
-        assert run["selected_tests"] == ["demo_voltage.VoltageTest"]
+        assert run["selected_tests"] == ["example_voltage.VoltageTest"]
 
     @pytest.mark.asyncio
     async def test_an_unknown_bench_is_a_404(self, client, lab):
@@ -393,7 +393,7 @@ class TestClaimingAQueuedRun:
     @pytest.mark.asyncio
     async def test_a_bench_takes_its_own_queued_run(self, client, lab):
         benches = await lab()
-        client.post("/api/test-runs/custom", json={"test_paths": ["demo_voltage.VoltageTest"]})
+        client.post("/api/test-runs/custom", json={"test_paths": ["example_voltage.VoltageTest"]})
 
         _as_runner(benches["a"])
         try:
@@ -404,13 +404,13 @@ class TestClaimingAQueuedRun:
         assert response.status_code == 200, response.text
         body = response.json()
         assert body["claim_id"] == "11111111-1111-4111-8111-111111111111"
-        assert body["selected_tests"] == ["demo_voltage.VoltageTest"]
+        assert body["selected_tests"] == ["example_voltage.VoltageTest"]
         assert body["run"]["status"] == "Running"
 
     @pytest.mark.asyncio
     async def test_claiming_marks_it_started(self, client, lab):
         benches = await lab()
-        client.post("/api/test-runs/custom", json={"test_paths": ["demo_voltage.VoltageTest"]})
+        client.post("/api/test-runs/custom", json={"test_paths": ["example_voltage.VoltageTest"]})
 
         _as_runner(benches["a"])
         try:
@@ -447,7 +447,7 @@ class TestClaimingAQueuedRun:
     @pytest.mark.asyncio
     async def test_a_retried_claim_returns_the_original_claim(self, client, lab):
         benches = await lab()
-        client.post("/api/test-runs/custom", json={"test_paths": ["demo_voltage.VoltageTest"]})
+        client.post("/api/test-runs/custom", json={"test_paths": ["example_voltage.VoltageTest"]})
 
         _as_runner(benches["a"])
         try:
@@ -465,7 +465,7 @@ class TestClaimingAQueuedRun:
         benches = await lab()
         client.post(
             "/api/test-runs/custom",
-            json={"test_paths": ["demo_voltage.VoltageTest"], "name": "First"},
+            json={"test_paths": ["example_voltage.VoltageTest"], "name": "First"},
         )
         client.post(
             "/api/test-runs/custom",
@@ -488,7 +488,7 @@ class TestClaimingAQueuedRun:
         benches = await lab()
         first = client.post(
             "/api/test-runs/custom",
-            json={"test_paths": ["demo_voltage.VoltageTest"], "name": "First"},
+            json={"test_paths": ["example_voltage.VoltageTest"], "name": "First"},
         ).json()["requests"][0]
         client.post(
             "/api/test-runs/custom",
@@ -510,7 +510,7 @@ class TestClaimingAQueuedRun:
     @pytest.mark.asyncio
     async def test_a_user_cannot_claim_a_run(self, client, lab):
         await lab()
-        client.post("/api/test-runs/custom", json={"test_paths": ["demo_voltage.VoltageTest"]})
+        client.post("/api/test-runs/custom", json={"test_paths": ["example_voltage.VoltageTest"]})
 
         response = _claim(client)
 
@@ -528,7 +528,7 @@ class TestCompletingAClaimedRun:
         benches = await lab()
         for number in range(2):
             queued = client.post(
-                "/api/test-runs/custom", json={"test_paths": ["demo_voltage.VoltageTest"]}
+                "/api/test-runs/custom", json={"test_paths": ["example_voltage.VoltageTest"]}
             )
             assert queued.status_code == 201
         _as_runner(benches["a"])
@@ -561,7 +561,7 @@ class TestCompletingAClaimedRun:
         queued = client.post(
             "/api/test-runs/custom",
             json={
-                "test_paths": ["demo_voltage.VoltageTest"],
+                "test_paths": ["example_voltage.VoltageTest"],
                 "name": "Unavailable selection",
             },
         )
@@ -586,7 +586,7 @@ class TestCompletingAClaimedRun:
     @pytest.mark.asyncio
     async def test_results_do_not_release_an_unacknowledged_claim(self, client, lab):
         benches = await lab()
-        payload = {"test_paths": ["demo_voltage.VoltageTest"]}
+        payload = {"test_paths": ["example_voltage.VoltageTest"]}
         client.post("/api/test-runs/custom", json=payload)
         client.post("/api/test-runs/custom", json=payload)
         _as_runner(benches["a"])
@@ -625,7 +625,7 @@ class TestCompletingAClaimedRun:
         stations = await lab()
         client.post(
             "/api/test-runs/custom",
-            json={"test_paths": ["demo_voltage.VoltageTest"], "name": "Awaiting station"},
+            json={"test_paths": ["example_voltage.VoltageTest"], "name": "Awaiting station"},
         )
         _as_runner(stations["a"])
         try:
@@ -660,7 +660,7 @@ class TestCompletingAClaimedRun:
     @pytest.mark.asyncio
     async def test_a_nonzero_test_exit_still_completes_the_execution(self, client, lab):
         benches = await lab()
-        client.post("/api/test-runs/custom", json={"test_paths": ["demo_voltage.VoltageTest"]})
+        client.post("/api/test-runs/custom", json={"test_paths": ["example_voltage.VoltageTest"]})
 
         _as_runner(benches["a"])
         try:
@@ -682,7 +682,7 @@ class TestCompletingAClaimedRun:
     @pytest.mark.asyncio
     async def test_completion_is_idempotent_and_records_the_runner_answer_once(self, client, lab):
         benches = await lab()
-        client.post("/api/test-runs/custom", json={"test_paths": ["demo_voltage.VoltageTest"]})
+        client.post("/api/test-runs/custom", json={"test_paths": ["example_voltage.VoltageTest"]})
 
         _as_runner(benches["a"])
         try:
@@ -708,7 +708,7 @@ class TestCompletingAClaimedRun:
     @pytest.mark.asyncio
     async def test_completion_rejects_the_wrong_claim_key(self, client, lab):
         benches = await lab()
-        client.post("/api/test-runs/custom", json={"test_paths": ["demo_voltage.VoltageTest"]})
+        client.post("/api/test-runs/custom", json={"test_paths": ["example_voltage.VoltageTest"]})
 
         _as_runner(benches["a"])
         try:
@@ -732,7 +732,7 @@ class TestRequestsAndExecutionEvidence:
         await lab()
         created = client.post(
             "/api/test-runs/custom",
-            json={"test_paths": ["demo_voltage.VoltageTest"], "name": "Ad-hoc"},
+            json={"test_paths": ["example_voltage.VoltageTest"], "name": "Ad-hoc"},
         ).json()["requests"][0]
         assert client.get("/api/test-runs?status=Pending").json()["runs"] == []
         assert client.get("/api/test-runs/stats").json()["total_runs"] == 2
@@ -744,7 +744,7 @@ class TestRequestsAndExecutionEvidence:
     async def test_station_claim_creates_execution_and_request_link(self, client, lab):
         stations = await lab()
         request = client.post(
-            "/api/test-runs/custom", json={"test_paths": ["demo_voltage.VoltageTest"]}
+            "/api/test-runs/custom", json={"test_paths": ["example_voltage.VoltageTest"]}
         ).json()["requests"][0]
         _as_runner(stations["a"])
         try:
