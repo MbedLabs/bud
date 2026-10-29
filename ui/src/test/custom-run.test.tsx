@@ -100,7 +100,7 @@ describe('choosing what to run', () => {
     renderScreen()
     await screen.findByText('VoltageTest')
 
-    expect(screen.getByText('BigPack_voltage.VoltageTest')).toBeTruthy()
+    expect(screen.getByText('demo_voltage.VoltageTest')).toBeTruthy()
   })
 
   it('names the stations each test case has run on', async () => {
@@ -196,7 +196,7 @@ describe('queueing', () => {
 
     await waitFor(() =>
       expect(vi.mocked(client.customRunsApi.create).mock.calls[0][0]).toMatchObject({
-        test_paths: ['BigPack_voltage.VoltageTest'],
+        test_paths: ['demo_voltage.VoltageTest'],
       }),
     )
   })

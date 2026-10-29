@@ -162,7 +162,7 @@ export const artifact = {
 
 export const catalogEntries = [
   {
-    test_path: 'BigPack_voltage.VoltageTest',
+    test_path: 'demo_voltage.VoltageTest',
     test_class: 'VoltageTest',
     suite: 'Nightly',
     runner_accounts: ['bench-01'],
@@ -238,7 +238,7 @@ export const RESPONSES: Record<string, unknown> = {
   'executionRequestsApi.list': [],
   'executionRequestsApi.get': { id: 90, name: 'Custom request', runner_account: 'station-01', state: 'queued', run_id: null, selected_tests: ['a.B'], source_metadata: {}, created_at: '' },
   'customRunsApi.create': {
-    requests: [{ id: 90, name: 'Custom run - Nightly', runner_account: testRun.runner_account, state: 'queued', run_id: null, selected_tests: ['BigPack_voltage.VoltageTest'], source_metadata: {}, created_at: testRun.created_at }],
+    requests: [{ id: 90, name: 'Custom run - Nightly', runner_account: testRun.runner_account, state: 'queued', run_id: null, selected_tests: ['demo_voltage.VoltageTest'], source_metadata: {}, created_at: testRun.created_at }],
     unassigned: [],
   },
   'artifactsApi.download': { blob: new Blob(['pcap']), filename: 'endurance-load.pcap' },
