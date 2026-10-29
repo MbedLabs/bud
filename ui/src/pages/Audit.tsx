@@ -252,7 +252,7 @@ export default function AuditPage() {
           </SelectField>
         </label>
         <label className="text-sm text-muted-foreground">
-          Address
+          <span>Address</span>
           <input
             type="text"
             value={address}
@@ -263,7 +263,7 @@ export default function AuditPage() {
           />
         </label>
         <label className="text-sm text-muted-foreground">
-          Request id
+          <span>Request id</span>
           <input
             type="text"
             value={requestId}

@@ -126,6 +126,26 @@ async def _issue_refresh_cookie(db: AsyncSession, response: Response, user_id: i
     _set_refresh_cookie(response, raw_token)
 
 
+async def _token_user(db: AsyncSession, payload: dict, sub: str) -> User | None:
+    """The user named by a user access token, or None; a token from an older session is
+    refused."""
+    try:
+        user_id = int(sub)
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user ID")
+    user = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
+    if user is not None and (
+        payload.get("ver") != user.session_version
+        or not await is_cli_access_token_active(db, payload, user.id)
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session expired, please log in again",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return user
+
+
 async def get_current_active_entity(
     token: str = Depends(oauth2_scheme),
     db: AsyncSession = Depends(get_db, scope="function"),
@@ -152,21 +172,7 @@ async def get_current_active_entity(
         result = await db.execute(select(Runner).where(Runner.account == sub))
         entity = result.scalar_one_or_none()
     elif entity_type == "user":
-        try:
-            entity_id = int(sub)
-        except ValueError:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user ID")
-        result = await db.execute(select(User).where(User.id == entity_id))
-        entity = result.scalar_one_or_none()
-        if entity is not None and (
-            payload.get("ver") != entity.session_version
-            or not await is_cli_access_token_active(db, payload, entity.id)
-        ):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Session expired, please log in again",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
+        entity = await _token_user(db, payload, sub)
     else:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
