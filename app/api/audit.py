@@ -15,6 +15,7 @@ from app.db.database import get_db
 from app.models.audit import AuditEvent
 from app.models.user import User
 from app.schemas.audit import AuditEventPage, AuditEventResponse
+from app.services.target_labels import LabelResolver, created_kind, target_kind
 
 router = APIRouter()
 
@@ -84,10 +85,34 @@ async def list_audit_events(
             .offset(offset)
         )
     ).all()
+    labels = LabelResolver()
+    for event, _actor in rows:
+        for kind, ref in _named(event):
+            labels.want(kind, ref)
+    await labels.load(db)
     items = []
     for event, actor in rows:
         item = AuditEventResponse.model_validate(event)
         item.actor_name = actor.full_name if actor else None
         item.actor_profile_picture_url = actor.profile_picture_url if actor else None
+        target, created, station = (labels.get(kind, ref) for kind, ref in _named(event))
+        item.target_label, item.target_deleted = target.name, target.deleted
+        item.created_label, item.created_deleted = created.name, created.deleted
+        item.station_name, item.station_deleted = station.name, station.deleted
         items.append(item)
     return AuditEventPage(items=items, total=total or 0)
+
+
+def _named(event: AuditEvent) -> tuple[tuple, tuple, tuple]:
+    """The kind and id of an event's target, of what its ``201`` answer created and of its
+    acting Test Station."""
+    details = event.details or {}
+    if details.get("created_test_run_id") is not None:
+        created = ("run", details["created_test_run_id"])
+    else:
+        created = (created_kind(details.get("route")), details.get("created_id"))
+    return (
+        (target_kind(event.target_type), event.target_id),
+        created,
+        ("station", details.get("runner_id")),
+    )
