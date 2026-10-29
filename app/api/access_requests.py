@@ -139,12 +139,13 @@ async def _labelled(
 
 
 async def _requested_resource(db: AsyncSession, resource_ref: str) -> str:
-    """How the email names the request: Publish to Bloom and the run it was asked from."""
+    """How the email names the request: Publish to Bloom and the number and name of the run."""
     labels = LabelResolver()
     labels.want("run", resource_ref)
     await labels.load(db)
     run = labels.get("run", resource_ref).name
-    return f"Publish to Bloom (from test run {run})" if run else "Publish to Bloom"
+    named = f"{resource_ref}: {run}" if run else resource_ref
+    return f"Publish to Bloom (from test run {named})"
 
 
 def _review_link() -> str:
