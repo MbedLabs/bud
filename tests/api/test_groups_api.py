@@ -52,7 +52,7 @@ async def _seed(db_session):
     second = Product(name="Sensor")
     viewer = _user("viewer@example.com", "Val Viewer", UserRole.viewer)
     developer = _user("dev@example.com", "Dee Developer", UserRole.developer)
-    station = Runner(account="bench-1", password_hash="x", token="t", socket_port=53100)
+    station = Runner(account="station-1", password_hash="x", token="t", socket_port=53100)
     db_session.add_all([first, second, viewer, developer, station])
     await db_session.flush()
     runs = [
@@ -140,9 +140,12 @@ async def test_defaults_ship_and_are_read_only(client, db_session):
         False,
         [],
     )
-    assert client.patch(f"/api/groups/{copy.json()['id']}", json={"name": "Night shift"}).json()[
-        "name"
-    ] == "Night shift"
+    assert (
+        client.patch(f"/api/groups/{copy.json()['id']}", json={"name": "Night shift"}).json()[
+            "name"
+        ]
+        == "Night shift"
+    )
     policy_copy = client.post(f"/api/policies/{results}/duplicate").json()
     assert (policy_copy["name"], policy_copy["is_default"]) == ("Results (copy)", False)
 
@@ -167,9 +170,18 @@ async def test_custom_groups_bundle_policies(client, db_session):
     member = client.post(f"/api/groups/{group_id}/members", json={"user_id": viewer.id})
     assert member.status_code == 201
     assert member.json()["members"] == [
-        {"user_id": viewer.id, "email": "viewer@example.com", "full_name": "Val Viewer", "role": "viewer", "profile_picture_url": None}
+        {
+            "user_id": viewer.id,
+            "email": "viewer@example.com",
+            "full_name": "Val Viewer",
+            "role": "viewer",
+            "profile_picture_url": None,
+        }
     ]
-    assert client.post(f"/api/groups/{group_id}/members", json={"user_id": viewer.id}).status_code == 409
+    assert (
+        client.post(f"/api/groups/{group_id}/members", json={"user_id": viewer.id}).status_code
+        == 409
+    )
     assert client.post(f"/api/groups/{group_id}/members", json={"user_id": 999}).status_code == 404
 
     changed = client.patch(
@@ -198,7 +210,9 @@ def test_group_contract_refuses_unknown_inputs(client, payload):
 
 @pytest.mark.asyncio
 async def test_policies_are_edited_by_an_admin_against_the_catalogue(client, db_session):
-    catalogue = {row["resource"]: row["actions"] for row in client.get("/api/policies/catalogue").json()}
+    catalogue = {
+        row["resource"]: row["actions"] for row in client.get("/api/policies/catalogue").json()
+    }
     assert catalogue["stations"] == ["view", "manage"]
     assert catalogue["access"] == ["manage"]
     created = client.post(
@@ -209,7 +223,9 @@ async def test_policies_are_edited_by_an_admin_against_the_catalogue(client, db_
     assert created.json()["permissions"] == {"stations": ["view", "manage"]}
     assert client.post("/api/policies", json={"name": "Station keys"}).status_code == 409
     assert (
-        client.post("/api/policies", json={"name": "Bad", "permissions": {"users": ["edit"]}}).status_code
+        client.post(
+            "/api/policies", json={"name": "Bad", "permissions": {"users": ["edit"]}}
+        ).status_code
         == 422
     )
     assert (
@@ -257,13 +273,21 @@ async def test_base_role_plus_every_group_decides(client, db_session):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("role", [UserRole.admin, UserRole.developer, UserRole.viewer])
-@pytest.mark.parametrize("group_name", ["Station Managers", "Access Managers", "Application Administrators"])
+@pytest.mark.parametrize(
+    "group_name", ["Station Managers", "Access Managers", "Application Administrators"]
+)
 async def test_station_group_recipients_follow_role_hierarchy(client, db_session, role, group_name):
     """Station-group assignments preserve accounts and accept Admin or Developer recipients."""
     recipient = _user("recipient@example.com", "Recipient", role)
     db_session.add(recipient)
     await db_session.commit()
-    account = (recipient.id, recipient.email, recipient.full_name, recipient.role, recipient.is_active)
+    account = (
+        recipient.id,
+        recipient.email,
+        recipient.full_name,
+        recipient.role,
+        recipient.is_active,
+    )
     group_id = _group_id(client, group_name)
     response = client.post(f"/api/groups/{group_id}/members", json={"user_id": recipient.id})
     membership_key = {"group_id": group_id, "user_id": recipient.id}
@@ -328,7 +352,9 @@ async def test_access_managers_give_only_what_they_hold(client, db_session):
 
     products = _policy_id(client, "Products")
     settings = _policy_id(client, "Settings and integrations")
-    assert client.post("/api/groups", json={"name": "P", "policy_ids": [products]}).status_code == 403
+    assert (
+        client.post("/api/groups", json={"name": "P", "policy_ids": [products]}).status_code == 403
+    )
     own = client.post(
         "/api/groups",
         json={"name": "Bench crew", "policy_ids": [_policy_id(client, "Stations")]},
@@ -341,7 +367,12 @@ async def test_access_managers_give_only_what_they_hold(client, db_session):
 
     assert client.post("/api/policies", json={"name": "Mine"}).status_code == 403
     assert client.get("/api/users").status_code == 403
-    assert client.post("/api/users/invite", json={"email": "x@example.com", "full_name": "X"}).status_code == 403
+    assert (
+        client.post(
+            "/api/users/invite", json={"email": "x@example.com", "full_name": "X"}
+        ).status_code
+        == 403
+    )
 
     _as(ADMIN)
     assert _give(client, "Application Administrators", developer).status_code == 201
@@ -379,7 +410,7 @@ WRITES = [
     ("bloom_publish.execute", "POST", "/api/test-runs/{run}/publish-to-bloom", None),
     ("stations.manage", "POST", "/api/runners/api-keys", {"name": "k"}),
     ("stations.manage", "GET", "/api/runners/api-keys", None),
-    ("stations.manage", "PATCH", "/api/runners/bench-1", {"is_active": True}),
+    ("stations.manage", "PATCH", "/api/runners/station-1", {"is_active": True}),
     ("products.manage", "POST", "/api/products", {"name": "New"}),
     ("settings.view", "GET", "/api/settings", None),
     ("settings.edit", "PUT", "/api/settings/x", {"value": "y"}),
@@ -400,7 +431,7 @@ WRITES = [
     ("admin", "DELETE", "/api/uploads/{artifact}", None),
     ("admin", "DELETE", "/api/test-runs/{run}", None),
     ("products.manage", "DELETE", "/api/products/{product}", None),
-    ("stations.manage", "DELETE", "/api/runners/bench-1", None),
+    ("stations.manage", "DELETE", "/api/runners/station-1", None),
 ]
 
 ALLOWED = {
@@ -422,9 +453,12 @@ async def test_route_map_per_base_role_and_group(client, db_session, who):
     first, _, viewer, developer, runs, artifact = await _seed(db_session)
     if who == "station_manager":
         _give(client, "Station Managers", developer)
-    actor = {"viewer": viewer, "developer": developer, "station_manager": developer, "admin": ADMIN}[
-        who
-    ]
+    actor = {
+        "viewer": viewer,
+        "developer": developer,
+        "station_manager": developer,
+        "admin": ADMIN,
+    }[who]
     _as(actor)
     for permission, method, path, body in WRITES:
         url = path.format(run=runs[1].id, artifact=artifact.id, product=first.id, viewer=viewer.id)
@@ -445,7 +479,9 @@ def sent_mail(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_publish_to_bloom_is_requested_and_granted_with_a_group(client, db_session, sent_mail):
+async def test_publish_to_bloom_is_requested_and_granted_with_a_group(
+    client, db_session, sent_mail
+):
     _, _, viewer, developer, runs, _ = await _seed(db_session)
     _give(client, "Access Managers", developer)
 
@@ -455,7 +491,10 @@ async def test_publish_to_bloom_is_requested_and_granted_with_a_group(client, db
         json={"resource_type": "publish-to-bloom", "resource_ref": str(runs[1].id)},
     )
     assert request.status_code == 201, request.text
-    assert sorted(mail["to_email"] for mail in sent_mail) == ["admin@example.com", "dev@example.com"]
+    assert sorted(mail["to_email"] for mail in sent_mail) == [
+        "admin@example.com",
+        "dev@example.com",
+    ]
     assert client.get("/api/access-requests").status_code == 403
 
     _as(developer)
@@ -465,7 +504,9 @@ async def test_publish_to_bloom_is_requested_and_granted_with_a_group(client, db
     decision = f"/api/access-requests/{request_id}/decision"
     assert client.post(decision, json={"decision": "granted"}).status_code == 422
     readers = _group_id(client, "Results Viewers")
-    assert client.post(decision, json={"decision": "granted", "group_id": readers}).status_code == 422
+    assert (
+        client.post(decision, json={"decision": "granted", "group_id": readers}).status_code == 422
+    )
     operators = _group_id(client, "Test Operators")
     granted = client.post(decision, json={"decision": "granted", "group_id": operators})
     assert granted.status_code == 200, granted.text
@@ -486,7 +527,10 @@ async def test_admins_are_told_of_requests_too(client, db_session, sent_mail):
         "/api/access-requests",
         json={"resource_type": "publish-to-bloom", "resource_ref": str(runs[0].id)},
     )
-    assert sorted(mail["to_email"] for mail in sent_mail) == ["admin@example.com", "boss@example.com"]
+    assert sorted(mail["to_email"] for mail in sent_mail) == [
+        "admin@example.com",
+        "boss@example.com",
+    ]
 
 
 @pytest.mark.asyncio
@@ -508,17 +552,28 @@ async def test_a_custom_policy_grants_what_only_admins_held(client, db_session):
         "/api/policies",
         json={
             "name": "Back office",
-            "permissions": {"products": ["manage"], "settings": ["view", "edit"], "audit": ["view"]},
+            "permissions": {
+                "products": ["manage"],
+                "settings": ["view", "edit"],
+                "audit": ["view"],
+            },
         },
     ).json()
-    group = client.post("/api/groups", json={"name": "Back office", "policy_ids": [policy["id"]]}).json()
+    group = client.post(
+        "/api/groups", json={"name": "Back office", "policy_ids": [policy["id"]]}
+    ).json()
 
     _as(developer)
     assert client.post("/api/products", json={"name": "Probe"}).status_code == 403
     assert client.get("/api/audit").status_code == 403
 
     _as(ADMIN)
-    assert client.post(f"/api/groups/{group['id']}/members", json={"user_id": developer.id}).status_code == 201
+    assert (
+        client.post(
+            f"/api/groups/{group['id']}/members", json={"user_id": developer.id}
+        ).status_code
+        == 201
+    )
 
     _as(developer)
     assert client.post("/api/products", json={"name": "Probe"}).status_code == 201
@@ -532,12 +587,21 @@ async def test_a_custom_policy_grants_what_only_admins_held(client, db_session):
 @pytest.mark.asyncio
 async def test_seed_renames_administration_and_keeps_its_identity_and_members(db_session):
     from sqlalchemy import select
+
     from app.core.access import seed_default_access
 
     await seed_default_access(db_session)
-    group = await db_session.scalar(select(AccessGroup).where(AccessGroup.system_key == "app_administration"))
+    group = await db_session.scalar(
+        select(AccessGroup).where(AccessGroup.system_key == "app_administration")
+    )
     group.name = "App Administration"
-    user = User(email="rename@example.com", full_name="Existing member", role=UserRole.developer, hashed_password="unused", is_active=True)
+    user = User(
+        email="rename@example.com",
+        full_name="Existing member",
+        role=UserRole.developer,
+        hashed_password="unused",
+        is_active=True,
+    )
     db_session.add(user)
     await db_session.flush()
     group_id, user_id = group.id, user.id
@@ -548,7 +612,10 @@ async def test_seed_renames_administration_and_keeps_its_identity_and_members(db
     assert group.id == group_id
     assert group.name == "Application Administrators"
     assert group.system_key == "app_administration"
-    assert await db_session.get(AccessGroupMember, {"group_id": group_id, "user_id": user_id}) is not None
+    assert (
+        await db_session.get(AccessGroupMember, {"group_id": group_id, "user_id": user_id})
+        is not None
+    )
     assert user.role == UserRole.developer
 
 
@@ -560,7 +627,9 @@ async def test_access_rosters_return_the_account_picture(client, db_session):
     _as(ADMIN)
     group = _give(client, "Test Operators", developer).json()
     member = next(item for item in group["members"] if item["user_id"] == developer.id)
-    person = next(item for item in client.get("/api/access/users").json() if item["id"] == developer.id)
+    person = next(
+        item for item in client.get("/api/access/users").json() if item["id"] == developer.id
+    )
     assert member["profile_picture_url"] == developer.profile_picture_url
     assert person["profile_picture_url"] == developer.profile_picture_url
 
@@ -575,7 +644,9 @@ async def test_seed_renames_reports_publishing_without_replacing_policy_or_links
     policy = await db_session.scalar(select(Policy).where(Policy.system_key == "publish_to_bloom"))
     policy.name = "Publish to Bloom"
     policy_id, permissions = policy.id, dict(policy.permissions)
-    group = await db_session.scalar(select(AccessGroup).where(AccessGroup.system_key == "test_operators"))
+    group = await db_session.scalar(
+        select(AccessGroup).where(AccessGroup.system_key == "test_operators")
+    )
     group_id = group.id
     await db_session.flush()
     await seed_default_access(db_session)

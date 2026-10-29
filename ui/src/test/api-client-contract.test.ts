@@ -112,9 +112,9 @@ const CALLS: Array<[string, unknown[], string, string]> = [
   ['resultsApi.list', [42], 'get', '/results/42'],
 
   ['testStationsApi.status', [], 'get', '/runners/status'],
-  ['testStationsApi.getByAccount', ['bench-01'], 'get', '/runners/bench-01'],
-  ['testStationsApi.remove', ['bench-01'], 'delete', '/runners/bench-01'],
-  ['testStationsApi.rename', ['bench-01', 'bench-renamed'], 'patch', '/runners/bench-01'],
+  ['testStationsApi.getByAccount', ['station-01'], 'get', '/runners/station-01'],
+  ['testStationsApi.remove', ['station-01'], 'delete', '/runners/station-01'],
+  ['testStationsApi.rename', ['station-01', 'bench-renamed'], 'patch', '/runners/station-01'],
   ['testStationsApi.listApiKeys', [], 'get', '/runners/api-keys'],
   ['testStationsApi.createApiKey', ['bench-a'], 'post', '/runners/api-keys'],
   ['testStationsApi.deleteApiKey', [7], 'delete', '/runners/api-keys/7'],
@@ -202,21 +202,21 @@ describe('query parameters', () => {
       status: 'Completed',
       limit: 20,
       offset: 40,
-      runner_account: 'bench-01',
+      runner_account: 'station-01',
       latest_per_suite: true,
     })
     expect(requests[0].params).toEqual({
       status: 'Completed',
       limit: 20,
       offset: 40,
-      runner_account: 'bench-01',
+      runner_account: 'station-01',
       latest_per_suite: true,
     })
   })
 
   it('carries the dashboard stat filters', async () => {
-    await client.testRunsApi.stats({ days: 30, runner_account: 'bench-01', suite: 'Nightly' })
-    expect(requests[0].params).toEqual({ days: 30, runner_account: 'bench-01', suite: 'Nightly' })
+    await client.testRunsApi.stats({ days: 30, runner_account: 'station-01', suite: 'Nightly' })
+    expect(requests[0].params).toEqual({ days: 30, runner_account: 'station-01', suite: 'Nightly' })
   })
 
   it('asks for the filter options within a window', async () => {

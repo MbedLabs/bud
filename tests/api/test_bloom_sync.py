@@ -23,19 +23,19 @@ async def test_coalesce_results_by_tc_id_reduces_methods_to_one_tc_result():
             passed=True,
             error_message=None,
             created_at=None,
-            test_metadata={"tc_id": "FLT-TC-001"},
+            test_metadata={"tc_id": "PRJ-TC-001"},
         ),
         SimpleNamespace(
             passed=False,
             error_message="Invalid credentials produce a documented failure outcome",
             created_at=None,
-            test_metadata={"tc_id": "FLT-TC-001"},
+            test_metadata={"tc_id": "PRJ-TC-001"},
         ),
         SimpleNamespace(
             passed=True,
             error_message=None,
             created_at=None,
-            test_metadata={"tc_id": "FLT-TC-035"},
+            test_metadata={"tc_id": "PRJ-TC-035"},
         ),
     ]
 
@@ -48,14 +48,14 @@ async def test_coalesce_results_by_tc_id_reduces_methods_to_one_tc_result():
             "comment": "Invalid credentials produce a documented failure outcome",
             "executed_at": payload[0]["executed_at"],
             "status": "Failed",
-            "tc_id": "FLT-TC-001",
+            "tc_id": "PRJ-TC-001",
         },
         {
             "bud_run_id": 5,
             "comment": f"Last result from Bud TMP run 5, executed at {payload[1]['executed_at']}",
             "executed_at": payload[1]["executed_at"],
             "status": "Passed",
-            "tc_id": "FLT-TC-035",
+            "tc_id": "PRJ-TC-035",
         },
     ]
 

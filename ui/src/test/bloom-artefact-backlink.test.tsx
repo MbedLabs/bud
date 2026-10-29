@@ -46,9 +46,9 @@ const client = await import('../api/client')
 const TestRuns = (await import('../pages/TestRuns')).default
 
 const PAIRED = {
-  bloom_artefact_id: 'FLT-CMP-003',
+  bloom_artefact_id: 'PRJ-CMP-003',
   bloom_artefact_name: 'Nightly regression',
-  bloom_artefact_url: 'https://bloom.example.com/projects/FLT/suites/7',
+  bloom_artefact_url: 'https://bloom.example.com/projects/PRJ/suites/7',
 }
 
 function renderRuns() {
@@ -81,9 +81,9 @@ describe('the Bloom artefact a run reached', () => {
     renderRuns()
 
     const link = (await screen.findByRole('link', {
-      name: /FLT-CMP-003/,
+      name: /PRJ-CMP-003/,
     })) as HTMLAnchorElement
-    expect(link.href).toBe('https://bloom.example.com/projects/FLT/suites/7')
+    expect(link.href).toBe('https://bloom.example.com/projects/PRJ/suites/7')
     expect(link.target).toBe('_blank')
     expect(link.rel).toContain('noopener')
     expect(link.title).toBe('Nightly regression')
@@ -108,7 +108,7 @@ describe('the Bloom artefact a run reached', () => {
     renderRuns()
 
     await screen.findByText(testRun.name)
-    expect(screen.queryByRole('link', { name: /FLT-CMP-003/ })).toBeNull()
+    expect(screen.queryByRole('link', { name: /PRJ-CMP-003/ })).toBeNull()
   })
 
   it('stays quiet when Bloom named an artefact but no address for it', async () => {
@@ -119,17 +119,17 @@ describe('the Bloom artefact a run reached', () => {
     renderRuns()
 
     await screen.findByText(testRun.name)
-    expect(screen.queryByRole('link', { name: /FLT-CMP-003/ })).toBeNull()
+    expect(screen.queryByRole('link', { name: /PRJ-CMP-003/ })).toBeNull()
   })
 })
 
 describe('safeExternalUrl', () => {
   it('passes an http or https address through unchanged', () => {
-    expect(safeExternalUrl('https://bloom.example.com/projects/FLT/suites/7')).toBe(
-      'https://bloom.example.com/projects/FLT/suites/7',
+    expect(safeExternalUrl('https://bloom.example.com/projects/PRJ/suites/7')).toBe(
+      'https://bloom.example.com/projects/PRJ/suites/7',
     )
-    expect(safeExternalUrl('http://bloom.internal/projects/FLT/suites/7')).toBe(
-      'http://bloom.internal/projects/FLT/suites/7',
+    expect(safeExternalUrl('http://bloom.internal/projects/PRJ/suites/7')).toBe(
+      'http://bloom.internal/projects/PRJ/suites/7',
     )
   })
 
@@ -140,7 +140,7 @@ describe('safeExternalUrl', () => {
   })
 
   it('refuses anything that is not a URL at all', () => {
-    expect(safeExternalUrl('/projects/FLT/suites/7')).toBeNull()
+    expect(safeExternalUrl('/projects/PRJ/suites/7')).toBeNull()
     expect(safeExternalUrl('')).toBeNull()
     expect(safeExternalUrl(null)).toBeNull()
     expect(safeExternalUrl(undefined)).toBeNull()

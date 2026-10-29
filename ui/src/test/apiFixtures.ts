@@ -8,7 +8,7 @@
  *
  * otherUser is a second account besides the signed-in user; artifact is a packet capture
  * attached to a run; catalogEntries holds three test cases across two benches: Voltage only on
- * bench-01, Thermal only on bench-02 and Boot on both. RESPONSES maps `group.method` to the
+ * station-01, Thermal only on station-02 and Boot on both. RESPONSES maps `group.method` to the
  * response the client declares.
  */
 
@@ -57,7 +57,7 @@ export const testRun = {
   completed_at: NOW,
   product_id: 1,
   runner_id: 1,
-  runner_account: 'bench-01',
+  runner_account: 'station-01',
 }
 
 export const testResult = {
@@ -104,7 +104,7 @@ export const testRunEvent = {
 
 export const testStation = {
   id: 1,
-  account: 'bench-01',
+  account: 'station-01',
   is_online: true,
   is_active: true,
   last_heartbeat: NOW,
@@ -115,7 +115,7 @@ export const testStation = {
 
 export const runner = {
   id: 1,
-  account: 'bench-01',
+  account: 'station-01',
   socket_port: 9000,
   location: 'Lab A',
   is_active: true,
@@ -138,7 +138,7 @@ export const stats = {
 
 export const filterOptions = {
   suites: ['Nightly', 'Regression'],
-  runner_accounts: ['bench-01', 'bench-02'],
+  runner_accounts: ['station-01', 'station-02'],
 }
 
 export const plmSettings = {
@@ -165,7 +165,7 @@ export const catalogEntries = [
     test_path: 'demo_voltage.VoltageTest',
     test_class: 'VoltageTest',
     suite: 'Nightly',
-    runner_accounts: ['bench-01'],
+    runner_accounts: ['station-01'],
     method_count: 2,
     last_run_at: NOW,
     last_passed: true,
@@ -175,7 +175,7 @@ export const catalogEntries = [
     test_path: 'boot_suite.BootTest',
     test_class: 'BootTest',
     suite: 'Nightly',
-    runner_accounts: ['bench-01', 'bench-02'],
+    runner_accounts: ['station-01', 'station-02'],
     method_count: 1,
     last_run_at: NOW,
     last_passed: false,
@@ -185,7 +185,7 @@ export const catalogEntries = [
     test_path: 'thermal.ThermalTest',
     test_class: 'ThermalTest',
     suite: 'Powertrain',
-    runner_accounts: ['bench-02'],
+    runner_accounts: ['station-02'],
     method_count: 1,
     last_run_at: NOW,
     last_passed: true,

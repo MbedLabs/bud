@@ -246,7 +246,7 @@ describe('the run list', () => {
       id: 43,
       name: 'Powertrain - Smoke',
       test_case_list: 'BootTests',
-      runner_account: 'bench-02',
+      runner_account: 'station-02',
     }
     vi.mocked(client.testRunsApi.list).mockResolvedValue({ runs: [other], total: 1 })
     renderAt('/runs', '/runs', <TestRuns />)
@@ -263,12 +263,12 @@ describe('the run list', () => {
     expect(screen.getByText(other.name)).toBeTruthy()
   })
 
-  const labA = { ...testStation, account: 'bench-01', location: 'Lab A' }
-  const labAsecond = { ...testStation, account: 'bench-03', location: 'Lab A' }
-  const labB = { ...testStation, account: 'bench-02', location: 'Lab B' }
-  const runAtA1 = { ...testRun, id: 42, runner_account: 'bench-01' }
-  const runAtA2 = { ...testRun, id: 44, name: 'Gateway ECU - Rerun', runner_account: 'bench-03' }
-  const runAtB = { ...testRun, id: 43, name: 'Powertrain - Smoke', runner_account: 'bench-02' }
+  const labA = { ...testStation, account: 'station-01', location: 'Lab A' }
+  const labAsecond = { ...testStation, account: 'station-03', location: 'Lab A' }
+  const labB = { ...testStation, account: 'station-02', location: 'Lab B' }
+  const runAtA1 = { ...testRun, id: 42, runner_account: 'station-01' }
+  const runAtA2 = { ...testRun, id: 44, name: 'Gateway ECU - Rerun', runner_account: 'station-03' }
+  const runAtB = { ...testRun, id: 43, name: 'Powertrain - Smoke', runner_account: 'station-02' }
 
   function renderWithTwoLabs() {
     vi.mocked(client.testStationsApi.status).mockResolvedValue({
@@ -399,9 +399,9 @@ describe('the run list', () => {
   })
 
   it('restores shared run sorting and station filters from the URL', async () => {
-    renderAt('/runs', '/runs?sort=name&dir=desc&station=bench-01', <TestRuns />)
+    renderAt('/runs', '/runs?sort=name&dir=desc&station=station-01', <TestRuns />)
     await screen.findByText(testRun.name)
-    await waitFor(() => expect(lastCall(client.testRunsApi.list)[0]).toEqual(expect.objectContaining({ sort_by: 'name', sort_dir: 'desc', runner_account: 'bench-01' })))
+    await waitFor(() => expect(lastCall(client.testRunsApi.list)[0]).toEqual(expect.objectContaining({ sort_by: 'name', sort_dir: 'desc', runner_account: 'station-01' })))
     expect(screen.getByRole('columnheader', { name: 'Name' }).getAttribute('aria-sort')).toBe('descending')
   })
 })

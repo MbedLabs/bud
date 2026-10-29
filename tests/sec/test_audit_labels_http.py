@@ -57,7 +57,7 @@ async def test_events_name_their_targets_and_mark_deleted_ones(unauthenticated_c
     headers = await _admin_headers(unauthenticated_client, db_session)
     run = RunModel(name="Nightly smoke", test_case_list="suite", status="Completed")
     product = Product(name="Gateway board")
-    station = Runner(account="bench-07", password_hash="x", token="t")
+    station = Runner(account="station-07", password_hash="x", token="t")
     member = User(
         email="member@example.com",
         full_name="Mia Member",
@@ -78,7 +78,7 @@ async def test_events_name_their_targets_and_mark_deleted_ones(unauthenticated_c
         "label.gone": dict(target_type="run", target_id=str(gone_run)),
         "label.product": dict(target_type="product", target_id=str(product.id)),
         "label.user": dict(target_type="user", target_id=str(member.id)),
-        "label.account": dict(target_type="station", target_id="bench-07"),
+        "label.account": dict(target_type="station", target_id="station-07"),
         "label.setting": dict(target_type="setting", target_id="smtp_host"),
         "label.created": dict(
             target_type="group",
@@ -114,7 +114,7 @@ async def test_events_name_their_targets_and_mark_deleted_ones(unauthenticated_c
     assert named("label.setting", "target") == (None, False)
     assert named("label.created", "target") == (group.name, False)
     assert named("label.created", "created") == (group.name, False)
-    assert named("label.created", "station") == ("bench-07", False)
+    assert named("label.created", "station") == ("station-07", False)
     assert named("label.upload", "created") == ("Nightly smoke", False)
     assert named("label.upload", "station") == (None, True)
     assert named("label.run", "station") == (None, False)

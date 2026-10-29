@@ -3,7 +3,7 @@
  */
 
 /**
- * Format an ISO date string to a human-readable format, 
+ * Format an ISO date string for display, 
  * respecting the user's preferred timezone setting.
  */
 export function formatDateTime(
