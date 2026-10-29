@@ -13,14 +13,14 @@ from app.services.integration_secrets import encrypt_integration_secret
 
 SUITE = {
     "id": 7,
-    "suite_id": "FLT-TS-002",
+    "suite_id": "PRJ-TS-002",
     "name": "Nightly regression",
-    "url": "https://bloom.example.com/projects/FLT/suites/7",
+    "url": "https://bloom.example.com/projects/PRJ/suites/7",
     "matched": 3,
     "size": 3,
 }
-SUPERSET = {**SUITE, "id": 8, "suite_id": "FLT-TS-008", "name": "Everything", "size": 40}
-PARTIAL = {**SUITE, "id": 9, "suite_id": "FLT-TS-009", "name": "Smoke", "matched": 1, "size": 1}
+SUPERSET = {**SUITE, "id": 8, "suite_id": "PRJ-TS-008", "name": "Everything", "size": 40}
+PARTIAL = {**SUITE, "id": 9, "suite_id": "PRJ-TS-009", "name": "Smoke", "matched": 1, "size": 1}
 
 
 def test_the_suite_holding_every_synced_case_is_the_reference():
@@ -36,7 +36,10 @@ def test_a_suite_holding_only_some_synced_cases_is_no_reference():
 
 
 def test_two_covering_suites_of_the_same_size_are_no_reference():
-    assert _suite_reference({"suites": [SUITE, {**SUITE, "id": 10, "suite_id": "FLT-TS-010"}]}, 3) is None
+    assert (
+        _suite_reference({"suites": [SUITE, {**SUITE, "id": 10, "suite_id": "PRJ-TS-010"}]}, 3)
+        is None
+    )
 
 
 def test_no_suite_is_no_reference():
@@ -46,9 +49,9 @@ def test_no_suite_is_no_reference():
 
 
 def test_a_malformed_suite_is_no_reference():
-    assert _suite_reference({"suites": ["FLT-TS-002"]}, 3) is None
-    assert _suite_reference({"suites": "FLT-TS-002"}, 3) is None
-    assert _suite_reference({"suites": [{"suite_id": "FLT-TS-002"}]}, 3) is None
+    assert _suite_reference({"suites": ["PRJ-TS-002"]}, 3) is None
+    assert _suite_reference({"suites": "PRJ-TS-002"}, 3) is None
+    assert _suite_reference({"suites": [{"suite_id": "PRJ-TS-002"}]}, 3) is None
 
 
 async def _run_sync_against(monkeypatch, body: dict, run_name: str) -> int:
@@ -104,9 +107,9 @@ async def test_a_sync_stores_the_suite_bloom_named(_engine, monkeypatch):
     async with db_module.async_session_maker() as session:
         run = (await session.execute(select(TestRun).where(TestRun.id == run_id))).scalar_one()
 
-    assert run.bloom_artefact_id == "FLT-TS-002"
+    assert run.bloom_artefact_id == "PRJ-TS-002"
     assert run.bloom_artefact_name == "Nightly regression"
-    assert run.bloom_artefact_url == "https://bloom.example.com/projects/FLT/suites/7"
+    assert run.bloom_artefact_url == "https://bloom.example.com/projects/PRJ/suites/7"
 
 
 @pytest.mark.asyncio
@@ -130,9 +133,9 @@ async def test_the_run_endpoint_exposes_the_backlink(client, db_session):
         name="exposed-backlink",
         test_case_list="Bud.Tests",
         status="Completed",
-        bloom_artefact_id="FLT-TS-002",
+        bloom_artefact_id="PRJ-TS-002",
         bloom_artefact_name="Nightly regression",
-        bloom_artefact_url="https://bloom.example.com/projects/FLT/suites/7",
+        bloom_artefact_url="https://bloom.example.com/projects/PRJ/suites/7",
     )
     db_session.add(run)
     await db_session.commit()
@@ -142,6 +145,6 @@ async def test_the_run_endpoint_exposes_the_backlink(client, db_session):
 
     assert response.status_code == 200, response.text
     body = response.json()
-    assert body["bloom_artefact_id"] == "FLT-TS-002"
+    assert body["bloom_artefact_id"] == "PRJ-TS-002"
     assert body["bloom_artefact_name"] == "Nightly regression"
-    assert body["bloom_artefact_url"] == "https://bloom.example.com/projects/FLT/suites/7"
+    assert body["bloom_artefact_url"] == "https://bloom.example.com/projects/PRJ/suites/7"

@@ -16,21 +16,21 @@ def bench(db_session):
     async def _make():
         runners = [
             Runner(
-                account="bench-01",
+                account="station-01",
                 password_hash="x",
                 token="t1",
                 location="Lab A",
                 is_active=True,
             ),
             Runner(
-                account="bench-03",
+                account="station-03",
                 password_hash="x",
                 token="t3",
                 location="Lab A",
                 is_active=True,
             ),
             Runner(
-                account="bench-02",
+                account="station-02",
                 password_hash="x",
                 token="t2",
                 location="Lab B",
@@ -52,7 +52,7 @@ async def _seed_many(db_session, bench_ids: dict[str, int]) -> None:
             name=f"Nightly {index:02d}",
             test_case_list="SmokeTests",
             status="Completed",
-            runner_id=bench_ids["bench-01"],
+            runner_id=bench_ids["station-01"],
             created_at=now - timedelta(minutes=index),
         )
         for index in range(30)
@@ -62,7 +62,7 @@ async def _seed_many(db_session, bench_ids: dict[str, int]) -> None:
             name="Powertrain Endurance",
             test_case_list="EnduranceTests",
             status="Completed",
-            runner_id=bench_ids["bench-02"],
+            runner_id=bench_ids["station-02"],
             created_at=now - timedelta(days=1),
         )
     )
@@ -106,7 +106,7 @@ class TestSearchReachesEveryPage:
         ids = await bench()
         await _seed_many(db_session, ids)
 
-        found = client.get("/api/test-runs?limit=50&q=bench-02").json()
+        found = client.get("/api/test-runs?limit=50&q=station-02").json()
 
         assert [r["name"] for r in found["runs"]] == ["Powertrain Endurance"]
 
@@ -137,24 +137,24 @@ class TestLocationCoversEveryBench:
         db_session.add_all(
             [
                 TestRun(
-                    name="At bench-01",
+                    name="At station-01",
                     test_case_list="c",
                     status="Completed",
-                    runner_id=ids["bench-01"],
+                    runner_id=ids["station-01"],
                     created_at=now,
                 ),
                 TestRun(
-                    name="At bench-03",
+                    name="At station-03",
                     test_case_list="c",
                     status="Completed",
-                    runner_id=ids["bench-03"],
+                    runner_id=ids["station-03"],
                     created_at=now - timedelta(minutes=1),
                 ),
                 TestRun(
-                    name="At bench-02",
+                    name="At station-02",
                     test_case_list="c",
                     status="Completed",
-                    runner_id=ids["bench-02"],
+                    runner_id=ids["station-02"],
                     created_at=now - timedelta(minutes=2),
                 ),
             ]
@@ -163,7 +163,7 @@ class TestLocationCoversEveryBench:
 
         body = client.get("/api/test-runs?location=Lab%20A").json()
 
-        assert sorted(r["name"] for r in body["runs"]) == ["At bench-01", "At bench-03"]
+        assert sorted(r["name"] for r in body["runs"]) == ["At station-01", "At station-03"]
         assert body["total"] == 2
 
     @pytest.mark.asyncio
@@ -201,21 +201,21 @@ class TestLatestPerSuiteStaysInTheDatabase:
                     name="Repeated",
                     test_case_list="c",
                     status="Completed",
-                    runner_id=ids["bench-01"],
+                    runner_id=ids["station-01"],
                     created_at=now - timedelta(hours=2),
                 ),
                 TestRun(
                     name="Repeated",
                     test_case_list="c",
                     status="Completed",
-                    runner_id=ids["bench-01"],
+                    runner_id=ids["station-01"],
                     created_at=now,
                 ),
                 TestRun(
                     name="Other",
                     test_case_list="c",
                     status="Completed",
-                    runner_id=ids["bench-01"],
+                    runner_id=ids["station-01"],
                     created_at=now,
                 ),
             ]
@@ -239,14 +239,14 @@ class TestLatestPerSuiteStaysInTheDatabase:
                     name="Repeated",
                     test_case_list="older",
                     status="Completed",
-                    runner_id=ids["bench-01"],
+                    runner_id=ids["station-01"],
                     created_at=now - timedelta(hours=2),
                 ),
                 TestRun(
                     name="Repeated",
                     test_case_list="newer",
                     status="Completed",
-                    runner_id=ids["bench-01"],
+                    runner_id=ids["station-01"],
                     created_at=now,
                 ),
             ]
@@ -268,7 +268,7 @@ class TestLatestPerSuiteStaysInTheDatabase:
                     name=f"Suite {index}",
                     test_case_list="c",
                     status="Completed",
-                    runner_id=ids["bench-01"],
+                    runner_id=ids["station-01"],
                     created_at=now - timedelta(minutes=attempt),
                 )
                 for index in range(3)
@@ -293,14 +293,14 @@ class TestLatestPerSuiteStaysInTheDatabase:
                     name="Shared",
                     test_case_list="c",
                     status="Completed",
-                    runner_id=ids["bench-01"],
+                    runner_id=ids["station-01"],
                     created_at=now,
                 ),
                 TestRun(
                     name="Shared",
                     test_case_list="c",
                     status="Completed",
-                    runner_id=ids["bench-02"],
+                    runner_id=ids["station-02"],
                     created_at=now - timedelta(hours=1),
                 ),
             ]
@@ -310,4 +310,4 @@ class TestLatestPerSuiteStaysInTheDatabase:
         body = client.get("/api/test-runs?latest_per_suite=true&location=Lab%20B").json()
 
         assert body["total"] == 1
-        assert body["runs"][0]["runner_account"] == "bench-02"
+        assert body["runs"][0]["runner_account"] == "station-02"

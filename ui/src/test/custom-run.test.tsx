@@ -109,8 +109,8 @@ describe('choosing what to run', () => {
 
     const voltage = screen.getByText('VoltageTest').closest('label') as HTMLElement
     const boot = screen.getByText('BootTest').closest('label') as HTMLElement
-    expect(within(voltage).getByText('bench-01')).toBeTruthy()
-    expect(within(boot).getByText('bench-01, bench-02')).toBeTruthy()
+    expect(within(voltage).getByText('station-01')).toBeTruthy()
+    expect(within(boot).getByText('station-01, station-02')).toBeTruthy()
   })
 
   it('says how many methods a case carries', async () => {
@@ -181,8 +181,8 @@ describe('warning before the selection splits', () => {
     pick('ThermalTest')
 
     const warning = await screen.findByText(/2 separate runs/i)
-    expect(warning.textContent).toContain('bench-01')
-    expect(warning.textContent).toContain('bench-02')
+    expect(warning.textContent).toContain('station-01')
+    expect(warning.textContent).toContain('station-02')
   })
 })
 
@@ -205,10 +205,10 @@ describe('queueing', () => {
     renderScreen()
     await screen.findByText('VoltageTest')
 
-    selectValue(screen.getByRole('combobox', { name: /test station/i }), 'bench-01')
+    selectValue(screen.getByRole('combobox', { name: /test station/i }), 'station-01')
     await waitFor(() =>
       expect(vi.mocked(client.catalogApi.list).mock.calls.slice(-1)[0]?.[0]).toEqual({
-        runner_account: 'bench-01',
+        runner_account: 'station-01',
       }),
     )
 
@@ -218,7 +218,7 @@ describe('queueing', () => {
 
     await waitFor(() =>
       expect(vi.mocked(client.customRunsApi.create).mock.calls[0][0]).toMatchObject({
-        runner_account: 'bench-01',
+        runner_account: 'station-01',
       }),
     )
   })
@@ -266,7 +266,7 @@ describe('queueing', () => {
     vi.mocked(client.customRunsApi.create).mockResolvedValue({
       requests: [{ id: 91, name: 'Selected tests', runner_account: testRun.runner_account, state: 'queued', run_id: null, selected_tests: ['a.B'], source_metadata: {}, created_at: testRun.created_at }],
       unassigned: [
-        { test_path: 'thermal.ThermalTest', reason: 'Has not run on bench-01.' },
+        { test_path: 'thermal.ThermalTest', reason: 'Has not run on station-01.' },
       ],
     } as never)
     renderScreen()
@@ -276,7 +276,7 @@ describe('queueing', () => {
     fireEvent.click(queueButton())
 
     expect(await screen.findByText('Not queued')).toBeTruthy()
-    expect(screen.getByText(/Has not run on bench-01/)).toBeTruthy()
+    expect(screen.getByText(/Has not run on station-01/)).toBeTruthy()
   })
 
   it('clears the selection once it is queued', async () => {

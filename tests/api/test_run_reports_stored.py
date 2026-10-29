@@ -46,7 +46,7 @@ async def _finished_run(db_session, name="stored-report-suite"):
                 },
                 {"passed": False, "message": "current-run-failure"},
             ],
-            test_metadata={"tc_id": "VCU-TC-001"},
+            test_metadata={"tc_id": "PRJ-TC-001"},
         )
     )
     await db_session.commit()

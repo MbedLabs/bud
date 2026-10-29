@@ -46,7 +46,7 @@ async def _run_with_reports(db_session, upload_root, name="Nightly HIL"):
             test_method="test_supply",
             passed=True,
             assertions=[{"passed": True, "message": "supply is in range"}],
-            test_metadata={"tc_id": "VCU-TC-001"},
+            test_metadata={"tc_id": "PRJ-TC-001"},
         )
     )
 
@@ -119,17 +119,17 @@ class TestTheEndpoint:
         async def fake_post(url, token, payload):
             sent["url"] = url
             sent["payload"] = payload
-            return {"document_id": 12, "doc_id": "VCU-RPT-001", "created": True}
+            return {"document_id": 12, "doc_id": "PRJ-RPT-001", "created": True}
 
         with patch("app.api.test_runs.post_to_bloom", side_effect=fake_post):
             response = client.post(f"/api/test-runs/{run.id}/publish-to-bloom")
 
         assert response.status_code == 200, response.text
         body = response.json()
-        assert body["doc_id"] == "VCU-RPT-001"
+        assert body["doc_id"] == "PRJ-RPT-001"
         assert sorted(body["published_files"]) == [f"bud-run-{run.id}.pdf", "report_junit.xml"]
 
-        assert sent["payload"]["project_prefix"] == "VCU"
+        assert sent["payload"]["project_prefix"] == "PRJ"
         assert sent["payload"]["bud_run_id"] == run.id
         assert len(sent["payload"]["files"]) == 2
 
@@ -187,7 +187,7 @@ class TestTheEndpoint:
                 test_method="test_supply",
                 passed=True,
                 assertions=[{"passed": True}],
-                test_metadata={"tc_id": "VCU-TC-001"},
+                test_metadata={"tc_id": "PRJ-TC-001"},
             )
         )
         await db_session.commit()
@@ -222,14 +222,14 @@ class TestTheEndpoint:
                 test_method="test_supply",
                 passed=True,
                 assertions=[{"passed": True, "message": "legacy assertion"}],
-                test_metadata={"tc_id": "VCU-TC-001"},
+                test_metadata={"tc_id": "PRJ-TC-001"},
             )
         )
         await db_session.commit()
 
         with patch(
             "app.api.test_runs.post_to_bloom",
-            AsyncMock(return_value={"document_id": 1, "doc_id": "VCU-RPT-001", "created": True}),
+            AsyncMock(return_value={"document_id": 1, "doc_id": "PRJ-RPT-001", "created": True}),
         ) as posted:
             response = client.post(f"/api/test-runs/{run.id}/publish-to-bloom")
 
@@ -238,7 +238,7 @@ class TestTheEndpoint:
             f"bud-run-{run.id}-Legacy-complete.pdf",
             "bud-suite-Legacy-complete.pdf",
         ]
-        assert posted.await_args.args[2]["project_prefix"] == "VCU"
+        assert posted.await_args.args[2]["project_prefix"] == "PRJ"
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
@@ -246,7 +246,7 @@ class TestTheEndpoint:
         [
             ([], "no canonical Bloom test-case IDs"),
             (["TC-1"], "not a canonical Bloom test-case ID"),
-            (["VCU-TC-001", "DEM-TC-002"], "multiple Bloom projects"),
+            (["PRJ-TC-001", "ABC-TC-002"], "multiple Bloom projects"),
         ],
     )
     async def test_refuses_when_the_run_cannot_identify_one_bloom_project(

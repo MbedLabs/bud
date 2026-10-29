@@ -4,7 +4,7 @@ import detailSource from '../pages/TestRunDetail.tsx?raw'
 
 describe('Publish to Bloom', () => {
   it('does not ask the reader to choose a project prefix', () => {
-    expect(detailSource).not.toContain('Project prefix, e.g. VCU')
+    expect(detailSource).not.toContain('Project prefix, e.g.')
     expect(detailSource).not.toContain('aria-label="Bloom project prefix"')
   })
 
