@@ -18,7 +18,8 @@
 
 ### Fixed
 
-- A request for Publish to Bloom from someone who already holds it (every `admin` and `developer`, and anyone through a group) is refused with 409 and sends no email; before, it was stored and emailed to every Admin and access manager. The requester is never emailed about their own request, and the email names the run the request was made from instead of its id.
+- An administrator who opened a test run that does not exist was shown "You don't have access to this resource" with a Request access button, and could request access from himself; the request was emailed to him too. A test run that does not exist now shows "Test run not found" to everyone, with no request, and an administrator is never shown the access-denied page. A user refused a test run is no longer offered a request for it: only Publish to Bloom can be requested. A user who already holds Publish to Bloom, every administrator and developer included, can no longer request it (the API answers 409 and sends no email), and nobody is emailed about their own request.
+- Access requests and the audit log showed numbers instead of names: "Test run 42", "Publish to Bloom (from run 42)" and "test_run 42". They now show the run, product, Test Station, user, group, policy, enrolment key, notification channel, artifact or result by its name, and the access request email names the run. A number is shown only for an object that no longer exists, marked "(deleted)".
 - An unexpected server error (500) quotes the id of the request that failed in its message, its `request_id` and its `x-request-id` header, the id the access log and the audit log hold for that request; before, it quoted `-`.
 - Administrator welcome emails confirm the account is ready and give product-specific next steps, with matching HTML and plain-text instructions. The obsolete one-time runner registration key instructions are removed.
 

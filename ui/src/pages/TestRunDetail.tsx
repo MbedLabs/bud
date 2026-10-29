@@ -1,6 +1,6 @@
 import ReportRequests from '../components/ReportRequests'
 import { useMemo, useState, type ReactNode } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { useParams, Link } from 'react-router'
 import {
   accessRequestsApi,
@@ -12,6 +12,7 @@ import {
   testRunsApi,
   TestResult,
   type Artifact,
+  type TestRun,
   type TestRunEvent,
 } from '../api/client'
 import { summarizeAssertions, summarizeTestCases } from '../lib/testRunAssertions'
@@ -30,7 +31,7 @@ import type { LucideIcon } from 'lucide-react'
 import AccessDenied from '../components/AccessDenied'
 import { useAuth } from '../contexts/AuthContext'
 import { can } from '../lib/access'
-import { isAccessDenied } from '../lib/accessDenied'
+import { isAccessDenied, isNotFound } from '../lib/accessDenied'
 import RunStatusBadge from '../components/RunStatusBadge'
 import PdfReportButton from '../components/PdfReportButton'
 
@@ -38,6 +39,8 @@ import PdfReportButton from '../components/PdfReportButton'
 export default function TestRunDetail() {
   const { id } = useParams<{ id: string }>()
   const runId = Number.parseInt(id || '0')
+  const { user } = useAuth()
+  const queryClient = useQueryClient()
   const [reportError, setReportError] = useState<string | null>(null)
   const [systemReportOpen, setSystemReportOpen] = useState(false)
   const [resultsFiltersOpen, setResultsFiltersOpen] = useState(false)
@@ -75,16 +78,21 @@ export default function TestRunDetail() {
     )
   }
 
-  if (isAccessDenied(runError)) {
-    return <AccessDenied resourceType="test-run" resourceRef={id ?? ''} />
+  if (isAccessDenied(runError) && user?.role !== 'admin') {
+    return <AccessDenied what="this test run" />
   }
 
   if (runError || !run) {
+    const missing = isNotFound(runError)
+    const knownName = missing ? cachedRunName(queryClient, runId) : undefined
     return (
       <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-8 text-center">
         <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
-        <h3 className="text-lg font-medium text-foreground">Test Run Not Found</h3>
-        <p className="text-muted-foreground mt-2">The requested test run could not be found.</p>
+        <h3 className="text-lg font-medium text-foreground">{missing ? 'Test run not found' : 'Test run not loaded'}</h3>
+        <p className="text-muted-foreground mt-2">
+          {missing && (knownName ? `${knownName} does not exist any more.` : 'This test run does not exist.')}
+          {!missing && extractApiErrorMessage(runError, 'The test run could not be loaded.')}
+        </p>
         <Link to="/runs" className="mt-4 inline-block text-primary hover:text-primary/80">
           &larr; Back to Test Runs
         </Link>
@@ -448,10 +456,19 @@ function panelMessage(
   return null
 }
 
-/** The station a run is assigned to: its account, otherwise its id, otherwise none. */
+/** The station a run is assigned to: its account, its id marked deleted when the station is gone, or none. */
 function stationLabel(account: string | null, runnerId: number | null): string {
   if (account) return account
-  return runnerId ? `Station #${runnerId}` : 'Not assigned'
+  return runnerId ? `Station ${runnerId} (deleted)` : 'Not assigned'
+}
+
+/** The name of the run with this id in a run list held in the query cache, if any. */
+function cachedRunName(queryClient: QueryClient, runId: number): string | undefined {
+  for (const [, data] of queryClient.getQueriesData<{ runs?: TestRun[] }>({ queryKey: ['testRuns'] })) {
+    const found = data?.runs?.find((candidate) => candidate.id === runId)
+    if (found) return found.name
+  }
+  return undefined
 }
 
 /** The border and background classes of an assertion row: neutral, passed or failed. */

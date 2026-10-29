@@ -500,6 +500,73 @@ describe('a run in detail', () => {
     }
   })
 
+  /** Answer the run lookup with this HTTP status, as axios rejects it. */
+  function runAnswers(status: number) {
+    vi.mocked(client.testRunsApi.get).mockImplementation(async () => {
+      throw { isAxiosError: true, response: { status, data: { detail: 'Test run not found' } } }
+    })
+  }
+
+  /** Render the run page as a user with this base role. */
+  async function asRole(role: string, check: () => Promise<void>) {
+    const viewer = user as { role: string; permissions?: string[] }
+    viewer.role = role
+    viewer.permissions = role === 'admin' ? undefined : ['evidence.view']
+    try {
+      renderAt('/runs/:id', '/runs/42', <TestRunDetail />)
+      await check()
+    } finally {
+      viewer.role = 'admin'
+      delete viewer.permissions
+    }
+  }
+
+  it.each(['admin', 'viewer'])('shows a missing run to an %s as not found, with no request and no number', async (role) => {
+    runAnswers(404)
+    await asRole(role, async () => {
+      expect(await screen.findByText('Test run not found')).toBeTruthy()
+      expect(screen.getByText('This test run does not exist.')).toBeTruthy()
+      expect(screen.queryByText(/have access/)).toBeNull()
+      expect(screen.queryByRole('button', { name: 'Request access' })).toBeNull()
+      expect(screen.queryByText(/42/)).toBeNull()
+      expect(client.accessRequestsApi.mine).not.toHaveBeenCalled()
+    })
+  })
+
+  it('names a missing run from a run list already loaded', async () => {
+    runAnswers(404)
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    queryClient.setQueryData(['testRuns', { page: 1 }], { runs: [{ ...testRun, id: 42, name: 'Nightly smoke' }], total: 1 })
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/runs/42']}>
+          <Routes>
+            <Route path="/runs/:id" element={<TestRunDetail />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+    expect(await screen.findByText('Nightly smoke does not exist any more.')).toBeTruthy()
+  })
+
+  it('never shows an Admin an access-denied page', async () => {
+    runAnswers(403)
+    await asRole('admin', async () => {
+      expect(await screen.findByText('Test run not loaded')).toBeTruthy()
+      expect(screen.queryByText(/have access/)).toBeNull()
+      expect(screen.queryByRole('button', { name: 'Request access' })).toBeNull()
+    })
+  })
+
+  it('tells a refused Viewer they have no access and offers no request', async () => {
+    runAnswers(403)
+    await asRole('viewer', async () => {
+      expect(await screen.findByText("You don't have access to this test run")).toBeTruthy()
+      expect(screen.queryByRole('button', { name: 'Request access' })).toBeNull()
+      expect(client.accessRequestsApi.mine).not.toHaveBeenCalled()
+    })
+  })
+
   it('downloads a PDF for this run alone', async () => {
     renderAt('/runs/:id', '/runs/42', <TestRunDetail />)
     await screen.findByText(testRun.name)

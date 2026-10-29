@@ -40,7 +40,7 @@ vi.mock('../api/client', async (importOriginal) => {
     testRunsApi: {
       ...actual.testRunsApi,
       list: vi.fn().mockResolvedValue({ runs: [], total: 0 }),
-      get: vi.fn().mockRejectedValue(new Error('not-found')),
+      get: vi.fn().mockRejectedValue({ isAxiosError: true, response: { status: 404, data: { detail: 'Test run not found' } } }),
       getEvents: vi.fn().mockResolvedValue([]),
     },
     resultsApi: {

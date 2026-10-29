@@ -78,11 +78,11 @@ describe('saved pictures beside existing Bud identities', () => {
   it('uses the access requester picture rather than the viewing administrator picture', async () => {
     vi.mocked(accessRequestsApi.list).mockResolvedValue([{
       id: 1, requester_name: member.full_name, requester_email: member.email,
-      requester_profile_picture_url: member.profile_picture_url, resource_type: 'test-run', resource_ref: '42',
+      requester_profile_picture_url: member.profile_picture_url, resource_type: 'test-run', resource_ref: '42', resource_label: 'Soak test',
     }] as never)
     mount(<AccessRequestsPanel />)
     expect(await screen.findByAltText("Mira Member's profile picture")).toHaveAttribute('src', member.profile_picture_url)
-    expect(screen.getByText(/asks for test run 42/)).toBeInTheDocument()
+    expect(screen.getByText(/asks for test run Soak test/)).toBeInTheDocument()
     expect(authApi.fetchProfilePicture).not.toHaveBeenCalled()
   })
 
