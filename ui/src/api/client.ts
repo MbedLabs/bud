@@ -353,7 +353,7 @@ export const accessApi = {
   users: async () => (await api.get<AccessUser[]>('/access/users')).data,
 }
 
-export type AccessResourceType = 'test-run' | 'product' | 'publish-to-bloom'
+export type AccessResourceType = 'publish-to-bloom'
 
 export interface AccessRequestInfo {
   id: number
@@ -367,6 +367,8 @@ export interface AccessRequestInfo {
   requester_profile_picture_url?: string | null
   already_requested: boolean
   mail_sent: boolean | null
+  resource_label?: string | null
+  resource_deleted?: boolean
 }
 
 export interface AccessRequestParams {
@@ -406,6 +408,12 @@ export interface AuditEvent {
   user_agent: string | null
   outcome: string
   details: Record<string, unknown> | null
+  target_label?: string | null
+  target_deleted?: boolean
+  created_label?: string | null
+  created_deleted?: boolean
+  station_name?: string | null
+  station_deleted?: boolean
 }
 
 export interface AuditEventPage {

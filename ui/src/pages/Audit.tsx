@@ -3,7 +3,7 @@ import DateField from '../components/DateField'
 import SelectField from '../components/SelectField'
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { auditApi, testStationsApi, type AuditEvent, type AuditFilters } from '../api/client'
+import { auditApi, type AuditEvent, type AuditFilters } from '../api/client'
 import { formatDateTime } from '../test/date-utils'
 import { useDebounced } from '../hooks/useDebounced'
 
@@ -36,6 +36,34 @@ const ACTOR_TYPES: { value: string; label: string }[] = [
   { value: 'service', label: 'Service' },
 ]
 
+const TARGET_WORDS: Record<string, string> = {
+  test_run: 'Test run',
+  run: 'Test run',
+  target_run: 'Test run',
+  'test-run': 'Test run',
+  'publish-to-bloom': 'Publish to Bloom, run',
+  product: 'Product',
+  station: 'Test station',
+  runner: 'Test station',
+  user: 'User',
+  group: 'Group',
+  policy: 'Policy',
+  enrolment_key: 'Enrolment key',
+  key: 'Enrolment key',
+  notification_channel: 'Channel',
+  channel: 'Channel',
+  artifact: 'Artifact',
+  result: 'Result',
+  setting: 'Setting',
+  company_logo: 'Company logo',
+  plm_integration: 'Bloom integration',
+  report: 'Report',
+  report_request: 'Report request',
+  cli_auth_session: 'CLI sign-in',
+  session: 'CLI sign-in',
+  request: 'Request',
+}
+
 const FIELD_CLASS = 'block mt-1 px-2 py-1.5 border border-border rounded-lg bg-background text-foreground'
 
 /** One value from an event's details, when it is a string or a number. */
@@ -44,16 +72,37 @@ function detail(event: AuditEvent, key: string): string | number | undefined {
   return typeof value === 'string' || typeof value === 'number' ? value : undefined
 }
 
-/** The Test Station of a runner event: its name when known, otherwise its id. */
-function stationLabel(event: AuditEvent, stationNames: Map<number, string>): string {
-  const runnerId = detail(event, 'runner_id')
-  if (typeof runnerId !== 'number') return 'Test station'
-  return stationNames.get(runnerId) ?? `Station #${runnerId}`
+const MACHINE_ID = /^(\d+|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i
+
+/**
+ * An object's name; its id marked deleted when the object is gone; an id that is a readable
+ * key; or nothing for a numeric or UUID id that has no name.
+ */
+function named(id: string | number, label: string | null | undefined, deleted: boolean | undefined): string {
+  if (label) return label
+  if (deleted) return `${id} (deleted)`
+  return MACHINE_ID.test(String(id)) ? '' : String(id)
 }
 
-/** The Actor cell: the station, the named or numbered user with its client, or the actor type. */
-function ActorCell({ event, stationNames }: Readonly<{ event: AuditEvent; stationNames: Map<number, string> }>) {
-  if (event.actor_type === 'runner') return <>{stationLabel(event, stationNames)}</>
+/** The Test Station of a runner event: its name, or its id marked deleted when it is gone. */
+function stationLabel(event: AuditEvent): string {
+  const runnerId = detail(event, 'runner_id')
+  if (typeof runnerId !== 'number') return 'Test station'
+  if (event.station_name) return event.station_name
+  return event.station_deleted ? `Station ${runnerId} (deleted)` : 'Test station'
+}
+
+/** The target of an event: what kind it is and its name, or its id when it has no name. */
+function targetText(event: AuditEvent): string {
+  if (!event.target_type) return ''
+  const word = TARGET_WORDS[event.target_type] ?? event.target_type
+  if (event.target_id == null) return word
+  return `${word} ${named(event.target_id, event.target_label, event.target_deleted)}`.trim()
+}
+
+/** The Actor cell: the station, the named user with its client, a deleted user, or the actor type. */
+function ActorCell({ event }: Readonly<{ event: AuditEvent }>) {
+  if (event.actor_type === 'runner') return <>{stationLabel(event)}</>
   const client = detail(event, 'client') === 'cli' ? (
     <span
       title={event.user_agent ?? undefined}
@@ -75,7 +124,7 @@ function ActorCell({ event, stationNames }: Readonly<{ event: AuditEvent; statio
       </span>
     )
   }
-  if (event.actor_user_id != null) return <>{`User ${event.actor_user_id}`}{client}</>
+  if (event.actor_user_id != null) return <>{`User ${event.actor_user_id} (deleted)`}{client}</>
   return <>{event.actor_type}</>
 }
 
@@ -101,15 +150,15 @@ function outcomeClass(outcome: string): string {
 
 /** The Target cell: the HTTP status, the target and what an API call created, or the target. */
 function TargetCell({ event }: Readonly<{ event: AuditEvent }>) {
-  const target = event.target_type ? `${event.target_type} ${event.target_id ?? ''}`.trim() : ''
+  const target = targetText(event)
   if (event.action !== 'api.request') return <>{target}</>
   const status = detail(event, 'status')
   const createdId = detail(event, 'created_id')
   const createdRun = detail(event, 'created_test_run_id')
   const parts = [
     target,
-    createdId === undefined ? '' : `created ${createdId}`,
-    createdRun === undefined ? '' : `created run ${createdRun}`,
+    createdId === undefined ? '' : `created ${named(createdId, event.created_label, event.created_deleted)}`.trim(),
+    createdRun === undefined ? '' : `created run ${named(createdRun, event.created_label, event.created_deleted)}`.trim(),
   ].filter(Boolean)
   return (
     <span className="inline-flex flex-wrap items-center gap-2">
@@ -154,17 +203,6 @@ export default function AuditPage() {
     queryFn: () => auditApi.list(filters),
   })
   const items = useMemo(() => data?.items ?? [], [data?.items])
-  const showsStations = items.some((event) => event.actor_type === 'runner' && typeof event.details?.runner_id === 'number')
-  const { data: stationsData } = useQuery({
-    queryKey: ['testStations'],
-    queryFn: testStationsApi.status,
-    staleTime: 30_000,
-    enabled: showsStations,
-  })
-  const stationNames = useMemo(
-    () => new Map((stationsData?.runners ?? []).map((station) => [station.id, station.account])),
-    [stationsData?.runners],
-  )
   const total = data?.total ?? 0
   const lastPage = Math.max(0, Math.ceil(total / PAGE_SIZE) - 1)
   const resetPage = () => setPage(0)
@@ -273,7 +311,7 @@ export default function AuditPage() {
                   {formatDateTime(event.occurred_at)}
                 </td>
                 <td className="px-4 py-2 text-foreground">
-                  <ActorCell event={event} stationNames={stationNames} />
+                  <ActorCell event={event} />
                 </td>
                 <td className="px-4 py-2 text-foreground font-mono text-xs">
                   <EventCell event={event} />
