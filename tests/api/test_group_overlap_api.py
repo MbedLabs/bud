@@ -235,7 +235,8 @@ async def test_granting_an_access_request_adds_a_group_and_keeps_the_others(
     boss, _, viewer = await _people(db_session)
     viewer_id = viewer.id
     run = RunModel(name="suite", test_case_list="a", status="Completed")
-    db_session.add(run)
+    other = RunModel(name="other suite", test_case_list="a", status="Completed")
+    db_session.add_all([run, other])
     await db_session.commit()
     _as(boss)
     assert _give(client, "Results Viewers", viewer).status_code == 201
@@ -251,16 +252,15 @@ async def test_granting_an_access_request_adds_a_group_and_keeps_the_others(
         _as(boss)
         return f"/api/access-requests/{created.json()['id']}/decision"
 
-    granted = client.post(
-        ask(str(run.id)), json={"decision": "granted", "group_id": operators}
-    )
+    first, second = ask(str(run.id)), ask(str(other.id))
+    granted = client.post(first, json={"decision": "granted", "group_id": operators})
     assert (granted.status_code, granted.json()["status"]) == (200, "granted")
     assert [g["name"] for g in _access_user(client, viewer)["groups"]] == [
         "Results Viewers",
         "Test Operators",
     ]
 
-    again = client.post(ask("another-run"), json={"decision": "granted", "group_id": operators})
+    again = client.post(second, json={"decision": "granted", "group_id": operators})
     assert (again.status_code, again.json()["status"]) == (200, "granted")
     db_session.expire_all()
     assert await _rows(db_session, viewer_id) == 2
