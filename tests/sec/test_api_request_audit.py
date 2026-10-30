@@ -509,7 +509,9 @@ def test_created_id_reads_a_gzip_body_within_the_limit():
     assert created_id(body, "br") is None
 
 
-async def test_a_cors_preflight_is_recorded(unauthenticated_client, db_session):
+async def test_a_cors_preflight_is_answered_by_the_cors_layer_alone(
+    unauthenticated_client, db_session
+):
     response = unauthenticated_client.options(
         "/api/auth/me",
         headers={
@@ -521,12 +523,23 @@ async def test_a_cors_preflight_is_recorded(unauthenticated_client, db_session):
 
     assert response.status_code == 200, response.text
     assert response.headers["access-control-allow-origin"] == settings.CORS_ORIGINS[0]
+    assert "x-request-id" not in response.headers
+    assert [e for e in await _requests(db_session) if e.details["method"] == "OPTIONS"] == []
+
+
+async def test_a_request_from_a_foreign_origin_is_recorded_without_cors_permission(
+    unauthenticated_client, db_session
+):
+    response = unauthenticated_client.get(
+        "/api/auth/me", headers={"Origin": "https://foreign.example.com"}
+    )
+
+    assert response.status_code == 401
+    assert "access-control-allow-origin" not in response.headers
     event = await _request_for(db_session, response)
-    assert event.details["method"] == "OPTIONS"
     assert event.details["path"] == "/api/auth/me"
-    assert event.details["status"] == 200
     assert event.actor_type == "anonymous"
-    assert event.outcome == "success"
+    assert event.outcome == "denied"
 
 
 async def test_the_route_is_the_full_template_of_a_router_prefixed_route(
