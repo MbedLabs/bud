@@ -527,6 +527,27 @@ async def test_a_cors_preflight_is_answered_by_the_cors_layer_alone(
     assert [e for e in await _requests(db_session) if e.details["method"] == "OPTIONS"] == []
 
 
+async def test_a_refused_cors_preflight_is_answered_403_and_recorded_as_denied(
+    unauthenticated_client, db_session
+):
+    response = unauthenticated_client.options(
+        "/api/auth/me",
+        headers={
+            "Origin": "https://foreign.example.com",
+            "Access-Control-Request-Method": "DELETE",
+        },
+    )
+
+    assert response.status_code == 403
+    assert "access-control-allow-origin" not in response.headers
+    event = await _request_for(db_session, response)
+    assert event.details["method"] == "OPTIONS"
+    assert event.details["path"] == "/api/auth/me"
+    assert event.details["status"] == 403
+    assert event.actor_type == "anonymous"
+    assert event.outcome == "denied"
+
+
 async def test_a_request_from_a_foreign_origin_is_recorded_without_cors_permission(
     unauthenticated_client, db_session
 ):

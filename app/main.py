@@ -12,7 +12,6 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 from slowapi import _rate_limit_exceeded_handler
@@ -46,6 +45,7 @@ from app.core.config import settings as app_settings
 from app.core.deps import limiter
 from app.core.identity import BUD_PRODUCT_IDENTITY, BUD_PRODUCT_NAME
 from app.core.observability import (
+    AuditedCORSMiddleware,
     RequestObservabilityMiddleware,
     metrics_router,
     request_id_var,
@@ -291,7 +291,7 @@ app.add_middleware(GZipMiddleware, minimum_size=1000)
 app.add_middleware(RequestObservabilityMiddleware)
 
 app.add_middleware(
-    CORSMiddleware,
+    AuditedCORSMiddleware,
     allow_origins=app_settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
