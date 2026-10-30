@@ -4,10 +4,22 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { accessRequestsApi, extractApiErrorMessage, groupsApi, type AccessRequestInfo } from '../api/client'
 
+/**
+ * The run or product a request names: its name, its id marked deleted when it is gone, a
+ * readable reference, or nothing for a numeric id without a name.
+ */
+function resourceName(request: AccessRequestInfo): string {
+  if (request.resource_label) return request.resource_label
+  if (request.resource_deleted) return `${request.resource_ref} (deleted)`
+  return /^\d+$/.test(request.resource_ref) ? '' : request.resource_ref
+}
+
+/** What a request asks for, naming its run or product. */
 function describe(request: AccessRequestInfo): string {
-  if (request.resource_type === 'publish-to-bloom') return `Publish to Bloom (from run ${request.resource_ref})`
-  if (request.resource_type === 'test-run') return `test run ${request.resource_ref}`
-  return `product ${request.resource_ref}`
+  const name = resourceName(request)
+  if (request.resource_type === 'publish-to-bloom') return name ? `Publish to Bloom (from run ${name})` : 'Publish to Bloom'
+  if (request.resource_type === 'test-run') return `test run ${name}`.trim()
+  return `product ${name}`.trim()
 }
 
 /**

@@ -5,7 +5,14 @@ from functools import lru_cache
 from pathlib import Path
 from typing import List, Literal, Optional
 
-from pydantic import AliasChoices, EmailStr, Field, field_validator, model_validator
+from pydantic import (
+    AliasChoices,
+    EmailStr,
+    Field,
+    IPvAnyNetwork,
+    field_validator,
+    model_validator,
+)
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 HTTP_LOCALHOST_8001 = "http://localhost:8001"
@@ -30,7 +37,10 @@ class Settings(BaseSettings):
     reports and structured output, images and PDF, packet captures under their three type
     names, archives and application/octet-stream; every artifact downloads as an attachment.
     RUNNER_API_KEY is accepted and unused: stations enrol with per-station keys. ENABLE_DOCS
-    serves the API documentation.
+    serves the API documentation. A client address refused AUDIT_REFUSAL_THRESHOLD times within
+    AUDIT_REFUSAL_WINDOW_MINUTES is recorded once per window as security.repeated_refusals.
+    TRUSTED_PROXY_NETWORKS lists the reverse proxy networks whose X-Forwarded-For names the
+    client address; empty, the client address is the connecting peer.
     """
 
     model_config = SettingsConfigDict(
@@ -237,6 +247,23 @@ class Settings(BaseSettings):
     RUNNER_HEARTBEAT_TIMEOUT: int = Field(
         default=120,
         validation_alias=AliasChoices("BUD_RUNNER_HEARTBEAT_TIMEOUT", "RUNNER_HEARTBEAT_TIMEOUT"),
+    )
+
+    AUDIT_REFUSAL_THRESHOLD: int = Field(
+        default=20,
+        ge=1,
+        validation_alias=AliasChoices("BUD_AUDIT_REFUSAL_THRESHOLD", "AUDIT_REFUSAL_THRESHOLD"),
+    )
+    AUDIT_REFUSAL_WINDOW_MINUTES: int = Field(
+        default=10,
+        ge=1,
+        validation_alias=AliasChoices(
+            "BUD_AUDIT_REFUSAL_WINDOW_MINUTES", "AUDIT_REFUSAL_WINDOW_MINUTES"
+        ),
+    )
+    TRUSTED_PROXY_NETWORKS: List[IPvAnyNetwork] = Field(
+        default=[],
+        validation_alias=AliasChoices("BUD_TRUSTED_PROXY_NETWORKS", "TRUSTED_PROXY_NETWORKS"),
     )
 
     CLI_CODE_MODE_ENABLED: bool = Field(

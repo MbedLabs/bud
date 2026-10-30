@@ -1,6 +1,6 @@
 import ReportRequests from '../components/ReportRequests'
 import { useMemo, useState, type ReactNode } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { useParams, Link } from 'react-router'
 import {
   accessRequestsApi,
@@ -12,6 +12,7 @@ import {
   testRunsApi,
   TestResult,
   type Artifact,
+  type TestRun,
   type TestRunEvent,
 } from '../api/client'
 import { summarizeAssertions, summarizeTestCases } from '../lib/testRunAssertions'
@@ -30,7 +31,7 @@ import type { LucideIcon } from 'lucide-react'
 import AccessDenied from '../components/AccessDenied'
 import { useAuth } from '../contexts/AuthContext'
 import { can } from '../lib/access'
-import { isAccessDenied } from '../lib/accessDenied'
+import { isAccessDenied, isNotFound } from '../lib/accessDenied'
 import RunStatusBadge from '../components/RunStatusBadge'
 import PdfReportButton from '../components/PdfReportButton'
 
@@ -38,6 +39,7 @@ import PdfReportButton from '../components/PdfReportButton'
 export default function TestRunDetail() {
   const { id } = useParams<{ id: string }>()
   const runId = Number.parseInt(id || '0')
+  const { user } = useAuth()
   const [reportError, setReportError] = useState<string | null>(null)
   const [systemReportOpen, setSystemReportOpen] = useState(false)
   const [resultsFiltersOpen, setResultsFiltersOpen] = useState(false)
@@ -75,31 +77,16 @@ export default function TestRunDetail() {
     )
   }
 
-  if (isAccessDenied(runError)) {
-    return <AccessDenied resourceType="test-run" resourceRef={id ?? ''} />
+  if (isAccessDenied(runError) && user?.role !== 'admin') {
+    return <AccessDenied what="this test run" />
   }
 
   if (runError || !run) {
-    return (
-      <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-8 text-center">
-        <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
-        <h3 className="text-lg font-medium text-foreground">Test Run Not Found</h3>
-        <p className="text-muted-foreground mt-2">The requested test run could not be found.</p>
-        <Link to="/runs" className="mt-4 inline-block text-primary hover:text-primary/80">
-          &larr; Back to Test Runs
-        </Link>
-      </div>
-    )
+    return <RunNotLoaded runId={runId} error={runError} />
   }
 
   const assertionSummary = summarizeAssertions(results || [])
   const testSummary = summarizeTestCases(run, results || [])
-  const passRate = testSummary.total > 0
-    ? ((testSummary.passed / testSummary.total) * 100).toFixed(1)
-    : '0'
-  const assertionPassRate = assertionSummary.total > 0
-    ? ((assertionSummary.passed / assertionSummary.total) * 100).toFixed(1)
-    : null
   const stepCount = `${events?.length || 0} reported step${events?.length === 1 ? '' : 's'}`
 
   return (
@@ -155,29 +142,7 @@ export default function TestRunDetail() {
           gradient="from-red-500/10 to-red-500/5"
           iconColor="text-red-600 dark:text-red-400"
         />
-        <div className="bg-card rounded-lg border border-border shadow-elegant p-4">
-          <div className="flex items-center justify-between mb-2">
-            <div>
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Pass Rate</p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">
-                {assertionPassRate !== null ? `${assertionPassRate}% of assertions` : 'No assertions recorded'}
-              </p>
-            </div>
-            <span className={`text-lg font-bold ${
-              Number.parseFloat(passRate) >= 80 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'
-            }`}>{passRate}%</span>
-          </div>
-          <div className="h-2 bg-muted rounded-full overflow-hidden">
-            <div
-              className={`h-full rounded-full transition-all duration-700 ${
-                Number.parseFloat(passRate) >= 80
-                  ? 'bg-linear-to-r/srgb from-emerald-500 to-emerald-400'
-                  : 'bg-linear-to-r/srgb from-amber-500 to-amber-400'
-              }`}
-              style={{ width: `${passRate}%` }}
-            />
-          </div>
-        </div>
+        <PassRateCard tests={testSummary} assertions={assertionSummary} />
       </div>
 
       <div className="bg-card rounded-lg border border-border shadow-elegant p-5">
@@ -363,6 +328,64 @@ export default function TestRunDetail() {
  *
  * A failed download, such as a file a retention sweep removed, shows the error.
  */
+/** The share of passed test cases, with the share of passed assertions beneath the title. */
+function PassRateCard({ tests, assertions }: Readonly<{
+  tests: { passed: number; total: number }
+  assertions: { passed: number; total: number }
+}>) {
+  const passRate = percent(tests.passed, tests.total) ?? '0'
+  const assertionPassRate = percent(assertions.passed, assertions.total)
+  return (
+    <div className="bg-card rounded-lg border border-border shadow-elegant p-4">
+      <div className="flex items-center justify-between mb-2">
+        <div>
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Pass Rate</p>
+          <p className="text-[11px] text-muted-foreground mt-0.5">
+            {assertionPassRate !== null ? `${assertionPassRate}% of assertions` : 'No assertions recorded'}
+          </p>
+        </div>
+        <span className={`text-lg font-bold ${
+          Number.parseFloat(passRate) >= 80 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'
+        }`}>{passRate}%</span>
+      </div>
+      <div className="h-2 bg-muted rounded-full overflow-hidden">
+        <div
+          className={`h-full rounded-full transition-all duration-700 ${
+            Number.parseFloat(passRate) >= 80
+              ? 'bg-linear-to-r/srgb from-emerald-500 to-emerald-400'
+              : 'bg-linear-to-r/srgb from-amber-500 to-amber-400'
+          }`}
+          style={{ width: `${passRate}%` }}
+        />
+      </div>
+    </div>
+  )
+}
+
+function percent(part: number, total: number): string | null {
+  return total > 0 ? ((part / total) * 100).toFixed(1) : null
+}
+
+/** The page shown when the run is missing or could not be loaded. */
+function RunNotLoaded({ runId, error }: Readonly<{ runId: number; error: unknown }>) {
+  const queryClient = useQueryClient()
+  const missing = isNotFound(error)
+  const knownName = missing ? cachedRunName(queryClient, runId) : undefined
+  return (
+    <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-8 text-center">
+      <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
+      <h3 className="text-lg font-medium text-foreground">{missing ? 'Test run not found' : 'Test run not loaded'}</h3>
+      <p className="text-muted-foreground mt-2">
+        {missing && (knownName ? `${knownName} does not exist any more.` : 'This test run does not exist.')}
+        {!missing && extractApiErrorMessage(error, 'The test run could not be loaded.')}
+      </p>
+      <Link to="/runs" className="mt-4 inline-block text-primary hover:text-primary/80">
+        &larr; Back to Test Runs
+      </Link>
+    </div>
+  )
+}
+
 function RunArtifacts({ artifacts, isLoading }: Readonly<{ artifacts?: Artifact[]; isLoading: boolean }>) {
   const [downloading, setDownloading] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -448,10 +471,19 @@ function panelMessage(
   return null
 }
 
-/** The station a run is assigned to: its account, otherwise its id, otherwise none. */
+/** The station a run is assigned to: its account, its id marked deleted when the station is gone, or none. */
 function stationLabel(account: string | null, runnerId: number | null): string {
   if (account) return account
-  return runnerId ? `Station #${runnerId}` : 'Not assigned'
+  return runnerId ? `Station ${runnerId} (deleted)` : 'Not assigned'
+}
+
+/** The name of the run with this id in a run list held in the query cache, if any. */
+function cachedRunName(queryClient: QueryClient, runId: number): string | undefined {
+  for (const [, data] of queryClient.getQueriesData<{ runs?: TestRun[] }>({ queryKey: ['testRuns'] })) {
+    const found = data?.runs?.find((candidate) => candidate.id === runId)
+    if (found) return found.name
+  }
+  return undefined
 }
 
 /** The border and background classes of an assertion row: neutral, passed or failed. */

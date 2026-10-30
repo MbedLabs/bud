@@ -13,6 +13,7 @@ from app.core.runner_keys import resolve_key
 from app.core.security import oauth2_scheme
 from app.db import get_db
 from app.models import Runner, RunnerApiKey
+from app.services.audit import set_audit_actor
 
 
 def _build_limiter() -> Limiter:
@@ -30,7 +31,7 @@ limiter = _build_limiter()
 async def get_current_runner(
     db: AsyncSession = Depends(get_db, scope="function"), token: str = Depends(oauth2_scheme)
 ) -> Runner:
-    """M3: Authenticate a runner via JWT."""
+    """M3: Authenticate a runner via JWT and record the station as the request's actor."""
     runner = await authenticate_runner_token(token, db)
     if not runner:
         raise HTTPException(
@@ -38,7 +39,7 @@ async def get_current_runner(
             detail="Could not validate credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
-
+    set_audit_actor("runner", runner_id=runner.id)
     return runner
 
 
@@ -46,8 +47,13 @@ async def require_runner_api_key(
     x_api_key: str = Header(..., alias="X-API-Key"),
     db: AsyncSession = Depends(get_db, scope="function"),
 ) -> RunnerApiKey:
-    """C2: Resolve the enrolment key presented for a runner-registration mutation."""
+    """C2: Resolve the enrolment key presented for a runner-registration mutation.
+
+    A key bound to a station records that station as the request's actor.
+    """
     record = await resolve_key(x_api_key, db)
     if record is None:
         raise HTTPException(status_code=403, detail="Invalid API key.")
+    if record.runner_id is not None:
+        set_audit_actor("runner", runner_id=record.runner_id)
     return record

@@ -7,7 +7,12 @@ from pydantic import BaseModel, ConfigDict, field_serializer
 
 
 class AuditEventResponse(BaseModel):
-    """One audit event, with the acting user's name when the user still exists."""
+    """One audit event, with the acting user's name when the user still exists.
+
+    ``target_label``, ``created_label`` and ``station_name`` name the target, the object a
+    ``201`` answer created and the acting Test Station; the matching ``*_deleted`` flag is true
+    when that object is deleted. They stay empty for a kind without a name.
+    """
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -26,6 +31,12 @@ class AuditEventResponse(BaseModel):
     user_agent: Optional[str] = None
     outcome: str
     details: Optional[dict[str, Any]] = None
+    target_label: Optional[str] = None
+    target_deleted: bool = False
+    created_label: Optional[str] = None
+    created_deleted: bool = False
+    station_name: Optional[str] = None
+    station_deleted: bool = False
 
     @field_serializer("occurred_at")
     def serialize_dt(self, dt: Optional[datetime], _info):

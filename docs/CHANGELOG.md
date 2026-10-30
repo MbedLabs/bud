@@ -4,7 +4,8 @@
 
 ### Added
 
-- Access has a People tab that shows each person's base role, every group they hold and their combined permissions.
+- Users shows, under each user, the groups that user holds; the list stays collapsed until it is opened for that user.
+- Audit log: every API call, health probes, metrics scrapes and Test Station heartbeats included, is recorded as an `api.request` event once the response is finished. It names the actor (a user with its client, `cli` or `web`; a Test Station with its id, for a station token or an enrolment key bound to a station; otherwise anonymous), the method, route, path, status, duration, the names of the query parameters, the kind of credential presented and the id a `201` answer created (`created_id`, or `created_test_run_id` for a results upload), and stores no body or header value. A CORS preflight the CORS settings refuse is answered 403 and recorded; an allowed preflight is answered before the audit and leaves no event. A refused request (401, 403, 429, and a 404 answered to an anonymous caller) has the outcome `denied`, and a deactivated account's refused request names that account; an address refused `AUDIT_REFUSAL_THRESHOLD` times (default 20) within `AUDIT_REFUSAL_WINDOW_MINUTES` (default 10) is recorded once per window as `security.repeated_refusals`. `GET /api/audit` also filters by `actor_type`, `ip`, `request_id` and `status`. Migration `020_audit_request_indexes` adds indexes on the outcome and the client address. Behind a reverse proxy, `TRUSTED_PROXY_NETWORKS` (a JSON array of networks, empty by default) names the proxies whose `X-Forwarded-For` gives the client address: for a request from one of them, the right-most forwarded address outside those networks is the client address the audit log, the repeated-refusal count and the per-address rate limits use; a forwarding header from any other sender outside the container is ignored, and with the setting empty the address stays the one the image's nginx received. The image's uvicorn trusts forwarding headers from loopback only, whatever `FORWARDED_ALLOW_IPS` holds. Each event `GET /api/audit` returns names its target, the object a `201` answer created and the acting Test Station (`target_label`, `created_label`, `station_name`) when that is a run, product, Test Station, user, group, policy, enrolment key, notification channel, artifact or result, and sets `target_deleted`, `created_deleted` or `station_deleted` when the object no longer exists; stored events are unchanged.
 
 ### Changed
 
@@ -12,14 +13,19 @@
 - The product identity is fixed as Bud TMP by EmbedLabs across the application, emails, API, reports and run notifications. The sidebar shows Bud TMP with by EmbedLabs beneath it. The `BUD_APP_NAME` setting is removed; an existing environment variable or `.env` entry with that name is ignored.
 - The confirmation dialogs, the Test Station rename dialog and the invite and email change dialogs close with Escape wherever the focus is.
 - A source install needs Python 3.11 or later.
+- The Access entry in the sidebar shows the same shield check icon as Bloom PLM.
+- `POST /api/access-requests` and `GET /api/access-requests/mine` accept only `resource_type=publish-to-bloom` and answer 422 for `test-run` and `product`; requests of those types that are already stored stay listed and can still be decided. `GET /api/access-requests` and the decision answer give the name of the run or product a request names (`resource_label`) and `resource_deleted` when it no longer exists.
 
 ### Fixed
 
+- An administrator who opened a test run that does not exist was shown "You don't have access to this resource" with a Request access button, and could request access from himself; the request was emailed to him too. A test run that does not exist now shows "Test run not found" to everyone, with no request, and an administrator is never shown the access-denied page. A user refused a test run is no longer offered a request for it: only Publish to Bloom can be requested. A user who already holds Publish to Bloom, every administrator and developer included, can no longer request it (the API answers 409 and sends no email), and nobody is emailed about their own request.
+- Access requests and the audit log showed numbers instead of names: "Test run 42", "Publish to Bloom (from run 42)" and "test_run 42". They now show the run, product, Test Station, user, group, policy, enrolment key, notification channel, artifact or result by its name, and the access request email names the run. A number is shown only for an object that no longer exists, marked "(deleted)".
+- An unexpected server error (500) quotes the id of the request that failed in its message, its `request_id` and its `x-request-id` header, the id the access log and the audit log hold for that request; before, it quoted `-`.
 - Administrator welcome emails confirm the account is ready and give product-specific next steps, with matching HTML and plain-text instructions. The obsolete one-time runner registration key instructions are removed.
 
 ### Security
 
-- Pillow raised to 13.0.0, certifi to 2026.10.19, follow-redirects to 1.16.1, vitest to 4.1.12 and zod to 4.6.7, the patched releases.
+- Pillow raised to 13.0.0, certifi to 2026.10.19, dnspython to 2.9.0, follow-redirects to 1.16.1, vitest to 4.1.12 and zod to 4.6.7, the patched releases.
 
 ## 1.2.0 - 2026-10-17
 

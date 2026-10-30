@@ -246,7 +246,7 @@ describe('the run list', () => {
       id: 43,
       name: 'Powertrain - Smoke',
       test_case_list: 'BootTests',
-      runner_account: 'bench-02',
+      runner_account: 'station-02',
     }
     vi.mocked(client.testRunsApi.list).mockResolvedValue({ runs: [other], total: 1 })
     renderAt('/runs', '/runs', <TestRuns />)
@@ -263,12 +263,12 @@ describe('the run list', () => {
     expect(screen.getByText(other.name)).toBeTruthy()
   })
 
-  const labA = { ...testStation, account: 'bench-01', location: 'Lab A' }
-  const labAsecond = { ...testStation, account: 'bench-03', location: 'Lab A' }
-  const labB = { ...testStation, account: 'bench-02', location: 'Lab B' }
-  const runAtA1 = { ...testRun, id: 42, runner_account: 'bench-01' }
-  const runAtA2 = { ...testRun, id: 44, name: 'Gateway ECU - Rerun', runner_account: 'bench-03' }
-  const runAtB = { ...testRun, id: 43, name: 'Powertrain - Smoke', runner_account: 'bench-02' }
+  const labA = { ...testStation, account: 'station-01', location: 'Lab A' }
+  const labAsecond = { ...testStation, account: 'station-03', location: 'Lab A' }
+  const labB = { ...testStation, account: 'station-02', location: 'Lab B' }
+  const runAtA1 = { ...testRun, id: 42, runner_account: 'station-01' }
+  const runAtA2 = { ...testRun, id: 44, name: 'Gateway ECU - Rerun', runner_account: 'station-03' }
+  const runAtB = { ...testRun, id: 43, name: 'Powertrain - Smoke', runner_account: 'station-02' }
 
   function renderWithTwoLabs() {
     vi.mocked(client.testStationsApi.status).mockResolvedValue({
@@ -399,9 +399,9 @@ describe('the run list', () => {
   })
 
   it('restores shared run sorting and station filters from the URL', async () => {
-    renderAt('/runs', '/runs?sort=name&dir=desc&station=bench-01', <TestRuns />)
+    renderAt('/runs', '/runs?sort=name&dir=desc&station=station-01', <TestRuns />)
     await screen.findByText(testRun.name)
-    await waitFor(() => expect(lastCall(client.testRunsApi.list)[0]).toEqual(expect.objectContaining({ sort_by: 'name', sort_dir: 'desc', runner_account: 'bench-01' })))
+    await waitFor(() => expect(lastCall(client.testRunsApi.list)[0]).toEqual(expect.objectContaining({ sort_by: 'name', sort_dir: 'desc', runner_account: 'station-01' })))
     expect(screen.getByRole('columnheader', { name: 'Name' }).getAttribute('aria-sort')).toBe('descending')
   })
 })
@@ -498,6 +498,73 @@ describe('a run in detail', () => {
       reader.role = 'admin'
       delete reader.permissions
     }
+  })
+
+  /** Answer the run lookup with this HTTP status, as axios rejects it. */
+  function runAnswers(status: number) {
+    vi.mocked(client.testRunsApi.get).mockImplementation(async () => {
+      throw { isAxiosError: true, response: { status, data: { detail: 'Test run not found' } } }
+    })
+  }
+
+  /** Render the run page as a user with this base role. */
+  async function asRole(role: string, check: () => Promise<void>) {
+    const viewer = user as { role: string; permissions?: string[] }
+    viewer.role = role
+    viewer.permissions = role === 'admin' ? undefined : ['evidence.view']
+    try {
+      renderAt('/runs/:id', '/runs/42', <TestRunDetail />)
+      await check()
+    } finally {
+      viewer.role = 'admin'
+      delete viewer.permissions
+    }
+  }
+
+  it.each(['admin', 'viewer'])('shows a missing run to an %s as not found, with no request and no number', async (role) => {
+    runAnswers(404)
+    await asRole(role, async () => {
+      expect(await screen.findByText('Test run not found')).toBeTruthy()
+      expect(screen.getByText('This test run does not exist.')).toBeTruthy()
+      expect(screen.queryByText(/have access/)).toBeNull()
+      expect(screen.queryByRole('button', { name: 'Request access' })).toBeNull()
+      expect(screen.queryByText(/42/)).toBeNull()
+      expect(client.accessRequestsApi.mine).not.toHaveBeenCalled()
+    })
+  })
+
+  it('names a missing run from a run list already loaded', async () => {
+    runAnswers(404)
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    queryClient.setQueryData(['testRuns', { page: 1 }], { runs: [{ ...testRun, id: 42, name: 'Nightly smoke' }], total: 1 })
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/runs/42']}>
+          <Routes>
+            <Route path="/runs/:id" element={<TestRunDetail />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+    expect(await screen.findByText('Nightly smoke does not exist any more.')).toBeTruthy()
+  })
+
+  it('never shows an Admin an access-denied page', async () => {
+    runAnswers(403)
+    await asRole('admin', async () => {
+      expect(await screen.findByText('Test run not loaded')).toBeTruthy()
+      expect(screen.queryByText(/have access/)).toBeNull()
+      expect(screen.queryByRole('button', { name: 'Request access' })).toBeNull()
+    })
+  })
+
+  it('tells a refused Viewer they have no access and offers no request', async () => {
+    runAnswers(403)
+    await asRole('viewer', async () => {
+      expect(await screen.findByText("You don't have access to this test run")).toBeTruthy()
+      expect(screen.queryByRole('button', { name: 'Request access' })).toBeNull()
+      expect(client.accessRequestsApi.mine).not.toHaveBeenCalled()
+    })
   })
 
   it('downloads a PDF for this run alone', async () => {

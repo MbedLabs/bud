@@ -29,14 +29,14 @@ def _result(test_class: str, method: str, source_file: str, run_id: int, when: d
 def lab(db_session):
     """Two benches with different test cases, and one they share.
 
-    Seed a run on bench-01 (Lab A, two hours ago) with VoltageTest and BootTest, and a run on
-    bench-02 (Lab B, an hour ago) with ThermalTest and BootTest. LegacyTest has no source file
+    Seed a run on station-01 (Lab A, two hours ago) with VoltageTest and BootTest, and a run on
+    station-02 (Lab B, an hour ago) with ThermalTest and BootTest. LegacyTest has no source file
     and no importable path.
     """
 
     async def _make():
-        bench_a = Runner(account="bench-01", password_hash="x", token="t1", location="Lab A")
-        bench_b = Runner(account="bench-02", password_hash="x", token="t2", location="Lab B")
+        bench_a = Runner(account="station-01", password_hash="x", token="t1", location="Lab A")
+        bench_b = Runner(account="station-02", password_hash="x", token="t2", location="Lab B")
         db_session.add_all([bench_a, bench_b])
         await db_session.flush()
 
@@ -144,10 +144,10 @@ class TestTheCatalogue:
         entries = {e["test_path"]: e for e in client.get("/api/test-catalog").json()["entries"]}
 
         assert sorted(entries["boot_suite.BootTest"]["runner_accounts"]) == [
-            "bench-01",
-            "bench-02",
+            "station-01",
+            "station-02",
         ]
-        assert entries["thermal.ThermalTest"]["runner_accounts"] == ["bench-02"]
+        assert entries["thermal.ThermalTest"]["runner_accounts"] == ["station-02"]
 
     @pytest.mark.asyncio
     async def test_counts_the_methods_inside_a_case(self, client, lab):
@@ -162,7 +162,7 @@ class TestTheCatalogue:
     async def test_can_be_narrowed_to_one_bench(self, client, lab):
         await lab()
 
-        entries = client.get("/api/test-catalog?runner_account=bench-02").json()["entries"]
+        entries = client.get("/api/test-catalog?runner_account=station-02").json()["entries"]
 
         paths = {entry["test_path"] for entry in entries}
         assert paths == {"boot_suite.BootTest", "thermal.ThermalTest"}
@@ -190,12 +190,12 @@ class TestQueueingACustomRun:
             "/api/test-runs/custom",
             json={
                 "test_paths": ["boot_suite.BootTest"],
-                "runner_account": "bench-01",
+                "runner_account": "station-01",
             },
         )
         assert queued.status_code == 201, queued.text
         request = queued.json()["requests"][0]
-        assert request["runner_account"] == "bench-01"
+        assert request["runner_account"] == "station-01"
         assert request["source_metadata"]["url_test_software"] == "https://git.test/tests.git"
         assert request["source_metadata"]["ref_test_software"] == "release-2026"
 
@@ -238,7 +238,10 @@ class TestQueueingACustomRun:
         ).json()
 
         assert len(body["requests"]) == 2
-        assert sorted(run["runner_account"] for run in body["requests"]) == ["bench-01", "bench-02"]
+        assert sorted(run["runner_account"] for run in body["requests"]) == [
+            "station-01",
+            "station-02",
+        ]
 
     @pytest.mark.asyncio
     async def test_a_case_that_runs_anywhere_follows_the_ones_that_cannot(self, client, lab):
@@ -250,10 +253,10 @@ class TestQueueingACustomRun:
         ).json()
 
         assert len(body["requests"]) == 1
-        assert body["requests"][0]["runner_account"] == "bench-01"
+        assert body["requests"][0]["runner_account"] == "station-01"
         assert sorted(body["requests"][0]["selected_tests"]) == [
-            "demo_voltage.VoltageTest",
             "boot_suite.BootTest",
+            "demo_voltage.VoltageTest",
         ]
 
     @pytest.mark.asyncio
@@ -264,7 +267,7 @@ class TestQueueingACustomRun:
             "/api/test-runs/custom", json={"test_paths": ["boot_suite.BootTest"]}
         ).json()
 
-        assert body["requests"][0]["runner_account"] == "bench-02"
+        assert body["requests"][0]["runner_account"] == "station-02"
 
     @pytest.mark.asyncio
     async def test_carries_the_selection_on_the_run(self, client, lab):
@@ -295,11 +298,11 @@ class TestQueueingACustomRun:
 
         body = client.post(
             "/api/test-runs/custom",
-            json={"test_paths": ["boot_suite.BootTest"], "runner_account": "bench-02"},
+            json={"test_paths": ["boot_suite.BootTest"], "runner_account": "station-02"},
         ).json()
 
         assert len(body["requests"]) == 1
-        assert body["requests"][0]["runner_account"] == "bench-02"
+        assert body["requests"][0]["runner_account"] == "station-02"
 
     @pytest.mark.asyncio
     async def test_pinning_reports_what_that_bench_has_never_run(self, client, lab):
@@ -309,13 +312,13 @@ class TestQueueingACustomRun:
             "/api/test-runs/custom",
             json={
                 "test_paths": ["boot_suite.BootTest", "thermal.ThermalTest"],
-                "runner_account": "bench-01",
+                "runner_account": "station-01",
             },
         ).json()
 
-        assert [run["runner_account"] for run in body["requests"]] == ["bench-01"]
+        assert [run["runner_account"] for run in body["requests"]] == ["station-01"]
         assert [item["test_path"] for item in body["unassigned"]] == ["thermal.ThermalTest"]
-        assert "bench-02" in body["unassigned"][0]["reason"]
+        assert "station-02" in body["unassigned"][0]["reason"]
 
     @pytest.mark.asyncio
     async def test_reports_a_test_bud_has_never_seen(self, client, lab):
@@ -360,7 +363,7 @@ class TestQueueingACustomRun:
 
         response = client.post(
             "/api/test-runs/custom",
-            json={"test_paths": ["boot_suite.BootTest"], "runner_account": "bench-99"},
+            json={"test_paths": ["boot_suite.BootTest"], "runner_account": "station-99"},
         )
 
         assert response.status_code == 404
@@ -621,7 +624,9 @@ class TestCompletingAClaimedRun:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("passed", [True, False])
-    async def test_claimed_run_stats_wait_for_the_station_terminal_answer(self, client, lab, passed):
+    async def test_claimed_run_stats_wait_for_the_station_terminal_answer(
+        self, client, lab, passed
+    ):
         stations = await lab()
         client.post(
             "/api/test-runs/custom",

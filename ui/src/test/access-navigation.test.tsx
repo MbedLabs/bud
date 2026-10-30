@@ -16,10 +16,10 @@ vi.mock('../components/AccessPolicies', () => ({
   default: ({ canEdit }: { canEdit: boolean }) => <h2>Policies control {canEdit ? 'editable' : 'read-only'}</h2>,
 }))
 vi.mock('../components/AccessUsers', () => ({ default: () => <h2>Groups per user control</h2> }))
-vi.mock('../components/AccessPeople', () => ({ default: () => <h2>People control</h2> }))
 vi.mock('../api/client', () => ({
   APP_VERSION: 'test',
   usersApi: { list: vi.fn().mockResolvedValue([]) },
+  accessApi: { users: vi.fn().mockResolvedValue([]) },
   accessRequestsApi: { list: vi.fn().mockResolvedValue([{ id: 1 }]) },
   extractApiErrorMessage: vi.fn(),
 }))
@@ -50,19 +50,21 @@ describe('Access page', () => {
     expect(screen.getByRole('link', { name: 'Users' }).getAttribute('href')).toBe('/users')
   })
 
-  it('has Assignments, People, Groups, Policies and Requests without account administration', async () => {
+  it('marks the Access link with the shield check icon', () => {
+    renderPage(<Layout />)
+    expect(screen.getByRole('link', { name: 'Access' }).querySelector('svg')?.getAttribute('class')).toContain('lucide-shield-check')
+  })
+
+  it('has assignments, Groups, Policies and Requests without account administration', async () => {
     renderPage(<Access />)
     expect(screen.getAllByRole('tab').map((tab) => tab.textContent?.replace(/\d+$/, ''))).toEqual([
       'Assignments',
-      'People',
       'Groups',
       'Policies',
       'Requests',
     ])
     expect(screen.queryByRole('button', { name: 'Invite User' })).toBeNull()
     expect(screen.getByText('Groups per user control')).toBeTruthy()
-    fireEvent.click(screen.getByRole('tab', { name: 'People' }))
-    expect(screen.getByText('People control')).toBeTruthy()
     fireEvent.click(screen.getByRole('tab', { name: 'Groups' }))
     expect(screen.getByText('Groups control')).toBeTruthy()
     fireEvent.click(screen.getByRole('tab', { name: 'Policies' }))

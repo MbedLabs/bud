@@ -195,11 +195,11 @@ async def test_publish_closes_only_matching_requests_after_remote_success(
     await _configure_bloom(db_session)
     run = await _run_with_reports(db_session, tmp_path)
     run_id = run.id
-    for project in ["VCU", "OTH"]:
+    for project in ["PRJ", "ABC"]:
         db_session.add(
             ReportRequest(
                 bloom_url="https://bloom.test",
-                remote_id=1 if project == "VCU" else 2,
+                remote_id=1 if project == "PRJ" else 2,
                 run_id=run.id,
                 project_prefix=project,
                 requester_name="Reader",
@@ -219,7 +219,7 @@ async def test_publish_closes_only_matching_requests_after_remote_success(
     }
     with patch(
         "app.api.test_runs.post_to_bloom",
-        new=AsyncMock(return_value={"document_id": 7, "doc_id": "VCU-RPT-001", "created": True}),
+        new=AsyncMock(return_value={"document_id": 7, "doc_id": "PRJ-RPT-001", "created": True}),
     ):
         assert client.post(f"/api/test-runs/{run_id}/publish-to-bloom").status_code == 200
     db_session.expire_all()
@@ -227,7 +227,7 @@ async def test_publish_closes_only_matching_requests_after_remote_success(
         row.project_prefix: row.status
         for row in (await db_session.scalars(select(ReportRequest))).all()
     }
-    assert states == {"VCU": "delivered", "OTH": "pending"}
+    assert states == {"PRJ": "delivered", "ABC": "pending"}
 
 
 def test_publisher_mail_renders_the_real_run_url_and_escapes_reader_text(monkeypatch):
@@ -343,7 +343,7 @@ async def test_request_fulfillment_rejects_a_different_destination_before_public
         bloom_url="https://bloom.test",
         remote_id=7,
         run_id=run.id,
-        project_prefix="OTH",
+        project_prefix="ABC",
         requester_name="Reader",
         requester_email="reader@example.com",
         status="pending",
@@ -358,11 +358,11 @@ async def test_request_fulfillment_rejects_a_different_destination_before_public
         publish.assert_not_awaited()
     await db_session.refresh(row)
     assert row.status == "pending"
-    row.project_prefix = "VCU"
+    row.project_prefix = "PRJ"
     await db_session.commit()
     with patch(
         "app.api.test_runs.post_to_bloom",
-        new=AsyncMock(return_value={"document_id": 7, "doc_id": "VCU-RPT-001", "created": True}),
+        new=AsyncMock(return_value={"document_id": 7, "doc_id": "PRJ-RPT-001", "created": True}),
     ):
         assert client.post(f"/api/report-requests/{row.id}/publish").status_code == 200
     await db_session.refresh(row)

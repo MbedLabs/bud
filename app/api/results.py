@@ -20,6 +20,7 @@ from app.db import get_db
 from app.models import Product, Runner, TestResult, TestRun
 from app.models.user import User
 from app.schemas import ResultsUpload, TestResultListItem, TestResultResponse
+from app.services.audit import set_audit_actor
 from app.services.bloom_sync import sync_results_to_bloom
 from app.services.notify import notify_run_finished
 from app.services.run_events import record_test_run_event
@@ -42,11 +43,12 @@ async def get_uploader_entity(
     2. The Test Station's own enrolment key, which names one station.
 
     A runner may present an expired JWT while its last heartbeat is recent. Without a valid
-    credential the request ends in 401.
+    credential the request ends in 401. The uploader is recorded as the request's audit actor.
     """
     if token:
         runner = await authenticate_runner_token(token, db)
         if runner:
+            set_audit_actor("runner", runner_id=runner.id)
             return runner
 
         try:
@@ -62,6 +64,7 @@ async def get_uploader_entity(
             runner = await db.get(Runner, record.runner_id)
             if runner and runner.is_active:
                 mark_used(record)
+                set_audit_actor("runner", runner_id=runner.id)
                 return runner
 
     raise HTTPException(

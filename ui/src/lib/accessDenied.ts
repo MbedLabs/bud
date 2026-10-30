@@ -1,8 +1,11 @@
 import axios from 'axios'
 
-/** Whether a failed request means this user may not see the resource (403 or 404). */
+/** Whether a failed request was refused to this user (403). */
 export function isAccessDenied(error: unknown): boolean {
-  if (!axios.isAxiosError(error)) return false
-  const status = error.response?.status
-  return status === 403 || status === 404
+  return axios.isAxiosError(error) && error.response?.status === 403
+}
+
+/** Whether a failed request names something that does not exist (404). */
+export function isNotFound(error: unknown): boolean {
+  return axios.isAxiosError(error) && error.response?.status === 404
 }

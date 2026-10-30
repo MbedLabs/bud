@@ -49,7 +49,7 @@ def _summary_request(**overrides) -> ReportRequest:
         overall=Outcome(passed=9, failed=1, skipped=2),
         breakdowns=[
             Breakdown("Per suite", "Suite", [("smoke", Outcome(9, 1, 2))]),
-            Breakdown("Per Test Station", "Test Station", [("bench-01", Outcome(9, 1, 2))]),
+            Breakdown("Per Test Station", "Test Station", [("station-01", Outcome(9, 1, 2))]),
             Breakdown("Per day", "Day", [("2026-07-31", Outcome(9, 1, 2))]),
         ],
         app_version="1.0.0",
@@ -106,7 +106,7 @@ class TestRenderer:
                     run_id=42,
                     name="smoke",
                     status="Completed",
-                    station="bench-01",
+                    station="station-01",
                     run_url="https://bud.example/test-runs/42",
                 ),
                 assertions=[
@@ -190,7 +190,7 @@ class TestRenderedContent:
                     run_id=42,
                     name="smoke",
                     status="Completed",
-                    station="bench-01",
+                    station="station-01",
                     test_software_url="https://github.test/tests",
                     test_software_ref="main",
                     run_url="https://bud.example/test-runs/42",
@@ -200,7 +200,7 @@ class TestRenderedContent:
         doc = self._open(fitz, pdf)
         text = doc[0].get_text()
         assert "BUD-RUN-42" in text
-        assert "bench-01" in text
+        assert "station-01" in text
         uris = {link.get("uri") for link in doc[0].get_links()}
         assert "https://bud.example/test-runs/42" in uris
         assert "https://github.test/tests" in uris

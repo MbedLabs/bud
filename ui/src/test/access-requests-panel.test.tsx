@@ -54,6 +54,8 @@ beforeEach(() => {
       requester_email: 'val@example.com',
       already_requested: false,
       mail_sent: null,
+      resource_label: 'Nightly smoke',
+      resource_deleted: false,
     },
   ] as never)
 })
@@ -62,7 +64,8 @@ afterEach(cleanup)
 describe('Access requests', () => {
   it('grants Publish to Bloom by giving Test Operators unless another publishing group is chosen', async () => {
     renderIt()
-    expect(await screen.findByText(/asks for Publish to Bloom \(from run 42\)/)).toBeTruthy()
+    expect(await screen.findByText(/asks for Publish to Bloom \(from run Nightly smoke\)/)).toBeTruthy()
+    expect(screen.queryByText(/42/)).toBeNull()
     const select = await screen.findByRole('combobox', { name: 'Group to give Val Viewer' })
     fireEvent.click(select)
     expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual(['Test Operators', 'Publishers'])
@@ -82,5 +85,24 @@ describe('Access requests', () => {
     vi.mocked(api.accessRequestsApi.list).mockResolvedValue([])
     renderIt()
     expect(await screen.findByText('No pending requests.')).toBeTruthy()
+  })
+
+  it('names stored requests by their run or product and marks a deleted one', async () => {
+    const base = {
+      status: 'pending', created_at: '', decided_at: null, requester_name: 'Val Viewer',
+      requester_email: 'val@example.com', already_requested: false, mail_sent: null,
+    }
+    vi.mocked(api.accessRequestsApi.list).mockResolvedValue([
+      { ...base, id: 6, resource_type: 'test-run', resource_ref: '7', resource_label: 'Soak test', resource_deleted: false },
+      { ...base, id: 7, resource_type: 'product', resource_ref: '3', resource_label: 'Gateway board', resource_deleted: false },
+      { ...base, id: 8, resource_type: 'publish-to-bloom', resource_ref: '99', resource_label: null, resource_deleted: true },
+      { ...base, id: 9, resource_type: 'test-run', resource_ref: '99999999999', resource_label: null, resource_deleted: false },
+    ] as never)
+    renderIt()
+    expect(await screen.findByText(/asks for test run Soak test/)).toBeTruthy()
+    expect(screen.getByText(/asks for product Gateway board/)).toBeTruthy()
+    expect(screen.getByText(/asks for Publish to Bloom \(from run 99 \(deleted\)\)/)).toBeTruthy()
+    expect(screen.getByText(/asks for test run$/)).toBeTruthy()
+    expect(screen.queryByText(/99999999999/)).toBeNull()
   })
 })

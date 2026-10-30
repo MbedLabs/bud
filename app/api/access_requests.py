@@ -1,10 +1,12 @@
-"""Access requests: a signed-in user asks for access to a resource or for Publish to Bloom.
+"""Access requests: a signed-in user without Publish to Bloom asks for it from a run.
 
-The request names the resource only by the type and id the user already saw in the
-address; nothing about the resource is looked up or disclosed. One
-request per user and resource per 24 hours. Admins and holders of access management are
-emailed and decide; granting Publish to Bloom gives the requester a group holding it. The
-request, its grant or its refusal are recorded in the audit log.
+Only ``publish-to-bloom`` is accepted; stored requests of the earlier types ``test-run`` and
+``product`` stay listed and can be decided. A holder of Publish to Bloom, an Admin always,
+is refused with 409. One request per user and run per
+24 hours. Admins and holders of access management other than the requester are emailed and
+decide; granting gives the requester a group holding Publish to Bloom. Administrators see the
+run or product name of each request. The request, its grant or its refusal are recorded in
+the audit log.
 """
 
 from datetime import datetime, timedelta, timezone
@@ -27,6 +29,7 @@ from app.models.access_request import AccessRequest
 from app.models.user import User, UserRole
 from app.services.audit import record_audit_event
 from app.services.mail_service import MailConfigurationError, send_access_request_email
+from app.services.target_labels import LabelResolver, target_kind
 
 router = APIRouter()
 
@@ -34,8 +37,10 @@ require_admin = require_permission("access", "manage")
 
 REQUEST_WINDOW = timedelta(hours=24)
 
-ResourceType = Literal["test-run", "product", "publish-to-bloom"]
+ResourceType = Literal["publish-to-bloom"]
 PUBLISH_TO_BLOOM = "publish-to-bloom"
+PUBLISH_PERMISSION = "bloom_publish.execute"
+ALREADY_HELD = "You already hold Publish to Bloom, so there is nothing to request."
 
 
 class AccessRequestCreate(BaseModel):
@@ -46,7 +51,11 @@ class AccessRequestCreate(BaseModel):
 
 
 class AccessRequestResponse(BaseModel):
-    """A request, as its requester or an administrator sees it."""
+    """A request, as its requester or an administrator sees it.
+
+    ``resource_label`` is the name of the run or product the request names, shown to
+    administrators; ``resource_deleted`` is true when that object is deleted.
+    """
 
     id: int
     resource_type: str
@@ -59,6 +68,8 @@ class AccessRequestResponse(BaseModel):
     requester_profile_picture_url: Optional[str] = None
     already_requested: bool = False
     mail_sent: Optional[bool] = None
+    resource_label: Optional[str] = None
+    resource_deleted: bool = False
 
     @field_serializer("created_at", "decided_at")
     def serialize_dt(self, dt: Optional[datetime], _info):
@@ -73,6 +84,7 @@ class AccessDecision(BaseModel):
 
 
 def _response(row: AccessRequest, user: Optional[User] = None, **extra) -> AccessRequestResponse:
+    """The answer for one stored request, with its requester when given."""
     return AccessRequestResponse(
         id=row.id,
         resource_type=row.resource_type,
@@ -109,19 +121,54 @@ async def _recent_request(
     return (await db.execute(query)).scalar_one_or_none()
 
 
+async def _labelled(
+    db: AsyncSession, pairs: list[tuple[AccessRequest, Optional[User]]]
+) -> list[AccessRequestResponse]:
+    """The answers for stored requests, each with the name of the run or product it names."""
+    labels = LabelResolver()
+    for row, _user in pairs:
+        labels.want(target_kind(row.resource_type), row.resource_ref)
+    await labels.load(db)
+    answers = []
+    for row, user in pairs:
+        label = labels.get(target_kind(row.resource_type), row.resource_ref)
+        answers.append(
+            _response(row, user, resource_label=label.name, resource_deleted=label.deleted)
+        )
+    return answers
+
+
+async def _requested_resource(db: AsyncSession, resource_ref: str) -> str:
+    """How the email names the request: Publish to Bloom and the number and name of the run."""
+    labels = LabelResolver()
+    labels.want("run", resource_ref)
+    await labels.load(db)
+    run = labels.get("run", resource_ref).name
+    named = f"{resource_ref}: {run}" if run else resource_ref
+    return f"Publish to Bloom (from test run {named})"
+
+
 def _review_link() -> str:
     """Return the administrator's access-review page."""
     return f"{settings.APP_BASE_URL.rstrip('/')}/access"
 
 
-@router.post("", response_model=AccessRequestResponse, status_code=201)
+@router.post(
+    "",
+    response_model=AccessRequestResponse,
+    status_code=201,
+    responses={409: {"description": HTTPStatus(409).phrase}},
+)
 async def request_access(
     data: AccessRequestCreate,
     response: Response,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db, scope="function"),
 ):
-    """Ask the administrators for access; a repeat within 24 hours returns the first request."""
+    """Ask the administrators for Publish to Bloom; a repeat within 24 hours returns the first
+    request, and a holder of Publish to Bloom is refused with 409."""
+    if PUBLISH_PERMISSION in await effective_permissions(db, current_user):
+        raise HTTPException(status_code=409, detail=ALREADY_HELD)
     existing = await _recent_request(db, current_user.id, data.resource_type, data.resource_ref)
     if existing is not None:
         response.status_code = 200
@@ -146,9 +193,12 @@ async def request_access(
     admins = [
         user
         for user in (await db.execute(select(User).where(User.is_active.is_(True)))).scalars()
-        if user.role == UserRole.admin or "access.manage" in await effective_permissions(db, user)
+        if user.id != current_user.id
+        and (
+            user.role == UserRole.admin or "access.manage" in await effective_permissions(db, user)
+        )
     ]
-    resource = data.resource_ref
+    resource = await _requested_resource(db, data.resource_ref)
     mail_sent = bool(admins)
     for admin in admins:
         try:
@@ -194,7 +244,7 @@ async def list_access_requests(
     )
     if status:
         query = query.where(AccessRequest.status == status)
-    return [_response(row, user) for row, user in (await db.execute(query)).all()]
+    return await _labelled(db, [(row, user) for row, user in (await db.execute(query)).all()])
 
 
 @router.post(
@@ -252,4 +302,4 @@ async def decide_access_request(
         },
     )
     requester = await db.get(User, row.user_id)
-    return _response(row, requester)
+    return (await _labelled(db, [(row, requester)]))[0]

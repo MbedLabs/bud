@@ -81,8 +81,8 @@ const CALLS: Array<[string, unknown[], string, string]> = [
   ['setupApi.createFirstAdmin', ['u@example.com', 'pw', 'Owner'], 'post', '/setup'],
 
   ['usersApi.list', [], 'get', '/users'],
-  ['accessRequestsApi.create', [{ resource_type: 'test-run', resource_ref: '42' }], 'post', '/access-requests'],
-  ['accessRequestsApi.mine', [{ resource_type: 'test-run', resource_ref: '42' }], 'get', '/access-requests/mine'],
+  ['accessRequestsApi.create', [{ resource_type: 'publish-to-bloom', resource_ref: '42' }], 'post', '/access-requests'],
+  ['accessRequestsApi.mine', [{ resource_type: 'publish-to-bloom', resource_ref: '42' }], 'get', '/access-requests/mine'],
   ['accessRequestsApi.list', [], 'get', '/access-requests'],
   ['accessRequestsApi.decide', [3, 'refused'], 'post', '/access-requests/3/decision'],
   ['accessRequestsApi.decide', [3, 'granted', 2], 'post', '/access-requests/3/decision'],
@@ -112,9 +112,9 @@ const CALLS: Array<[string, unknown[], string, string]> = [
   ['resultsApi.list', [42], 'get', '/results/42'],
 
   ['testStationsApi.status', [], 'get', '/runners/status'],
-  ['testStationsApi.getByAccount', ['bench-01'], 'get', '/runners/bench-01'],
-  ['testStationsApi.remove', ['bench-01'], 'delete', '/runners/bench-01'],
-  ['testStationsApi.rename', ['bench-01', 'bench-renamed'], 'patch', '/runners/bench-01'],
+  ['testStationsApi.getByAccount', ['station-01'], 'get', '/runners/station-01'],
+  ['testStationsApi.remove', ['station-01'], 'delete', '/runners/station-01'],
+  ['testStationsApi.rename', ['station-01', 'bench-renamed'], 'patch', '/runners/station-01'],
   ['testStationsApi.listApiKeys', [], 'get', '/runners/api-keys'],
   ['testStationsApi.createApiKey', ['bench-a'], 'post', '/runners/api-keys'],
   ['testStationsApi.deleteApiKey', [7], 'delete', '/runners/api-keys/7'],
@@ -202,21 +202,21 @@ describe('query parameters', () => {
       status: 'Completed',
       limit: 20,
       offset: 40,
-      runner_account: 'bench-01',
+      runner_account: 'station-01',
       latest_per_suite: true,
     })
     expect(requests[0].params).toEqual({
       status: 'Completed',
       limit: 20,
       offset: 40,
-      runner_account: 'bench-01',
+      runner_account: 'station-01',
       latest_per_suite: true,
     })
   })
 
   it('carries the dashboard stat filters', async () => {
-    await client.testRunsApi.stats({ days: 30, runner_account: 'bench-01', suite: 'Nightly' })
-    expect(requests[0].params).toEqual({ days: 30, runner_account: 'bench-01', suite: 'Nightly' })
+    await client.testRunsApi.stats({ days: 30, runner_account: 'station-01', suite: 'Nightly' })
+    expect(requests[0].params).toEqual({ days: 30, runner_account: 'station-01', suite: 'Nightly' })
   })
 
   it('asks for the filter options within a window', async () => {
