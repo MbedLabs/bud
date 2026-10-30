@@ -21,7 +21,7 @@ import {
   type CustomRunResult,
 } from '../api/client'
 import { useDebounced } from '../hooks/useDebounced'
-import { formatDateTime } from '../test/date-utils'
+import { formatDateTime } from '../lib/dateTime'
 
 /**
  * Build a run from test cases Bud has already seen.

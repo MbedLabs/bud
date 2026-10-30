@@ -4,7 +4,7 @@ import SelectField from '../components/SelectField'
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { auditApi, type AuditEvent, type AuditFilters } from '../api/client'
-import { formatDateTime } from '../test/date-utils'
+import { formatDateTime } from '../lib/dateTime'
 import { useDebounced } from '../hooks/useDebounced'
 
 const PAGE_SIZE = 50
