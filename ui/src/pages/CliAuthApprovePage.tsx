@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Navigate, useSearchParams } from 'react-router'
 import { api, extractApiErrorMessage } from '../api/client'
 import { useAuth } from '../contexts/AuthContext'
@@ -11,7 +11,6 @@ interface CliSession {
   expires_at: string
   created_at: string
   consumed: boolean
-  request_code: string
 }
 
 interface CliApproval {
@@ -25,10 +24,19 @@ interface CliDenial {
 }
 
 type Denied = 'returning' | 'ended' | null
+type CodeCheck = 'empty' | 'match' | 'mismatch' | 'limited'
 
 const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '[::1]'])
 const LOOPBACK_PREFIX = /^http:\/\/(?:127\.0\.0\.1|localhost|\[::1\]):\d+(?:[/?]|$)/i
 const CODE_MODE_OFF = 'Code sign-in is turned off on this instance. Use callback mode.'
+const ENDED = 'This authorization session has expired or has already been used.'
+const CODE_LETTERS = 8
+const CHECK_TEXT: Record<CodeCheck, string> = {
+  empty: '',
+  match: 'The code matches.',
+  mismatch: 'This code does not match. Check the code in your terminal, or deny this request.',
+  limited: 'Too many attempts. Wait a minute and try again.',
+}
 const WARNING = 'rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-800 dark:text-amber-300'
 
 /** Check that a target is an HTTP loopback URL on the stored callback's origin and path, without credentials. */
@@ -73,6 +81,17 @@ function isForbidden(reason: unknown) {
   return (reason as { response?: { status?: number } }).response?.status === 403
 }
 
+/** Return the HTTP status of a failed request, when it has one. */
+function answerStatus(reason: unknown) {
+  return (reason as { response?: { status?: number } }).response?.status
+}
+
+/** Format a typed or pasted request code: upper case, no spaces, at most eight code characters, a hyphen after the fourth. */
+function formatRequestCode(raw: string) {
+  const letters = raw.toUpperCase().replace(/[\s-]/g, '').slice(0, CODE_LETTERS)
+  return letters.length > 4 ? `${letters.slice(0, 4)}-${letters.slice(4)}` : letters
+}
+
 /** Format a UTC timestamp from the API in the browser's locale. */
 function localTime(value: string) {
   return new Date(value).toLocaleString()
@@ -95,17 +114,30 @@ interface PendingRequestProps {
   userName: string | undefined
   userEmail: string | undefined
   busy: boolean
+  typedCode: string
+  codeCheck: CodeCheck
+  onCodeChange: (value: string) => void
   onApprove: () => void
   onDeny: () => void
 }
 
-/** Render the request code, client, account, times, warnings and the Approve and Deny actions. */
-function PendingRequest({ session, userName, userEmail, busy, onApprove, onDeny }: Readonly<PendingRequestProps>) {
+/** Render the request code field, client, account, times, warnings and the Approve and Deny actions. */
+function PendingRequest({ session, userName, userEmail, busy, typedCode, codeCheck, onCodeChange, onApprove, onDeny }: Readonly<PendingRequestProps>) {
   return (
     <div>
-      <p className="text-sm text-muted-foreground">Request code</p>
-      <p className="font-mono text-3xl font-bold tracking-widest">{session.request_code}</p>
-      <p className="text-sm mb-4">It must match the code your client shows. If it does not, deny this request.</p>
+      <label htmlFor="cli-request-code" className="block text-sm text-muted-foreground">Request code</label>
+      <input
+        id="cli-request-code"
+        value={typedCode}
+        onChange={(event) => onCodeChange(event.target.value)}
+        autoComplete="off"
+        spellCheck={false}
+        autoCapitalize="characters"
+        aria-describedby="cli-request-code-help"
+        className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 font-mono text-3xl font-bold tracking-widest"
+      />
+      <p id="cli-request-code-help" className="text-sm mt-1">Type the code your terminal or AI client shows next to the link.</p>
+      <output className={`block text-sm mb-4 ${codeCheck === 'match' ? '' : 'text-destructive'}`}>{CHECK_TEXT[codeCheck]}</output>
       <p className="text-sm text-muted-foreground">Client name, as given by the requesting client (not verified)</p>
       <p className="font-semibold text-lg mb-3 break-all">{session.client_name}</p>
       <p className="mb-3">Approving signs this client in to Bud as {userName} ({userEmail}), with your full permissions.</p>
@@ -117,7 +149,7 @@ function PendingRequest({ session, userName, userEmail, busy, onApprove, onDeny 
         <p className={`${WARNING} mb-3`}>Code sign-in: after you approve, this page shows a one-time code. Anyone who has that code can sign in to Bud as you until it expires.</p>
       )}
       <div className="flex gap-3 mt-5">
-        <button type="button" disabled={busy} onClick={onApprove} className="rounded-lg bg-primary px-4 py-2 text-primary-foreground disabled:opacity-50">{busy ? 'Working...' : 'Approve'}</button>
+        <button type="button" disabled={busy || codeCheck !== 'match'} onClick={onApprove} className="rounded-lg bg-primary px-4 py-2 text-primary-foreground disabled:opacity-50">{busy ? 'Working...' : 'Approve'}</button>
         <DenyButton busy={busy} onDeny={onDeny} />
       </div>
     </div>
@@ -133,6 +165,9 @@ interface ApprovalBodyProps {
   userName: string | undefined
   userEmail: string | undefined
   busy: boolean
+  typedCode: string
+  codeCheck: CodeCheck
+  onCodeChange: (value: string) => void
   copyMessage: string
   onApprove: () => void
   onDeny: () => void
@@ -140,7 +175,7 @@ interface ApprovalBodyProps {
 }
 
 /** Render the error, denial, blocked request, one-time code, callback notice or approval request. */
-function ApprovalBody({ error, blocked, denied, approval, session, userName, userEmail, busy, copyMessage, onApprove, onDeny, onCopy }: Readonly<ApprovalBodyProps>) {
+function ApprovalBody({ error, blocked, denied, approval, session, userName, userEmail, busy, typedCode, codeCheck, onCodeChange, copyMessage, onApprove, onDeny, onCopy }: Readonly<ApprovalBodyProps>) {
   if (error) {
     return (
       <div role="alert" className="rounded-lg bg-destructive/10 p-4 text-destructive">
@@ -179,7 +214,19 @@ function ApprovalBody({ error, blocked, denied, approval, session, userName, use
     return <output className="block">Returning to your client. You can close this page when it connects.</output>
   }
   if (!session) return <p>Loading...</p>
-  return <PendingRequest session={session} userName={userName} userEmail={userEmail} busy={busy} onApprove={onApprove} onDeny={onDeny} />
+  return (
+    <PendingRequest
+      session={session}
+      userName={userName}
+      userEmail={userEmail}
+      busy={busy}
+      typedCode={typedCode}
+      codeCheck={codeCheck}
+      onCodeChange={onCodeChange}
+      onApprove={onApprove}
+      onDeny={onDeny}
+    />
+  )
 }
 
 /** Confirm or deny a client request with the signed-in account's existing Bud permissions. */
@@ -195,6 +242,9 @@ export default function CliAuthApprovePage() {
   const [busy, setBusy] = useState(false)
   const [denied, setDenied] = useState<Denied>(null)
   const [copyMessage, setCopyMessage] = useState('')
+  const [typedCode, setTypedCode] = useState('')
+  const [codeCheck, setCodeCheck] = useState<CodeCheck>('empty')
+  const currentCode = useRef('')
 
   useEffect(() => {
     if (isLoading || !isAuthenticated || !validSession) return
@@ -208,7 +258,7 @@ export default function CliAuthApprovePage() {
       .then(({ data }) => {
         if (!active) return
         if (data.consumed || new Date(data.expires_at).getTime() <= Date.now()) {
-          setError('This authorization session has expired or has already been used.')
+          setError(ENDED)
           return
         }
         setSession(data)
@@ -224,11 +274,47 @@ export default function CliAuthApprovePage() {
     return () => { active = false }
   }, [isAuthenticated, isLoading, sessionId, validSession])
 
+  /** Handle a refused check or approval: 429 asks to wait; 400 reloads the request to tell a wrong code from an ended request. */
+  const codeRefused = async (value: string, reason: unknown) => {
+    const status = answerStatus(reason)
+    if (status === 429) {
+      if (currentCode.current === value) setCodeCheck('limited')
+      return
+    }
+    if (status !== 400) {
+      setError(extractApiErrorMessage(reason, 'Unable to check the request code.'))
+      return
+    }
+    try {
+      await api.get<CliSession>(`/auth/cli/sessions/${sessionId}`)
+      if (currentCode.current === value) setCodeCheck('mismatch')
+    } catch {
+      setError(ENDED)
+    }
+  }
+
+  const changeCode = (raw: string) => {
+    const value = formatRequestCode(raw)
+    if (value === currentCode.current) return
+    currentCode.current = value
+    setTypedCode(value)
+    setCodeCheck('empty')
+    if (value.replace('-', '').length < CODE_LETTERS) return
+    api.post('/auth/cli/check', { session_id: sessionId, request_code: value })
+      .then(() => {
+        if (currentCode.current === value) setCodeCheck('match')
+      })
+      .catch((reason: unknown) => {
+        if (currentCode.current === value) void codeRefused(value, reason)
+      })
+  }
+
   const approve = async () => {
-    if (!session || busy || denied) return
+    if (!session || busy || denied || codeCheck !== 'match') return
+    const value = typedCode
     setBusy(true)
     try {
-      const { data } = await api.post<CliApproval>('/auth/cli/approve', { session_id: sessionId })
+      const { data } = await api.post<CliApproval>('/auth/cli/approve', { session_id: sessionId, request_code: value })
       if (session.mode === 'callback') {
         if (!data.redirect_to || !matchesCallback(data.redirect_to, session.redirect_uri)) {
           throw new Error('The authorization callback is invalid. Start again from your client.')
@@ -240,7 +326,9 @@ export default function CliAuthApprovePage() {
         setApproval(data)
       }
     } catch (reason: unknown) {
-      setError(extractApiErrorMessage(reason, 'Unable to approve this authorization session.'))
+      const status = answerStatus(reason)
+      if (status === 400 || status === 429) await codeRefused(value, reason)
+      else setError(extractApiErrorMessage(reason, 'Unable to approve this authorization session.'))
     } finally {
       setBusy(false)
     }
@@ -294,6 +382,9 @@ export default function CliAuthApprovePage() {
           userName={user?.full_name}
           userEmail={user?.email}
           busy={busy}
+          typedCode={typedCode}
+          codeCheck={codeCheck}
+          onCodeChange={changeCode}
           copyMessage={copyMessage}
           onApprove={() => void approve()}
           onDeny={() => void deny()}

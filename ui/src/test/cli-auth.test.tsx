@@ -26,7 +26,7 @@ const APPROVAL_PATH = `/auth/cli?session_id=${SESSION}`
 const CALLBACK = 'http://127.0.0.1:4567/callback'
 const CODE_MODE_OFF = 'Code sign-in is turned off on this instance. Use callback mode.'
 const originalLocation = window.location
-const codeSession = { session_id: SESSION, client_name: 'Terminal client', mode: 'code', redirect_uri: null, created_at: '2099-01-01T00:00:00Z', expires_at: '2099-01-01T00:10:00Z', consumed: false, request_code: 'BUUZ-WHVV' }
+const codeSession = { session_id: SESSION, client_name: 'Terminal client', mode: 'code', redirect_uri: null, created_at: '2099-01-01T00:00:00Z', expires_at: '2099-01-01T00:10:00Z', consumed: false }
 const callbackSession = { ...codeSession, mode: 'callback', redirect_uri: CALLBACK }
 
 /** Show the current client-side location for redirect assertions. */
@@ -40,6 +40,27 @@ function renderApproval() {
   return render(<MemoryRouter initialEntries={[APPROVAL_PATH]}><App /><Location /></MemoryRouter>)
 }
 
+/** Type the code the client shows and wait for the server to confirm it. */
+async function enterMatchingCode() {
+  fireEvent.change(await screen.findByLabelText('Request code'), { target: { value: 'BUUZ-WHVV' } })
+  expect(await screen.findByText('The code matches.')).toBeTruthy()
+}
+
+/** Answer /auth/cli/check with one result and every other post with another. */
+function answerCheck(check: () => Promise<unknown>, other: () => Promise<unknown> = () => Promise.resolve({ data: {} })) {
+  mocks.post.mockImplementation((url: string) => url === '/auth/cli/check' ? check() : other())
+}
+
+/** The calls made to /auth/cli/check. */
+function checkCalls() {
+  return mocks.post.mock.calls.filter(([url]) => url === '/auth/cli/check')
+}
+
+/** A refused request with an HTTP status and detail. */
+function refused(status: number, detail: string) {
+  return { isAxiosError: true, message: detail, response: { status, data: { detail }, headers: {} } }
+}
+
 beforeEach(() => {
   vi.clearAllMocks()
   mocks.auth = { isLoading: false, isAuthenticated: true, user: { full_name: 'Viewer', email: 'viewer@example.com' } }
@@ -51,12 +72,12 @@ afterEach(() => {
   Object.defineProperty(window, 'location', { configurable: true, writable: true, value: originalLocation })
 })
 
-it('shows the request code, the unverified client name, the account, the times and the warning', async () => {
+it('asks for the request code and shows the unverified client name, the account, the times and the warning', async () => {
   renderApproval()
   expect(await screen.findByText('Terminal client')).toBeTruthy()
-  expect(screen.getByText('BUUZ-WHVV')).toBeTruthy()
+  expect((screen.getByLabelText('Request code') as HTMLInputElement).value).toBe('')
   const text = document.body.textContent ?? ''
-  expect(text).toMatch(/It must match the code your client shows/)
+  expect(text).toMatch(/Type the code your terminal or AI client shows next to the link\./)
   expect(text).toMatch(/as given by the requesting client \(not verified\)/)
   expect(text).toMatch(/to Bud as Viewer \(viewer@example\.com\), with your full permissions/)
   expect(text).toContain(`Requested ${new Date('2099-01-01T00:00:00Z').toLocaleString()}`)
@@ -74,7 +95,7 @@ it('warns before Approve in code mode only', async () => {
   cleanup()
   mocks.get.mockResolvedValue({ data: callbackSession })
   renderApproval()
-  expect(await screen.findByText('BUUZ-WHVV')).toBeTruthy()
+  expect(await screen.findByLabelText('Request code')).toBeTruthy()
   expect(screen.queryByText(/Code sign-in: after you approve/)).toBeNull()
 })
 
@@ -98,9 +119,10 @@ it('shows the one-time code and copies it only on the user action', async () => 
   const copy = vi.fn(async () => undefined)
   Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: copy } })
   renderApproval()
-  fireEvent.click(await screen.findByRole('button', { name: 'Approve' }))
+  await enterMatchingCode()
+  fireEvent.click(screen.getByRole('button', { name: 'Approve' }))
   expect(await screen.findByText('single-use-exchange-code')).toBeTruthy()
-  expect(mocks.post).toHaveBeenCalledWith('/auth/cli/approve', { session_id: SESSION })
+  expect(mocks.post).toHaveBeenCalledWith('/auth/cli/approve', { session_id: SESSION, request_code: 'BUUZ-WHVV' })
   expect(copy).not.toHaveBeenCalled()
   fireEvent.click(screen.getByRole('button', { name: 'Copy code' }))
   await waitFor(() => expect(copy).toHaveBeenCalledWith('single-use-exchange-code'))
@@ -185,9 +207,10 @@ it('shows an expired session error with a new-login instruction', async () => {
 })
 
 it('reports a rejected approval without displaying a code', async () => {
-  mocks.post.mockRejectedValue({ isAxiosError: true, response: { data: { detail: 'Invalid or expired authorization session' } } })
+  answerCheck(() => Promise.resolve({}), () => Promise.reject({ isAxiosError: true, response: { data: { detail: 'Invalid or expired authorization session' } } }))
   renderApproval()
-  fireEvent.click(await screen.findByRole('button', { name: 'Approve' }))
+  await enterMatchingCode()
+  fireEvent.click(screen.getByRole('button', { name: 'Approve' }))
   expect(await screen.findByRole('alert')).toBeTruthy()
   expect(screen.queryByText('single-use-exchange-code')).toBeNull()
 })
@@ -198,7 +221,8 @@ it.each(['4567', '80'])('redirects an approved callback to its validated loopbac
   mocks.get.mockResolvedValue({ data: { ...callbackSession, redirect_uri: `http://127.0.0.1:${port}/callback` } })
   mocks.post.mockResolvedValue({ data: { redirect_to: `http://127.0.0.1:${port}/callback?code=once&state=original` } })
   renderApproval()
-  fireEvent.click(await screen.findByRole('button', { name: 'Approve' }))
+  await enterMatchingCode()
+  fireEvent.click(screen.getByRole('button', { name: 'Approve' }))
   await waitFor(() => expect(assign).toHaveBeenCalledWith(`http://127.0.0.1:${port}/callback?code=once&state=original`))
   expect(screen.queryByText('single-use-exchange-code')).toBeNull()
 })
@@ -209,9 +233,114 @@ it('does not follow an approval response outside the validated loopback target',
   mocks.get.mockResolvedValue({ data: callbackSession })
   mocks.post.mockResolvedValue({ data: { redirect_to: 'https://evil.test/callback?code=once&state=original' } })
   renderApproval()
-  fireEvent.click(await screen.findByRole('button', { name: 'Approve' }))
+  await enterMatchingCode()
+  fireEvent.click(screen.getByRole('button', { name: 'Approve' }))
   expect(await screen.findByRole('alert')).toBeTruthy()
   expect(assign).not.toHaveBeenCalled()
+})
+
+it('renders no request code from the session answer', async () => {
+  mocks.get.mockResolvedValue({ data: { ...codeSession, request_code: 'BUUZ-WHVV' } })
+  renderApproval()
+  expect((await screen.findByLabelText('Request code') as HTMLInputElement).value).toBe('')
+  expect(screen.queryByText('BUUZ-WHVV')).toBeNull()
+})
+
+it('formats a typed code and checks it once at eight characters', async () => {
+  renderApproval()
+  const field = await screen.findByLabelText('Request code') as HTMLInputElement
+  for (const letter of 'buuzwhvv') fireEvent.change(field, { target: { value: `${field.value}${letter}` } })
+  expect(field.value).toBe('BUUZ-WHVV')
+  fireEvent.change(field, { target: { value: 'BUUZ-WHVVX' } })
+  expect(field.value).toBe('BUUZ-WHVV')
+  await screen.findByText('The code matches.')
+  expect(checkCalls()).toEqual([['/auth/cli/check', { session_id: SESSION, request_code: 'BUUZ-WHVV' }]])
+})
+
+it('formats a pasted code with a space and checks it', async () => {
+  renderApproval()
+  const field = await screen.findByLabelText('Request code') as HTMLInputElement
+  fireEvent.change(field, { target: { value: 'buuz whvv' } })
+  expect(field.value).toBe('BUUZ-WHVV')
+  await screen.findByText('The code matches.')
+  expect(checkCalls()).toHaveLength(1)
+})
+
+it('enables Approve only while the checked code matches', async () => {
+  renderApproval()
+  const field = await screen.findByLabelText('Request code')
+  const approveButton = screen.getByRole('button', { name: 'Approve' }) as HTMLButtonElement
+  expect(approveButton.disabled).toBe(true)
+  fireEvent.change(field, { target: { value: 'BUUZ-WHV' } })
+  expect(approveButton.disabled).toBe(true)
+  await enterMatchingCode()
+  expect(approveButton.disabled).toBe(false)
+  fireEvent.change(field, { target: { value: 'BUUZ-WHV' } })
+  expect(approveButton.disabled).toBe(true)
+  expect(screen.queryByText('The code matches.')).toBeNull()
+})
+
+it('shows a mismatch without the server text and keeps Approve disabled while the request is pending', async () => {
+  answerCheck(() => Promise.reject(refused(400, 'Invalid or expired authorization session')))
+  renderApproval()
+  fireEvent.change(await screen.findByLabelText('Request code'), { target: { value: 'AAAA-AAAA' } })
+  expect(await screen.findByText('This code does not match. Check the code in your terminal, or deny this request.')).toBeTruthy()
+  expect(screen.queryByText('Invalid or expired authorization session')).toBeNull()
+  expect((screen.getByRole('button', { name: 'Approve' }) as HTMLButtonElement).disabled).toBe(true)
+  expect(mocks.get).toHaveBeenCalledTimes(2)
+})
+
+it('shows the ended request when a refused check finds the request gone', async () => {
+  answerCheck(() => Promise.reject(refused(400, 'Invalid or expired authorization session')))
+  renderApproval()
+  const field = await screen.findByLabelText('Request code')
+  mocks.get.mockRejectedValue(refused(400, 'Invalid or expired authorization session'))
+  fireEvent.change(field, { target: { value: 'AAAA-AAAA' } })
+  expect((await screen.findByRole('alert')).textContent).toMatch(/expired or has already been used/)
+  expect(screen.queryByRole('button', { name: 'Approve' })).toBeNull()
+})
+
+it.each(['/auth/cli/check', '/auth/cli/approve'])('asks to wait after a 429 on %s', async (limited) => {
+  mocks.post.mockImplementation((url: string) => url === limited ? Promise.reject(refused(429, 'Rate limit exceeded')) : Promise.resolve({}))
+  renderApproval()
+  fireEvent.change(await screen.findByLabelText('Request code'), { target: { value: 'BUUZ-WHVV' } })
+  if (limited === '/auth/cli/approve') {
+    await screen.findByText('The code matches.')
+    fireEvent.click(screen.getByRole('button', { name: 'Approve' }))
+  }
+  expect(await screen.findByText('Too many attempts. Wait a minute and try again.')).toBeTruthy()
+  expect((screen.getByRole('button', { name: 'Approve' }) as HTMLButtonElement).disabled).toBe(true)
+})
+
+it('shows a mismatch when approval answers 400 for a request that is still pending', async () => {
+  answerCheck(() => Promise.resolve({}), () => Promise.reject(refused(400, 'Invalid or expired authorization session')))
+  renderApproval()
+  await enterMatchingCode()
+  fireEvent.click(screen.getByRole('button', { name: 'Approve' }))
+  expect(await screen.findByText('This code does not match. Check the code in your terminal, or deny this request.')).toBeTruthy()
+  expect(screen.queryByRole('alert')).toBeNull()
+})
+
+it('ignores a check answer for a code that was edited since', async () => {
+  let answer: (value: unknown) => void = () => {}
+  answerCheck(() => new Promise((resolve) => { answer = resolve }))
+  renderApproval()
+  const field = await screen.findByLabelText('Request code')
+  fireEvent.change(field, { target: { value: 'BUUZ-WHVV' } })
+  fireEvent.change(field, { target: { value: 'BUUZ-WHV' } })
+  answer({})
+  await waitFor(() => expect(checkCalls()).toHaveLength(1))
+  expect(screen.queryByText('The code matches.')).toBeNull()
+  expect((screen.getByRole('button', { name: 'Approve' }) as HTMLButtonElement).disabled).toBe(true)
+})
+
+it('denies with an empty code field', async () => {
+  mocks.post.mockResolvedValue({ data: {} })
+  renderApproval()
+  expect((await screen.findByLabelText('Request code') as HTMLInputElement).value).toBe('')
+  fireEvent.click(screen.getByRole('button', { name: 'Deny' }))
+  expect(await screen.findByText(/This link no longer works/)).toBeTruthy()
+  expect(mocks.post).toHaveBeenCalledWith('/auth/cli/deny', { session_id: SESSION })
 })
 
 it.each([`/auth/cli?session_id=${SESSION}`, 'https://evil.test', '//evil.test', '/settings', '/auth/cli?session_id=invalid', `/auth/cli?session_id=${SESSION}&redirect=https://evil.test`])('only returns login to a validated approval path: %s', async (next) => {
