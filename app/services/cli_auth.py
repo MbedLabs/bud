@@ -41,9 +41,11 @@ EXPIRED_OR_CONSUMED = "expired_or_consumed"
 INVALID_REFRESH_TOKEN = "invalid_token"
 INACTIVE_OR_MISSING_USER = "inactive_or_missing_user"
 CODE_MODE_DISABLED = "code_mode_disabled"
+CODE_MISMATCH = "request_code_mismatch"
 
 CODE_MODE_OFF = "Code sign-in is turned off on this instance. Use callback mode."
 REQUEST_CODE_BYTES = 5
+REQUEST_CODE_LETTERS = frozenset("ABCDEFGHIJKLMNOPQRSTUVWXYZ234567")
 
 
 class CodeModeDisabledError(TokenValidationError):
@@ -76,6 +78,18 @@ def request_code(code_challenge: str) -> str:
     digest = hashlib.sha256(code_challenge.encode("ascii")).digest()[:REQUEST_CODE_BYTES]
     code = base64.b32encode(digest).decode("ascii")
     return f"{code[:4]}-{code[4:]}"
+
+
+def typed_code_matches(typed: str, code_challenge: str) -> bool:
+    """Return whether a typed request code, in any case and with spaces or hyphens, matches.
+
+    A value that is not exactly eight characters from A-Z and 2-7 never matches.
+    """
+    letters = typed.upper().replace(" ", "").replace("-", "")
+    expected = request_code(code_challenge).replace("-", "")
+    if len(letters) != len(expected) or not set(letters) <= REQUEST_CODE_LETTERS:
+        return False
+    return hmac.compare_digest(letters, expected)
 
 
 def pending_conditions(session_id: UUID) -> tuple:
@@ -120,11 +134,25 @@ async def pending_session(db: AsyncSession, session_id: UUID) -> CliAuthSession:
     return session
 
 
+async def check_request_code(db: AsyncSession, session_id: UUID, typed: str) -> CliAuthSession:
+    """Return the pending request when the typed request code matches; nothing is written.
+
+    A mismatch raises request_code_mismatch; the request stays pending.
+    """
+    session = await pending_session(db, session_id)
+    if not typed_code_matches(typed, session.code_challenge):
+        raise TokenValidationError(CODE_MISMATCH)
+    return session
+
+
 async def approve_session(
-    db: AsyncSession, session_id: UUID, user: User
+    db: AsyncSession, session_id: UUID, user: User, typed: str
 ) -> tuple[CliAuthSession, str]:
-    """Bind a pending request in an allowed mode to the active user's session version once."""
-    await ensure_mode_enabled(db, session_id)
+    """Bind a pending request in an allowed mode to the active user's session version once.
+
+    The typed request code is checked first.
+    """
+    await check_request_code(db, session_id, typed)
     version = user.session_version
     current = await db.get(
         User, user.id, populate_existing=True, with_for_update={"key_share": True}

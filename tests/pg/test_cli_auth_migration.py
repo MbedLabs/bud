@@ -22,6 +22,20 @@ CHALLENGE = (
 )
 
 
+def code_for(challenge):
+    """Return the XXXX-XXXX request code of a challenge, computed independently of the app."""
+    letters = base64.b32encode(hashlib.sha256(challenge.encode()).digest()[:5]).decode()
+    return f"{letters[:4]}-{letters[4:]}"
+
+
+REQUEST_CODE = code_for(CHALLENGE)
+
+
+def approve_body(session_id, request_code=REQUEST_CODE):
+    """Return an approve body carrying the request code the client shows."""
+    return {"session_id": session_id, "request_code": request_code}
+
+
 def _alembic(*arguments, database_url):
     """Run the repository's migration commands on an isolated schema."""
     environment = os.environ | {
@@ -228,9 +242,7 @@ def test_cli_approval_exchange_and_refresh_each_have_one_winner(client, monkeypa
     assert start.status_code == 200, start.text
     session_id = start.json()["session_id"]
     approvals = _race(
-        lambda: client.post(
-            "/api/auth/cli/approve", json={"session_id": session_id}, headers=headers
-        )
+        lambda: client.post("/api/auth/cli/approve", json=approve_body(session_id), headers=headers)
     )
     assert sorted(response.status_code for response in approvals) == [200, 400]
     code = next(
@@ -273,7 +285,9 @@ def test_cli_approve_and_deny_of_one_request_have_one_winner(client):
     session_id = _start_callback(client)
     body = {"session_id": session_id}
     outcomes = _race(
-        lambda: client.post("/api/auth/cli/approve", json=body, headers=headers),
+        lambda: client.post(
+            "/api/auth/cli/approve", json=approve_body(session_id), headers=headers
+        ),
         lambda: client.post("/api/auth/cli/deny", json=body, headers=headers),
     )
     assert sorted(response.status_code for response in outcomes) == [200, 400]
@@ -352,7 +366,7 @@ async def test_cli_user_lock_allows_browser_refresh_foreign_key_checks(
     async with cli_pg_sessions() as browser, cli_pg_sessions() as cli:
         await claim_token(browser, token=token, purpose=UserTokenPurpose.refresh)
         user = await cli.get(User, user_id)
-        await approve_session(cli, session_id, user)
+        await approve_session(cli, session_id, user, REQUEST_CODE)
 
         async def browser_refresh():
             """Finish ordinary browser rotation while the CLI holds its user lock."""
