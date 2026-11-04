@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
+import type { KeyboardEvent } from 'react'
 import { Navigate, useSearchParams } from 'react-router'
 import { api, extractApiErrorMessage } from '../api/client'
 import { useAuth } from '../contexts/AuthContext'
@@ -31,6 +32,8 @@ const LOOPBACK_PREFIX = /^http:\/\/(?:127\.0\.0\.1|localhost|\[::1\]):\d+(?:[/?]
 const CODE_MODE_OFF = 'Code sign-in is turned off on this instance. Use callback mode.'
 const ENDED = 'This authorization session has expired or has already been used.'
 const CODE_LETTERS = 8
+const CODE_BOXES = Array.from({ length: CODE_LETTERS }, (_, index) => index)
+const EMPTY_CODE: readonly string[] = CODE_BOXES.map(() => '')
 const CHECK_TEXT: Record<CodeCheck, string> = {
   empty: '',
   match: 'The code matches.',
@@ -86,10 +89,111 @@ function answerStatus(reason: unknown) {
   return (reason as { response?: { status?: number } }).response?.status
 }
 
-/** Format a typed or pasted request code: upper case, no spaces, at most eight code characters, a hyphen after the fourth. */
-function formatRequestCode(raw: string) {
-  const letters = raw.toUpperCase().replace(/[\s-]/g, '').slice(0, CODE_LETTERS)
-  return letters.length > 4 ? `${letters.slice(0, 4)}-${letters.slice(4)}` : letters
+/** Keep only the letters and digits of typed or pasted text, in upper case. */
+function codeCharacters(raw: string) {
+  return raw.toUpperCase().replace(/[^A-Z0-9]/g, '')
+}
+
+/** Return the boxes as one key that tells every partly filled code apart. */
+function codeKey(chars: readonly string[]) {
+  return chars.map((char) => char || ' ').join('')
+}
+
+/** Return the request code the server checks, with a hyphen after the fourth character, or null while a box is empty. */
+function requestCode(chars: readonly string[]) {
+  if (chars.some((char) => char === '')) return null
+  return `${chars.slice(0, 4).join('')}-${chars.slice(4).join('')}`
+}
+
+/** Return the boxes with one box set to a character, or cleared with an empty string. */
+function withBox(chars: readonly string[], index: number, char: string) {
+  return chars.map((current, position) => position === index ? char : current)
+}
+
+/** Return the character typed into a box, an empty string for a cleared box, the full text when several characters arrived at once, or null to ignore the input. */
+function typedInto(previous: string, raw: string) {
+  if (raw === '') return ''
+  const typed = codeCharacters(raw)
+  if (typed === '' || (typed === previous && raw.length > 1)) return null
+  if (typed.length === 2 && previous && typed.includes(previous)) return typed.replace(previous, '')
+  return typed
+}
+
+interface RequestCodeBoxesProps {
+  chars: readonly string[]
+  onChange: (chars: string[]) => void
+}
+
+/** Render one box per request code character with a hyphen after the fourth; typing moves on, Backspace and the arrow keys move back and forth, and paste fills every box from the first. */
+function RequestCodeBoxes({ chars, onChange }: Readonly<RequestCodeBoxesProps>) {
+  const boxes = useRef<(HTMLInputElement | null)[]>([])
+
+  const focusBox = (index: number) => {
+    const box = boxes.current[Math.min(Math.max(index, 0), CODE_LETTERS - 1)]
+    box?.focus()
+    box?.select()
+  }
+
+  const fillFromFirst = (text: string) => {
+    const pasted = codeCharacters(text).slice(0, CODE_LETTERS)
+    if (pasted === '') return
+    onChange(CODE_BOXES.map((index) => pasted[index] ?? ''))
+    focusBox(pasted.length)
+  }
+
+  const changeBox = (index: number, raw: string) => {
+    const typed = typedInto(chars[index], raw)
+    if (typed === null) return
+    if (typed.length > 1) {
+      fillFromFirst(typed)
+      return
+    }
+    onChange(withBox(chars, index, typed))
+    if (typed !== '') focusBox(index + 1)
+  }
+
+  const keyDown = (index: number, event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Backspace') {
+      event.preventDefault()
+      if (chars[index] !== '') onChange(withBox(chars, index, ''))
+      else if (index > 0) {
+        onChange(withBox(chars, index - 1, ''))
+        focusBox(index - 1)
+      }
+    } else if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+      event.preventDefault()
+      focusBox(event.key === 'ArrowLeft' ? index - 1 : index + 1)
+    }
+  }
+
+  return (
+    <fieldset aria-describedby="cli-request-code-help" className="min-w-0">
+      <legend className="block text-sm text-muted-foreground">Request code</legend>
+      <div className="mt-1 flex items-center gap-1.5 sm:gap-2">
+        {CODE_BOXES.map((index) => (
+          <Fragment key={index}>
+            {index === CODE_LETTERS / 2 && <span aria-hidden="true" className="shrink-0 font-mono text-2xl font-bold">-</span>}
+            <input
+              ref={(element) => { boxes.current[index] = element }}
+              value={chars[index]}
+              onChange={(event) => changeBox(index, event.target.value)}
+              onKeyDown={(event) => keyDown(index, event)}
+              onPaste={(event) => {
+                event.preventDefault()
+                fillFromFirst(event.clipboardData.getData('text'))
+              }}
+              onFocus={(event) => event.target.select()}
+              aria-label={`Request code character ${index + 1} of ${CODE_LETTERS}`}
+              autoComplete="off"
+              spellCheck={false}
+              autoCapitalize="characters"
+              className="h-12 w-0 min-w-0 flex-1 rounded-lg border border-border bg-background text-center font-mono text-xl font-bold uppercase sm:text-2xl focus:border-ring focus:ring-2 focus:ring-ring"
+            />
+          </Fragment>
+        ))}
+      </div>
+    </fieldset>
+  )
 }
 
 /** Format a UTC timestamp from the API in the browser's locale. */
@@ -114,28 +218,18 @@ interface PendingRequestProps {
   userName: string | undefined
   userEmail: string | undefined
   busy: boolean
-  typedCode: string
+  codeChars: readonly string[]
   codeCheck: CodeCheck
-  onCodeChange: (value: string) => void
+  onCodeChange: (chars: string[]) => void
   onApprove: () => void
   onDeny: () => void
 }
 
-/** Render the request code field, client, account, times, warnings and the Approve and Deny actions. */
-function PendingRequest({ session, userName, userEmail, busy, typedCode, codeCheck, onCodeChange, onApprove, onDeny }: Readonly<PendingRequestProps>) {
+/** Render the request code boxes, client, account, times, warnings and the Approve and Deny actions. */
+function PendingRequest({ session, userName, userEmail, busy, codeChars, codeCheck, onCodeChange, onApprove, onDeny }: Readonly<PendingRequestProps>) {
   return (
     <div>
-      <label htmlFor="cli-request-code" className="block text-sm text-muted-foreground">Request code</label>
-      <input
-        id="cli-request-code"
-        value={typedCode}
-        onChange={(event) => onCodeChange(event.target.value)}
-        autoComplete="off"
-        spellCheck={false}
-        autoCapitalize="characters"
-        aria-describedby="cli-request-code-help"
-        className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 font-mono text-3xl font-bold tracking-widest"
-      />
+      <RequestCodeBoxes chars={codeChars} onChange={onCodeChange} />
       <p id="cli-request-code-help" className="text-sm mt-1">Type the code your terminal or AI client shows next to the link.</p>
       <output className={`block text-sm mb-4 ${codeCheck === 'match' ? '' : 'text-destructive'}`}>{CHECK_TEXT[codeCheck]}</output>
       <p className="text-sm text-muted-foreground">Client name, as given by the requesting client (not verified)</p>
@@ -165,9 +259,9 @@ interface ApprovalBodyProps {
   userName: string | undefined
   userEmail: string | undefined
   busy: boolean
-  typedCode: string
+  codeChars: readonly string[]
   codeCheck: CodeCheck
-  onCodeChange: (value: string) => void
+  onCodeChange: (chars: string[]) => void
   copyMessage: string
   onApprove: () => void
   onDeny: () => void
@@ -175,7 +269,7 @@ interface ApprovalBodyProps {
 }
 
 /** Render the error, denial, blocked request, one-time code, callback notice or approval request. */
-function ApprovalBody({ error, blocked, denied, approval, session, userName, userEmail, busy, typedCode, codeCheck, onCodeChange, copyMessage, onApprove, onDeny, onCopy }: Readonly<ApprovalBodyProps>) {
+function ApprovalBody({ error, blocked, denied, approval, session, userName, userEmail, busy, codeChars, codeCheck, onCodeChange, copyMessage, onApprove, onDeny, onCopy }: Readonly<ApprovalBodyProps>) {
   if (error) {
     return (
       <div role="alert" className="rounded-lg bg-destructive/10 p-4 text-destructive">
@@ -220,7 +314,7 @@ function ApprovalBody({ error, blocked, denied, approval, session, userName, use
       userName={userName}
       userEmail={userEmail}
       busy={busy}
-      typedCode={typedCode}
+      codeChars={codeChars}
       codeCheck={codeCheck}
       onCodeChange={onCodeChange}
       onApprove={onApprove}
@@ -242,9 +336,9 @@ export default function CliAuthApprovePage() {
   const [busy, setBusy] = useState(false)
   const [denied, setDenied] = useState<Denied>(null)
   const [copyMessage, setCopyMessage] = useState('')
-  const [typedCode, setTypedCode] = useState('')
+  const [codeChars, setCodeChars] = useState<readonly string[]>(EMPTY_CODE)
   const [codeCheck, setCodeCheck] = useState<CodeCheck>('empty')
-  const currentCode = useRef('')
+  const currentCode = useRef(codeKey(EMPTY_CODE))
 
   useEffect(() => {
     if (isLoading || !isAuthenticated || !validSession) return
@@ -275,10 +369,10 @@ export default function CliAuthApprovePage() {
   }, [isAuthenticated, isLoading, sessionId, validSession])
 
   /** Handle a refused check or approval: 429 asks to wait; 400 reloads the request to tell a wrong code from an ended request. */
-  const codeRefused = async (value: string, reason: unknown) => {
+  const codeRefused = async (key: string, reason: unknown) => {
     const status = answerStatus(reason)
     if (status === 429) {
-      if (currentCode.current === value) setCodeCheck('limited')
+      if (currentCode.current === key) setCodeCheck('limited')
       return
     }
     if (status !== 400) {
@@ -287,31 +381,33 @@ export default function CliAuthApprovePage() {
     }
     try {
       await api.get<CliSession>(`/auth/cli/sessions/${sessionId}`)
-      if (currentCode.current === value) setCodeCheck('mismatch')
+      if (currentCode.current === key) setCodeCheck('mismatch')
     } catch {
       setError(ENDED)
     }
   }
 
-  const changeCode = (raw: string) => {
-    const value = formatRequestCode(raw)
-    if (value === currentCode.current) return
-    currentCode.current = value
-    setTypedCode(value)
+  const changeCode = (chars: string[]) => {
+    const key = codeKey(chars)
+    if (key === currentCode.current) return
+    currentCode.current = key
+    setCodeChars(chars)
     setCodeCheck('empty')
-    if (value.replace('-', '').length < CODE_LETTERS) return
+    const value = requestCode(chars)
+    if (value === null) return
     api.post('/auth/cli/check', { session_id: sessionId, request_code: value })
       .then(() => {
-        if (currentCode.current === value) setCodeCheck('match')
+        if (currentCode.current === key) setCodeCheck('match')
       })
       .catch((reason: unknown) => {
-        if (currentCode.current === value) void codeRefused(value, reason)
+        if (currentCode.current === key) void codeRefused(key, reason)
       })
   }
 
   const approve = async () => {
-    if (!session || busy || denied || codeCheck !== 'match') return
-    const value = typedCode
+    const value = requestCode(codeChars)
+    if (!session || busy || denied || codeCheck !== 'match' || value === null) return
+    const key = codeKey(codeChars)
     setBusy(true)
     try {
       const { data } = await api.post<CliApproval>('/auth/cli/approve', { session_id: sessionId, request_code: value })
@@ -327,7 +423,7 @@ export default function CliAuthApprovePage() {
       }
     } catch (reason: unknown) {
       const status = answerStatus(reason)
-      if (status === 400 || status === 429) await codeRefused(value, reason)
+      if (status === 400 || status === 429) await codeRefused(key, reason)
       else setError(extractApiErrorMessage(reason, 'Unable to approve this authorization session.'))
     } finally {
       setBusy(false)
@@ -382,7 +478,7 @@ export default function CliAuthApprovePage() {
           userName={user?.full_name}
           userEmail={user?.email}
           busy={busy}
-          typedCode={typedCode}
+          codeChars={codeChars}
           codeCheck={codeCheck}
           onCodeChange={changeCode}
           copyMessage={copyMessage}
