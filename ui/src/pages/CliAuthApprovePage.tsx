@@ -101,7 +101,7 @@ function codeKey(chars: readonly string[]) {
 
 /** Return the request code the server checks, with a hyphen after the fourth character, or null while a box is empty. */
 function requestCode(chars: readonly string[]) {
-  if (chars.some((char) => char === '')) return null
+  if (chars.includes('')) return null
   return `${chars.slice(0, 4).join('')}-${chars.slice(4).join('')}`
 }
 
