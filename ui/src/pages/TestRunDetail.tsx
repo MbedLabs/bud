@@ -733,6 +733,7 @@ interface TestCaseGroup {
 }
 
 interface MethodError {
+  resultId: number
   methodName: string
   message: string
 }
@@ -769,13 +770,14 @@ function groupResultsByTestCase(results: TestResult[]): TestCaseGroup[] {
     group.methodCount = group.methodNames.size
     if (!result.passed) group.failedMethods += 1
     if (result.passed === false && result.error_message) {
-      group.methodErrors.push({ methodName: result.test_method, message: result.error_message })
+      group.methodErrors.push({ resultId: result.id, methodName: result.test_method, message: result.error_message })
     }
 
-    assertions.forEach((assertion) => {
+    assertions.forEach((assertion, position) => {
       const passed = assertion.passed !== false
       group.assertions.push({
         ...assertion,
+        key: `${result.id}-${position}`,
         methodName: result.test_method,
         durationSeconds: result.duration_seconds,
         methodErrorMessage: result.error_message,
@@ -809,6 +811,7 @@ function inferAssertionType(assertion: AssertionShape): string {
 }
 
 interface AssertionViewModel extends AssertionShape {
+  key: string
   methodName: string
   durationSeconds: number
   methodErrorMessage: string | null
@@ -820,8 +823,8 @@ function ResultDetail({ assertions, methodErrors }: Readonly<{
 }>) {
   return (
     <div className="space-y-2 pl-10">
-      {methodErrors.map((error, i) => (
-        <div key={`error-${i}`} className="border-l-2 border-red-500/70 bg-red-500/3 py-2 pl-3 pr-2 text-xs">
+      {methodErrors.map((error) => (
+        <div key={error.resultId} className="border-l-2 border-red-500/70 bg-red-500/3 py-2 pl-3 pr-2 text-xs">
           <div className="flex items-start gap-2">
             <XCircle className="h-3.5 w-3.5 text-red-500 mt-0.5 shrink-0" />
             <div className="flex-1 min-w-0">
@@ -835,7 +838,7 @@ function ResultDetail({ assertions, methodErrors }: Readonly<{
           </div>
         </div>
       ))}
-      {assertions.map((a, i) => <AssertionRow key={i} assertion={a} index={i + 1} />)}
+      {assertions.map((a, i) => <AssertionRow key={a.key} assertion={a} index={i + 1} />)}
       {assertions.length === 0 && methodErrors.length === 0 && (
         <div className="py-3 text-xs text-muted-foreground">No assertions were reported for this test case.</div>
       )}
