@@ -20,7 +20,10 @@ import {
   EMPTY_OUTCOME_FILTERS,
   filterAssertionsForDisplay,
   hasActiveOutcomeFilters,
+  isFailedTestCase,
+  selectedSummaryOutcome,
   shouldShowTestCase,
+  SUMMARY_OUTCOME_FILTERS,
   toggleOutcomeFilter,
   type OutcomeFilters,
 } from '../lib/testRunResultFilters'
@@ -88,6 +91,7 @@ export default function TestRunDetail() {
   const assertionSummary = summarizeAssertions(results || [])
   const testSummary = summarizeTestCases(run, results || [])
   const stepCount = `${events?.length || 0} reported step${events?.length === 1 ? '' : 's'}`
+  const selectedOutcome = selectedSummaryOutcome(outcomeFilters)
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -120,6 +124,8 @@ export default function TestRunDetail() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <SummaryCard
           label="Total"
+          selected={selectedOutcome === 'total'}
+          onSelect={() => setOutcomeFilters(SUMMARY_OUTCOME_FILTERS.total)}
           tests={testSummary.total}
           assertions={assertionSummary.total}
           icon={Activity}
@@ -128,6 +134,8 @@ export default function TestRunDetail() {
         />
         <SummaryCard
           label="Passed"
+          selected={selectedOutcome === 'passed'}
+          onSelect={() => setOutcomeFilters(SUMMARY_OUTCOME_FILTERS.passed)}
           tests={testSummary.passed}
           assertions={assertionSummary.passed}
           icon={CheckCircle}
@@ -136,6 +144,8 @@ export default function TestRunDetail() {
         />
         <SummaryCard
           label="Failed"
+          selected={selectedOutcome === 'failed'}
+          onSelect={() => setOutcomeFilters(SUMMARY_OUTCOME_FILTERS.failed)}
           tests={testSummary.failed}
           assertions={assertionSummary.failed}
           icon={XCircle}
@@ -630,7 +640,10 @@ function ResultsTable({
   const [expandedCases, setExpandedCases] = useState<Record<string, boolean>>({})
   const testCases = useMemo(() => groupResultsByTestCase(results), [results])
   const visibleTestCases = useMemo(
-    () => testCases.filter((testCase) => shouldShowTestCase(testCase.failedAssertions, outcomeFilters)),
+    () =>
+      testCases.filter((testCase) =>
+        shouldShowTestCase(testCase.failedAssertions, outcomeFilters, testCase.failedMethods),
+      ),
     [testCases, outcomeFilters],
   )
 
@@ -653,6 +666,7 @@ function ResultsTable({
           testCase.failedAssertions,
           outcomeFilters,
         )
+        const isFailed = isFailedTestCase(testCase.failedAssertions, testCase.failedMethods)
         const isOpen = expandedCases[testCase.key] ?? false
         return (
           <section key={testCase.key}>
@@ -666,24 +680,26 @@ function ResultsTable({
                   <span className="mt-0.5 text-muted-foreground">
                     {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                   </span>
-                  <ResultIcon status={testCase.failedAssertions > 0 ? 'failed' : 'passed'} />
+                  <ResultIcon status={isFailed ? 'failed' : 'passed'} />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-semibold text-foreground">
                       {testCase.name}
                     </span>
                     <span className="mt-0.5 flex min-w-0 flex-wrap gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
-                      {testCase.tcId && <span className={`font-medium ${testCase.failedAssertions > 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}`}>{testCase.tcId}</span>}
+                      {testCase.tcId && <span className={`font-medium ${isFailed ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}`}>{testCase.tcId}</span>}
                       {testCase.sourceFile && <span className="truncate">{testCase.sourceFile}</span>}
                       <span>{testCase.assertionCount} check{testCase.assertionCount === 1 ? '' : 's'}</span>
                     </span>
                   </span>
                 </div>
                 <span className="shrink-0 text-right text-xs">
-                  <span className={testCase.failedAssertions > 0 ? 'block text-red-600 dark:text-red-400' : 'block text-emerald-600 dark:text-emerald-400'}>
+                  <span className={isFailed ? 'block text-red-600 dark:text-red-400' : 'block text-emerald-600 dark:text-emerald-400'}>
                     {testCase.passedAssertions} / {testCase.assertionCount} passed
                   </span>
-                  {testCase.failedAssertions > 0 && (
-                    <span className="block text-red-600 dark:text-red-400">{testCase.failedAssertions} failed</span>
+                  {isFailed && (
+                    <span className="block text-red-600 dark:text-red-400">
+                      {testCase.failedAssertions > 0 ? `${testCase.failedAssertions} failed` : 'failed'}
+                    </span>
                   )}
                 </span>
               </div>
@@ -691,7 +707,7 @@ function ResultsTable({
 
             {isOpen && (
               <div className="border-t border-border bg-muted/10 px-5 py-2">
-                <ResultDetail assertions={visibleAssertions} />
+                <ResultDetail assertions={visibleAssertions} methodErrors={testCase.methodErrors} />
               </div>
             )}
           </section>
@@ -713,6 +729,12 @@ interface TestCaseGroup {
   passedAssertions: number
   failedAssertions: number
   failedMethods: number
+  methodErrors: MethodError[]
+}
+
+interface MethodError {
+  methodName: string
+  message: string
 }
 
 function groupResultsByTestCase(results: TestResult[]): TestCaseGroup[] {
@@ -735,6 +757,7 @@ function groupResultsByTestCase(results: TestResult[]): TestCaseGroup[] {
         methodCount: 0,
         assertions: [],
         failedMethods: 0,
+        methodErrors: [],
         assertionCount: 0,
         passedAssertions: 0,
         failedAssertions: 0,
@@ -745,6 +768,9 @@ function groupResultsByTestCase(results: TestResult[]): TestCaseGroup[] {
     group.methodNames.add(result.test_method)
     group.methodCount = group.methodNames.size
     if (!result.passed) group.failedMethods += 1
+    if (result.passed === false && result.error_message) {
+      group.methodErrors.push({ methodName: result.test_method, message: result.error_message })
+    }
 
     assertions.forEach((assertion) => {
       const passed = assertion.passed !== false
@@ -788,12 +814,29 @@ interface AssertionViewModel extends AssertionShape {
   methodErrorMessage: string | null
 }
 
-function ResultDetail({ assertions }: Readonly<{ assertions: AssertionViewModel[] }>) {
+function ResultDetail({ assertions, methodErrors }: Readonly<{
+  assertions: AssertionViewModel[]
+  methodErrors: MethodError[]
+}>) {
   return (
     <div className="space-y-2 pl-10">
-      {assertions.length > 0 ? (
-        assertions.map((a, i) => <AssertionRow key={i} assertion={a} index={i + 1} />)
-      ) : (
+      {methodErrors.map((error, i) => (
+        <div key={`error-${i}`} className="border-l-2 border-red-500/70 bg-red-500/3 py-2 pl-3 pr-2 text-xs">
+          <div className="flex items-start gap-2">
+            <XCircle className="h-3.5 w-3.5 text-red-500 mt-0.5 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <span className="block truncate text-[11px] font-semibold text-red-700 dark:text-red-400">
+                {error.methodName}
+              </span>
+              <pre className="mt-1 text-[11px] leading-relaxed text-foreground whitespace-pre-wrap wrap-break-word">
+                {error.message}
+              </pre>
+            </div>
+          </div>
+        </div>
+      ))}
+      {assertions.map((a, i) => <AssertionRow key={i} assertion={a} index={i + 1} />)}
+      {assertions.length === 0 && methodErrors.length === 0 && (
         <div className="py-3 text-xs text-muted-foreground">No assertions were reported for this test case.</div>
       )}
     </div>
@@ -888,17 +931,26 @@ function DetailItem({ label, value }: Readonly<{ label: string; value: string }>
 }
 
 /** Reports the test-case count and the assertion count side by side, because a run
- *  summarised by only one of the two is ambiguous. */
-function SummaryCard({ label, tests, assertions, icon: Icon, gradient, iconColor }: Readonly<{
+ *  summarised by only one of the two is ambiguous. Pressing it sets the outcome filters of the results list. */
+function SummaryCard({ label, tests, assertions, icon: Icon, gradient, iconColor, selected, onSelect }: Readonly<{
   label: string
   tests: number
   assertions: number
   icon: React.ComponentType<{ className?: string }>
   gradient: string
   iconColor: string
+  selected: boolean
+  onSelect: () => void
 }>) {
   return (
-    <div className="bg-card rounded-lg border border-border shadow-elegant p-4">
+    <button
+      type="button"
+      onClick={onSelect}
+      aria-pressed={selected}
+      className={`w-full rounded-lg border p-4 text-left shadow-elegant transition-colors ${
+        selected ? 'border-primary bg-primary/10' : 'border-border bg-card hover:bg-accent/40'
+      }`}
+    >
       <div className="flex items-center justify-between">
         <div className="min-w-0">
           <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">{label}</p>
@@ -919,7 +971,7 @@ function SummaryCard({ label, tests, assertions, icon: Icon, gradient, iconColor
           <Icon className={`h-5 w-5 ${iconColor}`} />
         </div>
       </div>
-    </div>
+    </button>
   )
 }
 
