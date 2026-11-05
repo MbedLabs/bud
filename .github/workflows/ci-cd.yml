@@ -157,6 +157,17 @@ jobs:
         run: |
           pytest tests/pg -q
 
+      - name: Build the UI and Chromium
+        run: |
+          npm --prefix ui run build
+          python -m playwright install --with-deps chromium
+
+      - name: BudTestCase suite ui_cli_auth
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          python -c "from tests.budtests.ui_cli_auth import UiCliAuth; raise SystemExit(0 if UiCliAuth().run() else 1)"
+
       - name: Run UI checks
         run: |
           npm --prefix ui run lint
