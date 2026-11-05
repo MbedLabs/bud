@@ -4,7 +4,7 @@
 class UiCliAuth:
     """Values of the ui_cli_auth suite."""
 
-    SESSION_ID = "s1"
+    SESSION_ID = "0f8e6c1a-2b3d-4e5f-8a9b-0c1d2e3f4a5b"
     BOXES = 8
     BOX_ORDER = ["box"] * 4 + ["-"] + ["box"] * 4
     USER = {
