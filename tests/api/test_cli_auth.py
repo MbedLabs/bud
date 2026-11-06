@@ -31,6 +31,20 @@ CODE_MODE_OFF = "Code sign-in is turned off on this instance. Use callback mode.
 INVALID_AUTHORIZATION = "Invalid or expired authorization session"
 
 
+def code_for(challenge):
+    """Return the XXXX-XXXX request code of a challenge, computed independently of the app."""
+    letters = base64.b32encode(hashlib.sha256(challenge.encode()).digest()[:5]).decode()
+    return f"{letters[:4]}-{letters[4:]}"
+
+
+REQUEST_CODE = code_for(CHALLENGE)
+
+
+def approve_body(session_id, request_code=REQUEST_CODE):
+    """Return an approve body carrying the request code the client shows."""
+    return {"session_id": session_id, "request_code": request_code}
+
+
 @pytest.fixture(autouse=True)
 def reset_limits(fresh_auth_rate_limits):
     """Give each authorization test an independent rate-limit window."""
@@ -96,7 +110,7 @@ def start(client, mode="code", **overrides):
 def approve(client, user, pending):
     """Approve a pending client using normal user authentication."""
     response = client.post(
-        "/api/auth/cli/approve", json={"session_id": pending["session_id"]}, headers=bearer(user)
+        "/api/auth/cli/approve", json=approve_body(pending["session_id"]), headers=bearer(user)
     )
     assert response.status_code == 200, response.text
     return response.json()
@@ -147,7 +161,6 @@ async def test_cli_authorization_issues_the_approving_user_and_one_audit_event(
         "expires_at",
         "consumed",
         "created_at",
-        "request_code",
     }
     approved = approve(client, cli_user, pending)
     if mode == "callback":
@@ -447,7 +460,7 @@ def test_request_code_matches_the_shared_rfc7636_vector():
 
 
 @pytest.mark.parametrize("mode", ["callback", "code"])
-def test_session_shows_the_request_time_and_the_request_code_of_its_challenge(
+def test_session_shows_the_request_time_without_the_request_code(
     unauthenticated_client, cli_user, mode
 ):
     client = unauthenticated_client
@@ -456,7 +469,7 @@ def test_session_shows_the_request_time_and_the_request_code_of_its_challenge(
     metadata = client.get(
         f"/api/auth/cli/sessions/{pending['session_id']}", headers=bearer(cli_user)
     ).json()
-    assert metadata["request_code"] == RFC7636_REQUEST_CODE
+    assert "request_code" not in metadata
     assert metadata["created_at"].endswith("Z")
     created = datetime.fromisoformat(metadata["created_at"][:-1])
     expires = datetime.fromisoformat(metadata["expires_at"][:-1])
@@ -496,7 +509,7 @@ async def test_code_sign_in_off_refuses_lookup_and_approve_of_any_code_session(
     assert lookup.status_code == 403
     assert lookup.json() == {"detail": CODE_MODE_OFF}
     refused = client.post(
-        "/api/auth/cli/approve", json={"session_id": session_id}, headers=bearer(cli_user)
+        "/api/auth/cli/approve", json=approve_body(session_id), headers=bearer(cli_user)
     )
     assert refused.status_code == 403
     assert refused.json() == {"detail": CODE_MODE_OFF}
@@ -542,7 +555,7 @@ def test_a_missing_session_keeps_400_while_code_sign_in_is_off(
     assert lookup.status_code == 400
     assert lookup.json() == {"detail": INVALID_AUTHORIZATION}
     refused = client.post(
-        "/api/auth/cli/approve", json={"session_id": missing}, headers=bearer(cli_user)
+        "/api/auth/cli/approve", json=approve_body(missing), headers=bearer(cli_user)
     )
     assert refused.status_code == 400
 
@@ -581,7 +594,7 @@ async def _assert_denied_and_gone(client, db_session, user, pending):
     lookup = client.get(f"/api/auth/cli/sessions/{session_id}", headers=bearer(user))
     assert lookup.status_code == 400
     refused = client.post(
-        "/api/auth/cli/approve", json={"session_id": session_id}, headers=bearer(user)
+        "/api/auth/cli/approve", json=approve_body(session_id), headers=bearer(user)
     )
     assert refused.status_code == 400
     assert exchange(client, pending, "any-code").status_code == 400
@@ -656,3 +669,100 @@ async def test_deny_refuses_a_request_that_is_not_pending(
     assert event.target_id == pending["session_id"]
     if state in ("approved", "expired"):
         assert pending["session_id"].replace("-", "") in await _session_ids(db_session)
+
+
+def check(client, user, session_id, typed):
+    """Post one request code check as the signed-in user."""
+    return client.post(
+        "/api/auth/cli/check",
+        json={"session_id": session_id, "request_code": typed},
+        headers=bearer(user),
+    )
+
+
+@pytest.mark.parametrize("typed", ["BUUZ-WHVV", "buuz-whvv", "BUUZWHVV", "BUUZ WHVV"])
+def test_check_accepts_the_typed_code_in_any_case_and_spacing(
+    unauthenticated_client, cli_user, typed
+):
+    client = unauthenticated_client
+    pending = start(client, code_challenge=RFC7636_CHALLENGE)
+    response = check(client, cli_user, pending["session_id"], typed)
+    assert response.status_code == 204, response.text
+    assert response.headers["Cache-Control"] == "no-store"
+    lookup = client.get(f"/api/auth/cli/sessions/{pending['session_id']}", headers=bearer(cli_user))
+    assert lookup.status_code == 200
+
+
+@pytest.mark.parametrize("typed", ["BUUZ-WHVW", "BUUZ-WHV", "BUUZ-WHVVA", "BUUZ-WHV1", ""])
+def test_check_refuses_a_wrong_or_malformed_code_and_keeps_the_request(
+    unauthenticated_client, cli_user, typed
+):
+    client = unauthenticated_client
+    pending = start(client, code_challenge=RFC7636_CHALLENGE)
+    response = check(client, cli_user, pending["session_id"], typed)
+    assert (response.status_code, response.json()) == (400, {"detail": INVALID_AUTHORIZATION})
+    lookup = client.get(f"/api/auth/cli/sessions/{pending['session_id']}", headers=bearer(cli_user))
+    assert lookup.status_code == 200
+
+
+async def test_check_refuses_a_request_that_is_not_pending(
+    unauthenticated_client, db_session, cli_user
+):
+    client = unauthenticated_client
+    expired = start(client)
+    approved = start(client)
+    consumed = start(client)
+    approve(client, cli_user, approved)
+    code = approve(client, cli_user, consumed)["exchange_code"]
+    assert exchange(client, consumed, code).status_code == 200
+    await db_session.execute(
+        text("UPDATE cli_auth_sessions SET expires_at = :expiry WHERE id = :id"),
+        {
+            "expiry": datetime.utcnow() - timedelta(seconds=1),
+            "id": expired["session_id"].replace("-", ""),
+        },
+    )
+    await db_session.commit()
+    missing = "00000000-0000-0000-0000-000000000001"
+    for session_id in (
+        missing,
+        expired["session_id"],
+        approved["session_id"],
+        consumed["session_id"],
+    ):
+        response = check(client, cli_user, session_id, REQUEST_CODE)
+        assert (response.status_code, response.json()) == (400, {"detail": INVALID_AUTHORIZATION})
+    assert await _failures(db_session, "auth.cli_code_mismatch") == []
+
+
+def test_check_requires_sign_in_and_code_mode(unauthenticated_client, cli_user, monkeypatch):
+    client = unauthenticated_client
+    pending = start(client)
+    unsigned = client.post(
+        "/api/auth/cli/check",
+        json={"session_id": pending["session_id"], "request_code": REQUEST_CODE},
+    )
+    assert unsigned.status_code == 401
+    code_sign_in(monkeypatch, False)
+    refused = check(client, cli_user, pending["session_id"], REQUEST_CODE)
+    assert (refused.status_code, refused.json()) == (403, {"detail": CODE_MODE_OFF})
+
+
+def test_approve_requires_the_matching_request_code(unauthenticated_client, cli_user):
+    client = unauthenticated_client
+    pending = start(client)
+    session_id = pending["session_id"]
+    missing = client.post(
+        "/api/auth/cli/approve", json={"session_id": session_id}, headers=bearer(cli_user)
+    )
+    assert missing.status_code == 422
+    wrong = client.post(
+        "/api/auth/cli/approve",
+        json=approve_body(session_id, "AAAA-AAAA"),
+        headers=bearer(cli_user),
+    )
+    assert (wrong.status_code, wrong.json()) == (400, {"detail": INVALID_AUTHORIZATION})
+    lookup = client.get(f"/api/auth/cli/sessions/{session_id}", headers=bearer(cli_user))
+    assert lookup.status_code == 200
+    code = approve(client, cli_user, pending)["exchange_code"]
+    assert exchange(client, pending, code).status_code == 200

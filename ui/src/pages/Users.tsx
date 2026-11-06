@@ -6,7 +6,7 @@ import { Check, ChevronDown, ChevronRight, Code2, Copy, Eye, Mail, Shield, Trash
 import { accessApi, AccessUser, extractApiErrorMessage, InviteUserResponse, User, UserRole, usersApi } from '../api/client'
 import { useAuth } from '../contexts/AuthContext'
 import { useEscapeKey } from '../hooks/useEscapeKey'
-import { formatDateTime } from '../test/date-utils'
+import { formatDateTime } from '../lib/dateTime'
 
 const ROLE_CONFIG = {
   admin: { label: 'Admin', color: 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400', icon: Shield },

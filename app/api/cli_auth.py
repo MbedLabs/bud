@@ -2,8 +2,9 @@
 
 A rejected approve, deny, exchange or refresh rolls back the request's changes and records a
 failure audit event with its rejection code. The answer is a generic message, except for a
-code-mode request while code sign-in is turned off, which answers 403 at start, session lookup
-and approve.
+code-mode request while code sign-in is turned off, which answers 403 at start, session lookup,
+check and approve. The approver types the request code the client shows; check and approve
+compare it with the code of the stored PKCE challenge.
 """
 
 from typing import Annotated
@@ -20,6 +21,7 @@ from app.schemas.cli_auth import (
     CliApproveRequest,
     CliCallbackApproval,
     CliCallbackDenial,
+    CliCheckRequest,
     CliCodeApproval,
     CliCodeDenial,
     CliDenyRequest,
@@ -32,17 +34,18 @@ from app.schemas.cli_auth import (
 )
 from app.services.audit import record_audit_event, record_audit_failure
 from app.services.cli_auth import (
+    CODE_MISMATCH,
     CODE_MODE_OFF,
     INVALID_AUTHORIZATION,
     CodeModeDisabledError,
     approve_session,
     callback_target,
+    check_request_code,
     denial_target,
     deny_session,
     exchange_session,
     pending_session,
     refresh_credentials,
-    request_code,
     start_session,
 )
 from app.services.token_service import TokenValidationError
@@ -51,6 +54,7 @@ AUTH_CLI_APPROVE = "auth.cli_approve"
 AUTH_CLI_DENY = "auth.cli_deny"
 AUTH_CLI_EXCHANGE = "auth.cli_exchange"
 AUTH_CLI_REFRESH = "auth.cli_refresh"
+AUTH_CLI_CODE_MISMATCH = "auth.cli_code_mismatch"
 CLI_SESSION_TARGET = "cli_auth_session"
 INVALID_SESSION = "Invalid or expired session"
 NO_STORE = "no-store"
@@ -105,7 +109,7 @@ async def cli_session(
     _current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db, scope="function")],
 ) -> CliSessionResponse:
-    """Show pending-client metadata, request time and request code to the signed-in account."""
+    """Show pending-client metadata and request time to the signed-in account."""
     response.headers["Cache-Control"] = NO_STORE
     try:
         session = await pending_session(db, session_id)
@@ -123,21 +127,61 @@ async def cli_session(
         expires_at=session.expires_at,
         consumed=session.consumed_at is not None,
         created_at=session.created_at,
-        request_code=request_code(session.code_challenge),
     )
 
 
+@router.post(
+    "/check",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={400: {"description": "Bad Request"}, **CODE_MODE_OFF_RESPONSE},
+)
+@limiter.limit("30/minute")
+async def cli_check(
+    request: Request,
+    data: CliCheckRequest,
+    response: Response,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db, scope="function")],
+) -> None:
+    """Answer 204 when the typed request code matches a pending request; nothing is written."""
+    response.headers["Cache-Control"] = NO_STORE
+    try:
+        await check_request_code(db, data.session_id, data.request_code)
+    except CodeModeDisabledError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=CODE_MODE_OFF) from exc
+    except TokenValidationError as exc:
+        if exc.detail != CODE_MISMATCH:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail=INVALID_AUTHORIZATION
+            ) from exc
+        raise await _rejection(
+            db,
+            AUTH_CLI_CODE_MISMATCH,
+            exc,
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=INVALID_AUTHORIZATION,
+            actor_user_id=current_user.id,
+            target_type=CLI_SESSION_TARGET,
+            target_id=data.session_id,
+        ) from exc
+
+
 @router.post("/approve", responses={400: {"description": "Bad Request"}, **CODE_MODE_OFF_RESPONSE})
+@limiter.limit("10/minute")
 async def cli_approve(
+    request: Request,
     data: CliApproveRequest,
     response: Response,
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db, scope="function")],
 ) -> CliCallbackApproval | CliCodeApproval:
-    """Approve a client once using the account's current permissions and session version."""
+    """Approve a client once using the account's current permissions and session version.
+
+    The typed request code must match; a mismatch is audited as auth.cli_code_mismatch.
+    """
     response.headers["Cache-Control"] = NO_STORE
     try:
-        session, code = await approve_session(db, data.session_id, current_user)
+        session, code = await approve_session(db, data.session_id, current_user, data.request_code)
     except CodeModeDisabledError as exc:
         raise await _rejection(
             db,
@@ -152,7 +196,7 @@ async def cli_approve(
     except TokenValidationError as exc:
         raise await _rejection(
             db,
-            AUTH_CLI_APPROVE,
+            AUTH_CLI_CODE_MISMATCH if exc.detail == CODE_MISMATCH else AUTH_CLI_APPROVE,
             exc,
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=INVALID_AUTHORIZATION,

@@ -14,11 +14,20 @@ export function hasActiveOutcomeFilters(filters: OutcomeFilters): boolean {
   return filters.passed || filters.failed || filters.failedOnly
 }
 
+/** Whether a test case failed: it has a failed assertion or a failed result. */
+export function isFailedTestCase(failedAssertions: number, failedMethods = 0): boolean {
+  return failedAssertions > 0 || failedMethods > 0
+}
+
 /** Whether a grouped test case row should appear for the current outcome toggles. */
-export function shouldShowTestCase(failedAssertions: number, filters: OutcomeFilters): boolean {
+export function shouldShowTestCase(
+  failedAssertions: number,
+  filters: OutcomeFilters,
+  failedMethods = 0,
+): boolean {
   if (!hasActiveOutcomeFilters(filters)) return true
 
-  const isFailedCase = failedAssertions > 0
+  const isFailedCase = isFailedTestCase(failedAssertions, failedMethods)
   const isPassedCase = !isFailedCase
 
   if (filters.passed && isPassedCase) return true
@@ -50,4 +59,21 @@ export function toggleOutcomeFilter(
     next.failedOnly = false
   }
   return next
+}
+
+export type SummaryOutcome = 'total' | 'passed' | 'failed'
+
+/** The outcome filters each run summary card sets on the results list. */
+export const SUMMARY_OUTCOME_FILTERS: Record<SummaryOutcome, OutcomeFilters> = {
+  total: EMPTY_OUTCOME_FILTERS,
+  passed: { passed: true, failed: false, failedOnly: false },
+  failed: { passed: false, failed: true, failedOnly: false },
+}
+
+/** The run summary card that matches the current outcome filters, or null when none does. */
+export function selectedSummaryOutcome(filters: OutcomeFilters): SummaryOutcome | null {
+  if (!hasActiveOutcomeFilters(filters)) return 'total'
+  if (filters.passed && !filters.failed && !filters.failedOnly) return 'passed'
+  if (!filters.passed && (filters.failed || filters.failedOnly)) return 'failed'
+  return null
 }

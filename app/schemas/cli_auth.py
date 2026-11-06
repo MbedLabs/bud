@@ -96,7 +96,7 @@ class CliStartResponse(CliExpiringResponse):
 
 
 class CliSessionResponse(CliExpiringResponse):
-    """Client metadata, request time and request code shown to an authenticated approver."""
+    """Client metadata and request time shown to an authenticated approver, without the code."""
 
     session_id: UUID
     client_name: str
@@ -104,7 +104,6 @@ class CliSessionResponse(CliExpiringResponse):
     redirect_uri: str | None
     consumed: bool
     created_at: datetime
-    request_code: str
 
     @field_serializer("created_at")
     def serialize_created_at(self, value: datetime) -> str:
@@ -112,11 +111,16 @@ class CliSessionResponse(CliExpiringResponse):
         return value.isoformat() + "Z"
 
 
-class CliApproveRequest(BaseModel):
-    """The pending session selected for approval."""
+class CliCheckRequest(BaseModel):
+    """The request code the approver typed for one pending session."""
 
     model_config = ConfigDict(extra="forbid")
     session_id: UUID
+    request_code: str = Field(max_length=16)
+
+
+class CliApproveRequest(CliCheckRequest):
+    """The pending session selected for approval with the typed request code."""
 
 
 class CliDenyRequest(BaseModel):

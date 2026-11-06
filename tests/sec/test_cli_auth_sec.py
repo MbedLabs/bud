@@ -28,6 +28,20 @@ EXCHANGE_FAILURE_REASONS = {
 }
 
 
+def code_for(challenge):
+    """Return the XXXX-XXXX request code of a challenge, computed independently of the app."""
+    letters = base64.b32encode(hashlib.sha256(challenge.encode()).digest()[:5]).decode()
+    return f"{letters[:4]}-{letters[4:]}"
+
+
+REQUEST_CODE = code_for(CHALLENGE)
+
+
+def approve_body(session_id, request_code=REQUEST_CODE):
+    """Return an approve body carrying the request code the client shows."""
+    return {"session_id": session_id, "request_code": request_code}
+
+
 @pytest.fixture(autouse=True)
 def reset_limits(fresh_auth_rate_limits):
     """Reset authorization limits between cases."""
@@ -121,10 +135,10 @@ async def test_confirmation_requires_user_auth_and_cannot_be_approved_twice(
     pending = client.post("/api/auth/cli/start", json=START).json()
     session_id = pending["session_id"]
     assert client.get(f"/api/auth/cli/sessions/{session_id}").status_code == 401
-    assert client.post("/api/auth/cli/approve", json={"session_id": session_id}).status_code == 401
-    first = client.post("/api/auth/cli/approve", json={"session_id": session_id}, headers=headers)
+    assert client.post("/api/auth/cli/approve", json=approve_body(session_id)).status_code == 401
+    first = client.post("/api/auth/cli/approve", json=approve_body(session_id), headers=headers)
     assert first.status_code == 200
-    second = client.post("/api/auth/cli/approve", json={"session_id": session_id}, headers=headers)
+    second = client.post("/api/auth/cli/approve", json=approve_body(session_id), headers=headers)
     assert second.status_code in (400, 401)
     assert "exchange_code" not in second.json()
     [event] = (
@@ -161,7 +175,7 @@ async def test_invalid_exchange_issues_no_tokens_or_success_audit(
     code = "not-approved"
     if failure != "pending":
         code = client.post(
-            "/api/auth/cli/approve", json={"session_id": session_id}, headers=headers
+            "/api/auth/cli/approve", json=approve_body(session_id), headers=headers
         ).json()["exchange_code"]
     if failure == "expired":
         await db_session.execute(
@@ -355,3 +369,86 @@ def test_deny_is_not_rate_limited(unauthenticated_client, cli_account):
         for _ in range(31)
     }
     assert statuses == {400}
+
+
+async def test_a_typed_code_mismatch_is_audited_on_check_and_approve(
+    unauthenticated_client, db_session, cli_account
+):
+    client = unauthenticated_client
+    user, headers = cli_account
+    session_id = client.post("/api/auth/cli/start", json=START).json()["session_id"]
+    wrong = approve_body(session_id, "AAAA-AAAA")
+    assert client.post("/api/auth/cli/check", json=wrong, headers=headers).status_code == 400
+    assert client.post("/api/auth/cli/approve", json=wrong, headers=headers).status_code == 400
+    right = approve_body(session_id)
+    assert client.post("/api/auth/cli/check", json=right, headers=headers).status_code == 204
+    unknown = approve_body("00000000-0000-0000-0000-000000000001", "AAAA-AAAA")
+    assert client.post("/api/auth/cli/check", json=unknown, headers=headers).status_code == 400
+    mismatches = (
+        (
+            await db_session.execute(
+                select(AuditEvent)
+                .where(AuditEvent.action == "auth.cli_code_mismatch")
+                .order_by(AuditEvent.id)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert [
+        (e.outcome, e.actor_user_id, e.target_type, e.target_id, e.details) for e in mismatches
+    ] == [
+        ("failure", user.id, "cli_auth_session", session_id, {"reason": "request_code_mismatch"})
+    ] * 2
+    assert client.post("/api/auth/cli/approve", json=right, headers=headers).status_code == 200
+
+
+@pytest.mark.parametrize("path,limit", [("check", 30), ("approve", 10)])
+def test_check_and_approve_are_rate_limited(unauthenticated_client, cli_account, path, limit):
+    _, headers = cli_account
+    body = approve_body("00000000-0000-0000-0000-000000000001")
+    statuses = [
+        unauthenticated_client.post(f"/api/auth/cli/{path}", json=body, headers=headers).status_code
+        for _ in range(limit + 1)
+    ]
+    assert set(statuses[:-1]) == {400}
+    assert statuses[-1] == 429
+
+
+async def test_approval_refuses_a_request_approved_after_its_code_check(
+    unauthenticated_client, db_session, cli_account, monkeypatch
+):
+    from app.services import cli_auth
+
+    client = unauthenticated_client
+    user, headers = cli_account
+    session_id = client.post("/api/auth/cli/start", json=START).json()["session_id"]
+    original = cli_auth.check_request_code
+
+    async def approved_elsewhere_after_check(db, checked_id, typed):
+        checked = await original(db, checked_id, typed)
+        await db_session.execute(
+            text(
+                "UPDATE cli_auth_sessions SET user_id = :user_id, "
+                "exchange_code_hash = 'approved-elsewhere' WHERE id = :id"
+            ),
+            {"user_id": user.id, "id": session_id.replace("-", "")},
+        )
+        await db_session.commit()
+        return checked
+
+    monkeypatch.setattr(cli_auth, "check_request_code", approved_elsewhere_after_check)
+    refused = client.post("/api/auth/cli/approve", json=approve_body(session_id), headers=headers)
+    assert refused.status_code == 400
+    [event] = (
+        (
+            await db_session.execute(
+                select(AuditEvent).where(
+                    AuditEvent.action == "auth.cli_approve", AuditEvent.outcome == "failure"
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert event.details == {"reason": "not_pending"}
