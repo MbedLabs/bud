@@ -7,7 +7,7 @@ from typing import Literal, Optional
 
 import httpx
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
-from sqlalchemy import and_, case, func, or_, select
+from sqlalchemy import Integer, and_, case, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -15,7 +15,14 @@ from app.api.auth import get_current_active_entity, require_permission, require_
 from app.api.uploads import get_upload_root
 from app.core.run_access import load_run
 from app.db import get_db
-from app.models import Artifact, ReportRequest, Runner, TestRun, TestRunEvent
+from app.models import (
+    Artifact,
+    ReportRequest,
+    Runner,
+    TestResult,
+    TestRun,
+    TestRunEvent,
+)
 from app.models.user import User, UserRole
 from app.schemas import (
     ArtifactResponse,
@@ -312,6 +319,44 @@ async def _scope_conditions(
     return conditions
 
 
+async def _distinct_test_outcomes(db: AsyncSession, conditions: list) -> tuple[int, int, int]:
+    """Count the distinct test cases of the matching runs and how many passed and were skipped.
+
+    A test case is one test class; its outcome is taken from its latest matching run (newest
+    creation time, then highest run id). It passed when every method passed and not all were
+    skipped, and was skipped when every method was marked skipped.
+    """
+    skipped_result = case((TestResult.test_metadata["skipped"].as_boolean().is_(True), 1), else_=0)
+    per_run = (
+        select(
+            TestResult.test_class,
+            func.min(TestResult.passed.cast(Integer)).label("all_passed"),
+            func.min(skipped_result).label("all_skipped"),
+            func.row_number()
+            .over(
+                partition_by=TestResult.test_class,
+                order_by=(func.max(TestRun.created_at).desc(), TestRun.id.desc()),
+            )
+            .label("rank"),
+        )
+        .join(TestRun, TestResult.test_run_id == TestRun.id)
+        .group_by(TestResult.test_class, TestRun.id)
+    )
+    if conditions:
+        per_run = per_run.where(*conditions)
+    latest = per_run.subquery("latest_per_test")
+
+    skipped_test = latest.c.all_skipped == 1
+    passed_test = and_(latest.c.all_passed == 1, latest.c.all_skipped != 1)
+    query = select(
+        func.count(),
+        func.count(case((passed_test, 1))),
+        func.count(case((skipped_test, 1))),
+    ).where(latest.c.rank == 1)
+    total, passed, skipped = (await db.execute(query)).one()
+    return total, passed, skipped
+
+
 @router.get("/stats", response_model=TestRunStats, responses={403: {"description": "Forbidden"}})
 async def get_test_run_stats(
     days: Optional[int] = Query(
@@ -328,7 +373,11 @@ async def get_test_run_stats(
     db: AsyncSession = Depends(get_db, scope="function"),
     _current_entity: User | Runner = Depends(get_current_active_entity),
 ):
-    """Aggregate the dashboard counters over every run matching the filters."""
+    """Aggregate the dashboard counters over every run matching the filters.
+
+    Runs and test executions are counted over every matching run; distinct tests count each
+    test case once, with the outcome of its latest matching run.
+    """
     conditions = await _scope_conditions(
         db, _current_entity, days=days, runner_account=runner_account, suite=suite
     )
@@ -344,6 +393,11 @@ async def get_test_run_stats(
             failed_tests=0,
             skipped_tests=0,
             test_pass_rate=0.0,
+            distinct_tests=0,
+            distinct_passed_tests=0,
+            distinct_failed_tests=0,
+            distinct_skipped_tests=0,
+            distinct_test_pass_rate=0.0,
         )
 
     execution_failed = or_(
@@ -385,6 +439,10 @@ async def get_test_run_stats(
         skipped_tests,
     ) = (await db.execute(query)).one()
 
+    distinct_tests, distinct_passed, distinct_skipped = await _distinct_test_outcomes(
+        db, conditions
+    )
+
     decided_runs = passed_runs + failed_runs
     return TestRunStats(
         total_runs=total_runs,
@@ -397,6 +455,13 @@ async def get_test_run_stats(
         failed_tests=failed_tests,
         skipped_tests=skipped_tests,
         test_pass_rate=(round(passed_tests / total_tests * 100, 1) if total_tests else 0.0),
+        distinct_tests=distinct_tests,
+        distinct_passed_tests=distinct_passed,
+        distinct_failed_tests=distinct_tests - distinct_passed - distinct_skipped,
+        distinct_skipped_tests=distinct_skipped,
+        distinct_test_pass_rate=(
+            round(distinct_passed / distinct_tests * 100, 1) if distinct_tests else 0.0
+        ),
     )
 
 

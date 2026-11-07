@@ -223,7 +223,7 @@ class TestRenderedContent:
 
     def test_empty_selection_says_so_rather_than_drawing_an_empty_pie(self, fitz):
         doc = self._open(fitz, render_report(_summary_request(overall=Outcome())))
-        assert "No test outcomes recorded" in doc[0].get_text()
+        assert "No assertion outcomes recorded" in doc[0].get_text()
         doc.close()
 
     def test_run_report_counts_and_renders_assertions_not_methods(self, fitz):

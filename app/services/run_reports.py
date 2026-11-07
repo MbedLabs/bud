@@ -135,8 +135,13 @@ async def build_summary_report(
     days: int | None = None,
     runner_account: str | None = None,
     suite: str | None = None,
+    tests: list[tuple[str, Outcome]] | None = None,
 ) -> ReportRequest:
-    """Many runs, with assertion outcomes grouped by suite, Test Station and day."""
+    """Many runs, with assertion outcomes grouped by suite, Test Station and day.
+
+    tests, when given, is shown as the Tests table above the assertion outcomes: one labelled row
+    per way of counting the tests of the matching runs.
+    """
     query = (
         select(TestRun.name, Runner.account, TestRun.created_at, TestResult.assertions)
         .select_from(TestRun)
@@ -192,10 +197,13 @@ async def build_summary_report(
         ],
         overall=overall,
         breakdowns=[
-            Breakdown("Per suite", "Suite", per_suite),
-            Breakdown("Per Test Station", "Test Station", per_station),
-            Breakdown("Per day", "Day", per_day),
+            Breakdown("Assertions per suite", "Suite", per_suite, "Total assertions"),
+            Breakdown(
+                "Assertions per Test Station", "Test Station", per_station, "Total assertions"
+            ),
+            Breakdown("Assertions per day", "Day", per_day, "Total assertions"),
         ],
+        tests=Breakdown("Tests", "Counted as", tests) if tests else None,
         generated_at=datetime.now(timezone.utc).replace(tzinfo=None),
         app_version=settings.BUD_APP_VERSION,
     )

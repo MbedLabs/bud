@@ -265,8 +265,12 @@ class TestRunList(BaseModel):
 class TestRunStats(BaseModel):
     """Aggregate run and test-case counters behind the dashboard tiles.
 
-    The pass rate is the share of decided (passed or failed) runs that passed; pending runs
-    are left out.
+    The run pass rate is the share of decided (passed or failed) runs that passed; pending runs
+    are left out. total_tests, passed_tests, failed_tests and skipped_tests count test
+    executions, every test case of every matching run; test_pass_rate is passed executions out
+    of all executions. The distinct_* fields count each test case (test class) once, with the
+    outcome of its latest matching run; distinct_test_pass_rate is passed distinct tests out of
+    all distinct tests.
     """
 
     total_runs: int
@@ -279,6 +283,11 @@ class TestRunStats(BaseModel):
     failed_tests: int
     skipped_tests: int
     test_pass_rate: float
+    distinct_tests: int
+    distinct_passed_tests: int
+    distinct_failed_tests: int
+    distinct_skipped_tests: int
+    distinct_test_pass_rate: float
 
 
 class TestRunFilterOptions(BaseModel):

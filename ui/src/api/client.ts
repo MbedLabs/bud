@@ -518,6 +518,11 @@ export interface TestRunStatsFilters {
   suite?: string
 }
 
+/**
+ * Run statistics. The `*_tests` counters and `test_pass_rate` count test executions, every test
+ * of every matching run; the `distinct_*` counters count each test once, with the outcome of its
+ * latest matching run.
+ */
 export interface TestRunStats {
   total_runs: number
   passed_runs: number
@@ -529,6 +534,11 @@ export interface TestRunStats {
   failed_tests: number
   skipped_tests: number
   test_pass_rate: number
+  distinct_tests: number
+  distinct_passed_tests: number
+  distinct_failed_tests: number
+  distinct_skipped_tests: number
+  distinct_test_pass_rate: number
 }
 
 export interface TestRunFilterOptions {
@@ -687,7 +697,7 @@ export const testRunsApi = {
     return response.data
   },
 
-  /** Dashboard counters aggregated server-side over every matching run. */
+  /** Dashboard counters aggregated server-side: runs, test executions and distinct tests. */
   stats: async (params?: TestRunStatsFilters) => {
     const response = await api.get<TestRunStats>('/test-runs/stats', { params })
     return response.data

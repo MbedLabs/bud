@@ -168,6 +168,15 @@ jobs:
         run: |
           python -c "from tests.budtests.ui_cli_auth import UiCliAuth; raise SystemExit(0 if UiCliAuth().run() else 1)"
 
+      - name: BudTestCase BUD_run_stats_distinct
+        env:
+          DATABASE_URL: "sqlite+aiosqlite:///:memory:"
+          SECRET_KEY: test-secret-key-for-ci-at-least-32-characters-long
+          SERVICE_TOKEN_PEPPER: test-service-token-pepper-for-ci-at-least-32-characters-long
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          python -c "from tests.api.BUD_run_stats_distinct import RunStatsDistinctTest; raise SystemExit(0 if RunStatsDistinctTest().run() else 1)"
+
       - name: Run UI checks
         run: |
           npm --prefix ui run lint
