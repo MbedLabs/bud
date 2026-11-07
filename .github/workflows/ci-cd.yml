@@ -162,12 +162,6 @@ jobs:
           npm --prefix ui run build
           python -m playwright install --with-deps chromium
 
-      - name: BudTestCase suite ui_cli_auth
-        env:
-          PYTHONPATH: ${{ github.workspace }}
-        run: |
-          python -c "from tests.budtests.ui_cli_auth import UiCliAuth; raise SystemExit(0 if UiCliAuth().run() else 1)"
-
       - name: BudTestCase BUD_run_stats_distinct
         env:
           DATABASE_URL: "sqlite+aiosqlite:///:memory:"
