@@ -162,6 +162,7 @@ jobs:
           echo "BUDTESTCASE_RUNNER=$RUNNER_TEMP/run_budtestcases.py" >> "$GITHUB_ENV"
           cat > "$RUNNER_TEMP/run_budtestcases.py" <<'PY'
           """Run every BudTestCase suite of one test folder in one process and fail when any suite fails."""
+
           import importlib
           import inspect
           import pathlib
@@ -170,39 +171,48 @@ jobs:
 
           from budtestlibrary.budtestcase import BudTestCase
 
-          folder = pathlib.Path(sys.argv[1])
-          prefix = sys.argv[2]
-          failed = []
-          ran = []
-          for path in sorted(folder.glob(f"{prefix}*.py")):
-              name = ".".join(path.with_suffix("").parts)
-              try:
-                  module = importlib.import_module(name)
-              except Exception:
-                  traceback.print_exc()
-                  failed.append(f"{name} (import)")
-                  continue
-              suites = [
+
+          def suites_of(name):
+              """The BudTestCase classes the module itself defines."""
+              module = importlib.import_module(name)
+              return [
                   member
                   for _, member in inspect.getmembers(module, inspect.isclass)
                   if member.__module__ == name and issubclass(member, BudTestCase)
               ]
-              if len(suites) != 1:
-                  failed.append(f"{name} (defines {len(suites)} suites, expected 1)")
-                  continue
-              suite = suites[0]
-              ran.append(f"{name}.{suite.__name__}")
-              try:
-                  passed = suite().run()
-              except Exception:
-                  traceback.print_exc()
-                  passed = False
-              if not passed:
-                  failed.append(ran[-1])
-          print(f"{len(ran)} BudTestCase suite(s) ran in {folder}, {len(failed)} failed")
-          for item in failed:
-              print(f"FAILED {item}")
-          raise SystemExit(1 if failed or not ran else 0)
+
+
+          def main(folder, prefix):
+              """Run each suite of the folder, print the failed ones, and return the exit code."""
+              failed = []
+              ran = []
+              for path in sorted(folder.glob(f"{prefix}*.py")):
+                  name = ".".join(path.with_suffix("").parts)
+                  try:
+                      suites = suites_of(name)
+                  except Exception:
+                      traceback.print_exc()
+                      failed.append(f"{name} (import)")
+                      continue
+                  if len(suites) != 1:
+                      failed.append(f"{name} (defines {len(suites)} suites, expected 1)")
+                      continue
+                  ran.append(f"{name}.{suites[0].__name__}")
+                  try:
+                      passed = suites[0]().run()
+                  except Exception:
+                      traceback.print_exc()
+                      passed = False
+                  if not passed:
+                      failed.append(ran[-1])
+              print(f"{len(ran)} BudTestCase suite(s) ran in {folder}, {len(failed)} failed")
+              for item in failed:
+                  print(f"FAILED {item}")
+              return 1 if failed or not ran else 0
+
+
+          if __name__ == "__main__":
+              raise SystemExit(main(pathlib.Path(sys.argv[1]), sys.argv[2]))
           PY
 
       - name: BudTestCase suites in tests/api
