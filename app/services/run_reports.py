@@ -29,6 +29,7 @@ from app.services.report_pdf import (
 logger = logging.getLogger(__name__)
 
 MAX_RESULT_ROWS = 2000
+TOTAL_ASSERTIONS = "Total assertions"
 
 
 def frontend_run_url(run_id: int) -> str | None:
@@ -197,11 +198,9 @@ async def build_summary_report(
         ],
         overall=overall,
         breakdowns=[
-            Breakdown("Assertions per suite", "Suite", per_suite, "Total assertions"),
-            Breakdown(
-                "Assertions per Test Station", "Test Station", per_station, "Total assertions"
-            ),
-            Breakdown("Assertions per day", "Day", per_day, "Total assertions"),
+            Breakdown("Assertions per suite", "Suite", per_suite, TOTAL_ASSERTIONS),
+            Breakdown("Assertions per Test Station", "Test Station", per_station, TOTAL_ASSERTIONS),
+            Breakdown("Assertions per day", "Day", per_day, TOTAL_ASSERTIONS),
         ],
         tests=Breakdown("Tests", "Counted as", tests) if tests else None,
         generated_at=datetime.now(timezone.utc).replace(tzinfo=None),
