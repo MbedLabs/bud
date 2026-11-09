@@ -157,19 +157,61 @@ jobs:
         run: |
           pytest tests/pg -q
 
-      - name: Build the UI and Chromium
+      - name: Write the BudTestCase folder runner
         run: |
-          npm --prefix ui run build
-          python -m playwright install --with-deps chromium
+          echo "BUDTESTCASE_RUNNER=$RUNNER_TEMP/run_budtestcases.py" >> "$GITHUB_ENV"
+          cat > "$RUNNER_TEMP/run_budtestcases.py" <<'PY'
+          """Run every BudTestCase suite of one test folder in one process and fail when any suite fails."""
+          import importlib
+          import inspect
+          import pathlib
+          import sys
+          import traceback
 
-      - name: BudTestCase BUD_run_stats_distinct
+          from budtestlibrary.budtestcase import BudTestCase
+
+          folder = pathlib.Path(sys.argv[1])
+          prefix = sys.argv[2]
+          failed = []
+          ran = []
+          for path in sorted(folder.glob(f"{prefix}*.py")):
+              name = ".".join(path.with_suffix("").parts)
+              try:
+                  module = importlib.import_module(name)
+              except Exception:
+                  traceback.print_exc()
+                  failed.append(f"{name} (import)")
+                  continue
+              suites = [
+                  member
+                  for _, member in inspect.getmembers(module, inspect.isclass)
+                  if member.__module__ == name and issubclass(member, BudTestCase)
+              ]
+              if len(suites) != 1:
+                  failed.append(f"{name} (defines {len(suites)} suites, expected 1)")
+                  continue
+              suite = suites[0]
+              ran.append(f"{name}.{suite.__name__}")
+              try:
+                  passed = suite().run()
+              except Exception:
+                  traceback.print_exc()
+                  passed = False
+              if not passed:
+                  failed.append(ran[-1])
+          print(f"{len(ran)} BudTestCase suite(s) ran in {folder}, {len(failed)} failed")
+          for item in failed:
+              print(f"FAILED {item}")
+          raise SystemExit(1 if failed or not ran else 0)
+          PY
+
+      - name: BudTestCase suites in tests/api
         env:
           DATABASE_URL: "sqlite+aiosqlite:///:memory:"
           SECRET_KEY: test-secret-key-for-ci-at-least-32-characters-long
           SERVICE_TOKEN_PEPPER: test-service-token-pepper-for-ci-at-least-32-characters-long
           PYTHONPATH: ${{ github.workspace }}
-        run: |
-          python -c "from tests.api.BUD_run_stats_distinct import RunStatsDistinctTest; raise SystemExit(0 if RunStatsDistinctTest().run() else 1)"
+        run: python "$BUDTESTCASE_RUNNER" tests/api BUD_
 
       - name: Run UI checks
         run: |
