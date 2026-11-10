@@ -252,3 +252,23 @@ MSG_SUPERVISORD_PIDFILE = "supervisord keeps its pid file in the appuser runtime
 MSG_DOCKERFILE_ROOT = "the image starts as root"
 MSG_DOCKERFILE_NGINX_USER = "the Dockerfile writes no nginx user directive for appuser"
 MSG_DOCKERFILE_NGINX_DROP = "the Dockerfile removes the user directive from nginx.conf"
+
+TOKEN_HS256 = {"alg": "HS256", "typ": "JWT"}
+TOKEN_HASHES = {"HS256": "sha256", "HS512": "sha512"}
+TOKEN_USER_ID = "7"
+TOKEN_USER_TYPE = "user"
+TOKEN_STATION_TYPE = "runner"
+TOKEN_VERSION = 1
+TOKEN_VALID_MINUTES = 5
+TOKEN_STATION_EXPIRED_MINUTES = -60
+TOKEN_STATION_JTI = "abc"
+TOKEN_REFUSED_CASES = {
+    "expired HS256": ({"alg": "HS256", "typ": "JWT"}, -5),
+    "HS512": ({"alg": "HS512", "typ": "JWT"}, 5),
+    "none": ({"alg": "none", "typ": "JWT"}, 5),
+}
+MSG_TOKEN_HS256 = "a standard HS256 token decodes"
+MSG_TOKEN_ISSUED = "a token Bud issues decodes"
+MSG_TOKEN_REFUSED = "an expired token or a token with another algorithm does not decode"
+MSG_TOKEN_STATION_EXPIRED = "an expired Test Station token does not decode with the expiry check"
+MSG_TOKEN_STATION_NO_CHECK = "an expired Test Station token decodes without the expiry check"
