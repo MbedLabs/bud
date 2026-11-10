@@ -136,3 +136,11 @@ MSG_HTML_ATTACHMENT = "the HTML report downloads as an attachment"
 MSG_HTML_FILENAME = "the download keeps the report's file name"
 MSG_HTML_SANDBOX = "a browser that renders the download renders it sandboxed"
 MSG_HTML_NOSNIFF = "a browser does not sniff the download's content type"
+
+LOG_CAPTURE_CAPACITY = 100000
+INVITE_INFO_PATH = "/api/auth/invite-info"
+INVITE_INFO_QUERY_PATH = "/api/auth/invite-info?token={}"
+ONE_TIME_TOKEN = "SUPERSECRET-DO-NOT-LOG-0123456789abcdef"
+APP_LOGGERS = ("bud", "app")
+MSG_TOKEN_REQUEST_LOGGED = "the application's own log records record the request"
+MSG_TOKEN_NOT_LOGGED = "a one-time token in the body or the query string never reaches the logs"

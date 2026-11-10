@@ -9,6 +9,8 @@
 """
 
 import asyncio
+import logging
+import logging.handlers
 import os
 import uuid
 from pathlib import Path
@@ -93,6 +95,22 @@ class BudInterface:
     def bud_request(self, method, path, **kwargs):
         """Send one request to the app started by bud_start_app."""
         return self.client.request(method, path, **kwargs)
+
+    def bud_start_log_capture(self, level):
+        """Collect every log record from level up until bud_stop_log_capture."""
+        self.log_capture = logging.handlers.BufferingHandler(self.parameters.LOG_CAPTURE_CAPACITY)
+        self.log_capture.setLevel(level)
+        root = logging.getLogger()
+        self.log_level = root.level
+        root.setLevel(level)
+        root.addHandler(self.log_capture)
+
+    def bud_stop_log_capture(self):
+        """Stop collecting log records and return the collected ones."""
+        root = logging.getLogger()
+        root.removeHandler(self.log_capture)
+        root.setLevel(self.log_level)
+        return list(self.log_capture.buffer)
 
     def bud_add_test_station(self):
         """The station the tests act as, with a running test run of its own."""
