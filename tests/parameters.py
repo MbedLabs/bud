@@ -144,3 +144,16 @@ ONE_TIME_TOKEN = "SUPERSECRET-DO-NOT-LOG-0123456789abcdef"
 APP_LOGGERS = ("bud", "app")
 MSG_TOKEN_REQUEST_LOGGED = "the application's own log records record the request"
 MSG_TOKEN_NOT_LOGGED = "a one-time token in the body or the query string never reaches the logs"
+
+REPORT_RESULT_CLASS = "Bench"
+REPORT_RESULT_METHOD = "Measures within limit"
+REPORT_RESULT_ENTRIES = [
+    {"passed": True, "assertion_type": "AssertEqual"},
+    {"passed": True, "skipped": True, "assertion_type": "Skip", "message": "no probe"},
+    {"passed": True, "info": True, "assertion_type": "Log"},
+    {"passed": False, "assertion_type": "AssertIn"},
+]
+REPORT_ASSERTION_ROWS = [("AssertEqual", True), ("AssertIn", False)]
+REPORT_ASSERTION_OUTCOME = (1, 1, 0)
+MSG_REPORT_ROWS = "the run report's assertion rows leave out skipped and information entries"
+MSG_REPORT_OUTCOME = "the assertion outcome counts one passed and one failed assertion"

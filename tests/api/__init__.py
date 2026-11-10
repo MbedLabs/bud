@@ -6,4 +6,5 @@ SUITES = [
     "tests.api.BUD_run_stats_distinct.RunStatsDistinctTest",
     "tests.api.BUD_health.HealthTest",
     "tests.api.BUD_html_artifacts.HtmlArtifactsTest",
+    "tests.api.BUD_run_report_assertions.RunReportAssertionsTest",
 ]
