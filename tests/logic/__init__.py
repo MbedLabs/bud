@@ -7,4 +7,5 @@ SUITES = [
     "tests.logic.BUD_timestamp_text.TimestampTextTest",
     "tests.logic.BUD_cloudron_metadata.CloudronMetadataTest",
     "tests.logic.BUD_audit_prune.AuditPruneTest",
+    "tests.logic.BUD_response_timestamps.ResponseTimestampsTest",
 ]
