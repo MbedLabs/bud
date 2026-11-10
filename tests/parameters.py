@@ -11,7 +11,7 @@
 import os
 import random
 import string
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 SEED = int(os.environ.get("BUDTEST_SEED") or random.SystemRandom().randrange(1, 10**9))
 _draw = random.Random(SEED)
@@ -96,3 +96,11 @@ DOCKERFILE_UI_BUILD_STAGES = 1
 DOCKERFILE_BUILD_PLATFORM = "--platform=$BUILDPLATFORM"
 MSG_DOCKERFILE_ONE_UI_BUILD = "the Dockerfile has exactly one ui-build stage"
 MSG_DOCKERFILE_BUILD_PLATFORM = "the ui-build stage runs on the build platform"
+
+TIMESTAMP_NAIVE = datetime(2026, 9, 27, 12, 34, 56, 789)
+TIMESTAMP_AWARE = datetime(2026, 9, 27, 14, 34, 56, tzinfo=timezone(timedelta(hours=2)))
+TIMESTAMP_TEXT = "2026-09-27 12:34:56 UTC"
+TIMESTAMP_NONE_TEXT = ""
+MSG_TIMESTAMP_SECONDS = "a time is written in UTC to the second"
+MSG_TIMESTAMP_NONE = "no time is written as an empty text"
+MSG_TIMESTAMP_AWARE = "a time with an offset is converted to UTC"

@@ -4,4 +4,5 @@ import tests.config  # noqa: F401
 
 SUITES = [
     "tests.logic.BUD_dockerfile.DockerfileTest",
+    "tests.logic.BUD_timestamp_text.TimestampTextTest",
 ]
