@@ -39,7 +39,7 @@ class AccessTokenFormatBase(BudAppTestCase):
         self.print_variables({"case": case, "claims": self.tc_refused[case]})
         self.assertEqual(
             type(self.tc_refused[case]).__name__,
-            self.parameters.NO_CLAIMS,
+            self.parameters.NONE_TYPE,
             msg=self.parameters.MSG_TOKEN_REFUSED,
             abort_on_fail=False,
         )
@@ -48,7 +48,7 @@ class AccessTokenFormatBase(BudAppTestCase):
         self.print_variables({"claims": self.tc_station_checked})
         self.assertEqual(
             type(self.tc_station_checked).__name__,
-            self.parameters.NO_CLAIMS,
+            self.parameters.NONE_TYPE,
             msg=self.parameters.MSG_TOKEN_STATION_EXPIRED,
             abort_on_fail=False,
         )
