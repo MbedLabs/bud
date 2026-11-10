@@ -81,7 +81,7 @@ class BudInterface:
         if signed_in:
             for dependency in (get_current_user, get_current_active_entity, get_uploader_entity):
                 main.app.dependency_overrides[dependency] = self._current_admin
-        self.client = TestClient(main.app)
+        self.client = TestClient(main.app, raise_server_exceptions=False)
         self.client.__enter__()
         return self.client
 
@@ -125,8 +125,9 @@ class BudInterface:
         """The rows of a model in the started app's database whose columns equal the given values."""
         return self._run(self._find_in_app(model, where))
 
-    def bud_add_test_station(self):
-        """The station the tests act as, with a running test run of its own."""
+    def bud_add_test_station(self, with_run=True):
+        """The station the tests act as, with a running test run of its own unless with_run is
+        False."""
         station = Runner(
             account=self.parameters.TEST_STATION_ACCOUNT,
             password_hash=self.parameters.TEST_STATION_PASSWORD_HASH,
@@ -134,6 +135,8 @@ class BudInterface:
             socket_port=self.parameters.TEST_STATION_PORT,
         )
         self.station = self._run(self._add_to_app(station))
+        if not with_run:
+            return self.station
         run = TestRun(
             name=self.parameters.TEST_STATION_RUN,
             test_case_list=self.parameters.EMPTY_TEST_LIST,

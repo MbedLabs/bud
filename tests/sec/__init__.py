@@ -9,4 +9,5 @@ SUITES = [
     "tests.sec.BUD_route_auth_matrix.RouteAuthMatrixTest",
     "tests.sec.BUD_integration_settings_security.IntegrationSettingsSecurityTest",
     "tests.sec.BUD_nginx_security_headers.NginxSecurityHeadersTest",
+    "tests.sec.BUD_run_producer_http.RunProducerHttpTest",
 ]

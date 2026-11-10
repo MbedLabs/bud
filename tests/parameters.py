@@ -512,3 +512,47 @@ MSG_CSP_SCRIPT_SELF = "the CSP allows scripts from the app's own origin"
 MSG_CSP_NO_INLINE = "the CSP forbids inline script"
 MSG_CSP_FRAMES = "the CSP lets only the app's own origin frame it"
 MSG_IMAGE_SHIPS_HEADERS = "the image ships the shared header file"
+
+PATCH = "PATCH"
+TEST_RUNS_PATH = "/api/test-runs"
+TEST_RUN_PATH = "/api/test-runs/{}"
+RESULTS_PATH = "/api/results"
+RUN_WRITE_OPERATIONS = ("create", "patch", "results-create", "results-update")
+PRODUCER_RUN_NAME = "Station run"
+PRODUCER_CASE_LIST = "suite"
+PRODUCER_HUMAN_RUN = {
+    "test_suite_name": "Human-created run",
+    "test_case_list": "suite",
+    "runner_account": "station-01",
+    "status": "Running",
+}
+PRODUCER_HUMAN_PATCH = {"status": "Cancelled", "total_tests": 99}
+PRODUCER_HUMAN_RESULTS = {
+    "test_suite_name": "Human results",
+    "results": [{"test_class": "Suite", "test_method": "test_one", "passed": True}],
+}
+PRODUCER_STATION_RUN = {
+    "test_suite_name": "Station run",
+    "test_case_list": "suite",
+    "runner_account": "station-01",
+    "status": "Running",
+    "url_test_software": "https://example.com/tests.git",
+    "ref_test_software": "release",
+}
+PRODUCER_STATION_COUNTS = {"total_tests": 7, "passed_tests": 5, "failed_tests": 2}
+PRODUCER_COUNTS = (7, 5, 2)
+PRODUCER_REF = "release"
+PRODUCER_UNTOUCHED_TOTAL = 0
+PRODUCER_RUN_COUNT = 1
+PRODUCER_EVENT_COUNT = 0
+MSG_PRODUCER_HUMAN_REFUSED = "a person cannot write a test run record"
+MSG_PRODUCER_STATUS_KEPT = "the run keeps its status"
+MSG_PRODUCER_TOTAL_KEPT = "the run keeps its test count"
+MSG_PRODUCER_NOT_COMPLETED = "the run is not completed"
+MSG_PRODUCER_NO_NEW_RUN = "no run is added"
+MSG_PRODUCER_NO_EVENT = "no run event is recorded"
+MSG_PRODUCER_STATION_CREATES = "a station creates its run"
+MSG_PRODUCER_STATION_UPDATES = "a station updates its run"
+MSG_PRODUCER_RUN_OWNER = "the run belongs to the station"
+MSG_PRODUCER_RUN_COUNTS = "the run keeps the station's counts"
+MSG_PRODUCER_RUN_REF = "the run keeps the test software reference"
