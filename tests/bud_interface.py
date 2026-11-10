@@ -47,6 +47,8 @@ class BudInterface:
 
     def tearDown(self):
         self.bud_stop_app()
+        if getattr(self, "session", None) is not None:
+            self._run(self.session.close())
         self._run(self.engine.dispose())
         self.loop.close()
 
@@ -237,6 +239,22 @@ class BudInterface:
     def bud_audit_actions(self):
         """The actions of the audit events left, in the order they were recorded."""
         return self._run(self._audit_actions())
+
+    def bud_open_session(self):
+        """Open one session on the interface's database, closed with the interface."""
+        self.session = self.maker()
+        return self.session
+
+    def bud_await(self, coroutine):
+        """Run one coroutine on the interface's loop and return its result."""
+        return self._run(coroutine)
+
+    def bud_attempt(self, call):
+        """The result of call, or the exception it raises."""
+        try:
+            return call()
+        except Exception as error:
+            return error
 
     def bud_add_station(self, account):
         return self._run(

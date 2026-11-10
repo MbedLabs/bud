@@ -330,3 +330,37 @@ MSG_INVITER_CLEARED = "the invited user no longer names the deleted inviter"
 MSG_SELF_DELETE_REFUSED = "an administrator cannot delete their own account"
 MSG_SELF_DELETE_DETAIL = "the refusal says the administrator cannot delete their own account"
 MSG_MISSING_USER = "deleting a user that does not exist is not found"
+
+LOGO_PNG = (
+    b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00"
+    b"\x1f\x15\xc4\x89\x00\x00\x00\x0bIDATx\xdac\xfc\xcf\xc0P\x0f\x00\x04\x85\x01\x80\x84\xa9"
+    b"\x8c!\x00\x00\x00\x00IEND\xaeB`\x82"
+)
+LOGO_NAME = "logo.png"
+LOGO_TYPE = "image/png"
+LOGO_NOT_AN_IMAGE = b"nope"
+LOGO_TEXT_TYPE = "text/plain"
+HTTP_EXCEPTION = "HTTPException"
+STATUS_UNSUPPORTED_MEDIA = 415
+PDF_MAGIC = b"%PDF-"
+PDF_FORMAT = "pdf"
+REPORT_TITLE = "Bud Test Report"
+REPORT_SUBTITLE = "Test outcomes"
+REPORT_FILTERS = [("Window", "Last 7 days")]
+REPORT_OVERALL = (9, 1, 2)
+REPORT_BREAKDOWN_TITLE = "Per suite"
+REPORT_BREAKDOWN_LABEL = "Suite"
+REPORT_BREAKDOWN_ROW = "smoke"
+REPORT_APP_VERSION = "1.0.0"
+REPORT_LOGO_IMAGES = 1
+MSG_LOGO_STORED = "an administrator stores a PNG logo"
+MSG_LOGO_SERVED = "the stored logo is served"
+MSG_LOGO_FOR_REPORTS = "reports load the stored logo"
+MSG_LOGO_DELETED = "after the logo is deleted it is not found"
+MSG_LOGO_DELETED_STATUS = "a deleted logo answers not found"
+MSG_LOGO_DELETED_REPORTS = "after the logo is deleted reports load none"
+MSG_LOGO_NOT_IMAGE = "a logo that is not an image is refused"
+MSG_LOGO_NOT_IMAGE_STATUS = "a logo that is not an image is an unsupported media type"
+MSG_REPORT_PDF = "the report without a logo is a PDF"
+MSG_REPORT_LOGO_PDF = "the report with the logo is a PDF"
+MSG_REPORT_LOGO_IMAGE = "the report with the logo has exactly one image more"
