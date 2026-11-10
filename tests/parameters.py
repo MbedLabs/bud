@@ -306,3 +306,27 @@ MSG_LOG_LOGGER = "a JSON log line carries the logger"
 MSG_LOG_REQUEST_ID = "a JSON log line carries the request id"
 MSG_LOG_HANDLERS = "setting up logging twice leaves one root handler"
 MSG_LOG_FORMATTER = "the root handler writes JSON"
+
+USER_PATH = "/api/users/{}"
+DELETE = "DELETE"
+STATUS_NO_CONTENT = 204
+STATUS_BAD_REQUEST = 400
+USER_HASH = "hash"
+USER_DELETED_EMAIL = "to_delete@example.com"
+USER_DELETED_NAME = "To Delete"
+USER_INVITE_HASH = "some-hash"
+USER_INVITE_LIFETIME = timedelta(hours=1)
+USER_INVITER_EMAIL = "inviter@example.com"
+USER_INVITER_NAME = "Inviter"
+USER_INVITEE_EMAIL = "invitee@example.com"
+USER_INVITEE_NAME = "Invitee"
+USER_MISSING_ID = 9999
+USER_SELF_DELETE_DETAIL = "Admin users cannot delete their own account"
+MSG_USER_DELETED = "an administrator deletes a user"
+MSG_USER_GONE = "the deleted user is gone"
+MSG_USER_TOKENS_GONE = "the deleted user's tokens are gone"
+MSG_INVITER_DELETED = "an administrator deletes a user who invited another"
+MSG_INVITER_CLEARED = "the invited user no longer names the deleted inviter"
+MSG_SELF_DELETE_REFUSED = "an administrator cannot delete their own account"
+MSG_SELF_DELETE_DETAIL = "the refusal says the administrator cannot delete their own account"
+MSG_MISSING_USER = "deleting a user that does not exist is not found"

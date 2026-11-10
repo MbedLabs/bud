@@ -115,6 +115,14 @@ class BudInterface:
         root.setLevel(self.log_level)
         return list(self.log_capture.buffer)
 
+    def bud_add_to_app(self, row):
+        """Store one row in the started app's database and return it as stored."""
+        return self._run(self._add_to_app(row))
+
+    def bud_find_in_app(self, model, **where):
+        """The rows of a model in the started app's database whose columns equal the given values."""
+        return self._run(self._find_in_app(model, where))
+
     def bud_add_test_station(self):
         """The station the tests act as, with a running test run of its own."""
         station = Runner(
@@ -191,6 +199,11 @@ class BudInterface:
             await session.commit()
             await session.refresh(row)
             return row
+
+    async def _find_in_app(self, model, where):
+        async with self.app_maker() as session:
+            query = select(model).filter_by(**where)
+            return list((await session.execute(query)).scalars())
 
     async def _serve_app_session(self):
         async with self.app_maker() as session:
