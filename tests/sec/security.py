@@ -16,8 +16,8 @@ class SecurityBase(BudAppTestCase):
     def bud_access_token_decodes(self):
         self.print_variables({"access token claims": self.tc_access})
         self.assertNotEqual(
-            self.tc_access,
-            None,
+            type(self.tc_access).__name__,
+            self.parameters.NO_CLAIMS,
             msg=self.parameters.MSG_ACCESS_TOKEN_DECODES,
             abort_on_fail=True,
         )
@@ -41,8 +41,8 @@ class SecurityBase(BudAppTestCase):
     def bud_station_token_decodes(self):
         self.print_variables({"station token claims": self.tc_station})
         self.assertNotEqual(
-            self.tc_station,
-            None,
+            type(self.tc_station).__name__,
+            self.parameters.NO_CLAIMS,
             msg=self.parameters.MSG_STATION_TOKEN_DECODES,
             abort_on_fail=True,
         )

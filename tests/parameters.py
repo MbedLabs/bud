@@ -158,6 +158,7 @@ REPORT_ASSERTION_OUTCOME = (1, 1, 0)
 MSG_REPORT_ROWS = "the run report's assertion rows leave out skipped and information entries"
 MSG_REPORT_OUTCOME = "the assertion outcome counts one passed and one failed assertion"
 
+NO_CLAIMS = "NoneType"
 TOKEN_SUBJECT = "user@example.com"
 TOKEN_LIFETIME = timedelta(minutes=5)
 TOKEN_EXPIRY_CLAIM = "exp"
