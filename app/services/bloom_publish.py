@@ -115,10 +115,10 @@ def build_payload(
 
 
 async def bloom_post(
-    bloom_url: str, bloom_token: str, path: str, payload: dict, timeout: float
+    bloom_url: str, bloom_token: str, path: str, payload: dict, timeout_seconds: float
 ) -> httpx.Response:
     """POST the JSON payload to a Bloom API path with the Bloom service token."""
-    async with httpx.AsyncClient(timeout=timeout) as client:
+    async with httpx.AsyncClient(timeout=timeout_seconds) as client:
         return await client.post(
             f"{bloom_url}{path}",
             json=payload,
