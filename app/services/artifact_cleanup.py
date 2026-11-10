@@ -32,6 +32,31 @@ def _safe_upload_root() -> Path:
     return root
 
 
+def _remove_local_orphans(root: Path, referenced: set[str], orphan_cutoff: float) -> int:
+    """Delete the unreferenced files of the upload root older than the cutoff and return how many."""
+    removed = 0
+    for path in root.iterdir():
+        if path.is_file() and path.name not in referenced and path.stat().st_mtime < orphan_cutoff:
+            with contextlib.suppress(OSError):
+                path.unlink()
+                removed += 1
+    return removed
+
+
+async def _reconcile_bucket(referenced: set[str], orphan_cutoff: float) -> tuple[int, int]:
+    """Delete the bucket's unreferenced objects older than the cutoff; return how many, and
+    how many referenced keys the bucket lacks."""
+    cutoff = datetime.fromtimestamp(orphan_cutoff, tz=timezone.utc)
+    present = set()
+    removed = 0
+    for stored in await object_store.list_objects():
+        present.add(stored.name)
+        if stored.name not in referenced and stored.last_modified < cutoff:
+            await object_store.delete(stored.name)
+            removed += 1
+    return removed, len(referenced - present)
+
+
 async def reconcile_artifacts(
     db: AsyncSession, *, orphan_grace_seconds: int = 3600
 ) -> CleanupReport:
@@ -63,25 +88,11 @@ async def reconcile_artifacts(
     orphan_cutoff = time.time() - orphan_grace_seconds
     orphan_count = 0
     if object_store.keeps_local_copy():
-        for path in root.iterdir():
-            if (
-                path.is_file()
-                and path.name not in referenced
-                and path.stat().st_mtime < orphan_cutoff
-            ):
-                with contextlib.suppress(OSError):
-                    path.unlink()
-                    orphan_count += 1
+        orphan_count += _remove_local_orphans(root, referenced, orphan_cutoff)
 
     if object_store.s3_enabled():
-        cutoff = datetime.fromtimestamp(orphan_cutoff, tz=timezone.utc)
-        present = set()
-        for stored in await object_store.list_objects():
-            present.add(stored.name)
-            if stored.name not in referenced and stored.last_modified < cutoff:
-                await object_store.delete(stored.name)
-                orphan_count += 1
-        missing_count = len(referenced - present)
+        bucket_orphans, missing_count = await _reconcile_bucket(referenced, orphan_cutoff)
+        orphan_count += bucket_orphans
     else:
         missing_count = sum(1 for storage_key in referenced if not (root / storage_key).is_file())
     await db.execute(delete(UploadLease).where(UploadLease.expires_at <= now))
