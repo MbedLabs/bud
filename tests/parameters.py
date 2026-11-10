@@ -484,3 +484,31 @@ MSG_PLM_SAME_ORIGIN_KEPT = "a same-origin URL change keeps the saved token"
 MSG_PLM_INVALID_PORT = "a Bloom URL with an invalid port is refused"
 MSG_SETTING_SECRET_READ = "the generic settings endpoint does not read the Bloom secret"
 MSG_SETTING_SECRET_WRITE = "the generic settings endpoint does not write the Bloom secret"
+
+NGINX_CONF = "docker/nginx.conf"
+SECURITY_HEADERS_CONF = "docker/security-headers.conf"
+SECURITY_HEADERS = (
+    "X-Content-Type-Options",
+    "Referrer-Policy",
+    "Permissions-Policy",
+    "Content-Security-Policy",
+)
+NGINX_ADD_HEADER = "add_header"
+NGINX_HEADER_LINE = "add_header {} "
+NGINX_ALWAYS = "always;"
+NGINX_LOCATION = r"^\s*(location[^\n{]*)\{"
+NGINX_INCLUDE = "include /etc/nginx/security-headers.conf;"
+CSP_HEADER = "Content-Security-Policy"
+CSP_SCRIPT_SELF = "script-src 'self'"
+CSP_SCRIPT_SOURCE = "script-src"
+CSP_UNSAFE_INLINE = "unsafe-inline"
+CSP_FRAME_ANCESTORS = "frame-ancestors 'self'"
+DOCKERFILE_HEADERS_COPY = "docker/security-headers.conf /etc/nginx/security-headers.conf"
+MSG_NGINX_HEADER = "the shared header file sets the security header"
+MSG_NGINX_ALWAYS = "every shared header is sent on error responses too"
+MSG_NGINX_SERVER_INCLUDE = "the server block includes the shared header file"
+MSG_NGINX_LOCATION_INCLUDE = "every location that sets a header of its own includes the shared file"
+MSG_CSP_SCRIPT_SELF = "the CSP allows scripts from the app's own origin"
+MSG_CSP_NO_INLINE = "the CSP forbids inline script"
+MSG_CSP_FRAMES = "the CSP lets only the app's own origin frame it"
+MSG_IMAGE_SHIPS_HEADERS = "the image ships the shared header file"
