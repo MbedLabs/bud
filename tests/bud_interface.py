@@ -20,10 +20,11 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 import tests.parameters as params
 from app import main
-from app.api import test_runs
+from app.api import test_runs, uploads
 from app.api.auth import get_current_active_entity, get_current_user
 from app.api.results import get_uploader_entity
 from app.core.access import seed_default_access
+from app.core.config import settings
 from app.db import database as db_module
 from app.db.database import Base, get_db
 from app.models import Runner, TestResult, TestRun
@@ -45,8 +46,9 @@ class BudInterface:
         self.loop.close()
 
     def bud_start_app(self, signed_in=True):
-        """Serve the whole app on a new file-backed SQLite database with the default access seeded,
-        signed in as an administrator unless signed_in is False."""
+        """Serve the whole app on a new file-backed SQLite database with the default access seeded
+        and its uploads in the same work folder, signed in as an administrator unless signed_in
+        is False."""
         self.bud_stop_app()
         folder = (
             Path(os.environ[self.parameters.WORK_DIR_SETTING])
@@ -54,6 +56,8 @@ class BudInterface:
             / uuid.uuid4().hex
         )
         folder.mkdir(parents=True)
+        settings.UPLOAD_DIR = str(folder / self.parameters.APP_UPLOAD_FOLDER)
+        uploads._UPLOAD_ROOT = None
         self.app_engine = create_async_engine(
             f"sqlite+aiosqlite:///{folder / self.parameters.APP_DATABASE_FILE}",
             future=True,

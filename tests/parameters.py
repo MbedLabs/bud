@@ -118,3 +118,21 @@ MSG_HEALTH_NO_DATABASE = "the liveness probe does not claim a connected database
 MSG_READY_ANSWERS = "the readiness probe answers"
 MSG_READY_READY = "the readiness probe reports ready"
 MSG_READY_DATABASE = "the readiness probe reports the database connected"
+
+APP_UPLOAD_FOLDER = "uploads"
+STATUS_CREATED = 201
+UPLOAD_PATH = "/api/uploads/{}"
+HTML_REPORT_NAME = "log.html"
+HTML_REPORT_CONTENT = b"<html><script>alert(1)</script></html>"
+HTML_TYPE = "text/html"
+ATTACHMENT_PATTERN = "^attachment;"
+HTML_REPORT_FILENAME = 'filename="log.html"'
+SANDBOX_POLICY = "sandbox"
+NO_SNIFF = "nosniff"
+MSG_HTML_ACCEPTED = "a station uploads an HTML report"
+MSG_HTML_TYPE = "the uploaded HTML report keeps its content type"
+MSG_HTML_DOWNLOADS = "the HTML report downloads"
+MSG_HTML_ATTACHMENT = "the HTML report downloads as an attachment"
+MSG_HTML_FILENAME = "the download keeps the report's file name"
+MSG_HTML_SANDBOX = "a browser that renders the download renders it sandboxed"
+MSG_HTML_NOSNIFF = "a browser does not sniff the download's content type"
