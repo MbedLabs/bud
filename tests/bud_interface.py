@@ -9,14 +9,22 @@
 """
 
 import asyncio
+import os
+import uuid
+from pathlib import Path
 
 import httpx
 from fastapi import FastAPI
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from fastapi.testclient import TestClient
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 import tests.parameters as params
+from app import main
 from app.api import test_runs
-from app.api.auth import get_current_active_entity
+from app.api.auth import get_current_active_entity, get_current_user
+from app.api.results import get_uploader_entity
+from app.core.access import seed_default_access
+from app.db import database as db_module
 from app.db.database import Base, get_db
 from app.models import Runner, TestResult, TestRun
 from app.models.user import User, UserRole
@@ -32,8 +40,137 @@ class BudInterface:
         self.maker = async_sessionmaker(self.engine, expire_on_commit=False)
 
     def tearDown(self):
+        self.bud_stop_app()
         self._run(self.engine.dispose())
         self.loop.close()
+
+    def bud_start_app(self, signed_in=True):
+        """Serve the whole app on a new file-backed SQLite database with the default access seeded,
+        signed in as an administrator unless signed_in is False."""
+        self.bud_stop_app()
+        folder = (
+            Path(os.environ[self.parameters.WORK_DIR_SETTING])
+            / self.parameters.APP_DATABASE_FOLDER
+            / uuid.uuid4().hex
+        )
+        folder.mkdir(parents=True)
+        self.app_engine = create_async_engine(
+            f"sqlite+aiosqlite:///{folder / self.parameters.APP_DATABASE_FILE}",
+            future=True,
+            connect_args={"check_same_thread": False},
+        )
+        self.app_maker = async_sessionmaker(
+            self.app_engine, class_=AsyncSession, expire_on_commit=False
+        )
+        db_module.engine = self.app_engine
+        db_module.async_session_maker = self.app_maker
+        self._run(self._create_app_tables())
+        self.admin = self._admin()
+        main.app.dependency_overrides[get_db] = self._serve_app_session
+        if signed_in:
+            for dependency in (get_current_user, get_current_active_entity, get_uploader_entity):
+                main.app.dependency_overrides[dependency] = self._current_admin
+        self.client = TestClient(main.app)
+        self.client.__enter__()
+        return self.client
+
+    def bud_stop_app(self):
+        """Close the app client, clear its overrides and dispose of its database."""
+        client = getattr(self, "client", None)
+        if client is not None:
+            client.__exit__(None, None, None)
+            self.client = None
+            main.app.dependency_overrides.clear()
+        engine = getattr(self, "app_engine", None)
+        if engine is not None:
+            self._run(engine.dispose())
+            self.app_engine = None
+
+    def bud_add_test_station(self):
+        """The station the tests act as, with a running test run of its own."""
+        station = Runner(
+            account=self.parameters.TEST_STATION_ACCOUNT,
+            password_hash=self.parameters.TEST_STATION_PASSWORD_HASH,
+            token=self.parameters.TEST_STATION_TOKEN,
+            socket_port=self.parameters.TEST_STATION_PORT,
+        )
+        self.station = self._run(self._add_to_app(station))
+        run = TestRun(
+            name=self.parameters.TEST_STATION_RUN,
+            test_case_list=self.parameters.EMPTY_TEST_LIST,
+            status=self.parameters.RUN_RUNNING,
+            runner_id=self.station.id,
+        )
+        self.station_run = self._run(self._add_to_app(run))
+        return self.station
+
+    def bud_station_request(self, method, url, **kwargs):
+        """Send one request signed in as the test station, then sign the client back in."""
+        dependencies = (get_current_active_entity, get_uploader_entity)
+        previous = {
+            dependency: main.app.dependency_overrides.get(dependency) for dependency in dependencies
+        }
+
+        async def current_station():
+            return self.station
+
+        for dependency in dependencies:
+            main.app.dependency_overrides[dependency] = current_station
+        try:
+            return self.client.request(method, url, **kwargs)
+        finally:
+            for dependency, override in previous.items():
+                if override is None:
+                    main.app.dependency_overrides.pop(dependency, None)
+                else:
+                    main.app.dependency_overrides[dependency] = override
+
+    def bud_station_upload(self, name, content, content_type, **data):
+        """Upload one file as the test station to its own run."""
+        form = {"run_id": str(self.station_run.id), **data}
+        return self.bud_station_request(
+            "POST",
+            self.parameters.UPLOADS_PATH,
+            files={"file": (name, content, content_type)},
+            data=form,
+        )
+
+    def _admin(self):
+        return User(
+            id=self.parameters.TEST_ADMIN_ID,
+            email=self.parameters.TEST_ADMIN_EMAIL,
+            full_name=self.parameters.TEST_ADMIN_NAME,
+            hashed_password=self.parameters.TEST_ADMIN_PASSWORD_HASH,
+            role=UserRole.admin,
+            is_active=True,
+            session_version=1,
+        )
+
+    async def _current_admin(self):
+        return self.admin
+
+    async def _create_app_tables(self):
+        async with self.app_engine.begin() as connection:
+            await connection.run_sync(Base.metadata.create_all)
+        async with self.app_maker() as session:
+            await seed_default_access(session)
+            await session.commit()
+
+    async def _add_to_app(self, row):
+        async with self.app_maker() as session:
+            session.add(row)
+            await session.commit()
+            await session.refresh(row)
+            return row
+
+    async def _serve_app_session(self):
+        async with self.app_maker() as session:
+            try:
+                yield session
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                raise
 
     def bud_add_station(self, account):
         return self._run(
