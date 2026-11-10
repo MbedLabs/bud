@@ -11,4 +11,5 @@ SUITES = [
     "tests.logic.BUD_container_start.ContainerStartTest",
     "tests.logic.BUD_access_token_format.AccessTokenFormatTest",
     "tests.logic.BUD_company_logo.CompanyLogoTest",
+    "tests.logic.BUD_alembic_baseline.AlembicBaselineTest",
 ]

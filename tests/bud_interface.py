@@ -220,6 +220,11 @@ class BudInterface:
         """The text of one file of the repository, by its path from the repository root."""
         return (Path(__file__).resolve().parents[1] / relative_path).read_text()
 
+    def bud_repository_files(self, relative_folder, pattern):
+        """The sorted names of the files of a repository folder that match a glob pattern."""
+        folder = Path(__file__).resolve().parents[1] / relative_folder
+        return sorted(path.name for path in folder.glob(pattern))
+
     def bud_add_audit_event(self, action, age):
         """Record one audit event of a user, the given age ago."""
         now = datetime.now(timezone.utc).replace(tzinfo=None)

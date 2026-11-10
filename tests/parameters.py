@@ -389,3 +389,29 @@ MSG_PASSWORD_MULTIBYTE_CHARACTERS = "the multibyte password has fewer characters
 MSG_PASSWORD_MULTIBYTE_REFUSED = "a password over the byte limit in two-byte characters is refused"
 MSG_PASSWORD_SCHEMA_SHORT = "every request that sets a password refuses a short one"
 MSG_PASSWORD_SCHEMA_VALID = "every request that sets a password accepts a valid one"
+
+ALEMBIC_VERSIONS = "alembic/versions"
+ALEMBIC_PATTERN = "*.py"
+ALEMBIC_PACKAGE_FILE = "__init__.py"
+ALEMBIC_HEAD = "009_admin_email_change_workflow"
+ALEMBIC_BASELINE = "009_admin_email_change_workflow.py"
+ALEMBIC_ROOT_MARKERS = ("down_revision: Union[str, Sequence[str], None] = None", "down_revision = None")
+ALEMBIC_TYPED_ROOT = "down_revision: Union[str, Sequence[str], None] = None"
+ALEMBIC_PARENT = "down_revision = "
+ALEMBIC_NO_PARENT = "down_revision = None"
+ALEMBIC_CREATE_ALL = "create_all"
+ALEMBIC_REVISION_ID = 'revision: str = "{}"'
+ALEMBIC_CREATE_TABLE = "op.create_table("
+ALEMBIC_CORE_TABLES = ("users", "test_runs", "test_results", "artifacts")
+ALEMBIC_TABLE_NAME = '"{}"'
+ALEMBIC_DROP_TYPE = "DROP TYPE IF EXISTS"
+MSG_ALEMBIC_ONE_ROOT = "the baseline is the only root of the migration chain"
+MSG_ALEMBIC_PARENT = "every later revision names a parent"
+MSG_ALEMBIC_NOT_ROOT = "no later revision is a root"
+MSG_ALEMBIC_LATER_CREATE_ALL = "no later revision rebuilds the schema from the models"
+MSG_ALEMBIC_HEAD_ID = "the baseline keeps the deployed head's revision id"
+MSG_ALEMBIC_BASELINE_ROOT = "the baseline has no parent"
+MSG_ALEMBIC_NO_CREATE_ALL = "the baseline calls no create_all"
+MSG_ALEMBIC_EXPLICIT_DDL = "the baseline creates its tables with explicit DDL"
+MSG_ALEMBIC_CORE_TABLE = "the baseline creates the core table"
+MSG_ALEMBIC_DROP_TYPE = "the baseline drops its enum types on downgrade"
