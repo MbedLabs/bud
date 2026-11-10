@@ -15,8 +15,12 @@ class AuditPruneTest(AuditPruneBase):
 
     def setUpClass(self):
         super().setUpClass()
-        self.bud.bud_add_audit_event(self.parameters.AUDIT_OLD_ACTION, self.parameters.AUDIT_OLD_AGE)
-        self.bud.bud_add_audit_event(self.parameters.AUDIT_NEW_ACTION, self.parameters.AUDIT_NEW_AGE)
+        self.bud.bud_add_audit_event(
+            self.parameters.AUDIT_OLD_ACTION, self.parameters.AUDIT_OLD_AGE
+        )
+        self.bud.bud_add_audit_event(
+            self.parameters.AUDIT_NEW_ACTION, self.parameters.AUDIT_NEW_AGE
+        )
         self.tc_removed = self.bud.bud_prune_audit(self.parameters.AUDIT_RETENTION_DAYS)
         self.tc_left = self.bud.bud_audit_actions()
 

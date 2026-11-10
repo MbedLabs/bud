@@ -39,9 +39,7 @@ def api_routes(router, api_prefix, prefix=""):
         original_router = getattr(route, "original_router", None)
         include_context = getattr(route, "include_context", None)
         if original_router is not None and include_context is not None:
-            yield from api_routes(
-                original_router, api_prefix, f"{prefix}{include_context.prefix}"
-            )
+            yield from api_routes(original_router, api_prefix, f"{prefix}{include_context.prefix}")
 
 
 class RouteAuthMatrixTest(RouteAuthMatrixBase):

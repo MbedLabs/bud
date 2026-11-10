@@ -37,9 +37,7 @@ class AlembicBaselineTest(AlembicBaselineBase):
             for name in self.bud.bud_repository_files(folder, self.parameters.ALEMBIC_PATTERN)
             if name != self.parameters.ALEMBIC_PACKAGE_FILE
         ]
-        sources = {
-            name: self.bud.bud_read_repository_file(f"{folder}/{name}") for name in names
-        }
+        sources = {name: self.bud.bud_read_repository_file(f"{folder}/{name}") for name in names}
         self.tc_roots = [
             name
             for name, source in sources.items()

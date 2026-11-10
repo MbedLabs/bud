@@ -31,7 +31,9 @@ def signed_token(header, payload, hashes):
     if header["alg"] not in hashes:
         return f"{signing_input}."
     digest = hmac.new(
-        settings.SECRET_KEY.encode(), signing_input.encode(), getattr(hashlib, hashes[header["alg"]])
+        settings.SECRET_KEY.encode(),
+        signing_input.encode(),
+        getattr(hashlib, hashes[header["alg"]]),
     )
     signature = base64.urlsafe_b64encode(digest.digest()).rstrip(b"=").decode()
     return f"{signing_input}.{signature}"
@@ -44,7 +46,9 @@ class AccessTokenFormatTest(AccessTokenFormatBase):
         hashes = self.parameters.TOKEN_HASHES
         self.tc_standard = security.decode_access_token(
             signed_token(
-                self.parameters.TOKEN_HS256, self.claims(self.parameters.TOKEN_VALID_MINUTES), hashes
+                self.parameters.TOKEN_HS256,
+                self.claims(self.parameters.TOKEN_VALID_MINUTES),
+                hashes,
             )
         )
         self.tc_issued = security.decode_access_token(
