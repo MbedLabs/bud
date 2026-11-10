@@ -198,3 +198,14 @@ MSG_CLOUDRON_UPSTREAM = "the Cloudron upstream version is the product version"
 MSG_CLOUDRON_SECTION = "the Cloudron changelog has a section for the product version"
 MSG_CLOUDRON_HEADER = "the Cloudron changelog opens with a version header"
 MSG_CLOUDRON_NEWEST = "the changelog's first version is the product version or a later one"
+
+AUDIT_ACTOR_USER = "user"
+AUDIT_OLD_ACTION = "old"
+AUDIT_NEW_ACTION = "new"
+AUDIT_OLD_AGE = timedelta(days=40)
+AUDIT_NEW_AGE = timedelta(days=5)
+AUDIT_RETENTION_DAYS = 30
+AUDIT_PRUNED = 1
+AUDIT_LEFT = ["new"]
+MSG_AUDIT_PRUNED = "the prune removes the one event older than the retention"
+MSG_AUDIT_LEFT = "the event inside the retention is kept"

@@ -13,15 +13,18 @@ import logging
 import logging.handlers
 import os
 import uuid
+from datetime import datetime, timezone
 from pathlib import Path
+from unittest import mock
 
 import httpx
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 import tests.parameters as params
-from app import main
+from app import audit, main
 from app.api import test_runs, uploads
 from app.api.auth import get_current_active_entity, get_current_user
 from app.api.results import get_uploader_entity
@@ -29,7 +32,7 @@ from app.core.access import seed_default_access
 from app.core.config import settings
 from app.db import database as db_module
 from app.db.database import Base, get_db
-from app.models import Runner, TestResult, TestRun
+from app.models import AuditEvent, Runner, TestResult, TestRun
 from app.models.user import User, UserRole
 
 
@@ -202,6 +205,26 @@ class BudInterface:
         """The text of one file of the repository, by its path from the repository root."""
         return (Path(__file__).resolve().parents[1] / relative_path).read_text()
 
+    def bud_add_audit_event(self, action, age):
+        """Record one audit event of a user, the given age ago."""
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        return self._run(
+            self._add(
+                AuditEvent(
+                    actor_type=self.parameters.AUDIT_ACTOR_USER, action=action, occurred_at=now - age
+                )
+            )
+        )
+
+    def bud_prune_audit(self, older_than_days):
+        """Run the audit prune command's work on the interface's database."""
+        with mock.patch.object(audit, "async_session_maker", self.maker):
+            return self._run(audit.prune(older_than_days))
+
+    def bud_audit_actions(self):
+        """The actions of the audit events left, in the order they were recorded."""
+        return self._run(self._audit_actions())
+
     def bud_add_station(self, account):
         return self._run(
             self._add(
@@ -245,6 +268,11 @@ class BudInterface:
     async def _create_tables(self):
         async with self.engine.begin() as connection:
             await connection.run_sync(Base.metadata.create_all)
+
+    async def _audit_actions(self):
+        async with self.maker() as db:
+            events = await db.execute(select(AuditEvent).order_by(AuditEvent.id))
+            return [event.action for event in events.scalars()]
 
     async def _add(self, row):
         async with self.maker() as db:
