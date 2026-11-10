@@ -219,3 +219,36 @@ RESPONSE_UNMARKED = []
 MSG_RESPONSE_SCAN_COUNT = "the scan finds more than 20 response models"
 MSG_RESPONSE_SCAN_API = "the scan finds response models declared in app.api"
 MSG_RESPONSE_UTC = "every timestamp a response model carries has the UTC serializer"
+
+START_SCRIPT = "docker/start.sh"
+SUPERVISORD_CONF = "docker/supervisord.conf"
+START_SUPERVISORD = 'exec gosu "$APP_USER" /usr/local/bin/supervisord -c /etc/supervisord.conf'
+START_SUPERVISORD_PREFIX = 'exec gosu "$APP_USER" /usr/local/bin/supervisord'
+START_SUPERVISORD_TIMES = 1
+START_APP_USER = "APP_USER=appuser"
+START_FD_LOOP = "for fd in 1 2; do"
+START_FD_WRITABLE = 'if ! gosu "$APP_USER" test -w "/proc/self/fd/$fd"; then'
+START_FD_CHOWN = 'chown "$APP_UID:$APP_GID" "/proc/self/fd/$fd"'
+START_CLOUDRON_BLOCK = 'if [ -n "${CLOUDRON_APP_ORIGIN:-}" ]; then'
+START_CLOUDRON_ELSE = "\nelse\n"
+START_DATA_CHOWN = 'chown -R "$APP_UID:$APP_GID" /app/data'
+START_MIGRATION = 'gosu "$APP_USER" alembic upgrade head'
+SUPERVISORD_ROOT = "user=root"
+SUPERVISORD_PIDFILE = "pidfile=/run/bud/supervisord.pid"
+DOCKERFILE_ROOT_USER = r"(?m)^USER root$"
+DOCKERFILE_NGINX_USER = "user appuser;"
+DOCKERFILE_NGINX_USER_DROP = "-e '/^[[:space:]]*user[[:space:]]/d'"
+MSG_START_LAST = "start.sh ends by replacing the shell with supervisord run as appuser"
+MSG_START_ONCE = "start.sh starts supervisord once"
+MSG_START_APP_USER = "start.sh runs the app as appuser"
+MSG_START_FD_LOOP = "start.sh goes through the container's output descriptors 1 and 2"
+MSG_START_FD_WRITABLE = "start.sh checks whether appuser can write each descriptor"
+MSG_START_FD_CHOWN = "start.sh gives a descriptor appuser cannot write to appuser"
+MSG_START_FD_FIRST = "the descriptors are given to appuser before supervisord starts"
+MSG_START_DATA_CHOWN = "on Cloudron start.sh gives every file under /app/data to appuser"
+MSG_START_DATA_FIRST = "on Cloudron /app/data is given to appuser before the migration runs"
+MSG_SUPERVISORD_ROOT = "supervisord has no root user setting"
+MSG_SUPERVISORD_PIDFILE = "supervisord keeps its pid file in the appuser runtime folder"
+MSG_DOCKERFILE_ROOT = "the image starts as root"
+MSG_DOCKERFILE_NGINX_USER = "the Dockerfile writes no nginx user directive for appuser"
+MSG_DOCKERFILE_NGINX_DROP = "the Dockerfile removes the user directive from nginx.conf"
