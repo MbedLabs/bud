@@ -88,3 +88,11 @@ TEST_STATION_RUN = "station-run"
 EMPTY_TEST_LIST = "[]"
 RUN_RUNNING = "Running"
 UPLOADS_PATH = "/api/uploads"
+
+DOCKERFILE = "Dockerfile"
+DOCKERFILE_FROM = "FROM "
+DOCKERFILE_UI_BUILD = " AS ui-build"
+DOCKERFILE_UI_BUILD_STAGES = 1
+DOCKERFILE_BUILD_PLATFORM = "--platform=$BUILDPLATFORM"
+MSG_DOCKERFILE_ONE_UI_BUILD = "the Dockerfile has exactly one ui-build stage"
+MSG_DOCKERFILE_BUILD_PLATFORM = "the ui-build stage runs on the build platform"

@@ -172,6 +172,10 @@ class BudInterface:
                 await session.rollback()
                 raise
 
+    def bud_read_repository_file(self, relative_path):
+        """The text of one file of the repository, by its path from the repository root."""
+        return (Path(__file__).resolve().parents[1] / relative_path).read_text()
+
     def bud_add_station(self, account):
         return self._run(
             self._add(
