@@ -157,3 +157,15 @@ REPORT_ASSERTION_ROWS = [("AssertEqual", True), ("AssertIn", False)]
 REPORT_ASSERTION_OUTCOME = (1, 1, 0)
 MSG_REPORT_ROWS = "the run report's assertion rows leave out skipped and information entries"
 MSG_REPORT_OUTCOME = "the assertion outcome counts one passed and one failed assertion"
+
+TOKEN_SUBJECT = "user@example.com"
+TOKEN_LIFETIME = timedelta(minutes=5)
+TOKEN_EXPIRY_CLAIM = "exp"
+STATION_TOKEN_ACCOUNT = "station-01"
+STATION_TOKEN_TYPE = "runner"
+MSG_ACCESS_TOKEN_DECODES = "an access token decodes with the secret key"
+MSG_ACCESS_TOKEN_SUBJECT = "an access token keeps its subject"
+MSG_ACCESS_TOKEN_EXPIRES = "an access token carries its expiry"
+MSG_STATION_TOKEN_DECODES = "a Test Station token decodes with the secret key"
+MSG_STATION_TOKEN_SUBJECT = "a Test Station token names its account"
+MSG_STATION_TOKEN_TYPE = "a Test Station token is a runner token"
