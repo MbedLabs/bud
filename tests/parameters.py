@@ -364,3 +364,28 @@ MSG_LOGO_NOT_IMAGE_STATUS = "a logo that is not an image is an unsupported media
 MSG_REPORT_PDF = "the report without a logo is a PDF"
 MSG_REPORT_LOGO_PDF = "the report with the logo is a PDF"
 MSG_REPORT_LOGO_IMAGE = "the report with the logo has exactly one image more"
+
+PASSWORD_VALID = "correct horse battery"
+PASSWORD_SHORT = "short"
+PASSWORD_CHARACTER = "x"
+PASSWORD_MULTIBYTE = "é" * 37
+PASSWORD_SHORT_CASES = ("empty", "one character", "one under the minimum")
+PASSWORD_TOO_SHORT_TEXT = "at least"
+PASSWORD_TOO_LONG_TEXT = "too long"
+VALUE_ERROR = "ValueError"
+VALIDATION_ERROR = "ValidationError"
+PASSWORD_SCHEMAS = {
+    "UserCreate": ("password", {"email": "u@example.com", "full_name": "U"}),
+    "PasswordChange": ("new_password", {"current_password": "whatever-old"}),
+    "AcceptInviteRequest": ("password", {"token": "t"}),
+    "ResetPasswordRequest": ("new_password", {"token": "t"}),
+}
+MSG_PASSWORD_MINIMUM = "a password of the minimum length is accepted"
+MSG_PASSWORD_SHORT_REFUSED = "a password under the minimum length is refused"
+MSG_PASSWORD_SHORT_TEXT = "the refusal says the password must be at least the minimum length"
+MSG_PASSWORD_LONG_REFUSED = "a password over the byte limit is refused"
+MSG_PASSWORD_LONG_TEXT = "the refusal says the password is too long"
+MSG_PASSWORD_MULTIBYTE_CHARACTERS = "the multibyte password has fewer characters than the byte limit"
+MSG_PASSWORD_MULTIBYTE_REFUSED = "a password over the byte limit in two-byte characters is refused"
+MSG_PASSWORD_SCHEMA_SHORT = "every request that sets a password refuses a short one"
+MSG_PASSWORD_SCHEMA_VALID = "every request that sets a password accepts a valid one"
