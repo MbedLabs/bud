@@ -489,6 +489,31 @@ async def deliver(
     return last
 
 
+async def _record_delivery(session, test_run_id: int, channel, delivery, ok: bool) -> None:
+    """Record on the run's timeline whether a channel accepted the finished run's message."""
+    attempts = delivery.attempt if delivery else ATTEMPTS
+    error = delivery.error if delivery else "no response"
+    await record_test_run_event(
+        session,
+        test_run_id=test_run_id,
+        stage="notify",
+        status="completed" if ok else "failed",
+        title=f"Notification {'sent' if ok else 'failed'}: {channel.name}",
+        message=(
+            f"Posted to {channel.name} ({channel.format})."
+            if ok
+            else f"{channel.name} did not accept the message after "
+            f"{attempts} attempt(s): {error}"
+        ),
+        event_metadata={
+            "channel_id": channel.id,
+            "format": channel.format,
+            "attempts": delivery.attempt if delivery else 0,
+            "status_code": delivery.status_code if delivery else None,
+        },
+    )
+
+
 async def notify_run_finished(test_run_id: int, *, wait: Optional[Callable] = None) -> int:
     """Post a finished run to every enabled channel that wants it, once per channel."""
     sent = 0
@@ -536,27 +561,7 @@ async def notify_run_finished(test_run_id: int, *, wait: Optional[Callable] = No
                 delivery = await deliver(session, channel, summary, wait=wait)
                 ok = bool(delivery and delivery.delivered)
                 sent += int(ok)
-                attempts = delivery.attempt if delivery else ATTEMPTS
-                error = delivery.error if delivery else "no response"
-                await record_test_run_event(
-                    session,
-                    test_run_id=run.id,
-                    stage="notify",
-                    status="completed" if ok else "failed",
-                    title=f"Notification {'sent' if ok else 'failed'}: {channel.name}",
-                    message=(
-                        f"Posted to {channel.name} ({channel.format})."
-                        if ok
-                        else f"{channel.name} did not accept the message after "
-                        f"{attempts} attempt(s): {error}"
-                    ),
-                    event_metadata={
-                        "channel_id": channel.id,
-                        "format": channel.format,
-                        "attempts": delivery.attempt if delivery else 0,
-                        "status_code": delivery.status_code if delivery else None,
-                    },
-                )
+                await _record_delivery(session, run.id, channel, delivery, ok)
             await session.commit()
         except Exception:
             logger.exception("Run notification failed for run %s", test_run_id)
