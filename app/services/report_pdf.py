@@ -179,8 +179,8 @@ class OutcomePie(Flowable):
         self.width = width
         self.height = height
 
-    def wrap(self, availWidth, availHeight):  # noqa: N802
-        self.width = min(self.width, availWidth)
+    def wrap(self, avail_width, avail_height):
+        self.width = min(self.width, avail_width)
         return self.width, self.height
 
     def draw(self):
@@ -290,6 +290,29 @@ def _display(value: object) -> str:
     return str(value)
 
 
+def _outcome_cell(passed: Optional[bool]) -> tuple[str, str]:
+    """The outcome label of an assertion and its colour: Passed, Failed or Skipped."""
+    if passed is True:
+        return "Passed", "#16a34a"
+    if passed is False:
+        return "Failed", "#dc2626"
+    return "Skipped", "#f59e0b"
+
+
+def _evidence(assertion: AssertionDetail) -> list[str]:
+    """The evidence lines of an assertion: its message, source, metadata and trace, escaped."""
+    evidence = []
+    if assertion.message:
+        evidence.append(escape(assertion.message))
+    if assertion.source:
+        evidence.append(f"<b>Source:</b> {escape(assertion.source)}")
+    if assertion.metadata not in (None, {}, []):
+        evidence.append(f"<b>Metadata:</b> {escape(_display(assertion.metadata))}")
+    if assertion.traceback:
+        evidence.append(f"<b>Trace:</b> {escape(assertion.traceback)}")
+    return evidence
+
+
 def _assertions_table(
     assertions: list[AssertionDetail], styles: dict[str, ParagraphStyle]
 ) -> Table:
@@ -300,23 +323,8 @@ def _assertions_table(
         ["Test / method", "Assertion", "Outcome", "Expected", "Actual", "Evidence"]
     ]
     for assertion in assertions:
-        if assertion.passed is True:
-            outcome, colour = "Passed", "#16a34a"
-        elif assertion.passed is False:
-            outcome, colour = "Failed", "#dc2626"
-        else:
-            outcome, colour = "Skipped", "#f59e0b"
-
-        evidence = []
-        if assertion.message:
-            evidence.append(escape(assertion.message))
-        if assertion.source:
-            evidence.append(f"<b>Source:</b> {escape(assertion.source)}")
-        if assertion.metadata not in (None, {}, []):
-            evidence.append(f"<b>Metadata:</b> {escape(_display(assertion.metadata))}")
-        if assertion.traceback:
-            evidence.append(f"<b>Trace:</b> {escape(assertion.traceback)}")
-
+        outcome, colour = _outcome_cell(assertion.passed)
+        evidence = _evidence(assertion)
         data.append(
             [
                 Paragraph(
