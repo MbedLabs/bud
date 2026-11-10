@@ -415,3 +415,40 @@ MSG_ALEMBIC_NO_CREATE_ALL = "the baseline calls no create_all"
 MSG_ALEMBIC_EXPLICIT_DDL = "the baseline creates its tables with explicit DDL"
 MSG_ALEMBIC_CORE_TABLE = "the baseline creates the core table"
 MSG_ALEMBIC_DROP_TYPE = "the baseline drops its enum types on downgrade"
+
+PUBLIC_ENDPOINTS = (
+    "root",
+    "health_check",
+    "readiness_check",
+    "get_version",
+    "prometheus_metrics",
+    "login",
+    "refresh",
+    "logout",
+    "get_invite_info",
+    "accept_invite",
+    "verify_email",
+    "forgot_password",
+    "reset_password",
+    "confirm_email_change",
+    "register_runner",
+    "setup_status",
+    "create_first_admin",
+    "cli_start",
+    "cli_exchange",
+    "cli_refresh",
+)
+AUTH_DEPENDENCIES = frozenset(
+    {
+        "get_current_active_entity",
+        "get_current_runner",
+        "get_current_user",
+        "get_uploader_entity",
+        "require_admin",
+        "require_runner_api_key",
+        "role_checker",
+    }
+)
+API_PREFIX = "/api"
+MSG_ROUTES_GUARDED = "every API route that is not public has an authentication boundary"
+MSG_GUARD_EMPTY_TREE = "the route guard finds no authentication in an empty dependency tree"

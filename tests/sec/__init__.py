@@ -6,4 +6,5 @@ SUITES = [
     "tests.sec.BUD_token_logging.TokenLoggingTest",
     "tests.sec.BUD_security.SecurityTest",
     "tests.sec.BUD_password_policy.PasswordPolicyTest",
+    "tests.sec.BUD_route_auth_matrix.RouteAuthMatrixTest",
 ]
