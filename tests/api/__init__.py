@@ -4,4 +4,5 @@ import tests.config  # noqa: F401
 
 SUITES = [
     "tests.api.BUD_run_stats_distinct.RunStatsDistinctTest",
+    "tests.api.BUD_health.HealthTest",
 ]

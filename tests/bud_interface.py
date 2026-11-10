@@ -86,6 +86,10 @@ class BudInterface:
             self._run(engine.dispose())
             self.app_engine = None
 
+    def bud_request(self, method, path, **kwargs):
+        """Send one request to the app started by bud_start_app."""
+        return self.client.request(method, path, **kwargs)
+
     def bud_add_test_station(self):
         """The station the tests act as, with a running test run of its own."""
         station = Runner(
