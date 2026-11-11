@@ -10,4 +10,5 @@ SUITES = [
     "tests.api.BUD_observability.ObservabilityTest",
     "tests.api.BUD_users.UsersTest",
     "tests.api.BUD_setup_api.SetupApiTest",
+    "tests.api.BUD_notification_channels_api.NotificationChannelsApiTest",
 ]

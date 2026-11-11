@@ -591,3 +591,57 @@ MSG_SETUP_WITHOUT_MAIL = "setup succeeds when mail is unavailable"
 MSG_SETUP_MAIL_TO = "the welcome email goes to the new administrator"
 MSG_SETUP_MAIL_NAME = "the welcome email names the new administrator"
 MSG_SETUP_MAIL_LINK = "the welcome email links to the sign-in page"
+
+CHANNELS_PATH = "/api/settings/notifications/channels"
+CHANNEL_PATH = "/api/settings/notifications/channels/{}"
+CHANNEL_TEST_PATH = "/api/settings/notifications/channels/{}/test"
+CHANNEL_HOOK = "https://hooks.example.com/services/T000/B000/abcdefghijklmnopqrstuvwxyz"
+CHANNEL_SECRET = "s3cr3t"
+CHANNEL = {
+    "name": "qa",
+    "format": "slack",
+    "url": "https://hooks.example.com/services/T000/B000/abcdefghijklmnopqrstuvwxyz",
+    "secret": "s3cr3t",
+    "run_filter": "failures",
+}
+CHANNEL_PREFIX_LENGTH = 40
+CHANNEL_PREFIX_ELLIPSIS = "..."
+CHANNEL_URL_FIELD = "url"
+CHANNEL_SECRET_FIELD = "secret"
+CHANNEL_PATCH = {"run_filter": "all", "secret": ""}
+CHANNEL_PATCHED_FILTER = "all"
+CHANNEL_INVALID = {
+    "ftp URL": {"url": "ftp://hooks.example.com/x"},
+    "URL with credentials": {"url": "https://user:pw@hooks.example.com/x"},
+    "email format": {"format": "email"},
+    "unknown run filter": {"run_filter": "sometimes"},
+}
+CHANNEL_MISSING_ID = 999
+CHANNEL_TEST_RESULT = {"delivered": True, "attempts": 1, "status_code": 200, "error": None}
+CHANNEL_POST_TEXT = "ok"
+STATUS_UNAUTHORIZED = 401
+MSG_CHANNEL_CREATED = "an administrator adds a channel"
+MSG_CHANNEL_PREFIX = "the answer shows only the URL's first 40 characters"
+MSG_CHANNEL_HAS_SECRET = "the answer says a secret is saved"
+MSG_CHANNEL_NO_URL = "the answer carries no URL field"
+MSG_CHANNEL_NO_SECRET = "the answer carries no secret field"
+MSG_CHANNEL_HOOK_HIDDEN = "the answer never shows the URL"
+MSG_CHANNEL_LISTED = "the channels are listed"
+MSG_CHANNEL_LIST_HOOK = "the list never shows the URL"
+MSG_CHANNEL_LIST_SECRET = "the list never shows the secret"
+MSG_CHANNEL_URL_ENCRYPTED = "the stored URL is not the plain URL"
+MSG_CHANNEL_SECRET_ENCRYPTED = "the stored secret is not the plain secret"
+MSG_CHANNEL_PATCHED = "an administrator changes a channel"
+MSG_CHANNEL_FILTER = "the run filter is changed"
+MSG_CHANNEL_SECRET_CLEARED = "an empty secret clears the saved secret"
+MSG_CHANNEL_URL_KEPT = "a change without a URL keeps the saved URL"
+MSG_CHANNEL_INVALID = "a channel with invalid input is refused"
+MSG_CHANNEL_VALID = "a valid channel is added"
+MSG_CHANNEL_DUPLICATE = "a second channel with the same name is refused"
+MSG_CHANNEL_DELETED = "an administrator deletes a channel"
+MSG_CHANNEL_DELETED_AGAIN = "a deleted channel is not found"
+MSG_CHANNEL_MISSING = "changing a channel that does not exist is not found"
+MSG_CHANNEL_TEST_SENT = "a test message is sent"
+MSG_CHANNEL_TEST_RESULT = "the test message is delivered at the first attempt"
+MSG_CHANNEL_TEST_URL = "the test message goes to the channel's URL"
+MSG_CHANNEL_SIGNED_OUT = "a signed-out visitor cannot list the channels"
