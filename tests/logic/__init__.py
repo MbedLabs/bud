@@ -16,4 +16,5 @@ SUITES = [
     "tests.logic.BUD_e2e_image_smoke_script.E2eImageSmokeScriptTest",
     "tests.logic.BUD_startup_bootstrap.StartupBootstrapTest",
     "tests.logic.BUD_identity.IdentityTest",
+    "tests.logic.BUD_group_overlap.GroupOverlapTest",
 ]
