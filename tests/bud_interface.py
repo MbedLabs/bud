@@ -13,6 +13,7 @@ import importlib.util
 import logging
 import logging.handlers
 import os
+import subprocess
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -247,6 +248,24 @@ class BudInterface:
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
         return module
+
+    def bud_run_repository_script(self, relative_path, arguments, path_folder, environment=None):
+        """Run one bash script of the repository from the repository root, with path_folder first
+        on PATH and the given extra environment, and return the finished process."""
+        environment = {
+            **os.environ,
+            **(environment or {}),
+            "PATH": f"{path_folder}{os.pathsep}{os.environ['PATH']}",
+        }
+        root = Path(__file__).resolve().parents[1]
+        return subprocess.run(
+            ["bash", str(root / relative_path), *arguments],
+            cwd=root,
+            env=environment,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
 
     def bud_repository_files(self, relative_folder, pattern):
         """The sorted names of the files of a repository folder that match a glob pattern."""

@@ -895,3 +895,94 @@ MSG_STATION_TOKEN_KEPT = "a renamed station's token still authenticates"
 MSG_STATION_TOKEN_NAME = "the token resolves to the renamed station"
 MSG_STATION_RENAME_TAKEN = "renaming onto a taken name is refused"
 MSG_STATION_RENAME_UNKNOWN = "renaming an unknown station is not found"
+
+SMOKE_SCRIPT = "scripts/e2e_image_smoke.sh"
+SMOKE_IMAGE = "registry.example.com/team/bud:test"
+SMOKE_ARGV_LOG = "docker-argv.jsonl"
+SMOKE_ARGV_SETTING = "DOCKER_ARGV_LOG"
+SMOKE_RECORDING_DOCKER = """#!/usr/bin/env python3
+import json
+import os
+import sys
+
+args = sys.argv[1:]
+with open(os.environ["DOCKER_ARGV_LOG"], "a", encoding="utf-8") as log:
+    log.write(json.dumps(args) + "\\n")
+if "current" in args:
+    print("0123456789ab (head)")
+    sys.exit(0)
+if args and args[0] == "run" and "--name" in args:
+    name = args[args.index("--name") + 1]
+    if name.startswith("bud-e2e-app-"):
+        sys.exit(23)
+"""
+SMOKE_RUN_PREFIX = ["run", "-d", "--name"]
+SMOKE_APP_NAME = "bud-e2e-app-"
+SMOKE_ADMIN_NAME = "ADMIN_FULL_NAME=E2E Admin"
+SMOKE_DOCKER = """#!/usr/bin/env python3
+import sys
+args = sys.argv[1:]
+if args[0] == "port":
+    print("127.0.0.1:18080")
+elif "current" in args:
+    print("017_release120 (head)")
+"""
+SMOKE_CURL = """#!/usr/bin/env python3
+import json
+import sys
+from pathlib import Path
+from urllib.parse import urlparse
+args = sys.argv[1:]
+url = next(arg for arg in args if arg.startswith("http://"))
+path = urlparse(url).path
+headers = [args[i + 1] for i, arg in enumerate(args) if arg == "-H"]
+fields = [args[i + 1] for i, arg in enumerate(args) if arg == "-F"]
+station = "Authorization: Bearer station-fixture-token" in headers
+admin = "Authorization: Bearer admin-fixture-token" in headers
+if path == "/api/health":
+    print('{"status":"healthy"}')
+elif path == "/api/ready":
+    print('{"status":"ready","database":"connected"}')
+elif path == "/api/version":
+    root = Path(sys.argv[0]).parent
+    print(json.dumps({"version": (root / "version").read_text()}))
+elif path == "/api/auth/login":
+    print('{"access_token":"admin-fixture-token"}')
+elif path == "/api/products":
+    assert admin
+    print('[]')
+elif path == "/api/runners/api-keys":
+    assert admin
+    print('{"api_key":"enrolment-fixture-key"}')
+elif path == "/api/runners/register":
+    assert "X-API-Key: enrolment-fixture-key" in headers
+    print('{"token":"station-fixture-token"}')
+elif path == "/api/test-runs":
+    assert station
+    print('{"id":7}')
+elif path == "/api/uploads":
+    if admin:
+        if "-w" not in args:
+            sys.exit(22)
+        print("403", end="")
+    else:
+        assert station
+        assert "run_id=7" in fields
+        print('{"id":9}')
+elif path == "/api/uploads/info/9":
+    assert admin
+    print('{"id":9}')
+elif path == "/api/uploads/9":
+    assert admin
+    Path(args[args.index("-o") + 1]).write_bytes(b"A" * 2097152)
+else:
+    raise AssertionError(path)
+"""
+SMOKE_VERSION_FILE = "version"
+SMOKE_EXIT_OK = 0
+SMOKE_VERIFIED = "verified sha256"
+SMOKE_PASS = "PASS: Bud published image"
+MSG_SMOKE_ADMIN_NAME = "the administrator's full name stays one docker environment argument"
+MSG_SMOKE_EXIT = "the smoke script passes with station-owned uploads"
+MSG_SMOKE_VERIFIED = "the smoke script verifies the downloaded evidence's SHA-256"
+MSG_SMOKE_PASS = "the smoke script reports the published image passed"
