@@ -1638,3 +1638,92 @@ MSG_ARTIFACT_CAPTURE_LISTED = "the uploaded capture is listed"
 MSG_ARTIFACT_REFUSED = "a script upload is an unsupported media type"
 MSG_ARTIFACT_REFUSED_TYPE = "the refusal names the refused type"
 MSG_ARTIFACT_REFUSED_ALLOWED = "the refusal names the allowed types"
+
+RUN_EVENTS_PATH = "/api/test-runs/{}/events"
+RESULTS_VOLTAGE_RUN = {"name": "CI-1-abcdef", "test_case_list": "Bud_Test_Suite.HIL_TEST_CASES"}
+RESULTS_VOLTAGE = [
+    {
+        "test_class": "VoltageTest",
+        "test_method": "bud_check_cell_voltages",
+        "passed": False,
+        "duration_seconds": 1.23,
+        "error_message": "cell 3 out of range",
+        "traceback": "Traceback (most recent call last): ...",
+        "assertions": [
+            {
+                "passed": True,
+                "message": "cell 1 within tolerance",
+                "expected": "3.7±0.05",
+                "actual": "3.71",
+                "timestamp": "2026-04-18T10:00:00",
+                "metadata": {"cell": 1},
+            },
+            {
+                "passed": False,
+                "message": "cell 3 within tolerance",
+                "expected": "3.7±0.05",
+                "actual": "3.50",
+                "timestamp": "2026-04-18T10:00:01",
+                "metadata": {"cell": 3, "tolerance": "±0.05"},
+            },
+        ],
+        "metadata": {"station": "station-01"},
+    },
+    {
+        "test_class": "VoltageTest",
+        "test_method": "bud_check_pack_voltage",
+        "passed": True,
+        "duration_seconds": 0.42,
+        "assertions": [{"passed": True, "message": "pack voltage ok"}],
+    },
+]
+RESULTS_FAILING_METHOD = "bud_check_cell_voltages"
+RESULTS_PASSING_METHOD = "bud_check_pack_voltage"
+RESULTS_TRACE_WORD = "Traceback"
+RESULTS_FAILED_ACTUAL = "3.50"
+RESULTS_FAILED_CELL = 3
+RESULTS_VOLTAGE_COUNTS = (1, 0, 1)
+RESULTS_EVENT_TITLE = "Results uploaded"
+RESULTS_MIXED_RUN = {"name": "CI-2-multi", "test_case_list": "Bud_Test_Suite.MULTI"}
+RESULTS_MIXED = [
+    {"test_class": "AlphaTest", "test_method": "bud_step_one", "passed": True, "duration_seconds": 0.5},
+    {"test_class": "AlphaTest", "test_method": "bud_step_two", "passed": True, "duration_seconds": 0.3},
+    {"test_class": "BetaTest", "test_method": "bud_step_one", "passed": True, "duration_seconds": 0.4},
+    {
+        "test_class": "BetaTest",
+        "test_method": "bud_step_two",
+        "passed": False,
+        "duration_seconds": 0.6,
+        "error_message": "assertion failed",
+    },
+]
+RESULTS_MIXED_COUNTS = (2, 1, 1)
+RESULTS_DETACHED = [
+    {
+        "test_class": "SmokeTest",
+        "test_method": "bud_hello",
+        "passed": True,
+        "assertions": [{"passed": True, "message": "ok"}],
+    }
+]
+RESULTS_SOFTWARE = {
+    "test_suite_name": "Nightly Firmware Validation",
+    "url_test_software": "https://github.com/example/test-suite-repo",
+    "ref_test_software": "tests-abc123def",
+    "url_software_under_test": "https://github.com/example/fw-under-test",
+    "ref_software_under_test": "fw-abc123def",
+}
+RESULTS_SOFTWARE_RESULT = [{"test_class": "SmokeTest", "test_method": "bud_smoke", "passed": True}]
+MSG_RESULTS_UPLOADED = "a station uploads its results"
+MSG_RESULTS_COUNT = "the answer counts the uploaded methods"
+MSG_RESULTS_ROWS = "each uploaded method is stored"
+MSG_RESULTS_FAILED_METHOD = "the failed method is stored as failed"
+MSG_RESULTS_TRACE = "the failed method keeps its traceback"
+MSG_RESULTS_ASSERTIONS = "the failed method keeps both assertions"
+MSG_RESULTS_FAILED_ASSERTION = "the failed assertion keeps its actual value and metadata"
+MSG_RESULTS_PASSED_METHOD = "the passed method is stored as passed"
+MSG_RESULTS_CLASS_COUNTS = "the run counts test classes: a class with a failed method fails"
+MSG_RESULTS_EVENT = "the upload is recorded on the run's timeline"
+MSG_RESULTS_EVENTS_READ = "the run's timeline is read"
+MSG_RESULTS_DETACHED_TIMES = "a run created by the upload is started and completed in order"
+MSG_RESULTS_SOFTWARE = "a run created by the upload keeps the software it names"

@@ -21,4 +21,5 @@ SUITES = [
     "tests.api.BUD_object_storage.ObjectStorageTest",
     "tests.api.BUD_unhandled_errors_http.UnhandledErrorsHttpTest",
     "tests.api.BUD_run_artifacts_api.RunArtifactsApiTest",
+    "tests.api.BUD_results_api.ResultsApiTest",
 ]
