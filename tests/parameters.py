@@ -645,3 +645,54 @@ MSG_CHANNEL_TEST_SENT = "a test message is sent"
 MSG_CHANNEL_TEST_RESULT = "the test message is delivered at the first attempt"
 MSG_CHANNEL_TEST_URL = "the test message goes to the channel's URL"
 MSG_CHANNEL_SIGNED_OUT = "a signed-out visitor cannot list the channels"
+
+PRODUCTS_PATH = "/api/products"
+PRODUCT_PATH = "/api/products/{}"
+PRODUCT = {"name": "Gateway ECU", "description": "Main gateway"}
+PRODUCT_DUPLICATE = {"name": "Duplicate", "description": None}
+PRODUCT_DUPLICATE_TEXT = "already exists"
+PRODUCT_NAMES = ("Zebra", "Alpha", "Mango")
+PRODUCT_FETCHED = "Fetchable"
+PRODUCT_DELETED = "Deletable"
+PRODUCT_MISSING_ID = 99999
+PRODUCT_SIGNED_OUT_CALLS = (
+    ("GET", "/api/products"),
+    ("POST", "/api/products"),
+    ("GET", "/api/products/1"),
+    ("DELETE", "/api/products/1"),
+)
+PRODUCT_SIGNED_OUT_BODY = {"name": "x"}
+STATIONS_STATUS_PATH = "/api/runners/status"
+STATION_PATH = "/api/runners/{}"
+STATION_PASSWORD = "hashed"
+STATION_TOKEN_PREFIX = "token-"
+STATION_LISTED = "station-01"
+STATION_SOLO = "station-solo"
+STATION_GONE = "station-gone"
+STATION_GHOST = "ghost"
+STATION_SIGNED_OUT_CALLS = (
+    ("GET", "/api/runners/status"),
+    ("GET", "/api/runners/station-01"),
+    ("DELETE", "/api/runners/station-01"),
+)
+MSG_PRODUCT_CREATED = "an administrator adds a product"
+MSG_PRODUCT_NAME = "the product keeps its name"
+MSG_PRODUCT_FIRST = "the first product of a name is added"
+MSG_PRODUCT_DUPLICATE = "a second product of the same name is refused"
+MSG_PRODUCT_DUPLICATE_TEXT = "the refusal says the product already exists"
+MSG_PRODUCT_SORTED = "the products are listed by name"
+MSG_PRODUCT_FETCHED = "one product is read"
+MSG_PRODUCT_MISSING = "an unknown product is not found"
+MSG_PRODUCT_DELETED = "an administrator deletes a product"
+MSG_PRODUCT_GONE = "the deleted product is gone"
+MSG_PRODUCT_DELETE_MISSING = "deleting an unknown product is not found"
+MSG_PRODUCT_SIGNED_OUT = "a signed-out visitor cannot reach the products"
+MSG_STATION_STATUS = "the Test Station status answers"
+MSG_STATION_LISTED = "the status lists the registered Test Station"
+MSG_STATION_FETCHED = "one Test Station is read"
+MSG_STATION_ACCOUNT = "the Test Station keeps its account"
+MSG_STATION_MISSING = "an unknown Test Station is not found"
+MSG_STATION_DELETED = "an administrator deletes a Test Station"
+MSG_STATION_GONE = "the deleted Test Station is gone"
+MSG_STATION_DELETE_MISSING = "deleting an unknown Test Station is not found"
+MSG_STATION_SIGNED_OUT = "a signed-out visitor cannot reach the Test Stations"
