@@ -9,6 +9,7 @@
 """
 
 import asyncio
+import importlib.util
 import logging
 import logging.handlers
 import os
@@ -237,6 +238,15 @@ class BudInterface:
     def bud_read_repository_file(self, relative_path):
         """The text of one file of the repository, by its path from the repository root."""
         return (Path(__file__).resolve().parents[1] / relative_path).read_text()
+
+    def bud_load_repository_module(self, name, relative_path):
+        """Load one Python file of the repository as a module of the given name."""
+        spec = importlib.util.spec_from_file_location(
+            name, Path(__file__).resolve().parents[1] / relative_path
+        )
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
 
     def bud_repository_files(self, relative_folder, pattern):
         """The sorted names of the files of a repository folder that match a glob pattern."""

@@ -785,3 +785,74 @@ MSG_RESULT_ORDER = "the listing orders results as they were recorded"
 MSG_RESULT_MISSING_RUN = "the results of an unknown run are not found"
 MSG_RESULT_DETAIL_TRACE = "a single result still carries the method traceback"
 MSG_RESULT_STORED_TRACE = "the method traceback is still stored on upload"
+
+RELEASE_SCRIPT = "scripts/image_release.py"
+RELEASE_MODULE = "image_release"
+RELEASE_DIGEST = "sha256:" + "a" * 64
+RELEASE_OTHER_DIGEST = "sha256:" + "b" * 64
+RELEASE_REPOSITORY = "registry.example.com/team/product"
+RELEASE_IMAGE = RELEASE_REPOSITORY + "@" + RELEASE_DIGEST
+RELEASE_MALFORMED = [
+    "",
+    "-v",
+    "--format={{json .}}",
+    "image:stable",
+    "team/product:1.1.0",
+    "registry.example.com/Team/product:1.1.0",
+    "registry.example.com/team/product@sha256:abc",
+    "registry.example.com/team/product:sha-1@" + RELEASE_DIGEST,
+    "registry.example.com/team/product:1.1.0 --push",
+    "registry.example.com/team/product:-latest",
+    "registry.example.com/team/product/",
+    None,
+]
+RELEASE_WELL_FORMED = [
+    RELEASE_REPOSITORY,
+    RELEASE_REPOSITORY + ":sha-" + "0" * 40,
+    RELEASE_REPOSITORY + ":v1.2.0",
+    RELEASE_IMAGE,
+    "localhost:5000/team/product_name:1.2.0-beta.1",
+    "registry.example.com:443/a/b-c/d__e:latest",
+]
+RELEASE_OLDER_ALIASES = ["image:v1.0.0", "image:1.0.0", "image:1", "image:1.0", "image:stable"]
+RELEASE_OLDER_KEPT = ["image:v1.0.0", "image:1.0.0"]
+RELEASE_STABLE = ["image:stable"]
+RELEASE_LATEST = ["image:latest"]
+RELEASE_OLDER_REF = "refs/tags/v1.0.0"
+RELEASE_CURRENT_REF = "refs/tags/v1.1.0"
+RELEASE_BRANCH_REF = "refs/heads/main"
+RELEASE_PRERELEASE_REF = "refs/tags/v1.2.0-beta.1"
+RELEASE_LATEST_TAG = "v1.1.0"
+RELEASE_VERSION_ALIASES = [RELEASE_REPOSITORY + ":stable", RELEASE_REPOSITORY + ":1.1.0"]
+RELEASE_REPEATED_ALIASES = [RELEASE_REPOSITORY + ":1.1.0", RELEASE_REPOSITORY + ":stable"]
+RELEASE_STABLE_ALIASES = [RELEASE_REPOSITORY + ":stable"]
+RELEASE_MALFORMED_PROMOTIONS = {
+    "a dash alias": (RELEASE_IMAGE, [RELEASE_REPOSITORY + ":stable", "-x"]),
+    "an alias without registry": (RELEASE_IMAGE, ["image:stable"]),
+    "a dash image": ("-" + RELEASE_REPOSITORY + "@" + RELEASE_DIGEST, [RELEASE_REPOSITORY + ":stable"]),
+}
+RELEASE_DOCKER_INSPECT = ["docker", "buildx", "imagetools", "inspect"]
+RELEASE_PROMOTIONS = 2
+RUNTIME_ERROR = "RuntimeError"
+RELEASE_OVERWRITE_TEXT = "Refusing to overwrite"
+RELEASE_VERIFY_TEXT = "Digest verification"
+RELEASE_INVALID_TEXT = "Invalid image reference"
+MSG_RELEASE_OLDER = "an older release does not move the floating tags"
+MSG_RELEASE_CURRENT = "the current release promotes stable"
+MSG_RELEASE_STALE_BRANCH = "a stale branch run does not promote latest"
+MSG_RELEASE_PRERELEASE = "a prerelease does not promote stable"
+MSG_RELEASE_CONFLICT = "a version conflict stops the promotion"
+MSG_RELEASE_CONFLICT_TEXT = "the conflict refuses to overwrite the published version"
+MSG_RELEASE_NOTHING_CHANGED = "no alias is changed before the conflict is found"
+MSG_RELEASE_REPEATED = "a repeated promotion points every alias again"
+MSG_RELEASE_SAME_IMAGE = "every alias points at the same image digest"
+MSG_RELEASE_MISMATCH = "a digest mismatch after promotion fails"
+MSG_RELEASE_MISMATCH_TEXT = "the failure names the digest verification"
+MSG_RELEASE_REFUSED = "a malformed reference is refused"
+MSG_RELEASE_REFUSED_TEXT = "the refusal names the invalid image reference"
+MSG_RELEASE_NO_DOCKER = "docker is not called for a malformed reference"
+MSG_RELEASE_DIGEST = "a registry reference's digest is read"
+MSG_RELEASE_INSPECTED = "docker inspects exactly that reference"
+MSG_RELEASE_CHECK = "the reference check accepts exactly what digest passes to docker"
+MSG_RELEASE_NOT_INSPECTED = "the registry is not asked about a malformed promotion"
+MSG_RELEASE_NOT_EXECUTED = "no alias is changed for a malformed promotion"
