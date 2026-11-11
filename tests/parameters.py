@@ -986,3 +986,66 @@ MSG_SMOKE_ADMIN_NAME = "the administrator's full name stays one docker environme
 MSG_SMOKE_EXIT = "the smoke script passes with station-owned uploads"
 MSG_SMOKE_VERIFIED = "the smoke script verifies the downloaded evidence's SHA-256"
 MSG_SMOKE_PASS = "the smoke script reports the published image passed"
+
+BLOOM_SUITE = {
+    "id": 7,
+    "suite_id": "PRJ-TS-002",
+    "name": "Nightly regression",
+    "url": "https://bloom.example.com/projects/PRJ/suites/7",
+    "matched": 3,
+    "size": 3,
+}
+BLOOM_SUPERSET = {**BLOOM_SUITE, "id": 8, "suite_id": "PRJ-TS-008", "name": "Everything", "size": 40}
+BLOOM_PARTIAL = {
+    **BLOOM_SUITE,
+    "id": 9,
+    "suite_id": "PRJ-TS-009",
+    "name": "Smoke",
+    "matched": 1,
+    "size": 1,
+}
+BLOOM_TIED = {**BLOOM_SUITE, "id": 10, "suite_id": "PRJ-TS-010"}
+BLOOM_SYNCED = 3
+BLOOM_REFERENCE_CASES = {
+    "the suite holding every synced case": ({"suites": [BLOOM_SUITE]}, BLOOM_SYNCED),
+    "the smallest covering suite over a superset": (
+        {"suites": [BLOOM_SUPERSET, BLOOM_SUITE]},
+        BLOOM_SYNCED,
+    ),
+}
+BLOOM_NO_REFERENCE_CASES = {
+    "a suite holding only some cases": ({"suites": [BLOOM_PARTIAL]}, BLOOM_SYNCED),
+    "two covering suites of the same size": ({"suites": [BLOOM_SUITE, BLOOM_TIED]}, BLOOM_SYNCED),
+    "an empty suite list": ({"suites": []}, BLOOM_SYNCED),
+    "no suite list": ({}, BLOOM_SYNCED),
+    "no synced case": ({"suites": [BLOOM_SUITE]}, 0),
+    "a suite given as text in the list": ({"suites": ["PRJ-TS-002"]}, BLOOM_SYNCED),
+    "suites given as text": ({"suites": "PRJ-TS-002"}, BLOOM_SYNCED),
+    "a suite without counts": ({"suites": [{"suite_id": "PRJ-TS-002"}]}, BLOOM_SYNCED),
+}
+BLOOM_URL_SETTING = "bloom_url"
+BLOOM_CACHED_TOKEN = "cached-bloom-token"
+BLOOM_RUN_CASES = "Bud.Tests"
+BLOOM_RUN_COMPLETED = "Completed"
+BLOOM_RESULT = {
+    "test_class": "VoltageTest",
+    "test_method": "bud_check",
+    "passed": True,
+    "test_metadata": {"tc_id": "PRJ-TC-001"},
+}
+BLOOM_NAMED_REPLY = {"updated": 1, "not_found": [], "suites": [{**BLOOM_SUITE, "matched": 1, "size": 1}]}
+BLOOM_UNNAMED_REPLY = {"updated": 1, "not_found": [], "campaigns": []}
+BLOOM_NAMED_RUN = "sync-backlink"
+BLOOM_UNNAMED_RUN = "sync-no-suite"
+BLOOM_EXPOSED_RUN = "exposed-backlink"
+BLOOM_BACKLINK = {
+    "bloom_artefact_id": "PRJ-TS-002",
+    "bloom_artefact_name": "Nightly regression",
+    "bloom_artefact_url": "https://bloom.example.com/projects/PRJ/suites/7",
+}
+MSG_BLOOM_REFERENCE = "the suite that holds every synced case is the reference"
+MSG_BLOOM_NO_REFERENCE = "no suite is the reference"
+MSG_BLOOM_STORED = "a sync stores the suite Bloom named on the run"
+MSG_BLOOM_UNMARKED = "a Bloom reply naming no suite leaves the run unmarked"
+MSG_BLOOM_RUN_READ = "the run is read"
+MSG_BLOOM_EXPOSED = "the run endpoint shows the backlink"

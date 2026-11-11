@@ -15,4 +15,5 @@ SUITES = [
     "tests.api.BUD_artifact_storage.ArtifactStorageTest",
     "tests.api.BUD_results_listing_payload_api.ResultsListingPayloadApiTest",
     "tests.api.BUD_station_naming.StationNamingTest",
+    "tests.api.BUD_bloom_artefact_backlink.BloomArtefactBacklinkTest",
 ]
