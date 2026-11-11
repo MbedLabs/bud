@@ -1194,3 +1194,88 @@ MSG_NGINX_PROXIED = "both proxied locations pass to uvicorn on loopback"
 MSG_NGINX_APPENDS = "both proxied locations append the address nginx received"
 MSG_NGINX_NO_REAL_IP = "nginx does not rewrite the client address itself"
 MSG_UVICORN_LOOPBACK = "uvicorn trusts forwarding from loopback only"
+
+IDENTITY_NAME = "Bud TMP"
+IDENTITY_FULL = "Bud TMP by EmbedLabs"
+IDENTITY_OVERRIDE = "Attempted Override"
+IDENTITY_OLD_SETTING = "BUD_APP_NAME"
+IDENTITY_INVITE = {
+    "to_email": "user@example.com",
+    "full_name": "User",
+    "invite_link": "https://bud.example.com/invite",
+}
+IDENTITY_INVITE_SUBJECT = "You're invited to Bud TMP"
+IDENTITY_HTML_TITLE = "<title>Bud TMP by EmbedLabs</title>"
+IDENTITY_INVITE_HEADING = "Welcome to Bud TMP by EmbedLabs</h1>"
+IDENTITY_INVITE_TEXT = "You have been invited to join Bud TMP."
+IDENTITY_DOTENV = "BUD_APP_NAME=Attempted Override\nBUD_UPLOADS_PER_15_MINUTES=7\n"
+IDENTITY_DOTENV_CLEARED = ("BUD_DOTENV_DISABLED", "BUD_UPLOADS_PER_15_MINUTES", "UPLOADS_PER_15_MINUTES")
+IDENTITY_DOTENV_UPLOADS = 7
+IDENTITY_ACCESS_REQUEST = {
+    "to_email": "admin@example.com",
+    "admin_name": "Admin",
+    "requester_name": "Reader",
+    "requester_email": "reader@example.com",
+    "resource": "run 7",
+    "project": "",
+    "requested_at": "2026-10-19 08:00:00",
+    "request_id": "req-1",
+    "review_link": "https://bud.example.com/access",
+}
+IDENTITY_REPORT_REQUEST = {
+    "to_email": "publisher@example.com",
+    "publisher_name": "Publisher",
+    "requester_name": "Reader",
+    "requester_email": "reader@example.com",
+    "project": "PRJ",
+    "run_id": "7",
+    "review_link": "https://bud.example.com/runs/7",
+}
+IDENTITY_SUBJECTS = ["Access requested on Bud TMP: run 7", "Report requested on Bud TMP: run #7"]
+IDENTITY_HEADING = ">Bud TMP by EmbedLabs</h1>"
+IDENTITY_REPORT_TEXT = "requested the report for Bud TMP run #7"
+IDENTITY_ROOT_PATH = "/"
+IDENTITY_PROCESS_SCRIPT = (
+    "from fastapi.testclient import TestClient\n"
+    "from app.main import app\n"
+    "print('identity:', app.title)\n"
+    "print('identity:', TestClient(app).get('/').json()['message'])\n"
+)
+IDENTITY_PROCESS_PREFIX = "identity: "
+IDENTITY_PROCESS_LINES = ["identity: Bud TMP by EmbedLabs", "identity: Bud TMP by EmbedLabs"]
+IDENTITY_PROCESS_TIMEOUT = 120
+IDENTITY_TEMPLATES = 8
+IDENTITY_TEMPLATE_TITLE = "<title>${app_identity}</title>"
+IDENTITY_SPELLED_NAME = r"\bBud\b"
+IDENTITY_OPEN_IN = "Open in Bud TMP"
+IDENTITY_SAMPLE = "Bud TMP test message"
+IDENTITY_PDF_RUN = {"run_id": 7, "name": "smoke", "status": "Completed", "run_url": "https://bud.example.com/runs/7"}
+IDENTITY_PDF_TEXTS = ("Bud TMP 1.2.0", "Open in Bud TMP", "Powered by EmbedLabs")
+IDENTITY_PDF_VERSION = "1.2.0"
+IDENTITY_PDF_TITLE = "Run report"
+IDENTITY_PDF_SUBTITLE = "Run 7"
+IDENTITY_SUMMARY_TITLE = "Bud TMP Test Report"
+IDENTITY_MANIFEST = "ui/public/site.webmanifest"
+IDENTITY_MANIFEST_NAMES = ("Bud TMP by EmbedLabs", "Bud TMP")
+MSG_IDENTITY_NAME = "the product name is Bud TMP"
+MSG_IDENTITY_FULL = "the product identity is Bud TMP by EmbedLabs"
+MSG_IDENTITY_NO_SETTING = "the settings have no product name to override"
+MSG_IDENTITY_SUBJECT = "the email subject names the product"
+MSG_IDENTITY_TITLE = "the HTML email is titled with the identity"
+MSG_IDENTITY_HEADING = "the HTML email's heading names the identity"
+MSG_IDENTITY_TEXT = "the text email names the product"
+MSG_IDENTITY_NO_OVERRIDE = "the attempted override appears nowhere in the email"
+MSG_IDENTITY_DOTENV_READ = "the other settings of the dotenv file are still read"
+MSG_IDENTITY_API_TITLE = "the API title is the identity"
+MSG_IDENTITY_ROOT = "the root message is the identity"
+MSG_IDENTITY_PROCESS = "the app starts with the old variable set"
+MSG_IDENTITY_PROCESS_LINES = "the started app keeps its identity"
+MSG_IDENTITY_TEMPLATE_COUNT = "there are eight HTML email templates"
+MSG_IDENTITY_TEMPLATE_TITLE = "every HTML email template titles itself with the identity"
+MSG_IDENTITY_TEMPLATE_SPELLED = "no email template spells the product name"
+MSG_IDENTITY_OPEN_IN = "notifications link with Open in Bud TMP"
+MSG_IDENTITY_SAMPLE = "the sample notification names the product"
+MSG_IDENTITY_PDF_AUTHOR = "the PDF report's author is the identity"
+MSG_IDENTITY_PDF_TEXT = "the PDF report names the product"
+MSG_IDENTITY_SUMMARY = "the summary report's title names the product"
+MSG_IDENTITY_MANIFEST = "the web app manifest names the product"
