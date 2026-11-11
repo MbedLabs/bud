@@ -11,4 +11,5 @@ SUITES = [
     "tests.sec.BUD_nginx_security_headers.NginxSecurityHeadersTest",
     "tests.sec.BUD_run_producer_http.RunProducerHttpTest",
     "tests.sec.BUD_trusted_proxy_address.TrustedProxyAddressTest",
+    "tests.sec.BUD_group_overlap_sec.GroupOverlapSecTest",
 ]
