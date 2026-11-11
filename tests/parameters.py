@@ -1727,3 +1727,42 @@ MSG_RESULTS_EVENT = "the upload is recorded on the run's timeline"
 MSG_RESULTS_EVENTS_READ = "the run's timeline is read"
 MSG_RESULTS_DETACHED_TIMES = "a run created by the upload is started and completed in order"
 MSG_RESULTS_SOFTWARE = "a run created by the upload keeps the software it names"
+
+RUNS_CREATED = {
+    "test_case_list": "Bud_Test_Suite.HIL_TEST_CASES",
+    "test_suite_name": "Nightly Firmware Validation",
+    "url_test_software": "https://github.com/example/test-suite-repo",
+    "ref_test_software": "tests-abc123def",
+    "url_software_under_test": "https://github.com/example/fw-under-test",
+    "ref_software_under_test": "fw-abc123def",
+    "product_composition_id": 1,
+    "status": "Running",
+}
+RUNS_SUITE = ("Nightly Firmware Validation", "Bud_Test_Suite.HIL_TEST_CASES")
+RUNS_OTHER_SUITE = ("Smoke Validation", "Bud_Test_Suite.SMOKE")
+RUNS_LATEST_BASE = datetime(2026, 7, 2, 10, 0, 0)
+RUNS_SORT_FIELDS = ("name", "status", "runner_account", "duration_seconds", "started_at", "completed_at")
+RUNS_SORT_BASE = datetime(2026, 10, 1, 10)
+RUNS_SORT_STATIONS = (("Zulu", "z-test", 55001, "Room B"), ("Alpha", "a-test", 55002, "Room A"))
+RUNS_STATION_FILTERS = (
+    {"runner_account": "Alpha"},
+    {"location": "Room A"},
+    {"runner_account": "Alpha", "location": "Room A", "q": "suite"},
+)
+RUNS_PAGES = (0, 5, 25)
+RUNS_PAGE_SIZE = 5
+RUNS_MATCHES = 30
+RUNS_DISPLAY_BASE = datetime(2026, 10, 1)
+RUNS_INVALID_SORTS = ({"sort_by": "unknown"}, {"sort_dir": "invalid"})
+MSG_RUNS_CREATED = "a station creates a run"
+MSG_RUNS_SOFTWARE = "the run keeps its suite, cases and software"
+MSG_RUNS_LISTED = "the runs are listed"
+MSG_RUNS_LATEST_TOTAL = "the latest run of each suite is listed once"
+MSG_RUNS_LATEST_ORDER = "the latest runs are listed newest first"
+MSG_RUNS_SORTED = "the runs are sorted in both directions, missing values last"
+MSG_RUNS_STATION_FILTER = "a station filter keeps only that station's run"
+MSG_RUNS_PAGE_TOTAL = "the filtered total counts every match"
+MSG_RUNS_PAGE = "each page holds the next names in order"
+MSG_RUNS_DISPLAY_LATEST = "sorting the latest runs keeps each suite's winner"
+MSG_RUNS_STABLE_TIES = "runs of the same name keep a stable order"
+MSG_RUNS_INVALID_SORT = "an unknown sort is refused"
