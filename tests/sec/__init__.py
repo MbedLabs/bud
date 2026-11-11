@@ -10,4 +10,5 @@ SUITES = [
     "tests.sec.BUD_integration_settings_security.IntegrationSettingsSecurityTest",
     "tests.sec.BUD_nginx_security_headers.NginxSecurityHeadersTest",
     "tests.sec.BUD_run_producer_http.RunProducerHttpTest",
+    "tests.sec.BUD_trusted_proxy_address.TrustedProxyAddressTest",
 ]

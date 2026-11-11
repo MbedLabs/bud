@@ -23,6 +23,7 @@ import httpx
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy import delete, select
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 import tests.parameters as params
@@ -131,6 +132,18 @@ class BudInterface:
     def bud_find_in_app(self, model, **where):
         """The rows of a model in the started app's database whose columns equal the given values."""
         return self._run(self._find_in_app(model, where))
+
+    def bud_request_through_proxy(self, method, path, peer, forwarded_for=None, **kwargs):
+        """Send one request as the image delivers it: nginx, reached from peer, appends that
+        address to X-Forwarded-For and passes the request from 127.0.0.1 to uvicorn's proxy
+        headers, which trust loopback only."""
+        chain = f"{forwarded_for}, {peer}" if forwarded_for else peer
+        headers = {**kwargs.pop("headers", {}), "X-Forwarded-For": chain}
+        image = TestClient(
+            ProxyHeadersMiddleware(main.app, trusted_hosts=self.parameters.IMAGE_TRUSTED_HOSTS),
+            client=self.parameters.IMAGE_NGINX_PEER,
+        )
+        return image.request(method, path, headers=headers, **kwargs)
 
     def bud_add_test_station(self, with_run=True):
         """The station the tests act as, with a running test run of its own unless with_run is

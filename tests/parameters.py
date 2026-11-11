@@ -1115,3 +1115,82 @@ MSG_STATS_ANSWERS_FILTERED = "the run statistics answer for the filter"
 MSG_STATS_VALUE = "the run statistics count every matching run"
 MSG_STATS_OPTIONS = "the filter options list the suites and Test Stations that appear in runs"
 MSG_STATS_LITERAL_PATH = "the path resolves as a literal route, not as a run id"
+
+IMAGE_TRUSTED_HOSTS = "127.0.0.1,::1"
+IMAGE_NGINX_PEER = ("127.0.0.1", 50000)
+PROXY_ADDRESS = "10.10.0.7"
+PROXY_OUTSIDER = "203.0.113.9"
+PROXY_OTHER_OUTSIDER = "198.51.100.20"
+PROXY_FORGED = "192.0.2.66"
+PROXY_NETWORK = "10.10.0.0/16"
+PROXY_LOOPBACK = "127.0.0.1"
+PROXY_FURTHER_HOP = "10.10.3.4"
+AUTH_ME_PATH = "/api/auth/me"
+LOGIN_PATH = "/api/auth/login"
+API_REQUEST_ACTION = "api.request"
+REFUSALS_ACTION = "security.repeated_refusals"
+REFUSALS_BELOW_THRESHOLD = 19
+REFUSALS_FLAGGED = 20
+PROXY_LOGIN = {"email": "nobody@example.com", "password": "wrong-password-1"}
+PROXY_LOGIN_ATTEMPTS = 11
+PROXY_ADDRESS_CASES = {
+    "a trusted proxy's forwarded address": (True, PROXY_ADDRESS, PROXY_OUTSIDER, PROXY_OUTSIDER),
+    "further trusted proxies skipped": (
+        True,
+        PROXY_ADDRESS,
+        f"{PROXY_OUTSIDER}, {PROXY_FURTHER_HOP}",
+        PROXY_OUTSIDER,
+    ),
+    "an untrusted sender's forgery": (
+        True,
+        PROXY_OTHER_OUTSIDER,
+        f"{PROXY_FORGED}, {PROXY_ADDRESS}",
+        PROXY_OTHER_OUTSIDER,
+    ),
+    "a forged entry the proxy passed on": (
+        True,
+        PROXY_ADDRESS,
+        f"{PROXY_FORGED}, {PROXY_OUTSIDER}",
+        PROXY_OUTSIDER,
+    ),
+    "the empty default": (False, PROXY_ADDRESS, PROXY_OUTSIDER, PROXY_ADDRESS),
+    "a sender on the container loopback": (False, PROXY_LOOPBACK, PROXY_OUTSIDER, PROXY_OUTSIDER),
+}
+PROXY_WALK_CASES = {
+    "a trusted peer": (PROXY_ADDRESS, [b"192.0.2.1, 203.0.113.9", b"10.10.0.3"], True, PROXY_OUTSIDER),
+    "an untrusted peer": (
+        PROXY_OUTSIDER,
+        [b"192.0.2.1, 203.0.113.9", b"10.10.0.3"],
+        True,
+        PROXY_OUTSIDER,
+    ),
+    "no trusted network": (PROXY_ADDRESS, [b"192.0.2.1, 203.0.113.9", b"10.10.0.3"], False, PROXY_ADDRESS),
+    "no forwarded hop": (PROXY_ADDRESS, [], True, PROXY_ADDRESS),
+    "only trusted hops": (PROXY_ADDRESS, [b"10.10.0.1, 10.10.0.2"], True, "10.10.0.1"),
+    "a hop that is no address": (PROXY_ADDRESS, [b"not-an-address, 10.10.0.2"], True, "10.10.0.2"),
+    "an address with a port": (PROXY_ADDRESS, [b"203.0.113.9:4711"], True, PROXY_OUTSIDER),
+    "an IPv6 address with a port": (PROXY_ADDRESS, [b"[2001:db8::5]:443"], True, "2001:db8::5"),
+    "an IPv4-mapped peer": ("::ffff:10.10.0.7", [b"203.0.113.9"], True, PROXY_OUTSIDER),
+    "a peer that is no address": ("testclient", [b"203.0.113.9"], True, "testclient"),
+}
+NGINX_PROXY_PASS = "proxy_pass http://127.0.0.1:8000;"
+NGINX_FORWARDED_FOR = "proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;"
+NGINX_LOCATIONS_PROXIED = 2
+NGINX_REAL_IP = "real_ip"
+UVICORN_COMMAND = "command=/usr/local/bin/uvicorn"
+UVICORN_FORWARDED_ALLOW = "--forwarded-allow-ips 127.0.0.1,::1"
+MSG_PROXY_DEFAULT = "no proxy network is trusted by default"
+MSG_PROXY_ANSWERS = "the request answers"
+MSG_PROXY_ADDRESS = "the audit event records the resolved client address"
+MSG_PROXY_REFUSED = "a signed-out request is refused"
+MSG_PROXY_NOT_FLAGGED = "19 refusals of each client are not yet flagged"
+MSG_PROXY_FLAGGED = "the 20th refusal of one client is flagged once"
+MSG_PROXY_FLAG_ADDRESS = "the flag names the resolved client address"
+MSG_PROXY_FLAG_COUNT = "the flag counts 20 refused requests"
+MSG_PROXY_RATE_LIMITED = "the 11th failed sign-in of one client is rate limited"
+MSG_PROXY_OTHER_CLIENT = "another client behind the same proxy is not rate limited"
+MSG_PROXY_WALK = "the forwarded client is found walking the hops from the right"
+MSG_NGINX_PROXIED = "both proxied locations pass to uvicorn on loopback"
+MSG_NGINX_APPENDS = "both proxied locations append the address nginx received"
+MSG_NGINX_NO_REAL_IP = "nginx does not rewrite the client address itself"
+MSG_UVICORN_LOOPBACK = "uvicorn trusts forwarding from loopback only"
