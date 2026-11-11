@@ -742,3 +742,46 @@ MSG_CLEANUP_ORPHANS = "the cleanup removes the one old orphan file"
 MSG_CLEANUP_EXPIRED_FILE = "the expired artifact's file is removed"
 MSG_CLEANUP_ORPHAN_FILE = "the orphan file is removed"
 MSG_CLEANUP_LEASE = "the expired upload lease is removed"
+
+RESULTS_RUN_PATH = "/api/results/{}"
+RESULT_DETAIL_PATH = "/api/results/detail/{}"
+RESULT_TRACE = 'Traceback (most recent call last):\n  File "t.py", line 9\nAssertionError: 3 != 4'
+RESULT_ASSERTION_TRACE = "assertion-level trace"
+RESULT_FAILURE = {
+    "test_class": "SmokeTests",
+    "test_method": "test_boot",
+    "passed": False,
+    "duration_seconds": 1.5,
+    "error_message": "3 != 4",
+    "traceback": 'Traceback (most recent call last):\n  File "t.py", line 9\nAssertionError: 3 != 4',
+    "assertions": [{"passed": False, "message": "3 != 4", "traceback": "assertion-level trace"}],
+    "metadata": {"test_case_class": "SmokeTests", "tc_id": "PRJ-TC-001"},
+}
+RESULT_RUN = {"test_suite_name": "Nightly", "test_case_list": "SmokeTests"}
+RESULT_ORDERED_RUN = {"test_suite_name": "Ordered", "test_case_list": "SmokeTests"}
+RESULT_ORDER = ["test_a", "test_b"]
+RESULT_ROWS = 1
+RESULT_TRACE_FIELD = "traceback"
+RESULT_LIST_FIELDS = (
+    "id",
+    "test_class",
+    "test_method",
+    "passed",
+    "duration_seconds",
+    "error_message",
+    "assertions",
+    "test_metadata",
+    "work_package_id",
+    "created_at",
+    "test_run_id",
+)
+RESULT_MISSING_RUN = 999999
+MSG_RESULT_UPLOADED = "a station uploads a failed result to its run"
+MSG_RESULT_ONE_ROW = "the listing has the one result"
+MSG_RESULT_NO_TRACE = "the listing leaves out the method traceback"
+MSG_RESULT_FIELD = "the listing keeps the column the run detail draws"
+MSG_RESULT_ASSERTION_TRACE = "the listing keeps the trace inside an assertion"
+MSG_RESULT_ORDER = "the listing orders results as they were recorded"
+MSG_RESULT_MISSING_RUN = "the results of an unknown run are not found"
+MSG_RESULT_DETAIL_TRACE = "a single result still carries the method traceback"
+MSG_RESULT_STORED_TRACE = "the method traceback is still stored on upload"
