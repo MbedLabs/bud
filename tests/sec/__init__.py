@@ -12,4 +12,5 @@ SUITES = [
     "tests.sec.BUD_run_producer_http.RunProducerHttpTest",
     "tests.sec.BUD_trusted_proxy_address.TrustedProxyAddressTest",
     "tests.sec.BUD_group_overlap_sec.GroupOverlapSecTest",
+    "tests.sec.BUD_audit_log_http.AuditLogHttpTest",
 ]
