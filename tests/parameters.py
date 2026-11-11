@@ -1766,3 +1766,43 @@ MSG_RUNS_PAGE = "each page holds the next names in order"
 MSG_RUNS_DISPLAY_LATEST = "sorting the latest runs keeps each suite's winner"
 MSG_RUNS_STABLE_TIES = "runs of the same name keep a stable order"
 MSG_RUNS_INVALID_SORT = "an unknown sort is refused"
+
+KEYS_STATION_PASSWORD = "a-very-long-runner-password-123"
+KEYS_LOCATION = "lab-bench-row-1"
+KEYS_PORT = 53035
+KEYS_MINE = "station-mine"
+KEYS_THEIRS = "station-theirs"
+KEYS_RETIRED = "station-retired"
+KEYS_UNKNOWN = "budrnr_not-a-key-anyone-ever-issued"
+KEYS_UPLOAD = {
+    "results": [{"test_class": "SmokeTests", "test_method": "test_boots", "passed": True, "duration_seconds": 1.5}],
+    "test_suite_name": "smoke",
+}
+KEYS_PREFIX = "budrnr_"
+KEYS_PREFIX_LENGTH = 12
+KEYS_LABELS = ("station-a", "station-b")
+MSG_KEYS_FILED = "a station files its results with its key"
+MSG_KEYS_ONE_RUN = "one run is created"
+MSG_KEYS_OWN_STATION = "the run belongs to the key's station, not the one named"
+MSG_KEYS_UNPINNED = "a key that enrolled no station authorises nothing"
+MSG_KEYS_UNKNOWN = "an unknown key is refused"
+MSG_KEYS_NO_RESULT = "a refused upload stores no result"
+MSG_KEYS_INACTIVE = "an inactive station's key is refused"
+MSG_KEYS_REMOVED = "an administrator removes a station"
+MSG_KEYS_STATION_GONE = "the removed station is gone"
+MSG_KEYS_REVOKED_WITH_STATION = "the removed station's keys are revoked"
+MSG_KEYS_RUN_KEPT = "the removed station's run is kept without its station"
+MSG_KEYS_MINTED = "an administrator mints a key"
+MSG_KEYS_SECRET_PREFIX = "the key starts with budrnr_"
+MSG_KEYS_NO_STATION = "a new key names no station"
+MSG_KEYS_LISTED = "the keys are listed"
+MSG_KEYS_ONE_LISTED = "the one key is listed"
+MSG_KEYS_NOT_LISTED = "the list never carries the key"
+MSG_KEYS_PREFIX = "the list shows the key's first 12 characters"
+MSG_KEYS_HASHED = "the stored key is hashed"
+MSG_KEYS_ACCEPTED = "the key is accepted before it is revoked"
+MSG_KEYS_REVOKED = "a revoked key no longer authenticates"
+MSG_KEYS_REVOKE = "an administrator revokes a key"
+MSG_KEYS_EMPTY = "no key is listed after the revoke"
+MSG_KEYS_GONE = "the revoked key is gone"
+MSG_KEYS_REVOKE_AGAIN = "revoking it again is not found"

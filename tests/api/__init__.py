@@ -23,4 +23,5 @@ SUITES = [
     "tests.api.BUD_run_artifacts_api.RunArtifactsApiTest",
     "tests.api.BUD_results_api.ResultsApiTest",
     "tests.api.BUD_runs_api.RunsApiTest",
+    "tests.api.BUD_runner_api_keys.RunnerApiKeysTest",
 ]
