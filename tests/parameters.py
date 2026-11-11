@@ -1578,3 +1578,63 @@ MSG_ERROR_FK = "a missing reference is a conflict too"
 MSG_ERROR_LATE = "a failing commit is answered as a conflict"
 MSG_ERROR_SESSION_ROUTES = "routes depend on a database session"
 MSG_ERROR_COMMIT_FIRST = "every route commits its session before its response"
+
+RUN_ARTIFACTS_PATH = "/api/test-runs/{}/artifacts"
+UPLOADS_POST_PATH = "/api/uploads"
+ARTIFACT_RUNS = ("Nightly", "Other")
+ARTIFACT_CASE_LIST = "SmokeTests"
+ARTIFACT_ROWS = (
+    ("b.png", "failure-screenshot.png", "image/png", 2048, "b", "BootTests", "run", 0),
+    ("a.pcap", "throughput.pcap", "application/vnd.tcpdump.pcap", 4096, "a", None, "run", 1),
+    ("c.log", "other-run.log", "text/plain", 10, None, None, "other", 0),
+    ("d.log", "unattached.log", "text/plain", 10, None, None, None, 0),
+)
+ARTIFACT_LISTED = ["throughput.pcap", "failure-screenshot.png"]
+ARTIFACT_OTHER_RUN = "other-run.log"
+ARTIFACT_UNATTACHED = "unattached.log"
+ARTIFACT_PANEL_FIELDS = ("id", "original_filename", "content_type", "size_bytes", "created_at")
+ARTIFACT_STORAGE_FIELD = "storage_path"
+ARTIFACT_EMPTY_RUN = {"test_suite_name": "Empty", "test_case_list": "SmokeTests"}
+ARTIFACT_CAPTURE_RUN = {"test_suite_name": "Captures", "test_case_list": "SmokeTests"}
+ARTIFACT_MISSING_RUN = 999999
+ARTIFACT_ALLOWED_TYPES = (
+    "text/xml",
+    "application/xml",
+    "application/json",
+    "text/plain",
+    "text/csv",
+    "image/png",
+    "image/jpeg",
+    "image/svg+xml",
+    "application/pdf",
+    "application/vnd.tcpdump.pcap",
+    "application/x-pcapng",
+    "application/zip",
+    "application/gzip",
+    "application/octet-stream",
+)
+ARTIFACT_HTML = "text/html"
+ARTIFACT_SCRIPT = "text/javascript"
+ARTIFACT_CAPTURE = ("throughput.pcap", b"\xd4\xc3\xb2\xa1", "application/x-pcapng")
+ARTIFACT_REFUSED = ("page.js", b"alert(1)", "text/javascript")
+ARTIFACT_PLAIN = "text/plain"
+MSG_ARTIFACT_LISTED = "the run lists the files attached to it"
+MSG_ARTIFACT_ORDER = "the files are listed oldest first"
+MSG_ARTIFACT_OTHER_RUN = "another run's file is not listed"
+MSG_ARTIFACT_OTHER_LISTS = "the other run lists its own files"
+MSG_ARTIFACT_UNATTACHED = "a file attached to no run is not listed"
+MSG_ARTIFACT_PANEL_FIELD = "the listing carries what the panel renders"
+MSG_ARTIFACT_RUN_ID = "the listed file names its run"
+MSG_ARTIFACT_NO_STORAGE = "the listing never reveals the storage path"
+MSG_ARTIFACT_EMPTY = "a run with nothing attached lists nothing"
+MSG_ARTIFACT_MISSING_RUN = "an unknown run is not found"
+MSG_ARTIFACT_SIGNED_OUT = "a signed-out visitor cannot list a run's files"
+MSG_ARTIFACT_ALLOWED = "a type a run produces is accepted"
+MSG_ARTIFACT_HTML = "HTML is accepted"
+MSG_ARTIFACT_HTML_SANDBOX = "HTML downloads sandboxed"
+MSG_ARTIFACT_NO_SCRIPT = "script is not accepted"
+MSG_ARTIFACT_CAPTURE = "a packet capture uploads"
+MSG_ARTIFACT_CAPTURE_LISTED = "the uploaded capture is listed"
+MSG_ARTIFACT_REFUSED = "a script upload is an unsupported media type"
+MSG_ARTIFACT_REFUSED_TYPE = "the refusal names the refused type"
+MSG_ARTIFACT_REFUSED_ALLOWED = "the refusal names the allowed types"
