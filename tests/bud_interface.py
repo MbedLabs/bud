@@ -125,9 +125,10 @@ class BudInterface:
         """Store one row in the started app's database and return it as stored."""
         return self._run(self._add_to_app(row))
 
-    def bud_delete_in_app(self, model):
-        """Delete every row of a model from the started app's database."""
-        self._run(self._delete_in_app(model))
+    def bud_delete_in_app(self, model, **where):
+        """Delete the rows of a model whose columns equal the given values, every row without
+        values, from the started app's database."""
+        self._run(self._delete_in_app(model, where))
 
     def bud_find_in_app(self, model, **where):
         """The rows of a model in the started app's database whose columns equal the given values."""
@@ -230,9 +231,9 @@ class BudInterface:
             self._run(self.session.close())
             self.session = None
 
-    async def _delete_in_app(self, model):
+    async def _delete_in_app(self, model, where):
         async with self.app_maker() as session:
-            await session.execute(delete(model))
+            await session.execute(delete(model).filter_by(**where))
             await session.commit()
 
     async def _find_in_app(self, model, where):

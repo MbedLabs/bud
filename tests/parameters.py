@@ -1450,3 +1450,35 @@ MSG_AUDIT_PICTURE_REMOVED = "the member removes the picture"
 MSG_AUDIT_PAGE = "the administrator reads the page"
 MSG_AUDIT_ACTOR_PICTURE = "each actor carries their current picture link"
 MSG_AUDIT_USER_PICTURE = "each listed user carries their current picture link"
+
+LABELS_AUDITOR = {"email": "auditor@example.com", "full_name": "Ada Auditor"}
+LABELS_MEMBER = {"email": "member@example.com", "full_name": "Mia Member"}
+LABELS_RUN = "Nightly smoke"
+LABELS_GONE_RUN = "Removed run"
+LABELS_PRODUCT = "Gateway board"
+LABELS_STATION = "station-07"
+LABELS_GROUP_KEY = "test_operators"
+LABELS_SETTING = "smtp_host"
+LABELS_MISSING_STATION = 999999
+LABELS_PREFIX = "label."
+LABELS_ODD_PREFIX = "odd."
+LABELS_LIMIT = 50
+LABELS_KEY = {"label": "Station key", "key_hash": "hash-1", "key_prefix": "bud_ab"}
+LABELS_ARTIFACT = {
+    "filename": "stored.log",
+    "original_filename": "console.log",
+    "content_type": "text/plain",
+    "size_bytes": 3,
+    "storage_path": "x/stored.log",
+}
+LABELS_RESULT = {"test_class": "PowerTests", "test_method": "test_rail", "passed": True}
+LABELS_CHANNEL = {"name": "Release room", "format": "slack", "url_encrypted": "x", "url_prefix": "https://"}
+LABELS_POLICY_KEY = "results"
+LABELS_ODD_IDS = {"odd.superscript": "²", "odd.huge": "99999999999", "odd.negative": "-1"}
+MSG_LABELS_SIGNED_IN = "the administrator signs in"
+MSG_LABELS_PAGE = "the administrator reads the labelled events"
+MSG_LABELS_NAMED = "the event names the object and whether it is deleted"
+MSG_LABELS_TARGET_ID = "the event keeps the deleted run's id"
+MSG_LABELS_STORED = "the stored event keeps its target type and id"
+MSG_LABELS_ODD = "policies, keys, artifacts, results and channels are named and odd ids are not"
+MSG_LABELS_CHANNEL_CREATED = "the created channel is named"
