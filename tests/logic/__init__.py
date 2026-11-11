@@ -14,4 +14,5 @@ SUITES = [
     "tests.logic.BUD_alembic_baseline.AlembicBaselineTest",
     "tests.logic.BUD_image_release.ImageReleaseTest",
     "tests.logic.BUD_e2e_image_smoke_script.E2eImageSmokeScriptTest",
+    "tests.logic.BUD_startup_bootstrap.StartupBootstrapTest",
 ]

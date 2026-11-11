@@ -1049,3 +1049,24 @@ MSG_BLOOM_STORED = "a sync stores the suite Bloom named on the run"
 MSG_BLOOM_UNMARKED = "a Bloom reply naming no suite leaves the run unmarked"
 MSG_BLOOM_RUN_READ = "the run is read"
 MSG_BLOOM_EXPOSED = "the run endpoint shows the backlink"
+
+STARTUP_STEPS = (
+    "create_tables",
+    "migrate_user_columns",
+    "migrate_user_roles_to_viewer",
+    "migrate_execution_columns",
+    "seed_admin_user",
+)
+STARTUP_REPAIR_STEPS = [
+    "create_tables",
+    "migrate_user_columns",
+    "migrate_user_roles_to_viewer",
+    "migrate_execution_columns",
+]
+STARTUP_CASES = {
+    "no repair, no seed": (False, False, []),
+    "repair, no seed": (True, False, STARTUP_REPAIR_STEPS),
+    "no repair, seed": (False, True, ["seed_admin_user"]),
+    "repair and seed": (True, True, STARTUP_REPAIR_STEPS + ["seed_admin_user"]),
+}
+MSG_STARTUP_STEPS = "the app's start runs exactly the repair and seed its two settings ask for"
