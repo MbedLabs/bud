@@ -78,11 +78,7 @@ async def create_custom_run(
 ):
     """Queue a run for each Test Station the selection touches."""
 
-    requested: list[str] = []
-    for path in data.test_paths:
-        cleaned = path.strip()
-        if cleaned and cleaned not in requested:
-            requested.append(cleaned)
+    requested = _requested_paths(data.test_paths)
     if not requested:
         raise HTTPException(status_code=422, detail="Select at least one test case.")
 
@@ -110,36 +106,57 @@ async def create_custom_run(
 
     created: list[ExecutionRequest] = []
     for assignment in plan.assignments:
-        known = {
-            entry.test_path: entry
-            for entry in await build_catalog(db, runner_account=assignment.runner_account)
-        }
-        source_run = await _most_recent_source_run(
-            db, [known[path].last_run_id for path in assignment.test_paths]
-        )
-        suite_names = sorted({known[path].suite for path in assignment.test_paths})
-        metadata = {
-            "product_id": source_run.product_id if source_run else None,
-            "url_test_software": source_run.url_test_software if source_run else None,
-            "ref_test_software": source_run.ref_test_software if source_run else "main",
-            "url_software_under_test": source_run.url_software_under_test if source_run else None,
-            "ref_software_under_test": source_run.ref_software_under_test if source_run else None,
-        }
-        request = ExecutionRequest(
-            requested_by_id=current_user.id,
-            runner_id=assignment.runner_id,
-            runner_account=assignment.runner_account,
-            name=data.name or f"Custom run - {', '.join(suite_names)}",
-            selected_tests=assignment.test_paths,
-            source_run_id=source_run.id if source_run else None,
-            source_metadata=metadata,
-        )
+        request = await _assignment_request(db, assignment, data.name, current_user.id)
         db.add(request)
         created.append(request)
     await db.flush()
     return CustomRunResponse(
         requests=[await _request_response(db, request) for request in created],
         unassigned=[UnassignedTest(**item.__dict__) for item in plan.unassigned],
+    )
+
+
+def _requested_paths(paths: list[str]) -> list[str]:
+    """The selected test paths, stripped, without blanks and duplicates, in their first order."""
+    requested: list[str] = []
+    for path in paths:
+        cleaned = path.strip()
+        if cleaned and cleaned not in requested:
+            requested.append(cleaned)
+    return requested
+
+
+def _source_metadata(source_run: TestRun | None) -> dict:
+    """The product and software references a custom run takes from the run it repeats."""
+    return {
+        "product_id": source_run.product_id if source_run else None,
+        "url_test_software": source_run.url_test_software if source_run else None,
+        "ref_test_software": source_run.ref_test_software if source_run else "main",
+        "url_software_under_test": source_run.url_software_under_test if source_run else None,
+        "ref_software_under_test": source_run.ref_software_under_test if source_run else None,
+    }
+
+
+async def _assignment_request(
+    db: AsyncSession, assignment, name: str | None, requested_by_id: int
+) -> ExecutionRequest:
+    """The execution request for one Test Station's share of a custom run."""
+    known = {
+        entry.test_path: entry
+        for entry in await build_catalog(db, runner_account=assignment.runner_account)
+    }
+    source_run = await _most_recent_source_run(
+        db, [known[path].last_run_id for path in assignment.test_paths]
+    )
+    suite_names = sorted({known[path].suite for path in assignment.test_paths})
+    return ExecutionRequest(
+        requested_by_id=requested_by_id,
+        runner_id=assignment.runner_id,
+        runner_account=assignment.runner_account,
+        name=name or f"Custom run - {', '.join(suite_names)}",
+        selected_tests=assignment.test_paths,
+        source_run_id=source_run.id if source_run else None,
+        source_metadata=_source_metadata(source_run),
     )
 
 
