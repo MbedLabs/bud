@@ -1,7 +1,7 @@
 """Runners API endpoints."""
 
 from datetime import datetime, timedelta, timezone
-from typing import List
+from typing import Annotated, List
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import delete, select, update
@@ -49,8 +49,8 @@ router = APIRouter()
 async def register_runner(
     request: Request,
     data: RunnerRegister,
-    db: AsyncSession = Depends(get_db, scope="function"),
-    api_key: RunnerApiKey = Depends(require_runner_api_key),
+    db: Annotated[AsyncSession, Depends(get_db, scope="function")],
+    api_key: Annotated[RunnerApiKey, Depends(require_runner_api_key)],
 ):
     """Register a Test Station.
 
@@ -137,8 +137,8 @@ async def register_runner(
 async def runner_heartbeat(
     request: Request,
     data: RunnerHeartbeat,
-    db: AsyncSession = Depends(get_db, scope="function"),
-    current_runner: Runner = Depends(get_current_runner),
+    db: Annotated[AsyncSession, Depends(get_db, scope="function")],
+    current_runner: Annotated[Runner, Depends(get_current_runner)],
 ):
     """Receive a heartbeat from a runner.
 

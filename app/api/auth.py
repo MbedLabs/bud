@@ -7,7 +7,7 @@ import io
 import logging
 from datetime import datetime, timezone
 from http import HTTPStatus
-from typing import Optional
+from typing import Annotated, Optional
 
 from fastapi import (
     APIRouter,
@@ -390,7 +390,7 @@ async def get_me(
 @router.put("/me", response_model=UserResponse)
 async def update_me(
     data: UserUpdate,
-    current_user: User = Depends(get_current_user),
+    current_user: Annotated[User, Depends(get_current_user)],
     db: AsyncSession = Depends(get_db, scope="function"),
 ):
     """Update the signed-in user's profile. The email address changes only through the email
@@ -431,9 +431,9 @@ async def get_profile_picture(current_user: User = Depends(get_current_user)):
     },
 )
 async def set_profile_picture(
-    file: UploadFile = File(...),
-    db: AsyncSession = Depends(get_db, scope="function"),
-    current_user: User = Depends(get_current_user),
+    file: Annotated[UploadFile, File()],
+    db: Annotated[AsyncSession, Depends(get_db, scope="function")],
+    current_user: Annotated[User, Depends(get_current_user)],
 ):
     """Validate, normalize and store the signed-in account's profile image."""
     expected_format = PICTURE_FORMATS.get(file.content_type)
@@ -487,7 +487,7 @@ async def delete_profile_picture(
 )
 async def request_email_change(
     data: EmailChangeRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: Annotated[User, Depends(get_current_user)],
     db: AsyncSession = Depends(get_db, scope="function"),
 ):
     """Request a verified email change."""
@@ -715,7 +715,7 @@ async def confirm_email_change(
 async def change_password(
     data: PasswordChange,
     response: Response,
-    current_user: User = Depends(get_current_user),
+    current_user: Annotated[User, Depends(get_current_user)],
     db: AsyncSession = Depends(get_db, scope="function"),
 ):
     """Change the signed-in user's password and end every existing session: access tokens are
