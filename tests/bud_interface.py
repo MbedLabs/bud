@@ -134,6 +134,28 @@ class BudInterface:
         """The rows of a model in the started app's database whose columns equal the given values."""
         return self._run(self._find_in_app(model, where))
 
+    def bud_request_without_overrides(self, method, path, **kwargs):
+        """Send one request to the started app with its dependency overrides lifted."""
+        overrides = dict(main.app.dependency_overrides)
+        main.app.dependency_overrides.clear()
+        try:
+            return self.client.request(method, path, **kwargs)
+        finally:
+            main.app.dependency_overrides.update(overrides)
+
+    def bud_add_route(self, path, endpoint):
+        """Serve one more GET route on the app until bud_remove_routes."""
+        main.app.get(path)(endpoint)
+        self.added_routes = [*getattr(self, "added_routes", []), path]
+
+    def bud_remove_routes(self):
+        """Stop serving the routes added with bud_add_route."""
+        added = set(getattr(self, "added_routes", []))
+        main.app.router.routes = [
+            route for route in main.app.router.routes if getattr(route, "path", None) not in added
+        ]
+        self.added_routes = []
+
     def bud_request_through_proxy(self, method, path, peer, forwarded_for=None, **kwargs):
         """Send one request as the image delivers it: nginx, reached from peer, appends that
         address to X-Forwarded-For and passes the request from 127.0.0.1 to uvicorn's proxy
