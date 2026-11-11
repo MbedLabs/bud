@@ -1482,3 +1482,65 @@ MSG_LABELS_TARGET_ID = "the event keeps the deleted run's id"
 MSG_LABELS_STORED = "the stored event keeps its target type and id"
 MSG_LABELS_ODD = "policies, keys, artifacts, results and channels are named and odd ids are not"
 MSG_LABELS_CHANNEL_CREATED = "the created channel is named"
+
+S3_BUCKET = "bud-test"
+S3_OTHER_BUCKET = "no-such-bucket"
+S3_SETTINGS = {
+    "STORAGE_BACKEND": "s3",
+    "STORAGE_LOCAL_MIRROR": True,
+    "S3_BUCKET": "bud-test",
+    "S3_REGION": "us-east-1",
+    "S3_PREFIX": "bud",
+    "S3_ENDPOINT_URL": "",
+}
+S3_KEY = "bud/{}"
+S3_EVIDENCE_NAME = "trace.txt"
+S3_EVIDENCE = b"evidence"
+S3_REFUSED_NAME = "t.txt"
+S3_REFUSED_DATA = b"x"
+STATUS_UNAVAILABLE = 503
+S3_READ_NAME = "r.txt"
+S3_LOCAL_BYTES = b"local"
+S3_BUCKET_BYTES = b"bucket"
+S3_MISSING_NAME = "gone.txt"
+S3_CLEANUP_FILES = ("kept.txt", "orphan.txt", "old.txt")
+S3_KEPT = "kept.txt"
+S3_MISSING = ("missing.txt", "m.txt")
+S3_OLD = "old.txt"
+S3_GRACE_SECONDS = -60
+S3_MIGRATE_FILES = {"m1.txt": b"one", "m2.txt": b"two two"}
+S3_PARTIAL = (".upload-x.part", b"partial")
+S3_MISMATCHED = ("m3.txt", b"three")
+S3_MIGRATIONS = [(2, 0, []), (0, 2, []), (0, 2, ["m3.txt"])]
+S3_MIGRATE_ARGUMENTS = ["migrate", "--to", "s3"]
+S3_COMMAND_DONE = (1, 2, [])
+S3_COMMAND_MISMATCH = (0, 0, ["x.txt"])
+S3_COMMAND_OUTPUT = "copied 1, already there 2, size mismatches 0"
+S3_COMMAND_CODES = [0, 1, 2]
+S3_READINESS = ["s3", "s3-unreachable", "local"]
+S3_NEEDS_BUCKET = "needs S3_BUCKET"
+S3_DEFAULT_PREFIX = "bud"
+MSG_S3_UPLOADED = "a station uploads evidence"
+MSG_S3_KEYS = "the bucket holds exactly the expected objects"
+MSG_S3_MIRRORED = "the local mirror holds the upload"
+MSG_S3_DOWNLOADED = "the evidence downloads"
+MSG_S3_CONTENT = "the download carries the evidence"
+MSG_S3_ATTACHMENT = "the download is an attachment"
+MSG_S3_SANDBOX = "the download is sandboxed"
+MSG_S3_FALLBACK = "a file the bucket lost downloads from the mirror"
+MSG_S3_UNREACHABLE = "a file neither holds answers unavailable"
+MSG_S3_DELETED = "the evidence is deleted"
+MSG_S3_NOT_MIRRORED = "without the mirror no local file is kept"
+MSG_S3_REFUSED = "an upload to an unreachable bucket is refused"
+MSG_S3_NOTHING_LEFT = "a refused upload leaves no file"
+MSG_S3_READ_STORED = "a stored file is read from the bucket first, then the mirror"
+MSG_S3_EXPIRED = "the cleanup removes the expired artifact"
+MSG_S3_MISSING = "the cleanup counts the artifact whose file is missing"
+MSG_S3_OLD_GONE = "the expired artifact's mirror file is removed"
+MSG_S3_MIGRATIONS = "the migration copies once, skips what is there and names size mismatches"
+MSG_S3_COMMAND_CODES = "the migrate command exits 0, 1 for mismatches and 2 without a bucket"
+MSG_S3_COMMAND_OUTPUT = "the migrate command reports its counts"
+MSG_S3_READINESS = "readiness names the storage and whether it answers"
+MSG_S3_BUCKET_REQUIRED = "S3 storage refuses settings without a bucket"
+MSG_S3_BUCKET_TEXT = "the refusal says S3 needs a bucket"
+MSG_S3_PREFIX = "the default object prefix is bud"

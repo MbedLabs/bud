@@ -18,4 +18,5 @@ SUITES = [
     "tests.api.BUD_bloom_artefact_backlink.BloomArtefactBacklinkTest",
     "tests.api.BUD_run_stats_api.RunStatsApiTest",
     "tests.api.BUD_profile_picture_http.ProfilePictureHttpTest",
+    "tests.api.BUD_object_storage.ObjectStorageTest",
 ]
