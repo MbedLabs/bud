@@ -494,7 +494,11 @@ async def get_test_run_stats(
     )
 
 
-@router.get("/filter-options", response_model=TestRunFilterOptions)
+@router.get(
+    "/filter-options",
+    response_model=TestRunFilterOptions,
+    responses={403: {"description": "Forbidden"}},
+)
 async def get_test_run_filter_options(
     days: Optional[int] = Query(
         None,
