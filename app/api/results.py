@@ -74,6 +74,92 @@ async def get_uploader_entity(
     )
 
 
+async def _create_adhoc_run(db: AsyncSession, data: ResultsUpload, runner_id: int) -> int:
+    """Create the completed run that results sent without a run belong to and return its id."""
+    target_product_id = data.product_id
+    suite_name = data.test_suite_name or "Ad-hoc"
+    product_name = "Unknown Project"
+
+    if target_product_id:
+        res = await db.execute(select(Product.name).where(Product.id == target_product_id))
+        p_name = res.scalar_one_or_none()
+        if p_name:
+            product_name = p_name
+
+    run_name = f"{product_name} - {suite_name}"
+
+    new_run = TestRun(
+        runner_id=runner_id,
+        product_id=target_product_id,
+        status="Completed",
+        name=run_name,
+        test_case_list=suite_name,
+        url_test_software=data.url_test_software,
+        ref_test_software=data.ref_test_software or "main",
+        url_software_under_test=data.url_software_under_test,
+        ref_software_under_test=data.ref_software_under_test,
+        started_at=datetime.now(timezone.utc).replace(tzinfo=None),
+        completed_at=None,
+    )
+    db.add(new_run)
+    await db.flush()
+    target_run_id = new_run.id
+    logger.info(f"Auto-created TestRun {target_run_id} ({run_name})")
+    return target_run_id
+
+
+async def _summarise_run(
+    db: AsyncSession, test_run: TestRun, target_run_id: int, created_count: int
+) -> None:
+    """Count the run's passed, failed and skipped test classes and its duration, complete it
+    and record the upload on its timeline."""
+    class_stats = await db.execute(
+        select(
+            TestResult.test_class,
+            func.min(TestResult.passed.cast(Integer)).label("all_passed"),
+            func.min(
+                case((TestResult.test_metadata["skipped"].as_boolean().is_(True), 1), else_=0)
+            ).label("all_skipped"),
+        )
+        .where(TestResult.test_run_id == target_run_id)
+        .group_by(TestResult.test_class)
+    )
+    rows = class_stats.fetchall()
+    total = len(rows)
+    skipped = sum(1 for r in rows if r.all_skipped == 1)
+    passed = sum(1 for r in rows if r.all_passed == 1 and r.all_skipped != 1)
+
+    dur_res = await db.execute(
+        select(func.sum(TestResult.duration_seconds)).where(TestResult.test_run_id == target_run_id)
+    )
+    duration = dur_res.scalar() or 0.0
+
+    test_run.total_tests = total
+    test_run.passed_tests = passed
+    test_run.failed_tests = total - passed - skipped
+    if skipped:
+        test_run.skipped_tests = skipped
+    test_run.duration_seconds = duration
+
+    if test_run.status != "Completed":
+        test_run.status = "Completed"
+    if not test_run.completed_at:
+        test_run.completed_at = datetime.now(timezone.utc).replace(tzinfo=None)
+
+    await record_test_run_event(
+        db,
+        test_run_id=target_run_id,
+        stage="results",
+        status="completed",
+        title="Results uploaded",
+        message=(
+            f"{created_count} method results accepted. {test_run.total_tests} test case(s): "
+            f"{test_run.passed_tests} passed, {test_run.failed_tests} failed"
+            + (f", {skipped} skipped." if skipped else ".")
+        ),
+    )
+
+
 @router.post("", status_code=201, responses={403: {"description": HTTPStatus(403).phrase}})
 async def upload_results(
     data: ResultsUpload,
@@ -97,34 +183,7 @@ async def upload_results(
         await load_run(db, _current_entity, target_run_id, mutate=True)
 
     if not target_run_id:
-        suite_name = data.test_suite_name or "Ad-hoc"
-        product_name = "Unknown Project"
-
-        if target_product_id:
-            res = await db.execute(select(Product.name).where(Product.id == target_product_id))
-            p_name = res.scalar_one_or_none()
-            if p_name:
-                product_name = p_name
-
-        run_name = f"{product_name} - {suite_name}"
-
-        new_run = TestRun(
-            runner_id=_current_entity.id,
-            product_id=target_product_id,
-            status="Completed",
-            name=run_name,
-            test_case_list=suite_name,
-            url_test_software=data.url_test_software,
-            ref_test_software=data.ref_test_software or "main",
-            url_software_under_test=data.url_software_under_test,
-            ref_software_under_test=data.ref_software_under_test,
-            started_at=datetime.now(timezone.utc).replace(tzinfo=None),
-            completed_at=None,
-        )
-        db.add(new_run)
-        await db.flush()
-        target_run_id = new_run.id
-        logger.info(f"Auto-created TestRun {target_run_id} ({run_name})")
+        target_run_id = await _create_adhoc_run(db, data, _current_entity.id)
 
     created_results = []
     for result_data in data.results:
@@ -150,53 +209,7 @@ async def upload_results(
     test_run = res.scalar_one_or_none()
 
     if test_run:
-        class_stats = await db.execute(
-            select(
-                TestResult.test_class,
-                func.min(TestResult.passed.cast(Integer)).label("all_passed"),
-                func.min(
-                    case((TestResult.test_metadata["skipped"].as_boolean().is_(True), 1), else_=0)
-                ).label("all_skipped"),
-            )
-            .where(TestResult.test_run_id == target_run_id)
-            .group_by(TestResult.test_class)
-        )
-        rows = class_stats.fetchall()
-        total = len(rows)
-        skipped = sum(1 for r in rows if r.all_skipped == 1)
-        passed = sum(1 for r in rows if r.all_passed == 1 and r.all_skipped != 1)
-
-        dur_res = await db.execute(
-            select(func.sum(TestResult.duration_seconds)).where(
-                TestResult.test_run_id == target_run_id
-            )
-        )
-        duration = dur_res.scalar() or 0.0
-
-        test_run.total_tests = total
-        test_run.passed_tests = passed
-        test_run.failed_tests = total - passed - skipped
-        if skipped:
-            test_run.skipped_tests = skipped
-        test_run.duration_seconds = duration
-
-        if test_run.status != "Completed":
-            test_run.status = "Completed"
-        if not test_run.completed_at:
-            test_run.completed_at = datetime.now(timezone.utc).replace(tzinfo=None)
-
-        await record_test_run_event(
-            db,
-            test_run_id=target_run_id,
-            stage="results",
-            status="completed",
-            title="Results uploaded",
-            message=(
-                f"{len(created_results)} method results accepted. {test_run.total_tests} test case(s): "
-                f"{test_run.passed_tests} passed, {test_run.failed_tests} failed"
-                + (f", {skipped} skipped." if skipped else ".")
-            ),
-        )
+        await _summarise_run(db, test_run, target_run_id, len(created_results))
 
     await db.commit()
 
