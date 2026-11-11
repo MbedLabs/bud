@@ -25,4 +25,5 @@ SUITES = [
     "tests.api.BUD_runs_api.RunsApiTest",
     "tests.api.BUD_runner_api_keys.RunnerApiKeysTest",
     "tests.api.BUD_runners_register_api.RunnersRegisterApiTest",
+    "tests.api.BUD_results_upload_api.ResultsUploadApiTest",
 ]

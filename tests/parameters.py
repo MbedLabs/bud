@@ -1832,3 +1832,43 @@ MSG_REGISTER_KEY_DELETE = "an enrolment key cannot delete a station"
 MSG_REGISTER_VIEWER_DELETE = "a viewer cannot delete a station"
 MSG_REGISTER_VIEWER_KEYS = "a viewer cannot mint, list or revoke keys"
 MSG_REGISTER_ADMIN_DELETE = "an administrator deletes a station"
+
+UPLOAD_RESULT = {"test_class": "SmokeTests", "test_method": "test_boot", "passed": True, "duration_seconds": 1.5}
+UPLOAD_NIGHTLY = {"test_suite_name": "Nightly", "test_case_list": "SmokeTests"}
+UPLOAD_ADHOC = "Ad-hoc suite"
+UPLOAD_PRODUCT = "Gateway ECU"
+UPLOAD_REGRESSION = "Regression"
+UPLOAD_MISSING = 99999
+UPLOAD_FAILING = {"passed": False, "error_message": "assertion failed", "traceback": "Traceback (most recent call last): ..."}
+UPLOAD_RICH = {"assertions": [{"name": "voltage", "passed": True, "actual": 3.3}], "metadata": {"station": "station-01"}}
+UPLOAD_MIXED = [("ClassA", "test_one", True, {}), ("ClassA", "test_two", False, {}), ("ClassB", "test_three", True, {})]
+UPLOAD_MIXED_COUNTS = (2, 1, 1)
+UPLOAD_ROBOT = [
+    ("Suite.Boots", "Boots", True, {}),
+    ("Suite.Flashes", "Flashes", True, {"metadata": {"skipped": True}}),
+    ("Suite.Fails", "Fails", False, {}),
+]
+UPLOAD_ROBOT_COUNTS = (3, 1, 1, 1)
+UPLOAD_TIMED = [("C", "a", True, {"duration_seconds": 1.5}), ("C", "b", True, {"duration_seconds": 2.5})]
+UPLOAD_TIMED_TOTAL = 4.0
+UPLOAD_TOLERANCE = 1e-6
+UPLOAD_STATUSES = ("Running", "Completed")
+UPLOAD_SIGNED_OUT_CALLS = (("POST", "/api/results"), ("GET", "/api/results/1"), ("GET", "/api/results/detail/1"))
+MSG_UPLOAD_EXISTING = "results upload against an existing run"
+MSG_UPLOAD_ANSWER = "the answer names the run and counts the results"
+MSG_UPLOAD_CREATES_RUN = "results without a run create one named after the suite"
+MSG_UPLOAD_PRODUCT_NAME = "the created run is named after the product and the suite"
+MSG_UPLOAD_MISSING_RUN = "uploading to an unknown run is not found"
+MSG_UPLOAD_FAILING = "a failing result with its traceback is accepted"
+MSG_UPLOAD_RICH = "assertions and metadata are accepted"
+MSG_UPLOAD_NO_RESULTS = "a payload without results is refused"
+MSG_UPLOAD_CLASS_COUNTS = "the run counts test classes: a class passes only when every method passes"
+MSG_UPLOAD_SKIPPED = "a class whose results are all skipped counts as skipped"
+MSG_UPLOAD_DURATION = "the run's duration is the sum of every method's"
+MSG_UPLOAD_COMPLETES = "uploading completes a running run"
+MSG_UPLOAD_EVENT = "uploading records an event on the run's timeline"
+MSG_UPLOAD_LISTED = "the run's results are listed"
+MSG_UPLOAD_LIST_MISSING = "listing an unknown run is not found"
+MSG_UPLOAD_DETAIL = "one result is read"
+MSG_UPLOAD_DETAIL_MISSING = "an unknown result is not found"
+MSG_UPLOAD_SIGNED_OUT = "a signed-out visitor cannot reach results"
