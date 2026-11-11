@@ -1872,3 +1872,51 @@ MSG_UPLOAD_LIST_MISSING = "listing an unknown run is not found"
 MSG_UPLOAD_DETAIL = "one result is read"
 MSG_UPLOAD_DETAIL_MISSING = "an unknown result is not found"
 MSG_UPLOAD_SIGNED_OUT = "a signed-out visitor cannot reach results"
+
+STORED_SUITE = "stored-report-suite"
+STORED_REPEATED = "repeated-suite"
+STORED_CASES = "Suite.CASES"
+STORED_COUNTS = {"total_tests": 6, "passed_tests": 5, "failed_tests": 1, "skipped_tests": 0}
+STORED_RESULT = {
+    "test_class": "StoredTests",
+    "test_method": "test_assertions",
+    "passed": False,
+    "assertions": [
+        {
+            "passed": True,
+            "assertion_type": "AssertInRange",
+            "message": "current-run-marker",
+            "expected": "[11.5, 14.8] V",
+            "actual": "13.6 V",
+            "source_file": "test_stored.py",
+            "source_line": 42,
+        },
+        {"passed": False, "message": "current-run-failure"},
+    ],
+    "test_metadata": {"tc_id": "PRJ-TC-001"},
+}
+STORED_HISTORICAL = [{"passed": False, "message": "historical-run-must-not-appear"}]
+STORED_RUN_REPORT = "bud-run-{}-{}.pdf"
+STORED_SUITE_REPORT = "bud-suite-{}.pdf"
+STORED_SUITE_PREFIX = "bud-suite-"
+STORED_PDF_TYPE = "application/pdf"
+STORED_REPORT_TEXTS = ("2 assertions", "AssertInRange", "current-run-marker", "[11.5, 14.8] V", "13.6 V", "test_stored.py:42")
+STORED_RUN_ID_TEXT = "BUD-RUN-{}"
+STORED_HISTORICAL_TEXT = "historical-run-must-not-appear"
+STORED_MISSING_RUN = 999_999
+STORED_API_COMPLETED = "api-completed-suite"
+STORED_API_RUNNING = "api-running-suite"
+STORED_CLAIMED = "claimed-suite"
+STORED_CLAIM = "22222222-2222-4222-8222-222222222222"
+STORED_COMPLETE_PATH = "/api/runners/runs/{}/complete"
+STORED_IDEMPOTENCY_HEADER = "Idempotency-Key"
+MSG_STORED_REPORTS = "a finished run leaves its run report and its suite report"
+MSG_STORED_PDF = "each stored report is a PDF of its stated size"
+MSG_STORED_ONCE = "storing the reports twice leaves two reports"
+MSG_STORED_SUITE_DETAIL = "the suite report details its generating run"
+MSG_STORED_SUITE_SCOPE = "the suite report leaves out other runs of the suite"
+MSG_STORED_BROKEN = "a report that will not render stores nothing and does not fail"
+MSG_STORED_MISSING = "a run that does not exist stores nothing"
+MSG_STORED_PATCHED = "a station marks its run completed"
+MSG_STORED_RUNNING = "a run still running has no reports yet"
+MSG_STORED_CLAIM = "a station acknowledges its claimed run"
