@@ -60,9 +60,8 @@ class Settings(BaseSettings):
     def settings_customise_sources(
         cls, settings_cls, init_settings, env_settings, dotenv_settings, file_secret_settings
     ):
-        if os.environ.get("BUD_DOTENV_DISABLED") == "1":
-            return init_settings, env_settings, file_secret_settings
-        return init_settings, env_settings, dotenv_settings, file_secret_settings
+        dotenv = () if os.environ.get("BUD_DOTENV_DISABLED") == "1" else (dotenv_settings,)
+        return (init_settings, env_settings, *dotenv, file_secret_settings)
 
     DATABASE_URL: str = Field(
         default="", validation_alias=AliasChoices("BUD_DATABASE_URL", "DATABASE_URL")
