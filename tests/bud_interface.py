@@ -20,7 +20,7 @@ from unittest import mock
 import httpx
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 import tests.parameters as params
@@ -30,6 +30,7 @@ from app.api.auth import get_current_active_entity, get_current_user
 from app.api.results import get_uploader_entity
 from app.core.access import seed_default_access
 from app.core.config import settings
+from app.core.deps import limiter
 from app.db import database as db_module
 from app.db.database import Base, get_db
 from app.models import AuditEvent, Runner, TestResult, TestRun
@@ -54,9 +55,10 @@ class BudInterface:
 
     def bud_start_app(self, signed_in=True):
         """Serve the whole app on a new file-backed SQLite database with the default access seeded
-        and its uploads in the same work folder, signed in as an administrator unless signed_in
-        is False."""
+        and its uploads in the same work folder and fresh rate-limit counters, signed in as an
+        administrator unless signed_in is False."""
         self.bud_stop_app()
+        limiter.reset()
         folder = (
             Path(os.environ[self.parameters.WORK_DIR_SETTING])
             / self.parameters.APP_DATABASE_FOLDER
@@ -120,6 +122,10 @@ class BudInterface:
     def bud_add_to_app(self, row):
         """Store one row in the started app's database and return it as stored."""
         return self._run(self._add_to_app(row))
+
+    def bud_delete_in_app(self, model):
+        """Delete every row of a model from the started app's database."""
+        self._run(self._delete_in_app(model))
 
     def bud_find_in_app(self, model, **where):
         """The rows of a model in the started app's database whose columns equal the given values."""
@@ -204,6 +210,11 @@ class BudInterface:
             await session.commit()
             await session.refresh(row)
             return row
+
+    async def _delete_in_app(self, model):
+        async with self.app_maker() as session:
+            await session.execute(delete(model))
+            await session.commit()
 
     async def _find_in_app(self, model, where):
         async with self.app_maker() as session:

@@ -556,3 +556,38 @@ MSG_PRODUCER_STATION_UPDATES = "a station updates its run"
 MSG_PRODUCER_RUN_OWNER = "the run belongs to the station"
 MSG_PRODUCER_RUN_COUNTS = "the run keeps the station's counts"
 MSG_PRODUCER_RUN_REF = "the run keeps the test software reference"
+
+SETUP_PATH = "/api/setup"
+SETUP_STATUS_PATH = "/api/setup/status"
+SETUP_PASSWORD = "a-sufficiently-long-passphrase"
+SETUP_OWNER = {
+    "email": "owner@example.com",
+    "password": "a-sufficiently-long-passphrase",
+    "full_name": "Instance Owner",
+}
+SETUP_SECOND_EMAIL = "squatter@example.com"
+SETUP_SHORT_PASSWORD = "short"
+SETUP_REQUIRED = {"setup_required": True}
+SETUP_DONE = {"setup_required": False}
+SETUP_ADMIN_ROLE = "admin"
+SETUP_USERS = 1
+SETUP_RUNNER_KEY = "runner_api_key"
+SETUP_LOGIN_SUFFIX = "/login"
+STATUS_CONFLICT = 409
+MSG_SETUP_STATUS_ANSWERS = "the setup status answers"
+MSG_SETUP_REQUIRED = "an instance without users needs setup"
+MSG_SETUP_DONE_SEEDED = "an instance with a seeded administrator needs no setup"
+MSG_SETUP_CREATED = "setup creates the first administrator"
+MSG_SETUP_ADMIN_ROLE = "the first user is an administrator"
+MSG_SETUP_ADMIN_ACTIVE = "the first administrator is active"
+MSG_SETUP_PASSWORD_HASHED = "the first administrator's password is stored hashed"
+MSG_SETUP_DONE = "after setup the instance needs no setup"
+MSG_SETUP_SECOND_REFUSED = "a second setup is refused"
+MSG_SETUP_ONE_USER = "the refused second setup adds no user"
+MSG_SETUP_SHORT_PASSWORD = "setup refuses a password below the shared policy"
+MSG_SETUP_NO_SECRET = "setup hands over no runner key"
+MSG_SETUP_MESSAGE = "setup answers with a message"
+MSG_SETUP_WITHOUT_MAIL = "setup succeeds when mail is unavailable"
+MSG_SETUP_MAIL_TO = "the welcome email goes to the new administrator"
+MSG_SETUP_MAIL_NAME = "the welcome email names the new administrator"
+MSG_SETUP_MAIL_LINK = "the welcome email links to the sign-in page"

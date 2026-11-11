@@ -9,4 +9,5 @@ SUITES = [
     "tests.api.BUD_run_report_assertions.RunReportAssertionsTest",
     "tests.api.BUD_observability.ObservabilityTest",
     "tests.api.BUD_users.UsersTest",
+    "tests.api.BUD_setup_api.SetupApiTest",
 ]
