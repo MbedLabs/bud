@@ -154,6 +154,73 @@ async def get_test_run_artifacts(
     return await _run_rows(db, _current_entity, run_id, Artifact, Artifact.created_at, Artifact.id)
 
 
+async def _station_condition(db: AsyncSession, runner_account: str):
+    """The condition that keeps the runs of one Test Station, or None when no station has that account."""
+    runner_result = await db.execute(select(Runner.id).where(Runner.account == runner_account))
+    runner_id = runner_result.scalar_one_or_none()
+    if runner_id is None:
+        return None
+    return TestRun.runner_id == runner_id
+
+
+async def _location_condition(db: AsyncSession, location: str):
+    """The condition that keeps the runs of every Test Station at a location, or None when it has none."""
+    located = await db.execute(select(Runner.id).where(Runner.location == location))
+    located_ids = list(located.scalars().all())
+    if not located_ids:
+        return None
+    return TestRun.runner_id.in_(located_ids)
+
+
+def _text_condition(text: str):
+    """The condition that matches the run name, the test case list or the runner account."""
+    needle = f"%{text}%"
+    matching_accounts = select(Runner.id).where(Runner.account.ilike(needle))
+    return or_(
+        TestRun.name.ilike(needle),
+        TestRun.test_case_list.ilike(needle),
+        TestRun.runner_id.in_(matching_accounts),
+    )
+
+
+def _latest_per_suite(conditions: list) -> list:
+    """The conditions that keep only the latest matching run of each test suite name."""
+    ranked = (
+        select(
+            TestRun.id,
+            func.row_number()
+            .over(
+                partition_by=TestRun.name,
+                order_by=(TestRun.created_at.desc(), TestRun.id.desc()),
+            )
+            .label("rank"),
+        )
+        .where(*conditions)
+        .subquery("ranked")
+    )
+    latest_ids = select(ranked.c.id).where(ranked.c.rank == 1)
+    return [TestRun.id.in_(latest_ids)]
+
+
+def _ordered(query, sort_by: str, sort_dir: str):
+    """The run query sorted by the chosen column, nulls last, then by id in the same direction."""
+    columns = {
+        "name": TestRun.name,
+        "status": TestRun.status,
+        "runner_account": Runner.account,
+        "duration_seconds": TestRun.duration_seconds,
+        "started_at": TestRun.started_at,
+        "completed_at": TestRun.completed_at,
+        "created_at": TestRun.created_at,
+    }
+    if sort_by == "runner_account":
+        query = query.outerjoin(Runner, TestRun.runner_id == Runner.id)
+    column = columns[sort_by]
+    ordering = column.asc() if sort_dir == "asc" else column.desc()
+    tie_breaker = TestRun.id.asc() if sort_dir == "asc" else TestRun.id.desc()
+    return query.order_by(ordering.nullslast(), tie_breaker)
+
+
 @router.get("", response_model=TestRunList, responses={403: {"description": "Forbidden"}})
 async def list_test_runs(
     status: Optional[str] = Query(None, description="Filter by status"),
@@ -213,66 +280,28 @@ async def list_test_runs(
         conditions.append(TestRun.name == suite)
 
     if runner_account:
-        runner_result = await db.execute(select(Runner.id).where(Runner.account == runner_account))
-        runner_id = runner_result.scalar_one_or_none()
-        if runner_id is None:
+        station = await _station_condition(db, runner_account)
+        if station is None:
             return TestRunList(runs=[], total=0, limit=limit, offset=offset)
-        conditions.append(TestRun.runner_id == runner_id)
+        conditions.append(station)
 
     if location:
-        located = await db.execute(select(Runner.id).where(Runner.location == location))
-        located_ids = list(located.scalars().all())
-        if not located_ids:
+        located = await _location_condition(db, location)
+        if located is None:
             return TestRunList(runs=[], total=0, limit=limit, offset=offset)
-        conditions.append(TestRun.runner_id.in_(located_ids))
+        conditions.append(located)
 
     if q and q.strip():
-        needle = f"%{q.strip()}%"
-        matching_accounts = select(Runner.id).where(Runner.account.ilike(needle))
-        conditions.append(
-            or_(
-                TestRun.name.ilike(needle),
-                TestRun.test_case_list.ilike(needle),
-                TestRun.runner_id.in_(matching_accounts),
-            )
-        )
+        conditions.append(_text_condition(q.strip()))
 
     if latest_per_suite:
-        ranked = (
-            select(
-                TestRun.id,
-                func.row_number()
-                .over(
-                    partition_by=TestRun.name,
-                    order_by=(TestRun.created_at.desc(), TestRun.id.desc()),
-                )
-                .label("rank"),
-            )
-            .where(*conditions)
-            .subquery("ranked")
-        )
-        latest_ids = select(ranked.c.id).where(ranked.c.rank == 1)
-        conditions = [TestRun.id.in_(latest_ids)]
+        conditions = _latest_per_suite(conditions)
 
     count_query = select(func.count(TestRun.id)).where(*conditions)
     total = (await db.execute(count_query)).scalar()
 
     query = select(TestRun).options(selectinload(TestRun.runner)).where(*conditions)
-    columns = {
-        "name": TestRun.name,
-        "status": TestRun.status,
-        "runner_account": Runner.account,
-        "duration_seconds": TestRun.duration_seconds,
-        "started_at": TestRun.started_at,
-        "completed_at": TestRun.completed_at,
-        "created_at": TestRun.created_at,
-    }
-    if sort_by == "runner_account":
-        query = query.outerjoin(Runner, TestRun.runner_id == Runner.id)
-    column = columns[sort_by]
-    ordering = column.asc() if sort_dir == "asc" else column.desc()
-    tie_breaker = TestRun.id.asc() if sort_dir == "asc" else TestRun.id.desc()
-    query = query.order_by(ordering.nullslast(), tie_breaker).offset(offset).limit(limit)
+    query = _ordered(query, sort_by, sort_dir).offset(offset).limit(limit)
     runs = (await db.execute(query)).scalars().all()
 
     return TestRunList(
@@ -595,22 +624,8 @@ async def publish_run_to_bloom(
     return await publish_report(run_id, db, current_user)
 
 
-async def publish_report(
-    run_id: int,
-    db: AsyncSession,
-    current_user: User,
-    requested_project: str | None = None,
-):
-    """Publish a completed run, requiring the requested destination when supplied."""
-    test_run = await load_run(db, current_user, run_id)
-
-    if test_run.status != "Completed":
-        raise HTTPException(
-            status_code=409,
-            detail="Only a completed run can publish a report to Bloom.",
-        )
-
-    tc_ids = await tc_ids_for_run(db, run_id)
+def _report_project(tc_ids, requested_project: str | None) -> str:
+    """The Bloom project a run's report belongs to, or a 409 when it is unclear or not the requested one."""
     try:
         project_prefix = project_prefix_for_tc_ids(tc_ids)
     except BloomProjectNotIdentifiable as exc:
@@ -620,12 +635,11 @@ async def publish_report(
             status_code=409,
             detail="This run's report belongs to a different Bloom project. Refuse this request with a reason.",
         )
+    return project_prefix
 
-    try:
-        bloom_url, bloom_token = await bloom_credentials(db)
-    except BloomNotConfigured as exc:
-        raise HTTPException(status_code=409, detail=str(exc)) from exc
 
+async def _report_files(db: AsyncSession, run_id: int) -> list:
+    """The stored report files of a run, generating the reports first when there are none, or a 409."""
     artifacts = await publishable_artifacts(db, run_id)
     if not artifacts:
         await store_run_reports(db, run_id)
@@ -647,17 +661,15 @@ async def publish_report(
         raise HTTPException(
             status_code=409, detail="This run's report files are no longer on disk."
         )
+    return files
 
-    payload = build_payload(
-        test_run,
-        project_prefix,
-        files,
-        tc_ids,
-        _frontend_run_url(run_id),
-    )
 
+async def _send_report(
+    db: AsyncSession, run_id: int, bloom_url: str, bloom_token: str, payload: dict
+) -> dict:
+    """Post the report to Bloom and return its answer; a refusal is recorded on the run and is a 502."""
     try:
-        published = await post_to_bloom(bloom_url, bloom_token, payload)
+        return await post_to_bloom(bloom_url, bloom_token, payload)
     except httpx.HTTPStatusError as exc:
         detail = exc.response.text[:400] if exc.response is not None else str(exc)
         await record_test_run_event(
@@ -672,6 +684,42 @@ async def publish_report(
         raise HTTPException(status_code=502, detail=f"Bloom refused the report: {detail}") from exc
     except httpx.RequestError as exc:
         raise HTTPException(status_code=502, detail=f"Could not reach Bloom: {exc}") from exc
+
+
+async def publish_report(
+    run_id: int,
+    db: AsyncSession,
+    current_user: User,
+    requested_project: str | None = None,
+):
+    """Publish a completed run, requiring the requested destination when supplied."""
+    test_run = await load_run(db, current_user, run_id)
+
+    if test_run.status != "Completed":
+        raise HTTPException(
+            status_code=409,
+            detail="Only a completed run can publish a report to Bloom.",
+        )
+
+    tc_ids = await tc_ids_for_run(db, run_id)
+    project_prefix = _report_project(tc_ids, requested_project)
+
+    try:
+        bloom_url, bloom_token = await bloom_credentials(db)
+    except BloomNotConfigured as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    files = await _report_files(db, run_id)
+
+    payload = build_payload(
+        test_run,
+        project_prefix,
+        files,
+        tc_ids,
+        _frontend_run_url(run_id),
+    )
+
+    published = await _send_report(db, run_id, bloom_url, bloom_token, payload)
 
     requests = (
         await db.scalars(
