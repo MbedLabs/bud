@@ -48,8 +48,6 @@ class BudInterface:
 
     def tearDown(self):
         self.bud_stop_app()
-        if getattr(self, "session", None) is not None:
-            self._run(self.session.close())
         self._run(self.engine.dispose())
         self.loop.close()
 
@@ -89,6 +87,7 @@ class BudInterface:
 
     def bud_stop_app(self):
         """Close the app client, clear its overrides and dispose of its database."""
+        self._close_session()
         client = getattr(self, "client", None)
         if client is not None:
             client.__exit__(None, None, None)
@@ -211,6 +210,11 @@ class BudInterface:
             await session.refresh(row)
             return row
 
+    def _close_session(self):
+        if getattr(self, "session", None) is not None:
+            self._run(self.session.close())
+            self.session = None
+
     async def _delete_in_app(self, model):
         async with self.app_maker() as session:
             await session.execute(delete(model))
@@ -259,10 +263,18 @@ class BudInterface:
         """The actions of the audit events left, in the order they were recorded."""
         return self._run(self._audit_actions())
 
-    def bud_open_session(self):
-        """Open one session on the interface's database, closed with the interface."""
-        self.session = self.maker()
+    def bud_open_session(self, on_app=False):
+        """Open one session on the interface's database, or on the started app's database when
+        on_app is True, closed when the app stops or the interface ends."""
+        self._close_session()
+        self.session = (self.app_maker if on_app else self.maker)()
         return self.session
+
+    def bud_work_folder(self):
+        """A new empty folder under the work directory."""
+        folder = Path(os.environ[self.parameters.WORK_DIR_SETTING]) / uuid.uuid4().hex
+        folder.mkdir(parents=True)
+        return folder
 
     def bud_await(self, coroutine):
         """Run one coroutine on the interface's loop and return its result."""

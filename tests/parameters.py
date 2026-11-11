@@ -696,3 +696,49 @@ MSG_STATION_DELETED = "an administrator deletes a Test Station"
 MSG_STATION_GONE = "the deleted Test Station is gone"
 MSG_STATION_DELETE_MISSING = "deleting an unknown Test Station is not found"
 MSG_STATION_SIGNED_OUT = "a signed-out visitor cannot reach the Test Stations"
+
+UPLOADER = {
+    "id": 7,
+    "email": "uploader@example.com",
+    "full_name": "Uploader",
+    "hashed_password": "hash",
+}
+UPLOAD_MAX_SIZE = 25
+UPLOAD_MAX_RUN_BYTES = 250
+UPLOAD_EXISTING = {
+    "filename": "existing",
+    "original_filename": "existing",
+    "content_type": "text/plain",
+    "size_bytes": 226,
+    "storage_path": "existing",
+    "test_run_id": 1,
+}
+UPLOAD_RUN_ID = 1
+UPLOAD_REMAINING = 24
+UPLOADS_PER_WINDOW = 2
+STATUS_TOO_MANY = 429
+UPLOAD_RATE_TEXT = "rate"
+CLEANUP_RETENTION_DAYS = 30
+CLEANUP_EXPIRED_AGE = timedelta(days=31)
+CLEANUP_ORPHAN_AGE = timedelta(hours=2)
+CLEANUP_ORPHAN = "orphan.log"
+CLEANUP_ORPHAN_BYTES = b"orphan"
+CLEANUP_EXPIRED = "expired.log"
+CLEANUP_EXPIRED_BYTES = b"expired"
+CLEANUP_LEASE = "expired-lease"
+CLEANUP_PRINCIPAL = "user:99"
+CLEANUP_LEASE_BYTES = 25
+CLEANUP_LEASE_AGE = timedelta(minutes=1)
+CLEANUP_ATTEMPT_AGE = timedelta(minutes=16)
+CLEANUP_GRACE_SECONDS = 3600
+CLEANUP_REMOVED = 1
+MSG_UPLOAD_REMAINING = "a run's upload reserves only its remaining capacity"
+MSG_UPLOAD_ONE_ACTIVE = "a second active upload of the same person is refused"
+MSG_UPLOAD_TOO_MANY = "the refusal is too many requests"
+MSG_UPLOAD_RATE = "a third upload start in the window is refused"
+MSG_UPLOAD_RATE_TEXT = "the refusal names the rate limit"
+MSG_CLEANUP_EXPIRED = "the cleanup removes the one expired artifact"
+MSG_CLEANUP_ORPHANS = "the cleanup removes the one old orphan file"
+MSG_CLEANUP_EXPIRED_FILE = "the expired artifact's file is removed"
+MSG_CLEANUP_ORPHAN_FILE = "the orphan file is removed"
+MSG_CLEANUP_LEASE = "the expired upload lease is removed"
