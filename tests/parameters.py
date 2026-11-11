@@ -1070,3 +1070,48 @@ STARTUP_CASES = {
     "repair and seed": (True, True, STARTUP_REPAIR_STEPS + ["seed_admin_user"]),
 }
 MSG_STARTUP_STEPS = "the app's start runs exactly the repair and seed its two settings ask for"
+
+RUN_STATS_PATH = "/api/test-runs/stats"
+RUN_FILTER_OPTIONS_PATH = "/api/test-runs/filter-options"
+STATS_STATIONS = ("station-01", "station-02")
+STATS_STATION_PASSWORD = "x"
+STATS_OLD_AGE = timedelta(days=40)
+STATS_RUNS = (
+    ("Nightly", "Completed", 10, 0, False, 0),
+    ("Nightly", "Completed", 8, 2, False, 0),
+    ("Smoke", "Completed", 5, 0, False, 1),
+    ("Nightly", "Completed", 3, 0, True, 0),
+    ("Smoke", "Running", 0, 0, False, 1),
+)
+STATS_CASES = {
+    "every run": (
+        {},
+        {
+            "total_runs": 5,
+            "passed_runs": 3,
+            "failed_runs": 1,
+            "in_progress_runs": 1,
+            "run_pass_rate": 75.0,
+            "total_tests": 28,
+            "passed_tests": 26,
+            "failed_tests": 2,
+        },
+    ),
+    "the last 7 days": ({"days": 7}, {"total_runs": 4, "total_tests": 25}),
+    "one suite": ({"suite": "Smoke"}, {"total_runs": 2, "passed_runs": 1, "total_tests": 5}),
+    "one Test Station": ({"runner_account": "station-02"}, {"total_runs": 2, "total_tests": 5}),
+    "the filters combined": (
+        {"days": 7, "suite": "Nightly", "runner_account": "station-01"},
+        {"total_runs": 2, "passed_runs": 1, "failed_runs": 1, "run_pass_rate": 50.0},
+    ),
+    "an unknown Test Station": (
+        {"runner_account": "no-such-station"},
+        {"total_runs": 0, "run_pass_rate": 0.0},
+    ),
+}
+STATS_FILTER_OPTIONS = {"suites": ["Nightly", "Smoke"], "runner_accounts": ["station-01", "station-02"]}
+STATS_LITERAL_PATHS = ("/api/test-runs/stats", "/api/test-runs/filter-options")
+MSG_STATS_ANSWERS_FILTERED = "the run statistics answer for the filter"
+MSG_STATS_VALUE = "the run statistics count every matching run"
+MSG_STATS_OPTIONS = "the filter options list the suites and Test Stations that appear in runs"
+MSG_STATS_LITERAL_PATH = "the path resolves as a literal route, not as a run id"
