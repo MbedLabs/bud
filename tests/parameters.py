@@ -1279,3 +1279,64 @@ MSG_IDENTITY_PDF_AUTHOR = "the PDF report's author is the identity"
 MSG_IDENTITY_PDF_TEXT = "the PDF report names the product"
 MSG_IDENTITY_SUMMARY = "the summary report's title names the product"
 MSG_IDENTITY_MANIFEST = "the web app manifest names the product"
+
+ME_PATH = "/api/auth/me"
+PICTURE_PATH = "/api/auth/me/picture"
+PICTURE_FILE = "picture.png"
+PICTURE_PNG = "image/png"
+PICTURE_JPEG = "image/jpeg"
+PICTURE_USERS = 2
+PICTURE_USER_EMAIL = "picture-{}@example.com"
+PICTURE_USER_NAME = "Picture User {}"
+PICTURE_PASSWORD_HASH = "unused"
+PICTURE_SIZE = (600, 300)
+PICTURE_STORED_SIZE = (256, 128)
+PICTURE_ROTATED_SIZE = (128, 256)
+PICTURE_METADATA_KEY = "Author"
+PICTURE_METADATA_TEXT = "Metadata must not be retained"
+PICTURE_COLORS = ("purple", "green", "blue", "orange")
+PICTURE_NO_STORE = "private, no-store"
+PICTURE_RENAMED = "Updated name"
+PICTURE_REJECTED = {
+    "malformed": (b"broken", "image/png", 422),
+    "empty": (b"", "image/png", 422),
+    "svg": (b"<svg/>", "image/svg+xml", 415),
+    "oversized": (b"x" * 2_000_001, "image/png", 413),
+}
+PICTURE_HUGE_SIZE = (4001, 4000)
+PICTURE_EXIF_ORIENTATION = 274
+PICTURE_ROTATE_90 = 6
+PICTURE_VIEW_KEYS_CHANGED = {"has_profile_picture", "profile_picture_url", "updated_at"}
+MSG_PICTURE_NONE_YET = "an account without a picture has none to read"
+MSG_PICTURE_SAVED = "an account saves its picture"
+MSG_PICTURE_FLAG = "the account view says a picture is set"
+MSG_PICTURE_NOT_IN_VIEW = "the account view carries no picture bytes"
+MSG_PICTURE_READ = "the account reads its picture"
+MSG_PICTURE_TYPE = "the stored picture is a PNG"
+MSG_PICTURE_NO_STORE = "the picture is not cached"
+MSG_PICTURE_SIZE = "the stored picture is scaled to at most 256 pixels"
+MSG_PICTURE_NO_METADATA = "the stored picture keeps no metadata"
+MSG_PICTURE_OTHER_NONE = "another account sees no picture of its own"
+MSG_PICTURE_OTHER_SAVED = "another account saves its own picture"
+MSG_PICTURE_KEPT = "another account's picture leaves this one unchanged"
+MSG_PICTURE_REPLACED = "a new picture replaces the stored one"
+MSG_PICTURE_PROFILE_SAVED = "an account saves its profile"
+MSG_PICTURE_PROFILE_NAME = "the profile keeps the new name"
+MSG_PICTURE_PERMISSIONS = "the account has permissions"
+MSG_PICTURE_PERMISSIONS_KEPT = "saving the profile keeps the effective permissions"
+MSG_PICTURE_REJECTED = "a rejected upload answers with its refusal"
+MSG_PICTURE_PRESERVED = "a rejected upload keeps the saved picture"
+MSG_PICTURE_SIGNED_OUT = "a signed-out visitor cannot reach a picture"
+MSG_PICTURE_REMOVED = "an account removes its picture"
+MSG_PICTURE_REMOVED_FLAG = "the account view says no picture is set"
+MSG_PICTURE_VIEW_KEPT = "removing the picture keeps the rest of the account view"
+MSG_PICTURE_GONE = "the removed picture is not found"
+MSG_PICTURE_OTHER_VIEW_KEPT = "another account's view is unchanged"
+MSG_PICTURE_REMOVED_AGAIN = "removing the picture again succeeds"
+MSG_PICTURE_UPLOAD_AGAIN = "a picture is saved again after removal"
+MSG_PICTURE_MISMATCH = "a picture whose format does not match its type is refused"
+MSG_PICTURE_TOO_LARGE = "a picture over the pixel limit is refused"
+MSG_PICTURE_NONE_SAVED = "a refused picture is not saved"
+MSG_PICTURE_JPEG = "a JPEG picture is saved"
+MSG_PICTURE_ORIENTED = "the JPEG orientation is applied to the stored picture"
+MSG_PICTURE_NO_EXIF = "the stored picture keeps no EXIF data"
