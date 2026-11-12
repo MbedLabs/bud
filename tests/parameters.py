@@ -2544,3 +2544,29 @@ BLOOM_PUBLISH_UNREACHABLE = "Could not reach Bloom"
 BLOOM_PUBLISH_MISSING_RUN = 999999
 STATUS_BAD_GATEWAY = 502
 MSG_BLOOM_PUBLISH_CHECK = "publishing to Bloom answers as expected"
+
+REPORT_REQUESTS_PATH = "/api/report-requests"
+REPORT_REFUSE_PATH = "/api/report-requests/{}/refuse"
+REPORT_PUBLISH_PATH = "/api/report-requests/{}/publish"
+REPORT_REMOTE = {
+    "id": 1,
+    "run_id": 41,
+    "project_prefix": "PRJ",
+    "requester_name": "Reader",
+    "requester_email": "reader@example.com",
+    "status": "pending",
+    "reason": None,
+}
+REPORT_RUN_ID = 41
+REPORT_ROLES = (("admin", True), ("developer", True), ("viewer", True), ("admin", False))
+REPORT_NOTIFIED = {"publisher-0@example.com", "publisher-1@example.com"}
+REPORT_REVIEW_SUFFIX = "/runs/41"
+REPORT_REQUESTER = "reader@example.com"
+REPORT_ACTOR = b"Bud TMP user #1"
+REPORT_DIFFERENT_PROJECT = "different Bloom project"
+REPORT_NO_LONGER = "no longer available"
+REPORT_PAGES_SEEN = [0, 100, 101]
+REPORT_PUBLISHED_ACTION = "report.published"
+REPORT_SERVICE_ACTOR = "service"
+REPORT_MAIL_LINK = "http://localhost:3000/runs/41"
+MSG_REPORT_CHECK = "the report requests answer as expected"
