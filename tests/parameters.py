@@ -2684,3 +2684,61 @@ AUTH_REFUSED = (400, 401, 404)
 AUTH_WRONG_PASSWORD = (400, 401)
 AUTH_INFO_ANSWERS = (200, 400, 404)
 MSG_AUTH_CHECK = "the authentication endpoints answer as expected"
+
+CLI_VERIFIER = "v" * 43
+CLI_START = {"client_name": "CLI client", "mode": "code", "state": "state"}
+CLI_START_PATH = "/api/auth/cli/start"
+CLI_APPROVE_PATH = "/api/auth/cli/approve"
+CLI_CHECK_PATH = "/api/auth/cli/check"
+CLI_DENY_PATH = "/api/auth/cli/deny"
+CLI_EXCHANGE_PATH = "/api/auth/cli/exchange"
+CLI_SESSION_PATH = "/api/auth/cli/sessions/{}"
+CLI_ROUTE_PATH = "/api/auth/cli/{}"
+CLI_UNKNOWN_SESSION = "00000000-0000-0000-0000-000000000001"
+CLI_BAD_CALLBACKS = (
+    "https://127.0.0.1:1234/callback",
+    "http://example.com:1234/callback",
+    "http://127.0.0.2:1234/callback",
+    "http://127.0.0.1/callback",
+    "http://localhost:0/callback",
+    "http://localhost:65536/callback",
+    "http://user@localhost:1234/callback",
+    "http://localhost:1234/callback#fragment",
+    "http://localhost:1234/callback?code=old",
+    "http://localhost:1234/callback?state=old",
+    "http://localhost:1234/callback?%63ode=old",
+    "http://localhost:1234/callback?CODE=old",
+    "http://localhost.evil.test:1234/callback",
+    "http://127.0.0.1:1234\\@evil.test/callback",
+)
+CLI_LOOPBACK_HOSTS = ("127.0.0.1", "localhost", "[::1]")
+CLI_BAD_FIELDS = (
+    {"code_challenge": "x" * 42},
+    {"code_challenge": "+" * 43},
+    {"code_challenge": "x" * 44},
+    {"state": ""},
+    {"mode": "poll"},
+    {"mode": "callback"},
+    {"redirect_uri": "http://localhost:1234/callback"},
+    {"client_name": " "},
+)
+CLI_EXCHANGE_FAILURES = {
+    "pending": "unknown_or_unapproved_session",
+    "bad_code": "code_or_verifier_mismatch",
+    "bad_verifier": "code_or_verifier_mismatch",
+    "expired": "expired_or_consumed",
+    "disabled": "inactive_or_changed_user",
+    "version": "inactive_or_changed_user",
+}
+CLI_REFUSED = (400, 401)
+CLI_STATION_REFUSED = (401, 403)
+CLI_BAD_VERIFIERS = ("v" * 42, "v" * 129, "!" * 43)
+CLI_BAD_REFRESH_IDS = (None, "invalid", 999999)
+CLI_BAD_BINDINGS = ("expired", "used", "wrong_user", "wrong_purpose")
+CLI_LIMITED_ROUTES = ("start", "exchange", "refresh")
+CLI_DENY_BODIES = ({}, {"session_id": "invalid"}, {"session_id": "00000000-0000-0000-0000-000000000001", "extra": "field"})
+CLI_CHECK_LIMITS = {"check": 30, "approve": 10}
+CLI_WRONG_CODE = "AAAA-AAAA"
+CLI_STATION = "cli-test-station"
+STATUS_TOO_MANY = 429
+MSG_CLI_SEC_CHECK = "the CLI authorization answers as expected"
