@@ -2005,3 +2005,240 @@ BLOOM_SYNC_MIXED = (
     "Bloom updated 1 test case execution record(s). 1 result(s) had no Bloom tc_id."
 )
 MSG_BLOOM_SYNC_CHECK = "the Bloom sync answers as expected"
+
+ISOLATION_CONFIG = "tests/config.py"
+ISOLATION_KEPT_VARIABLES = ("PATH", "PYTHONPATH", "HOME", "LANG")
+ISOLATION_INHERITED = {
+    "SECRET_KEY": "synthetic-inherited-secret-key-at-least-32-characters",
+    "SMTP_HOST": "smtp.example.com",
+    "SMTP_USERNAME": "synthetic-user",
+    "SMTP_PASSWORD": "synthetic-password",
+    "S3_ACCESS_KEY_ID": "synthetic-access",
+    "S3_SECRET_ACCESS_KEY": "synthetic-storage-secret",
+    "ADMIN_PASSWORD": "synthetic-admin-password",
+}
+ISOLATION_FLAGS = {
+    "BUD_TESTS_USE_DOTENV": "1",
+    "BUD_DOTENV_DISABLED": "0",
+    "BUD_DATABASE_URL": "postgresql://synthetic:synthetic@db.example.com/live",
+}
+ISOLATION_PRELUDE = """
+import json, os, runpy, smtplib, socket, sys
+from pathlib import Path
+original_read = Path.read_text
+def safe_read(path, *args, **kwargs):
+    if path.name == '.env':
+        raise PermissionError('Operator dotenv reads are forbidden')
+    return original_read(path, *args, **kwargs)
+Path.read_text = safe_read
+runpy.run_path(os.environ['BUD_CONFIG_PATH'])
+"""
+ISOLATION_CREDENTIALS_PROBE = """
+keys = ['SECRET_KEY', 'SMTP_HOST', 'SMTP_USERNAME', 'SMTP_PASSWORD', 'S3_ACCESS_KEY_ID', 'S3_SECRET_ACCESS_KEY', 'ADMIN_PASSWORD']
+print(json.dumps({prefix + key: os.environ.get(prefix + key) for prefix in ('', 'BUD_') for key in keys} | {'dotenv': os.environ.get('BUD_DOTENV_DISABLED')}))
+"""
+ISOLATION_REPLACED = {
+    "SECRET_KEY": "test-secret-key-for-ci-at-least-32-characters-long",
+    "SMTP_HOST": "127.0.0.1",
+    "SMTP_USERNAME": "",
+    "SMTP_PASSWORD": "",
+    "S3_ACCESS_KEY_ID": "",
+    "S3_SECRET_ACCESS_KEY": "",
+    "ADMIN_PASSWORD": "ci-admin-password-123",
+}
+ISOLATION_DOTENV_DISABLED = "1"
+ISOLATION_PREFIXES = ("", "BUD_")
+ISOLATION_PROBE_FOLDER = "BUD_PROBE_DIR"
+ISOLATION_BLOCKED = "blocked before network"
+ISOLATION_PROBES = {
+    "external SMTP is blocked before a network connection": (
+        """
+def attempted(*args, **kwargs):
+    raise RuntimeError('Network connection was attempted')
+socket.create_connection = attempted
+try:
+    smtplib.SMTP('smtp.example.com', 587)
+except PermissionError:
+    print('blocked before network')
+""",
+        {},
+        ISOLATION_BLOCKED,
+    ),
+    "SMTP authentication is blocked before credentials are sent": (
+        """
+try:
+    sys.audit('smtplib.send', smtplib.SMTP(), b'AUTH PLAIN synthetic')
+except PermissionError:
+    print('blocked before credentials')
+""",
+        {},
+        "blocked before credentials",
+    ),
+    "the test Mailpit connection is allowed": (
+        "sys.audit('smtplib.connect', smtplib.SMTP(), '127.0.0.1', 11025); print('allowed')",
+        {},
+        "allowed",
+    ),
+    "operator dotenv reads are blocked even with changed flags": (
+        """
+try:
+    sys.audit('open', str(Path.cwd() / '.env'), 'r', 0)
+except PermissionError:
+    print('operator dotenv blocked')
+""",
+        {},
+        "operator dotenv blocked",
+    ),
+    "ambient AWS credentials are replaced": (
+        """
+import boto3
+credentials = boto3.Session().get_credentials()
+print(json.dumps({'access_key': credentials.access_key, 'secret_key': credentials.secret_key, 'source': credentials.method, 'credentials_file': os.environ.get('AWS_SHARED_CREDENTIALS_FILE'), 'config_file': os.environ.get('AWS_CONFIG_FILE'), 'metadata_disabled': os.environ.get('AWS_EC2_METADATA_DISABLED')}))
+""",
+        {
+            "AWS_ACCESS_KEY_ID": "synthetic-inherited-access",
+            "AWS_SECRET_ACCESS_KEY": "synthetic-inherited-secret",
+            "AWS_SESSION_TOKEN": "synthetic-inherited-session",
+        },
+        {
+            "access_key": "test-access-key",
+            "secret_key": "test-secret-key",
+            "source": "env",
+            "credentials_file": "/dev/null",
+            "config_file": "/dev/null",
+            "metadata_disabled": "true",
+        },
+    ),
+    "the settings leave the dotenv source unopened": (
+        """
+from app.core.config import Settings
+path = Path(os.environ['BUD_PROBE_DIR']) / '.env'
+path.write_text('SECRET_KEY=synthetic-file-secret-key-at-least-32-characters\\n')
+opened = []
+sys.addaudithook(lambda event, args: opened.append(args[0]) if event == 'open' and str(args[0]) == str(path) else None)
+Settings(_env_file=path)
+print('dotenv source opened' if opened else 'dotenv source not opened')
+""",
+        {},
+        "dotenv source not opened",
+    ),
+    "an enabled dotenv source opens its file": (
+        """
+from pydantic_settings import BaseSettings, SettingsConfigDict
+class Probe(BaseSettings):
+    model_config = SettingsConfigDict(extra='ignore')
+path = Path(os.environ['BUD_PROBE_DIR']) / '.env'
+path.write_text('SYNTHETIC=1\\n')
+opened = []
+sys.addaudithook(lambda event, args: opened.append(args[0]) if event == 'open' and str(args[0]) == str(path) else None)
+Probe(_env_file=path)
+print('dotenv source opened' if opened else 'dotenv source not opened')
+""",
+        {},
+        "dotenv source opened",
+    ),
+    "the rate limiter leaves a working-directory dotenv unread": (
+        """
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+directory = os.environ['BUD_PROBE_DIR']
+sys.path.insert(0, os.getcwd())
+os.chdir(directory)
+path = Path(directory).resolve() / '.env'
+path.write_text('SYNTHETIC=1\\n')
+opened = []
+sys.addaudithook(lambda event, args: opened.append(args[0]) if event == 'open' and Path(str(args[0])).name == '.env' and Path(str(args[0])).resolve() == path else None)
+Limiter(key_func=get_remote_address)
+control = bool(opened)
+opened.clear()
+from app.core.deps import limiter
+print(json.dumps({'control_reads_dotenv': control, 'app_limiter_reads_dotenv': bool(opened)}))
+""",
+        {},
+        {"control_reads_dotenv": True, "app_limiter_reads_dotenv": False},
+    ),
+    "the default test services use the dedicated ports": (
+        "print(json.dumps({'database': os.environ['DATABASE_URL'], 'smtp': os.environ['SMTP_PORT']}))",
+        {"DATABASE_URL": ""},
+        {
+            "database": "postgresql+asyncpg://test_user:test_password@localhost:15432/test_bud",
+            "smtp": "11025",
+        },
+    ),
+    "another SMTP port outside development is allowed": (
+        "sys.audit('smtplib.connect', smtplib.SMTP(), '127.0.0.1', 21025); print('allowed')",
+        {"TEST_SMTP_PORT": "21025"},
+        "allowed",
+    ),
+    **{
+        f"a connection to the development Mailpit on port {port} is blocked": (
+            f"""
+try:
+    smtplib.SMTP('127.0.0.1', {port})
+except PermissionError:
+    print('blocked before network')
+""",
+            {},
+            ISOLATION_BLOCKED,
+        )
+        for port in (1025, 8025, 25)
+    },
+}
+ISOLATION_DATABASE_TEXT = "Tests require the isolated test database"
+ISOLATION_MAILPIT_TEXT = "dedicated test Mailpit port"
+ISOLATION_REFUSALS = {
+    "an unsafe database is refused without its address": (
+        {"DATABASE_URL": "postgresql://synthetic-user:synthetic-password@db.example.com/live"},
+        ISOLATION_DATABASE_TEXT,
+        ("synthetic-password", "db.example.com"),
+    ),
+    **{
+        f"a database connection override {suffix} is refused": (
+            {
+                "DATABASE_URL": "postgresql+asyncpg://test_user:test_password@localhost:15432/test_bud"
+                + suffix
+            },
+            None,
+            (),
+        )
+        for suffix in ("?host=db.example.com", "?password=synthetic-password", "#fragment", "?port=5433")
+    },
+    **{
+        f"the database {url} is refused": ({"DATABASE_URL": url}, None, ())
+        for url in (
+            "sqlite+aiosqlite:////var/lib/bud/operator.db",
+            "postgresql+psycopg://test_user:test_password@localhost:15432/test_bud",
+        )
+    },
+    **{
+        f"the development Postgres port '{port}' is refused": (
+            {
+                "DATABASE_URL": "postgresql+asyncpg://test_user:test_password@localhost"
+                + (f":{port}" if port != "" else "")
+                + "/test_bud"
+            },
+            ISOLATION_DATABASE_TEXT,
+            (),
+        )
+        for port in (5432, 5433, 5434, 80, "")
+    },
+    **{
+        f"the development Mailpit port '{port}' is refused": (
+            {"TEST_SMTP_PORT": port},
+            ISOLATION_MAILPIT_TEXT,
+            (),
+        )
+        for port in ("1025", "8025", "25", "587", "465", "2525", "0", "70000", "abc", "")
+    },
+}
+ISOLATION_OTHER_POSTGRES = {
+    "DATABASE_URL": "postgresql+asyncpg://test_user:test_password@127.0.0.1:25432/test_bud"
+}
+ISOLATION_STARTED = 0
+MSG_ISOLATION_REPLACED = "the bootstrap replaces the inherited value"
+MSG_ISOLATION_DOTENV = "the bootstrap disables the dotenv files"
+MSG_ISOLATION_PROBE = "the bootstrapped process answers the probe as expected"
+MSG_ISOLATION_REFUSED = "the bootstrap stops on an unsafe setting"
+MSG_ISOLATION_REASON = "the refusal names its reason"
+MSG_ISOLATION_HIDDEN = "the refusal leaves the secret out"
+MSG_ISOLATION_ALLOWED = "the bootstrap starts with another Postgres port outside development"

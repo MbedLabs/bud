@@ -14,6 +14,7 @@ import logging
 import logging.handlers
 import os
 import subprocess
+import sys
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -306,6 +307,18 @@ class BudInterface:
         return subprocess.run(
             ["bash", str(root / relative_path), *arguments],
             cwd=root,
+            env=environment,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
+    def bud_run_python(self, code, environment):
+        """Run Python code in a new interpreter from the repository root with exactly the given
+        environment, and return the finished process."""
+        return subprocess.run(
+            [sys.executable, "-c", code],
+            cwd=Path(__file__).resolve().parents[1],
             env=environment,
             text=True,
             capture_output=True,

@@ -17,4 +17,5 @@ SUITES = [
     "tests.logic.BUD_startup_bootstrap.StartupBootstrapTest",
     "tests.logic.BUD_identity.IdentityTest",
     "tests.logic.BUD_group_overlap.GroupOverlapTest",
+    "tests.logic.BUD_isolation.IsolationTest",
 ]
