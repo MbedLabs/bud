@@ -34,7 +34,7 @@ from app.api.auth import get_current_active_entity, get_current_user
 from app.api.results import get_uploader_entity
 from app.core.access import seed_default_access
 from app.core.config import settings
-from app.core.deps import limiter
+from app.core.deps import get_current_runner, limiter
 from app.db import database as db_module
 from app.db.database import Base, get_db
 from app.models import Artifact, AuditEvent, Runner, SystemSetting, TestResult, TestRun
@@ -136,9 +136,10 @@ class BudInterface:
         """The rows of a model in the started app's database whose columns equal the given values."""
         return self._run(self._find_in_app(model, where))
 
-    def bud_sign_in_as(self, user, as_person=True, as_uploader=False):
+    def bud_sign_in_as(self, user, as_person=True, as_uploader=False, as_runner=False):
         """Make the user, or Test Station, the signed-in entity for the next requests to the started
-        app: also the signed-in person when as_person is True and the uploader when as_uploader is True."""
+        app: also the signed-in person when as_person is True, the uploader when as_uploader is True
+        and the current station when as_runner is True."""
 
         async def current():
             return user
@@ -148,6 +149,8 @@ class BudInterface:
             main.app.dependency_overrides[get_current_user] = current
         if as_uploader:
             main.app.dependency_overrides[get_uploader_entity] = current
+        if as_runner:
+            main.app.dependency_overrides[get_current_runner] = current
 
     def bud_log_in(self, email, password):
         """Sign in to the started app with an email and password and return the answer."""
