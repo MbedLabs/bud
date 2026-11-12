@@ -15,4 +15,5 @@ SUITES = [
     "tests.sec.BUD_audit_log_http.AuditLogHttpTest",
     "tests.sec.BUD_audit_labels_http.AuditLabelsHttpTest",
     "tests.sec.BUD_runner_auth.RunnerAuthTest",
+    "tests.sec.BUD_run_authorization.RunAuthorizationTest",
 ]

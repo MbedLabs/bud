@@ -2376,3 +2376,98 @@ MAIL_REPORT_SUBJECT = "Report requested on Bud TMP: run #42"
 MAIL_GRANT = "Grant access in Bud TMP, then mark the request granted or refused."
 MAIL_PUBLISH = "Publish the report from Bud TMP to Bloom or refuse the request with a reason."
 MSG_MAIL_CHECK = "the mail service answers as expected"
+
+RUN_AUTH_STATIONS = (("runner-auth-a", "token-a", 53035), ("runner-auth-b", "token-b", 53036))
+RUN_AUTH_RESULT = {
+    "test_class": "SecretTest",
+    "test_method": "secret_method",
+    "passed": False,
+    "traceback": "sensitive traceback",
+}
+RUN_AUTH_RUN_ID = "run id"
+RUN_AUTH_CROSS_CREATE = {
+    "test_case_list": "suite",
+    "test_suite_name": "cross-owned",
+    "runner_account": "runner-auth-b",
+    "status": "Running",
+}
+RUN_AUTH_LIST_SORTS = ("name", "runner_account", "duration_seconds")
+RUN_AUTH_FOREIGN = {
+    "detail": ("GET", "/api/test-runs/{}", None),
+    "events": ("GET", "/api/test-runs/{}/events", None),
+    "patch": ("PATCH", "/api/test-runs/{}", {"status": "Completed"}),
+    "results": ("GET", "/api/results/{}", None),
+    "artifacts": ("GET", "/api/test-runs/{}/artifacts", None),
+    "results upload": (
+        "POST",
+        "/api/results",
+        {
+            "test_run_id": RUN_AUTH_RUN_ID,
+            "results": [{"test_class": "CrossRunner", "test_method": "forbidden", "passed": True}],
+        },
+    ),
+}
+RUN_AUTH_REFUSED = [403, 404]
+RUN_AUTH_SIGNED_OUT = {"result list": "/api/results/{}", "result detail": "/api/results/detail/{}"}
+RUN_AUTH_VIEWER = {"id": 44, "email": "readonly@example.com", "full_name": "Read Only", "role": "viewer"}
+RUN_AUTH_VIEWER_WRITES = {
+    "product-create": ("POST", "/api/products", {"name": "viewer-product"}),
+    "run-create": ("POST", "/api/test-runs", {"test_case_list": "suite", "test_suite_name": "viewer-run"}),
+    "run-patch": ("PATCH", "/api/test-runs/{}", {"status": "Completed"}),
+    "run-delete": ("DELETE", "/api/test-runs/{}", None),
+    "results-upload": (
+        "POST",
+        "/api/results",
+        {
+            "test_run_id": RUN_AUTH_RUN_ID,
+            "results": [{"test_class": "ViewerUpload", "test_method": "must_be_denied", "passed": True}],
+        },
+    ),
+}
+RUN_AUTH_DEVELOPER = {"id": 45, "email": "developer@example.com", "full_name": "Dev Eloper", "role": "developer"}
+RUN_AUTH_WRITES = {
+    "product-create": ("POST", "/api/products", {"name": "{}-product"}),
+    "run-create": ("POST", "/api/test-runs", {"test_case_list": "suite", "test_suite_name": "developer-run"}),
+    "run-patch": ("PATCH", "/api/test-runs/{}", {"name": "renamed-run"}),
+    "run-delete": ("DELETE", "/api/test-runs/{}", None),
+    "results-upload": (
+        "POST",
+        "/api/results",
+        {
+            "test_run_id": RUN_AUTH_RUN_ID,
+            "results": [{"test_class": "Dev", "test_method": "writes", "passed": True}],
+        },
+    ),
+    "artifact-upload": ("POST", "/api/uploads", "file"),
+    "custom-run": ("POST", "/api/test-runs/custom", {"test_paths": ["suite.Case"]}),
+    "publish": ("POST", "/api/test-runs/{}/publish-to-bloom", None),
+}
+RUN_AUTH_DEVELOPER_STATUS = {
+    "product-create": 403,
+    "run-create": 403,
+    "run-patch": 403,
+    "run-delete": 403,
+    "results-upload": 403,
+    "artifact-upload": 403,
+    "custom-run": 422,
+    "publish": 409,
+}
+RUN_AUTH_VIEWER_WRITER = {
+    "id": 46,
+    "email": "viewer-writes@example.com",
+    "full_name": "View Er",
+    "role": "viewer",
+}
+RUN_AUTH_VIEWER_REFUSALS = {
+    "artifact-upload": "Only stations can upload artifacts",
+    "custom-run": "Insufficient permissions.",
+    "publish": "Insufficient permissions.",
+}
+RUN_AUTH_UPLOAD_FILE = ("log.txt", b"log", "text/plain")
+MSG_RUN_AUTH_OTHER_STATION = "a Test Station cannot create a run for another station"
+MSG_RUN_AUTH_LIST = "a Test Station lists its own runs only"
+MSG_RUN_AUTH_FOREIGN = "a Test Station cannot reach another station's run"
+MSG_RUN_AUTH_SIGNED_OUT = "result reads need a signed-in entity"
+MSG_RUN_AUTH_VIEWER = "a viewer cannot write"
+MSG_RUN_AUTH_DEVELOPER = "a developer queues custom runs and publishes only"
+MSG_RUN_AUTH_DETAIL = "the refusal says why"

@@ -135,14 +135,18 @@ class BudInterface:
         """The rows of a model in the started app's database whose columns equal the given values."""
         return self._run(self._find_in_app(model, where))
 
-    def bud_sign_in_as(self, user):
-        """Make the user the signed-in person for the next requests to the started app."""
+    def bud_sign_in_as(self, user, as_person=True, as_uploader=False):
+        """Make the user, or Test Station, the signed-in entity for the next requests to the started
+        app: also the signed-in person when as_person is True and the uploader when as_uploader is True."""
 
         async def current():
             return user
 
-        main.app.dependency_overrides[get_current_user] = current
         main.app.dependency_overrides[get_current_active_entity] = current
+        if as_person:
+            main.app.dependency_overrides[get_current_user] = current
+        if as_uploader:
+            main.app.dependency_overrides[get_uploader_entity] = current
 
     def bud_request_without_overrides(self, method, path, **kwargs):
         """Send one request to the started app with its dependency overrides lifted."""
