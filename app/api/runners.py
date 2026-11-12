@@ -35,6 +35,44 @@ RUNNER_NOT_FOUND = "Runner not found"
 router = APIRouter()
 
 
+async def _find_station(db: AsyncSession, account: str, username: str) -> Runner | None:
+    """The station registered under the account, else under the username the station sent."""
+    result = await db.execute(select(Runner).where(Runner.account == account))
+    runner = result.scalar_one_or_none()
+    if runner is None and account != username:
+        result = await db.execute(select(Runner).where(Runner.account == username))
+        runner = result.scalar_one_or_none()
+    return runner
+
+
+async def _update_station(
+    db: AsyncSession, runner: Runner, data: RunnerRegister, account: str, api_key: RunnerApiKey
+) -> None:
+    """Re-register an existing station: check its password and key, then take the account,
+    socket port and location sent."""
+    if not verify_password(data.password, runner.password_hash):
+        raise HTTPException(
+            status_code=400,
+            detail="Runner already exists and password does not match.",
+        )
+    if api_key.runner_id is None:
+        existing = await db.execute(select(RunnerApiKey).where(RunnerApiKey.runner_id == runner.id))
+        if existing.scalars().first() is not None:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    "This Test Station already has an API key. Delete it in "
+                    f"{BUD_PRODUCT_NAME} before enrolling the station with a new one."
+                ),
+            )
+    if runner.account != account:
+        await _require_station_name_free(db, account, exclude_runner_id=runner.id)
+        runner.account = account
+    runner.socket_port = data.socket_port
+    if data.location:
+        runner.location = data.location
+
+
 @router.post(
     "/register",
     response_model=RunnerToken,
@@ -62,11 +100,7 @@ async def register_runner(
     existing station only when that station has no key (409 otherwise).
     """
     account = api_key.station_name or data.username
-    result = await db.execute(select(Runner).where(Runner.account == account))
-    runner = result.scalar_one_or_none()
-    if runner is None and account != data.username:
-        result = await db.execute(select(Runner).where(Runner.account == data.username))
-        runner = result.scalar_one_or_none()
+    runner = await _find_station(db, account, data.username)
 
     if api_key.runner_id is not None and (runner is None or runner.id != api_key.runner_id):
         raise HTTPException(
@@ -75,29 +109,7 @@ async def register_runner(
         )
 
     if runner:
-        if not verify_password(data.password, runner.password_hash):
-            raise HTTPException(
-                status_code=400,
-                detail="Runner already exists and password does not match.",
-            )
-        if api_key.runner_id is None:
-            existing = await db.execute(
-                select(RunnerApiKey).where(RunnerApiKey.runner_id == runner.id)
-            )
-            if existing.scalars().first() is not None:
-                raise HTTPException(
-                    status_code=409,
-                    detail=(
-                        "This Test Station already has an API key. Delete it in "
-                        f"{BUD_PRODUCT_NAME} before enrolling the station with a new one."
-                    ),
-                )
-        if runner.account != account:
-            await _require_station_name_free(db, account, exclude_runner_id=runner.id)
-            runner.account = account
-        runner.socket_port = data.socket_port
-        if data.location:
-            runner.location = data.location
+        await _update_station(db, runner, data, account, api_key)
     else:
         runner = Runner(
             account=account,
