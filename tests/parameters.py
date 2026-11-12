@@ -2608,3 +2608,32 @@ NOTIFY_WORKFLOW_URLS = (
 NOTIFY_ATTACKER_URL = "https://powerplatform.com.attacker.example/x"
 NOTIFY_FACTS = {"Product", "Station", "Duration"}
 MSG_NOTIFY_CHECK = "the run-finished notification answers as expected"
+
+LIFE_RUN = {
+    "test_suite_name": "Nightly",
+    "test_case_list": "SmokeTests",
+    "url_test_software": "https://github.test/tests",
+    "ref_test_software": "main",
+}
+LIFE_MISSING = 99999
+LIFE_FINAL_COUNTERS = {
+    "status": "Completed",
+    "total_tests": 10,
+    "passed_tests": 8,
+    "failed_tests": 1,
+    "skipped_tests": 1,
+    "duration_seconds": 42.5,
+}
+LIFE_SETTINGS_PATH = "/api/settings"
+LIFE_PLM_PATH = "/api/settings/integrations/PLM"
+LIFE_BLOOM_URL = "https://bloom.example.com"
+LIFE_BAD_URLS = ("not-a-url", "ftp://bloom.example.com", "https://user:pass@bloom.example.com", "//bloom.example.com")
+LIFE_SIGNED_OUT = (
+    ("GET", "/api/settings"),
+    ("GET", "/api/settings/anything"),
+    ("PUT", "/api/settings/anything"),
+    ("GET", "/api/settings/integrations/PLM"),
+    ("POST", "/api/settings/integrations/PLM"),
+)
+MSG_LIFE_CHECK = "the run and settings endpoints answer as expected"
+STATUS_SERVICE_UNAVAILABLE = 503
