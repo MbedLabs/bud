@@ -40,4 +40,5 @@ SUITES = [
     "tests.api.BUD_runners_and_uploads_api.RunnersAndUploadsApiTest",
     "tests.api.BUD_groups_api.GroupsApiTest",
     "tests.api.BUD_cli_auth.CliAuthTest",
+    "tests.api.BUD_custom_runs_api.CustomRunsApiTest",
 ]
