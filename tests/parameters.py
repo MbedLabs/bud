@@ -3154,3 +3154,23 @@ CLI_DENY_STATES = ("approved", "denied", "expired", "unknown")
 CLI_GOOD_TYPED = ("BUUZ-WHVV", "buuz-whvv", "BUUZWHVV", "BUUZ WHVV")
 CLI_BAD_TYPED = ("BUUZ-WHVW", "BUUZ-WHV", "BUUZ-WHVVA", "BUUZ-WHV1", "")
 MSG_CLI_CHECK = "CLI sign-in answers as expected"
+
+CUSTOM_PATH = "/api/test-runs/custom"
+CUSTOM_CATALOG_PATH = "/api/test-catalog"
+CUSTOM_CLAIM_PATH = "/api/runners/claim-run"
+CUSTOM_COMPLETE_PATH = "/api/runners/runs/{}/complete"
+CUSTOM_REQUESTS_PATH = "/api/execution-requests"
+CUSTOM_CLAIM_ID = "11111111-1111-4111-8111-111111111111"
+CUSTOM_SECOND_CLAIM_ID = "22222222-2222-4222-8222-222222222222"
+CUSTOM_REPOSITORY = "https://git.test/tests.git"
+CUSTOM_REFERENCE = "release-2026"
+CUSTOM_VOLTAGE = "demo_voltage.VoltageTest"
+CUSTOM_BOOT = "boot_suite.BootTest"
+CUSTOM_THERMAL = "thermal.ThermalTest"
+CUSTOM_GHOST = "nowhere.GhostTest"
+MSG_CUSTOM_CHECK = "custom runs answer as expected"
+
+PG_ENROLMENT = [200, 201, 201]
+PG_REFRESH_COOKIE = "bud_refresh_token"
+PG_REFRESH_PATH = "/api/auth/refresh"
+MSG_PG_CHECK = "the app on PostgreSQL answers as expected"

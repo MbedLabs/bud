@@ -13,6 +13,7 @@ import importlib.util
 import logging
 import logging.handlers
 import os
+import secrets
 import subprocess
 import sys
 import uuid
@@ -23,7 +24,7 @@ from unittest import mock
 import httpx
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, text
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
@@ -89,6 +90,47 @@ class BudInterface:
         self.client = TestClient(main.app, raise_server_exceptions=False)
         self.client.__enter__()
         return self.client
+
+    def bud_start_live_app(self):
+        """Serve the whole app on the database DATABASE_URL names, without overrides and with the
+        rate limits off, and return its client."""
+        self.bud_stop_app()
+        limiter.enabled = False
+        self.client = TestClient(main.app, raise_server_exceptions=False)
+        self.client.__enter__()
+        return self.client
+
+    def bud_unique(self, stem):
+        """A name unique to this call."""
+        return f"{stem}-{secrets.token_hex(4)}"
+
+    def bud_live_bearer(self, email=None, password=None):
+        """Sign in to the live app, the seeded administrator unless named, and return the login
+        status and the bearer header."""
+        self.client.cookies.clear()
+        response = self.client.post(
+            self.parameters.LOGIN_PATH,
+            json={"email": email or settings.ADMIN_EMAIL, "password": password or settings.ADMIN_PASSWORD},
+        )
+        token = response.json().get("access_token") if response.status_code == 200 else ""
+        return response.status_code, {"Authorization": f"Bearer {token}"}
+
+    def bud_live_station(self):
+        """Enrol a station through the live app's own API and return the statuses of the steps and
+        the station's bearer header."""
+        login, admin = self.bud_live_bearer()
+        account = self.bud_unique("station")
+        key = self.client.post(
+            "/api/runners/api-keys", json={"label": account, "station_name": account}, headers=admin
+        )
+        api_key = key.json().get("api_key") if key.status_code == 201 else ""
+        enrolled = self.client.post(
+            "/api/runners/register",
+            json={"username": account, "password": "station-password-123", "socket_port": 53035},
+            headers={"X-API-Key": api_key},
+        )
+        token = enrolled.json().get("token") if enrolled.status_code == 201 else ""
+        return [login, key.status_code, enrolled.status_code], {"Authorization": f"Bearer {token}"}
 
     def bud_stop_app(self):
         """Close the app client, clear its overrides and dispose of its database."""
@@ -157,6 +199,10 @@ class BudInterface:
         return self.client.post(
             self.parameters.LOGIN_PATH, json={"email": email, "password": password}
         )
+
+    def bud_forget_person(self):
+        """Stop overriding the signed-in person, which then follows the signed-in entity."""
+        main.app.dependency_overrides.pop(get_current_user, None)
 
     def bud_clear_cookies(self):
         """Forget every cookie the started app's client holds."""
@@ -430,6 +476,19 @@ class BudInterface:
         self._close_session()
         self.session = (self.app_maker if on_app else self.maker)()
         return self.session
+
+    def bud_run_sql(self, statement, **values):
+        """Run one SQL statement on the started app's database and return the first column of
+        the rows it returns."""
+        session = self.bud_open_session(on_app=True)
+
+        async def run():
+            result = await session.execute(text(statement), values)
+            rows = result.scalars().all() if result.returns_rows else []
+            await session.commit()
+            return rows
+
+        return self._run(run())
 
     def bud_work_folder(self):
         """A new empty folder under the work directory."""
