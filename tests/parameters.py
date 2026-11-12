@@ -3077,3 +3077,80 @@ UPLOAD_QUOTA = "quota"
 STATUS_TOO_LARGE = 413
 STATUS_INSUFFICIENT_STORAGE = 507
 MSG_UPLOAD_CHECK = "the station and upload endpoints answer as expected"
+
+GROUPS_PATH = "/api/groups"
+POLICIES_PATH_ALL = "/api/policies"
+GROUPS_DEFAULT = ["Application Administrators", "Access Managers", "Results Viewers", "Station Managers", "Test Operators"]
+GROUPS_DEFAULT_POLICIES = [
+    "Results",
+    "Custom runs",
+    "Reports publishing",
+    "Stations",
+    "Products",
+    "Settings and integrations",
+    "Audit log",
+    "Access management",
+]
+GROUPS_BUNDLES = {
+    "Results Viewers": ["Results"],
+    "Test Operators": ["Custom runs", "Reports publishing", "Results"],
+    "Station Managers": ["Results", "Stations"],
+    "Access Managers": ["Access management", "Results", "Stations"],
+}
+GROUPS_LAB_PERMISSIONS = ["custom_runs.create", "evidence.view", "products.view", "reports.export", "stations.view"]
+GROUPS_VIEWER_PERMISSIONS = ["evidence.view", "products.view", "reports.export", "stations.view"]
+GROUPS_BAD_PAYLOADS = ({"role": "admin"}, {"permission": "write"}, {"product_ids": [1]}, {"policy_ids": "x"})
+GROUPS_STATION_GROUPS = ("Station Managers", "Access Managers", "Application Administrators")
+GROUPS_RECIPIENT_ROLES = ("admin", "developer", "viewer")
+GROUPS_WRITES = (
+    ("custom_runs.create", "POST", "/api/test-runs/custom", {"test_paths": ["a.B"]}),
+    ("bloom_publish.execute", "POST", "/api/test-runs/{run}/publish-to-bloom", None),
+    ("stations.manage", "POST", "/api/runners/api-keys", {"name": "k"}),
+    ("stations.manage", "GET", "/api/runners/api-keys", None),
+    ("stations.manage", "PATCH", "/api/runners/station-1", {"is_active": True}),
+    ("products.manage", "POST", "/api/products", {"name": "New"}),
+    ("settings.view", "GET", "/api/settings", None),
+    ("settings.edit", "PUT", "/api/settings/x", {"value": "y"}),
+    ("settings.view", "GET", "/api/settings/notifications/channels", None),
+    ("settings.edit", "DELETE", "/api/company-logo/logo", None),
+    ("audit.view", "GET", "/api/audit", None),
+    ("access.manage", "GET", "/api/groups", None),
+    ("access.manage", "GET", "/api/access-requests", None),
+    ("admin", "GET", "/api/users", None),
+    ("reports.export", "GET", "/api/reports/test-runs/{run}.pdf", None),
+    ("settings.view", "GET", "/api/settings/integrations/PLM", None),
+    ("settings.edit", "POST", "/api/settings/integrations/PLM", {}),
+    ("settings.edit", "POST", "/api/settings/notifications/channels/999/test", None),
+    ("settings.edit", "PUT", "/api/company-logo/logo", None),
+    ("access.manage", "POST", "/api/access-requests/999/decision", {"decision": "refused"}),
+    ("admin", "POST", "/api/users/{viewer}/email/approve", None),
+    ("stations.manage", "DELETE", "/api/runners/api-keys/999", None),
+    ("admin", "DELETE", "/api/uploads/{artifact}", None),
+    ("admin", "DELETE", "/api/test-runs/{run}", None),
+    ("products.manage", "DELETE", "/api/products/{product}", None),
+    ("stations.manage", "DELETE", "/api/runners/station-1", None),
+)
+GROUPS_ALLOWED = {
+    "viewer": {"reports.export"},
+    "developer": {"reports.export", "custom_runs.create", "bloom_publish.execute"},
+    "station_manager": {"reports.export", "custom_runs.create", "bloom_publish.execute", "stations.manage"},
+    "admin": {name for name, *_ in GROUPS_WRITES},
+}
+MSG_GROUPS_CHECK = "access over groups answers as expected"
+
+CLI_PASSWORD = "Cli-Password-123"
+CLI_NEW_PASSWORD = "Changed-Cli-Password-456"
+CLI_CALLBACK = "http://127.0.0.1:41234/callback?client=terminal"
+CLI_RFC_VERIFIER = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+CLI_RFC_CHALLENGE = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
+CLI_RFC_CODE = "BUUZ-WHVV"
+CLI_CODE_OFF = "Code sign-in is turned off on this instance. Use callback mode."
+CLI_INVALID = "Invalid or expired authorization session"
+CLI_SESSION_FIELDS = {"session_id", "client_name", "mode", "redirect_uri", "expires_at", "consumed", "created_at"}
+CLI_TOKEN_FIELDS = {"access_token", "refresh_token", "token_type", "user"}
+CLI_REFRESH_PATH = "/api/auth/cli/refresh"
+CLI_MODES = ("callback", "code")
+CLI_DENY_STATES = ("approved", "denied", "expired", "unknown")
+CLI_GOOD_TYPED = ("BUUZ-WHVV", "buuz-whvv", "BUUZWHVV", "BUUZ WHVV")
+CLI_BAD_TYPED = ("BUUZ-WHVW", "BUUZ-WHV", "BUUZ-WHVVA", "BUUZ-WHV1", "")
+MSG_CLI_CHECK = "CLI sign-in answers as expected"

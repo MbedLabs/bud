@@ -38,4 +38,5 @@ SUITES = [
     "tests.api.BUD_reports_pdf.ReportsPdfTest",
     "tests.api.BUD_auth_api.AuthApiTest",
     "tests.api.BUD_runners_and_uploads_api.RunnersAndUploadsApiTest",
+    "tests.api.BUD_groups_api.GroupsApiTest",
 ]
