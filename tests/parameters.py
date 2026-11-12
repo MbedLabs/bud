@@ -2471,3 +2471,33 @@ MSG_RUN_AUTH_SIGNED_OUT = "result reads need a signed-in entity"
 MSG_RUN_AUTH_VIEWER = "a viewer cannot write"
 MSG_RUN_AUTH_DEVELOPER = "a developer queues custom runs and publishes only"
 MSG_RUN_AUTH_DETAIL = "the refusal says why"
+
+ACCESS_PASSWORD = "Correct-Horse-Battery-9"
+ACCESS_RUN_NAME = "Nightly smoke"
+ACCESS_TYPE = "publish-to-bloom"
+ACCESS_BOSS = "boss@example.com"
+ACCESS_MEMBER = "member@example.com"
+ACCESS_MINE_PATH = "/api/access-requests/mine"
+ACCESS_REVIEW_SUFFIX = "/access"
+ACCESS_RESOURCE = "Publish to Bloom (from test run {}: Nightly smoke)"
+ACCESS_REQUESTED = "access.requested"
+ACCESS_REFUSED = "access.refused"
+ACCESS_OTHER_TYPES = ("user", "test-run", "product")
+ACCESS_PICTURES = (
+    ("picture-admin@example.com", "admin", b"admin"),
+    ("picture-first@example.com", "viewer", b"first"),
+    ("picture-second@example.com", "viewer", b"second"),
+)
+ACCESS_FIRST_PICTURES = (b"first", b"replacement", None)
+ACCESS_HOLDERS = {
+    "an administrator": ("admin", None),
+    "a developer": ("developer", None),
+    "a viewer in Test Operators": ("viewer", "test_operators"),
+    "a viewer in App Administration": ("viewer", "app_administration"),
+}
+ACCESS_OPERATORS = "test_operators"
+ACCESS_MANAGERS = "access_managers"
+ACCESS_MANAGER = "manager@example.com"
+ACCESS_PRODUCT = "Gateway board"
+ACCESS_GONE_RUN = "Removed run"
+MSG_ACCESS_CHECK = "the access requests answer as expected"

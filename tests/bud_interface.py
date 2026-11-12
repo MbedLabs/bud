@@ -148,6 +148,12 @@ class BudInterface:
         if as_uploader:
             main.app.dependency_overrides[get_uploader_entity] = current
 
+    def bud_log_in(self, email, password):
+        """Sign in to the started app with an email and password and return the answer."""
+        return self.client.post(
+            self.parameters.LOGIN_PATH, json={"email": email, "password": password}
+        )
+
     def bud_request_without_overrides(self, method, path, **kwargs):
         """Send one request to the started app with its dependency overrides lifted."""
         overrides = dict(main.app.dependency_overrides)
