@@ -2242,3 +2242,23 @@ MSG_ISOLATION_REFUSED = "the bootstrap stops on an unsafe setting"
 MSG_ISOLATION_REASON = "the refusal names its reason"
 MSG_ISOLATION_HIDDEN = "the refusal leaves the secret out"
 MSG_ISOLATION_ALLOWED = "the bootstrap starts with another Postgres port outside development"
+
+RUNS_FILTER_STATIONS = (("station-01", "Lab A"), ("station-03", "Lab A"), ("station-02", "Lab B"))
+RUNS_FILTER_NIGHTLY = 30
+RUNS_FILTER_FOUND = "Powertrain Endurance"
+RUNS_FILTER_QUERIES = {
+    "first page": {"limit": 20, "offset": 0},
+    "search": {"limit": 20, "q": "Powertrain"},
+    "test case list": {"limit": 20, "q": "EnduranceTests"},
+    "station account": {"limit": 50, "q": "station-02"},
+    "upper case": {"q": "POWERTRAIN"},
+    "no match": {"q": "no-such-run"},
+    "Lab B": {"location": "Lab B", "limit": 20},
+    "Lab Z": {"location": "Lab Z"},
+}
+RUNS_FILTER_LAB_A = {"location": "Lab A"}
+RUNS_FILTER_LAB_A_NAMES = ["At station-01", "At station-03"]
+RUNS_FILTER_LATEST = {"latest_per_suite": "true"}
+RUNS_FILTER_LATEST_PAGE = {"latest_per_suite": "true", "limit": 2, "offset": 0}
+RUNS_FILTER_LATEST_LAB_B = {"latest_per_suite": "true", "location": "Lab B"}
+MSG_RUNS_FILTER_CHECK = "the run list search and filters answer as expected"
