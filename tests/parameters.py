@@ -1941,3 +1941,29 @@ MSG_RUNNER_ODD_TYPE = "a token of an unknown type is refused"
 MSG_RUNNER_NO_TYPE = "a token without a type is refused"
 MSG_RUNNER_STALE_USER = "a person's stale token cannot upload results"
 MSG_RUNNER_STALE_TEXT = "the refusal asks for authentication"
+
+INVITE_PATH = "/api/users/invite"
+RESEND_PATH = "/api/users/{}/resend-invite"
+REVOKE_PATH = "/api/users/{}/revoke-invite"
+USER_EMAIL_PATH = "/api/users/{}/email"
+USERS_NEW = {"email": "new@example.com", "full_name": "New Person", "password": "a-long-enough-password", "role": "viewer"}
+USERS_DUPLICATE = {"email": "dup@example.com", "full_name": "Dup", "password": "a-long-enough-password"}
+USERS_SHORT = {"email": "short@example.com", "full_name": "Short", "password": "abc"}
+USERS_DUPLICATE_TEXT = "already registered"
+USERS_MISSING = 99999
+USERS_ROLE_FIXED_TEXT = "cannot be changed"
+USERS_ADMIN_TEXT = "admin"
+USERS_SIGNED_OUT_CALLS = (
+    ("GET", "/api/users"),
+    ("POST", "/api/users"),
+    ("POST", "/api/users/invite"),
+    ("POST", "/api/users/1/resend-invite"),
+    ("POST", "/api/users/1/revoke-invite"),
+    ("POST", "/api/users/1/email"),
+    ("POST", "/api/users/1/email/approve"),
+    ("DELETE", "/api/users/1/email"),
+    ("PATCH", "/api/users/1"),
+    ("DELETE", "/api/users/1"),
+)
+MSG_USERS_CHECK = "the user administration answers as expected"
+MSG_USERS_SIGNED_OUT = "a signed-out visitor cannot reach a user route"
