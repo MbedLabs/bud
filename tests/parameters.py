@@ -2570,3 +2570,41 @@ REPORT_PUBLISHED_ACTION = "report.published"
 REPORT_SERVICE_ACTOR = "service"
 REPORT_MAIL_LINK = "http://localhost:3000/runs/41"
 MSG_REPORT_CHECK = "the report requests answer as expected"
+
+NOTIFY_BASE_URL = "https://bud.example.com"
+NOTIFY_SUMMARY = {
+    "run_id": 7,
+    "name": "Nightly",
+    "product": "Gateway",
+    "station": "station-01",
+    "software_under_test": "2.4.1",
+    "started_by": "station-01",
+    "passed": 10,
+    "failed": 2,
+    "skipped": 0,
+    "duration_seconds": 65.0,
+    "run_url": "https://bud.example.com/runs/7",
+    "bloom_url": "https://bloom.example.com/suites/3",
+    "bloom_sync_error": None,
+    "failed_tests": ["test_a", "test_b"],
+    "more_failed": 0,
+}
+NOTIFY_STATION_EXIT = "Station exit"
+NOTIFY_SYNC_ERROR = "Bloom returned HTTP 500."
+NOTIFY_RUN_SYNC_ERROR = "Bloom returned HTTP 502."
+NOTIFY_FAILED_LINE = "a, b +4 more"
+NOTIFY_SLACK_RED = "#E01E5A"
+NOTIFY_TEAMS_RED = "E01E5A"
+NOTIFY_SECRET = "s3cr3t"
+NOTIFY_SIGNATURE_PREFIX = "sha256="
+NOTIFY_SIGNATURE_LENGTH = 71
+NOTIFY_RETRY_ROWS = [(1, False, 500), (2, False, None), (3, True, 204)]
+NOTIFY_EVENT = "run.finished"
+NOTIFY_CONNECTOR_URL = "https://acme.webhook.office.com/webhookb2/abc/IncomingWebhook/def"
+NOTIFY_WORKFLOW_URLS = (
+    "https://prod-12.westeurope.logic.azure.com:443/workflows/abc/triggers/manual/paths/invoke",
+    "https://default1234.environment.api.powerplatform.com/powerautomate/automations/direct/x",
+)
+NOTIFY_ATTACKER_URL = "https://powerplatform.com.attacker.example/x"
+NOTIFY_FACTS = {"Product", "Station", "Duration"}
+MSG_NOTIFY_CHECK = "the run-finished notification answers as expected"

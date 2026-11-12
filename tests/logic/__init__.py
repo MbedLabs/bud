@@ -19,4 +19,5 @@ SUITES = [
     "tests.logic.BUD_group_overlap.GroupOverlapTest",
     "tests.logic.BUD_isolation.IsolationTest",
     "tests.logic.BUD_mail_service.MailServiceTest",
+    "tests.logic.BUD_notify.NotifyTest",
 ]
