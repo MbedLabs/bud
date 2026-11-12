@@ -1983,3 +1983,25 @@ OVERLAP_VIEWER_GROUPS = ("Results Viewers", "Test Operators")
 OVERLAP_VIEWER_HELD = {"custom_runs.create", "bloom_publish.execute"}
 OVERLAP_MEMBER_ADDED = "group.member_added"
 MSG_OVERLAP_CHECK = "access over several groups answers as expected"
+
+BLOOM_SYNC_URL = "https://bloom.example.com"
+BLOOM_SYNC_TOKEN = "cached-bloom-token"
+BLOOM_SYNC_RUN_ID = 5
+BLOOM_SYNC_TALLY_RUN_ID = 8
+BLOOM_SYNC_FAILURE = "Invalid credentials produce a documented failure outcome"
+BLOOM_SYNC_COMMENT = "Last result from Bud TMP run {}, executed at {}"
+BLOOM_SYNC_STAGE = "bloom_sync"
+BLOOM_SYNC_NOT_CONFIGURED = "not configured"
+BLOOM_SYNC_SKIPPED = ("skipped", "Bloom sync skipped")
+BLOOM_SYNC_REQUESTED = ("running", "Bloom sync requested")
+BLOOM_SYNC_FAILED = ("failed", "Bloom sync failed", "Bloom returned HTTP 401.")
+BLOOM_SYNC_FAILED_METADATA = {"response": "unauthorized"}
+BLOOM_SYNC_TALLY = {"unidentified": 2, "skipped": 1}
+BLOOM_SYNC_LEFT_OUT = " 2 result(s) had no Bloom tc_id; 1 skipped result(s) were not sent."
+BLOOM_SYNC_UNTAGGED = (
+    "No result metadata included a Bloom tc_id to match. 1 result(s) had no Bloom tc_id."
+)
+BLOOM_SYNC_MIXED = (
+    "Bloom updated 1 test case execution record(s). 1 result(s) had no Bloom tc_id."
+)
+MSG_BLOOM_SYNC_CHECK = "the Bloom sync answers as expected"
