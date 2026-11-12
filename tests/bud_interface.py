@@ -155,6 +155,10 @@ class BudInterface:
             self.parameters.LOGIN_PATH, json={"email": email, "password": password}
         )
 
+    def bud_clear_cookies(self):
+        """Forget every cookie the started app's client holds."""
+        self.client.cookies.clear()
+
     def bud_request_without_overrides(self, method, path, **kwargs):
         """Send one request to the started app with its dependency overrides lifted."""
         overrides = dict(main.app.dependency_overrides)

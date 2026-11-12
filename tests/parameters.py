@@ -2663,3 +2663,24 @@ PDF_HOSTILE_NAMES = ("../../etc/passwd", "a/b\\c", 'quote"inside', "crlf\r\ninje
 PDF_FORBIDDEN = ("/", "\\", '"', "\r", "\n", ";")
 PDF_SEEDED_TEXTS = ("report-suite", "other-suite", "report-station", "5 assertions")
 MSG_PDF_CHECK = "the PDF reports answer as expected"
+
+AUTH_PASSWORD = "a-sufficiently-long-password"
+AUTH_PERSON = "person@example.com"
+AUTH_REFRESH_NAME = "bud_refresh_token"
+AUTH_REFRESH_COOKIE = r"bud_refresh_token=([^;]+)"
+AUTH_MAILED_TOKEN = r"#token=([^\s<]+)"
+AUTH_REFRESH_PATH = "/api/auth/refresh"
+AUTH_LOGOUT_PATH = "/api/auth/logout"
+AUTH_ME_PATH = "/api/auth/me"
+AUTH_ME_EMAIL_PATH = "/api/auth/me/email"
+AUTH_ME_PASSWORD_PATH = "/api/auth/me/password"
+AUTH_FORGOT_PATH = "/api/auth/forgot-password"
+AUTH_RESET_PATH = "/api/auth/reset-password"
+AUTH_INVITE_INFO_PATH = "/api/auth/invite-info"
+AUTH_ACCEPT_PATH = "/api/auth/accept-invite"
+AUTH_VERIFY_PATH = "/api/auth/verify-email"
+AUTH_CONFIRM_PATH = "/api/auth/confirm-email-change"
+AUTH_REFUSED = (400, 401, 404)
+AUTH_WRONG_PASSWORD = (400, 401)
+AUTH_INFO_ANSWERS = (200, 400, 404)
+MSG_AUTH_CHECK = "the authentication endpoints answer as expected"
