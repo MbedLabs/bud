@@ -2262,3 +2262,117 @@ RUNS_FILTER_LATEST = {"latest_per_suite": "true"}
 RUNS_FILTER_LATEST_PAGE = {"latest_per_suite": "true", "limit": 2, "offset": 0}
 RUNS_FILTER_LATEST_LAB_B = {"latest_per_suite": "true", "location": "Lab B"}
 MSG_RUNS_FILTER_CHECK = "the run list search and filters answer as expected"
+
+MAIL_SETTINGS = {
+    "SMTP_ENABLED": True,
+    "SMTP_HOST": "mail",
+    "SMTP_PORT": 2525,
+    "SMTP_USERNAME": "",
+    "SMTP_PASSWORD": "",
+    "SMTP_FROM_EMAIL": "noreply@example.com",
+    "SMTP_REPLY_TO": None,
+    "SMTP_STARTTLS": False,
+    "SMTP_SSL": False,
+    "SMTP_TIMEOUT_SECONDS": 9,
+}
+MAIL_SENDER_HOST = {"SMTP_HOST": "smtp.example.com", "SMTP_PORT": 587}
+MAIL_FROM = "Bud TMP by EmbedLabs <noreply@example.com>"
+MAIL_RELAY = "mail:2525"
+MAIL_STARTTLS_TEXTS = ("mail:2525", "STARTTLS=True", "SMTPNotSupportedError")
+MAIL_DELIVERY_ERROR = "MailDeliveryError"
+MAIL_SENT = "Email sent"
+MAIL_PRIVATE = {
+    "to_email": "private-recipient@example.com",
+    "subject": "Private subject with an untrusted marker",
+    "text_body": "private message content",
+}
+MAIL_PRIVATE_TEXTS = ("private-recipient", "untrusted marker", "private message content")
+MAIL_SERVER_RESPONSE = "remote response\nforged log entry"
+MAIL_SERVER_TEXTS = ("remote response", "forged log entry")
+MAIL_LINK = "https://bud.example.com/action?first=1&second=2#token=abc"
+MAIL_SENDERS = {
+    "invite": (
+        "send_invite_email",
+        {"to_email": "user@example.com", "full_name": "Test User", "invite_link": MAIL_LINK},
+    ),
+    "verify_email": (
+        "send_verification_email",
+        {"to_email": "user@example.com", "full_name": "Test User", "verification_link": MAIL_LINK},
+    ),
+    "reset_password": (
+        "send_password_reset_email",
+        {"to_email": "user@example.com", "full_name": "Test User", "reset_link": MAIL_LINK},
+    ),
+    "email_change": (
+        "send_email_change_email",
+        {
+            "to_email": "new@example.com",
+            "full_name": "Test User",
+            "old_email": "old@example.com",
+            "new_email": "new@example.com",
+            "confirm_link": MAIL_LINK,
+        },
+    ),
+    "email_change_authorization": (
+        "send_email_change_authorization_email",
+        {
+            "to_email": "old@example.com",
+            "full_name": "Test User",
+            "old_email": "old@example.com",
+            "new_email": "new@example.com",
+            "confirm_link": MAIL_LINK,
+        },
+    ),
+    "admin_welcome": (
+        "send_admin_welcome_email",
+        {"to_email": "admin@example.com", "full_name": "Test Admin", "login_link": MAIL_LINK},
+    ),
+    "access_request": (
+        "send_access_request_email",
+        {
+            "to_email": "admin@example.com",
+            "admin_name": "Administrator",
+            "requester_name": "Writer <script>",
+            "requester_email": "writer@example.com",
+            "resource": "Publish to Bloom",
+            "project": "PRJ",
+            "requested_at": "2026-10-25T10:00:00Z",
+            "request_id": "42",
+            "review_link": MAIL_LINK,
+        },
+    ),
+    "report_request": (
+        "send_report_request_email",
+        {
+            "to_email": "publisher@example.com",
+            "publisher_name": "Publisher",
+            "requester_name": "Reader <script>",
+            "requester_email": "reader@example.com",
+            "project": "PRJ",
+            "run_id": "42",
+            "review_link": MAIL_LINK,
+        },
+    ),
+}
+MAIL_IDENTITY = "Bud TMP by EmbedLabs"
+MAIL_PRODUCT = "Bud TMP"
+MAIL_TITLE = "<title>Bud TMP by EmbedLabs</title>"
+MAIL_BUTTON = "background:#208337;color:#ffffff"
+MAIL_FOOTER = "(c) 2026 EmbedLabs. All rights reserved."
+MAIL_GREETING = "Hello "
+MAIL_ESCAPED = {
+    "access html escapes the requester": ("access", "html_body", "Writer &lt;script&gt;"),
+    "access text keeps the requester": ("access", "text_body", "Writer <script>"),
+    "report html escapes the requester": ("report", "html_body", "Reader &lt;script&gt;"),
+    "report text keeps the requester": ("report", "text_body", "Reader <script>"),
+    "access html escapes the link": (
+        "access",
+        "html_body",
+        'href="https://bud.example.com/action?first=1&amp;second=2#token=abc"',
+    ),
+}
+MAIL_ACCESS_SUBJECT = "Access requested on Bud TMP: Publish to Bloom"
+MAIL_REPORT_SUBJECT = "Report requested on Bud TMP: run #42"
+MAIL_GRANT = "Grant access in Bud TMP, then mark the request granted or refused."
+MAIL_PUBLISH = "Publish the report from Bud TMP to Bloom or refuse the request with a reason."
+MSG_MAIL_CHECK = "the mail service answers as expected"
