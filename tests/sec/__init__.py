@@ -18,4 +18,5 @@ SUITES = [
     "tests.sec.BUD_run_authorization.RunAuthorizationTest",
     "tests.sec.BUD_access_requests_http.AccessRequestsHttpTest",
     "tests.sec.BUD_cli_auth_sec.CliAuthSecTest",
+    "tests.sec.BUD_api_request_audit.ApiRequestAuditTest",
 ]

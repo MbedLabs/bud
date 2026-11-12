@@ -3044,3 +3044,21 @@ CONFIG_DROPPED_FIELD = "SMTP_FROM_NAME"
 CONFIG_BUILT_PASSWORD = "a-strong-non-default-db-password"
 MSG_CONFIG_CHECK = "the settings follow the environment as expected"
 
+
+AUDIT_HTTP_PASSWORD = "Correct-Horse-Battery-9"
+AUDIT_HTTP_STATION_PASSWORD = "a-very-long-runner-password-123"
+AUDIT_HTTP_ACTION = "api.request"
+AUDIT_HTTP_FLAG = "security.repeated_refusals"
+AUDIT_HTTP_CLIENT_IP = "testclient"
+AUDIT_HTTP_FORGED = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidHlwZSI6InVzZXIifQ.forged-signature"
+AUDIT_HTTP_UPLOAD = {
+    "results": [{"test_class": "Smoke", "test_method": "test_boots", "passed": True}],
+    "test_suite_name": "smoke",
+}
+AUDIT_HTTP_FLAG_DETAILS = {"denied_requests": 20, "threshold": 20, "window_minutes": 10}
+AUDIT_HTTP_FOREIGN_ORIGIN = "https://foreign.example.com"
+AUDIT_HTTP_NOT_FOUND = "/api/wp-admin/setup-config.php"
+AUDIT_HTTP_DEACTIVATED = "Account is deactivated"
+AUDIT_HTTP_INSUFFICIENT = "Insufficient permissions."
+AUDIT_HTTP_WRITE_FAILED = "api.request could not be recorded"
+MSG_AUDIT_HTTP_CHECK = "the request audit answers as expected"
