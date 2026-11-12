@@ -2637,3 +2637,29 @@ LIFE_SIGNED_OUT = (
 )
 MSG_LIFE_CHECK = "the run and settings endpoints answer as expected"
 STATUS_SERVICE_UNAVAILABLE = 503
+
+PDF_SUMMARY_PATH = "/api/reports/test-runs.pdf"
+PDF_RUN_PATH = "/api/reports/test-runs/{}.pdf"
+PDF_MISSING_RUN = 99999999
+PDF_START = b"%PDF-"
+PDF_END = b"%%EOF"
+PDF_EMBEDLABS = "https://www.embedlabs.net"
+PDF_WORDMARK = "Powered by EmbedLabs"
+PDF_BREAKDOWNS = ("Per suite", "Per Test Station", "Per day")
+PDF_CHART = ("Passed", "Failed", "Skipped")
+PDF_EMPTY = "No assertion outcomes recorded"
+PDF_RUN_URL = "https://bud.example/test-runs/42"
+PDF_SOFTWARE_URL = "https://github.test/tests"
+PDF_ASSERTION_TEXTS = (
+    "2 assertions",
+    "AssertInRange",
+    "supply stayed inside the safe window",
+    "[11.5, 14.8] V",
+    "13.6 V",
+    "test_thermal.py:84",
+    "assertion-level trace marker",
+)
+PDF_HOSTILE_NAMES = ("../../etc/passwd", "a/b\\c", 'quote"inside', "crlf\r\ninjected: yes", "semi;colon")
+PDF_FORBIDDEN = ("/", "\\", '"', "\r", "\n", ";")
+PDF_SEEDED_TEXTS = ("report-suite", "other-suite", "report-station", "5 assertions")
+MSG_PDF_CHECK = "the PDF reports answer as expected"
