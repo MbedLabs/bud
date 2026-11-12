@@ -445,6 +445,24 @@ class BudInterface:
             check=False,
         )
 
+    def bud_alembic(self, arguments, database_url):
+        """Run the repository's alembic with arguments against one database and return the
+        finished process."""
+        environment = {
+            **os.environ,
+            "DATABASE_URL": database_url,
+            "BUD_DATABASE_URL": database_url,
+            "BUD_DOTENV_DISABLED": "1",
+        }
+        return subprocess.run(
+            [sys.executable, "-m", "alembic", *arguments],
+            cwd=Path(__file__).resolve().parents[1],
+            env=environment,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
     def bud_repository_files(self, relative_folder, pattern):
         """The sorted names of the files of a repository folder that match a glob pattern."""
         folder = Path(__file__).resolve().parents[1] / relative_folder
