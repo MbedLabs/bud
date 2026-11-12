@@ -37,8 +37,9 @@ from app.core.config import settings
 from app.core.deps import limiter
 from app.db import database as db_module
 from app.db.database import Base, get_db
-from app.models import AuditEvent, Runner, TestResult, TestRun
+from app.models import Artifact, AuditEvent, Runner, SystemSetting, TestResult, TestRun
 from app.models.user import User, UserRole
+from app.services.integration_secrets import encrypt_integration_secret
 
 
 class BudInterface:
@@ -229,6 +230,62 @@ class BudInterface:
                     main.app.dependency_overrides.pop(dependency, None)
                 else:
                     main.app.dependency_overrides[dependency] = override
+
+    def bud_add_run_with_reports(self, name=None):
+        """Store a completed run with one passed result tagged with a Bloom test case, and its PDF
+        report, JUnit report, log and screenshot in the started app's upload folder."""
+        p = self.parameters
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        run = self.bud_add_to_app(
+            TestRun(
+                name=name or p.BLOOM_REPORT_RUN,
+                test_case_list="Suite.CASES",
+                status="Completed",
+                total_tests=3,
+                passed_tests=2,
+                failed_tests=1,
+                created_at=now,
+                completed_at=now,
+            )
+        )
+        self.bud_add_to_app(
+            TestResult(
+                test_run_id=run.id,
+                test_class="VoltageTests",
+                test_method="test_supply",
+                passed=True,
+                assertions=[{"passed": True, "message": "supply is in range"}],
+                test_metadata={"tc_id": p.BLOOM_REPORT_TC_ID},
+            )
+        )
+        folder = Path(settings.UPLOAD_DIR)
+        folder.mkdir(parents=True, exist_ok=True)
+        for filename, content_type, payload in p.BLOOM_REPORT_FILES:
+            filename = filename.format(run.id)
+            stored = f"stored-{filename}"
+            (folder / stored).write_bytes(payload)
+            self.bud_add_to_app(
+                Artifact(
+                    filename=stored,
+                    original_filename=filename,
+                    content_type=content_type,
+                    size_bytes=len(payload),
+                    sha256="0" * 64,
+                    storage_path=stored,
+                    test_run_id=run.id,
+                )
+            )
+        return run
+
+    def bud_configure_bloom(self):
+        """Store Bloom's address and encrypted token in the started app."""
+        p = self.parameters
+        self.bud_add_to_app(SystemSetting(key="bloom_url", value=p.BLOOM_REPORT_URL))
+        self.bud_add_to_app(
+            SystemSetting(
+                key="bloom_token_encrypted", value=encrypt_integration_secret(p.BLOOM_REPORT_TOKEN)
+            )
+        )
 
     def bud_station_upload(self, name, content, content_type, **data):
         """Upload one file as the test station to its own run."""

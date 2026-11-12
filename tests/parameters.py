@@ -2515,3 +2515,32 @@ LIFECYCLE_USER_PATH = "/api/users/{}"
 LIFECYCLE_REFUSED = (400, 401, 404)
 LIFECYCLE_STRING = "str"
 MSG_LIFECYCLE_CHECK = "the one-time link flow answers as expected"
+
+BLOOM_REPORT_RUN = "Nightly HIL"
+BLOOM_REPORT_TC_ID = "PRJ-TC-001"
+BLOOM_REPORT_FILES = (
+    ("bud-run-{}.pdf", "application/pdf", b"%PDF-1.4 run"),
+    ("report_junit.xml", "application/xml", b"<testsuites/>"),
+    ("bench.log", "application/octet-stream", b"INFO boot"),
+    ("failure.png", "image/png", b"PNG"),
+)
+BLOOM_REPORT_URL = "https://bloom.test"
+BLOOM_REPORT_TOKEN = "blm_sync_token"
+BLOOM_PUBLISH_PATH = "/api/test-runs/{}/publish-to-bloom"
+BLOOM_PUBLISHED = ["bud-run-{}.pdf", "report_junit.xml"]
+BLOOM_PUBLISH_ANSWER = {"document_id": 12, "doc_id": "PRJ-RPT-001", "created": True}
+BLOOM_PUBLISH_PREFIX = "PRJ"
+BLOOM_PUBLISH_LEGACY = "Legacy complete"
+BLOOM_PUBLISH_LEGACY_FILES = ["bud-run-{}-Legacy-complete.pdf", "bud-suite-Legacy-complete.pdf"]
+BLOOM_PUBLISH_IDENTIFIERS = {
+    "no test case": ([], "no canonical Bloom test-case IDs"),
+    "a short test case": (["TC-1"], "not a canonical Bloom test-case ID"),
+    "two projects": (["PRJ-TC-001", "ABC-TC-002"], "multiple Bloom projects"),
+}
+BLOOM_PUBLISH_NOT_CONFIGURED = "not configured"
+BLOOM_PUBLISH_COMPLETED = "completed"
+BLOOM_PUBLISH_REFUSAL = "Project not found"
+BLOOM_PUBLISH_UNREACHABLE = "Could not reach Bloom"
+BLOOM_PUBLISH_MISSING_RUN = 999999
+STATUS_BAD_GATEWAY = 502
+MSG_BLOOM_PUBLISH_CHECK = "publishing to Bloom answers as expected"
