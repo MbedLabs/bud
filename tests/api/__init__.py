@@ -28,4 +28,5 @@ SUITES = [
     "tests.api.BUD_results_upload_api.ResultsUploadApiTest",
     "tests.api.BUD_run_reports_stored.RunReportsStoredTest",
     "tests.api.BUD_users_api.UsersApiTest",
+    "tests.api.BUD_group_overlap_api.GroupOverlapApiTest",
 ]

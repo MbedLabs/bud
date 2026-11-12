@@ -134,6 +134,15 @@ class BudInterface:
         """The rows of a model in the started app's database whose columns equal the given values."""
         return self._run(self._find_in_app(model, where))
 
+    def bud_sign_in_as(self, user):
+        """Make the user the signed-in person for the next requests to the started app."""
+
+        async def current():
+            return user
+
+        main.app.dependency_overrides[get_current_user] = current
+        main.app.dependency_overrides[get_current_active_entity] = current
+
     def bud_request_without_overrides(self, method, path, **kwargs):
         """Send one request to the started app with its dependency overrides lifted."""
         overrides = dict(main.app.dependency_overrides)

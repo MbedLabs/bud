@@ -1967,3 +1967,19 @@ USERS_SIGNED_OUT_CALLS = (
 )
 MSG_USERS_CHECK = "the user administration answers as expected"
 MSG_USERS_SIGNED_OUT = "a signed-out visitor cannot reach a user route"
+
+POLICIES_PATH = "/api/policies"
+GROUP_PATH = "/api/groups/{}"
+ACCESS_REQUESTS_PATH = "/api/access-requests"
+ACCESS_DECISION_PATH = "/api/access-requests/{}/decision"
+SETTING_X_PATH = "/api/settings/x"
+OVERLAP_PEOPLE = (
+    ("boss@example.com", "Bo Boss", "admin"),
+    ("dev@example.com", "Dee Developer", "developer"),
+    ("viewer@example.com", "Val Viewer", "viewer"),
+)
+OVERLAP_DUPLICATE = "The user already has this group"
+OVERLAP_VIEWER_GROUPS = ("Results Viewers", "Test Operators")
+OVERLAP_VIEWER_HELD = {"custom_runs.create", "bloom_publish.execute"}
+OVERLAP_MEMBER_ADDED = "group.member_added"
+MSG_OVERLAP_CHECK = "access over several groups answers as expected"
