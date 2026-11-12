@@ -239,7 +239,7 @@ class RunnersAndUploadsApiTest(RunnersAndUploadsApiBase):
         usage = type("Usage", (), {"free": 1024})()
         with (
             mock.patch.object(settings, "MIN_UPLOAD_FREE_BYTES", 1024),
-            mock.patch.object(artifact_storage.shutil, "disk_usage", lambda path: usage),
+            mock.patch.object(artifact_storage.shutil, "disk_usage", return_value=usage),
         ):
             response = self.station_upload("trace.txt", b"data")
         self.tc_checks["free space"] = self.refusal(

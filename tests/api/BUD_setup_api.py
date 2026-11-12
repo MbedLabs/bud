@@ -38,7 +38,7 @@ class SetupApiTest(SetupApiBase):
             p.POST, p.SETUP_PATH, json={**p.SETUP_OWNER, "password": p.SETUP_SHORT_PASSWORD}
         )
         self.empty_app()
-        with mock.patch.object(setup, "send_admin_welcome_email", lambda **values: None):
+        with mock.patch.object(setup, "send_admin_welcome_email", return_value=None):
             self.tc_quiet_body = self.bud.bud_request(
                 p.POST, p.SETUP_PATH, json=p.SETUP_OWNER
             ).json()

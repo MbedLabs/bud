@@ -270,7 +270,7 @@ class GroupOverlapApiTest(GroupOverlapApiBase):
         }
         operators = self.group_id(p.GROUP_OPERATORS)
         decisions = []
-        with mock.patch.object(access_requests, "send_access_request_email", lambda **kwargs: None):
+        with mock.patch.object(access_requests, "send_access_request_email", return_value=None):
             for run in runs:
                 self.bud.bud_sign_in_as(viewer)
                 created = self.call(

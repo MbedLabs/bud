@@ -8,6 +8,7 @@
 * @note     This module serves routes that fail on purpose on the started app.
 """
 
+import functools
 from unittest import mock
 
 import asyncpg
@@ -95,7 +96,7 @@ class UnhandledErrorsHttpTest(UnhandledErrorsHttpBase):
         with mock.patch.object(
             database,
             "async_session_maker",
-            lambda: FailingCommitSession(p.ERROR_INSERT, p.ERROR_DUPLICATE),
+            functools.partial(FailingCommitSession, p.ERROR_INSERT, p.ERROR_DUPLICATE),
         ):
             self.tc_late = self.answer(
                 self.bud.bud_request_without_overrides(p.GET, p.ERROR_LATE_PATH)
