@@ -177,7 +177,10 @@ executions of the same named suite receive separate run budgets.
 Bud reserves run capacity before an upload. `UPLOADS_PER_15_MINUTES` and
 `MAX_CONCURRENT_UPLOADS_PER_PRINCIPAL` apply per authenticated runner or user
 principal; different runners therefore have independent request allowances.
-These request controls do not shrink the per-run byte budget. Bud also preserves
+`UPLOADS_PER_15_MINUTES` defaults to 100. One Robot Framework invocation
+attaches three files (output.xml, log.html and report.html), so the default
+allows about 30 invocations by one station in 15 minutes; an upload beyond it
+is answered with 429. These request controls do not shrink the per-run byte budget. Bud also preserves
 `MIN_UPLOAD_FREE_BYTES`, writes through a temporary file, and atomically
 promotes only complete uploads. `ARTIFACT_RETENTION_DAYS` controls the daily
 retention pass, which also removes orphaned files and expired reservations.

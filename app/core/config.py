@@ -180,7 +180,7 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("BUD_MIN_UPLOAD_FREE_BYTES", "MIN_UPLOAD_FREE_BYTES"),
     )
     UPLOADS_PER_15_MINUTES: int = Field(
-        default=10,
+        default=100,
         ge=1,
         validation_alias=AliasChoices("BUD_UPLOADS_PER_15_MINUTES", "UPLOADS_PER_15_MINUTES"),
     )
