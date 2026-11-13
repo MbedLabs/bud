@@ -717,6 +717,34 @@ export const resultsApi = {
   },
 }
 
+export type ProductStatus = 'Active' | 'Archived'
+
+export interface Product {
+  id: number
+  name: string
+  description: string | null
+  status: ProductStatus
+  created_at: string
+  updated_at: string
+}
+
+export interface ProductInput {
+  name?: string
+  description?: string | null
+  status?: ProductStatus
+}
+
+export const productsApi = {
+  list: async () => (await api.get<Product[]>('/products')).data,
+  create: async (data: { name: string; description: string | null }) =>
+    (await api.post<Product>('/products', data)).data,
+  update: async (id: number, data: ProductInput) =>
+    (await api.patch<Product>(`/products/${id}`, data)).data,
+  remove: async (id: number) => {
+    await api.delete(`/products/${id}`)
+  },
+}
+
 export const testStationsApi = {
   status: async () => {
     const response = await api.get<{ runners: TestStation[] }>('/runners/status')

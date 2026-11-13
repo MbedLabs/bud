@@ -50,6 +50,19 @@ describe('Access page', () => {
     expect(screen.getByRole('link', { name: 'Users' }).getAttribute('href')).toBe('/users')
   })
 
+  it('shows the Products sidebar link to a user with products view', () => {
+    auth.user.role = 'viewer'
+    auth.user.permissions = ['products.view']
+    renderPage(<Layout />)
+    expect(screen.getByRole('link', { name: 'Products' }).getAttribute('href')).toBe('/products')
+  })
+
+  it('hides the Products sidebar link from a user without products view', () => {
+    auth.user.role = 'viewer'
+    renderPage(<Layout />)
+    expect(screen.queryByRole('link', { name: 'Products' })).toBeNull()
+  })
+
   it('marks the Access link with the shield check icon', () => {
     renderPage(<Layout />)
     expect(screen.getByRole('link', { name: 'Access' }).querySelector('svg')?.getAttribute('class')).toContain('lucide-shield-check')
