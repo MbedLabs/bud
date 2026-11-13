@@ -15,6 +15,8 @@ from app.models.user import User
 from app.schemas import ProductCreate, ProductResponse, ProductUpdate
 from app.services.audit import record_audit_event
 
+PRODUCT_NOT_FOUND = "Product not found"
+
 router = APIRouter()
 
 
@@ -80,7 +82,7 @@ async def get_product(
     result = await db.execute(select(Product).where(Product.id == product_id))
     product = result.scalar_one_or_none()
     if not product:
-        raise HTTPException(status_code=404, detail="Product not found")
+        raise HTTPException(status_code=404, detail=PRODUCT_NOT_FOUND)
     return product
 
 
@@ -101,7 +103,7 @@ async def update_product(
     result = await db.execute(select(Product).where(Product.id == product_id))
     product = result.scalar_one_or_none()
     if not product:
-        raise HTTPException(status_code=404, detail="Product not found")
+        raise HTTPException(status_code=404, detail=PRODUCT_NOT_FOUND)
     if data.name is not None and data.name != product.name:
         taken = await db.execute(select(Product.id).where(Product.name == data.name))
         if taken.scalar_one_or_none() is not None:
@@ -136,7 +138,7 @@ async def delete_product(
     result = await db.execute(select(Product).where(Product.id == product_id))
     product = result.scalar_one_or_none()
     if not product:
-        raise HTTPException(status_code=404, detail="Product not found")
+        raise HTTPException(status_code=404, detail=PRODUCT_NOT_FOUND)
     await record_audit_event(
         db,
         "product.deleted",
