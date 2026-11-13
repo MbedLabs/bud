@@ -1,7 +1,7 @@
 """Runners API endpoints."""
 
 from datetime import datetime, timedelta, timezone
-from typing import Annotated, List
+from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import delete, select, update
@@ -73,6 +73,20 @@ async def _update_station(
         runner.location = data.location
 
 
+def _bind_key(api_key: RunnerApiKey, runner: Runner) -> None:
+    """Pin the enrolment key to the station it registered and mark it used."""
+    api_key.runner_id = runner.id
+    mark_used(api_key)
+
+
+def _mark_alive(runner: Runner, data: RunnerHeartbeat) -> None:
+    """Record a station's heartbeat time, keep it active and take the location it sent."""
+    runner.last_heartbeat = datetime.now(timezone.utc).replace(tzinfo=None)
+    runner.is_active = True
+    if data.location:
+        runner.location = data.location
+
+
 @router.post(
     "/register",
     response_model=RunnerToken,
@@ -87,8 +101,8 @@ async def _update_station(
 async def register_runner(
     request: Request,
     data: RunnerRegister,
-    db: Annotated[AsyncSession, Depends(get_db, scope="function")],
-    api_key: Annotated[RunnerApiKey, Depends(require_runner_api_key)],
+    db: AsyncSession = Depends(get_db, scope="function"),
+    api_key: RunnerApiKey = Depends(require_runner_api_key),
 ):
     """Register a Test Station.
 
@@ -124,8 +138,7 @@ async def register_runner(
     token = generate_runner_token(runner.account, runner.id)
     runner.token = token
 
-    api_key.runner_id = runner.id
-    mark_used(api_key)
+    _bind_key(api_key, runner)
 
     await record_audit_event(
         db,
@@ -149,8 +162,8 @@ async def register_runner(
 async def runner_heartbeat(
     request: Request,
     data: RunnerHeartbeat,
-    db: Annotated[AsyncSession, Depends(get_db, scope="function")],
-    current_runner: Annotated[Runner, Depends(get_current_runner)],
+    db: AsyncSession = Depends(get_db, scope="function"),
+    current_runner: Runner = Depends(get_current_runner),
 ):
     """Receive a heartbeat from a runner.
 
@@ -161,11 +174,7 @@ async def runner_heartbeat(
     Heartbeats are limited to 60 requests a minute per client.
     """
 
-    current_runner.last_heartbeat = datetime.now(timezone.utc).replace(tzinfo=None)
-    current_runner.is_active = True
-
-    if data.location:
-        current_runner.location = data.location
+    _mark_alive(current_runner, data)
 
     await db.commit()
 
