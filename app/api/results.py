@@ -13,6 +13,7 @@ from sqlalchemy import Integer, case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.auth import get_current_active_entity
+from app.core.product_access import refuse_archived_product
 from app.core.run_access import load_run, require_run_access
 from app.core.runner_auth import authenticate_runner_token
 from app.core.runner_keys import mark_used, resolve_key
@@ -178,6 +179,7 @@ async def upload_results(
         raise HTTPException(status_code=403, detail="Only stations can submit test results")
     target_run_id = data.test_run_id
     target_product_id = data.product_id
+    await refuse_archived_product(db, target_product_id)
 
     if target_run_id is not None:
         await load_run(db, _current_entity, target_run_id, mutate=True)

@@ -8,7 +8,7 @@
 * @note     This module tests each scenario on a freshly started app; signed-out calls get 401.
 """
 
-from app.models import Product, Runner
+from app.models import AuditEvent, Product, Runner, User
 from tests.api.products_and_stations_api import ProductsAndStationsApiBase
 
 
@@ -42,6 +42,24 @@ class ProductsAndStationsApiTest(ProductsAndStationsApiBase):
             p.DELETE, p.PRODUCT_PATH.format(p.PRODUCT_MISSING_ID)
         ).status_code
         start()
+        product_id = request(p.POST, p.PRODUCTS_PATH, json=p.PRODUCT_EDITABLE).json().get("id")
+        self.tc_edited = request(p.PATCH, p.PRODUCT_PATH.format(product_id), json=p.PRODUCT_EDIT)
+        start()
+        self.archive_and_restore()
+        start()
+        request(p.POST, p.PRODUCTS_PATH, json={"name": p.PRODUCT_NAME_TAKEN})
+        product_id = request(p.POST, p.PRODUCTS_PATH, json={"name": p.PRODUCT_RENAMABLE}).json().get("id")
+        path = p.PRODUCT_PATH.format(product_id)
+        self.tc_rename_taken = request(p.PATCH, path, json={"name": p.PRODUCT_NAME_TAKEN})
+        self.tc_rename_kept = request(p.GET, path).json().get("name")
+        self.tc_unknown_status = request(p.PATCH, path, json=p.PRODUCT_UNKNOWN_STATUS).status_code
+        self.bud.bud_sign_in_as(self.bud.bud_add_to_app(User(**p.PRODUCT_VIEWER)))
+        self.tc_viewer_edit = request(p.PATCH, path, json=p.PRODUCT_EDIT).status_code
+        start()
+        self.tc_edit_missing = request(
+            p.PATCH, p.PRODUCT_PATH.format(p.PRODUCT_MISSING_ID), json=p.PRODUCT_EDIT
+        ).status_code
+        start()
         self.add_station(p.STATION_LISTED)
         self.tc_status = request(p.GET, p.STATIONS_STATUS_PATH)
         start()
@@ -71,6 +89,30 @@ class ProductsAndStationsApiTest(ProductsAndStationsApiBase):
                 for method, path in p.STATION_SIGNED_OUT_CALLS
             }
         )
+
+    def archive_and_restore(self):
+        """Archive a product, send it a run and an upload, then restore it and send both again."""
+        p, request, station = self.parameters, self.bud.bud_request, self.bud.bud_station_request
+        product_id = request(p.POST, p.PRODUCTS_PATH, json={"name": p.PRODUCT_ARCHIVABLE}).json().get("id")
+        path = p.PRODUCT_PATH.format(product_id)
+        run = {**p.PRODUCT_RUN, "product_composition_id": product_id}
+        upload = {
+            "product_id": product_id,
+            "test_suite_name": p.PRODUCT_UPLOAD_SUITE,
+            "results": [p.UPLOAD_RESULT],
+        }
+        self.bud.bud_add_test_station(with_run=False)
+        self.tc_new_status = request(p.GET, path).json().get("status")
+        self.tc_archived = request(p.PATCH, path, json=p.PRODUCT_ARCHIVE)
+        self.tc_archived_run = station(p.POST, p.TEST_RUNS_PATH, json=run)
+        self.tc_archived_upload = station(p.POST, p.RESULTS_PATH, json=upload)
+        self.tc_restored = request(p.PATCH, path, json=p.PRODUCT_RESTORE).json().get("status")
+        self.tc_restored_run = station(p.POST, p.TEST_RUNS_PATH, json=run).status_code
+        self.tc_restored_upload = station(p.POST, p.RESULTS_PATH, json=upload).status_code
+        self.tc_updates = [
+            event.details
+            for event in self.bud.bud_find_in_app(AuditEvent, action=p.PRODUCT_UPDATED_ACTION)
+        ]
 
     def add_station(self, account):
         """Register a Test Station with the given account."""

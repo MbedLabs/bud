@@ -13,6 +13,7 @@ from sqlalchemy.orm import selectinload
 
 from app.api.auth import get_current_active_entity, require_permission, require_role
 from app.api.uploads import get_upload_root
+from app.core.product_access import refuse_archived_product
 from app.core.run_access import load_run
 from app.db import get_db
 from app.models import (
@@ -72,6 +73,7 @@ async def create_test_run(
         raise HTTPException(status_code=403, detail="Only stations can create test runs")
     if data.runner_account and data.runner_account != _current_entity.account:
         raise HTTPException(status_code=403, detail="Runner cannot create runs for another runner")
+    await refuse_archived_product(db, data.product_composition_id)
     runner_id = _current_entity.id
 
     test_run = TestRun(

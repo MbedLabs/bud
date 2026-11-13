@@ -12,7 +12,7 @@ from app.api.auth import get_current_active_entity, require_permission
 from app.db import get_db
 from app.models import Product, Runner
 from app.models.user import User
-from app.schemas import ProductCreate, ProductResponse
+from app.schemas import ProductCreate, ProductResponse, ProductUpdate
 from app.services.audit import record_audit_event
 
 router = APIRouter()
@@ -81,6 +81,46 @@ async def get_product(
     product = result.scalar_one_or_none()
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
+    return product
+
+
+@router.patch(
+    "/{product_id}",
+    response_model=ProductResponse,
+    responses={400: {"description": "Bad Request"}, 404: {"description": "Not Found"}},
+)
+async def update_product(
+    product_id: int,
+    data: ProductUpdate,
+    db: AsyncSession = Depends(get_db, scope="function"),
+    _admin: User = Depends(require_permission("products", "manage")),
+):
+    """
+    Change a product's name, description or status.
+    """
+    result = await db.execute(select(Product).where(Product.id == product_id))
+    product = result.scalar_one_or_none()
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    if data.name is not None and data.name != product.name:
+        taken = await db.execute(select(Product.id).where(Product.name == data.name))
+        if taken.scalar_one_or_none() is not None:
+            raise HTTPException(status_code=400, detail="Product with this name already exists")
+        product.name = data.name
+    if "description" in data.model_fields_set:
+        product.description = data.description
+    if data.status is not None:
+        product.status = data.status.value
+    await db.flush()
+    await record_audit_event(
+        db,
+        "product.updated",
+        target_type="product",
+        target_id=product.id,
+        product_id=product.id,
+        details={"fields": sorted(data.model_fields_set)},
+    )
+    await db.refresh(product)
     return product
 
 

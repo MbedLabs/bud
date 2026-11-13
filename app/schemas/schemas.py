@@ -26,16 +26,32 @@ class ProductBase(BaseModel):
     openproject_id: Optional[str] = None
 
 
+class ProductStatus(str, Enum):
+    """Product status values."""
+
+    ACTIVE = "Active"
+    ARCHIVED = "Archived"
+
+
 class ProductCreate(ProductBase):
     """Schema for creating a product."""
 
     pass
 
 
+class ProductUpdate(BaseModel):
+    """Schema for changing a product's name, description or status."""
+
+    name: Optional[str] = Field(default=None, min_length=1, max_length=255)
+    description: Optional[str] = None
+    status: Optional[ProductStatus] = None
+
+
 class ProductResponse(ProductBase):
     """Schema for product response."""
 
     id: int
+    status: ProductStatus = ProductStatus.ACTIVE
     created_at: datetime
     updated_at: datetime
 

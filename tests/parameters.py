@@ -659,9 +659,27 @@ PRODUCT_SIGNED_OUT_CALLS = (
     ("GET", "/api/products"),
     ("POST", "/api/products"),
     ("GET", "/api/products/1"),
+    ("PATCH", "/api/products/1"),
     ("DELETE", "/api/products/1"),
 )
 PRODUCT_SIGNED_OUT_BODY = {"name": "x"}
+PRODUCT_EDITABLE = {"name": "Editable", "description": "Before"}
+PRODUCT_EDIT = {"name": "Edited", "description": "After"}
+PRODUCT_EDITED_ANSWER = ("Edited", "After", "Active")
+PRODUCT_ARCHIVABLE = "Archivable"
+PRODUCT_STATUS_ACTIVE = "Active"
+PRODUCT_STATUS_ARCHIVED = "Archived"
+PRODUCT_ARCHIVE = {"status": "Archived"}
+PRODUCT_RESTORE = {"status": "Active"}
+PRODUCT_UNKNOWN_STATUS = {"status": "Retired"}
+PRODUCT_RENAMABLE = "Renamable"
+PRODUCT_NAME_TAKEN = "Taken"
+PRODUCT_RUN = {"test_case_list": "Demo.SUITE", "test_suite_name": "Demo suite"}
+PRODUCT_UPLOAD_SUITE = "Demo upload"
+PRODUCT_ARCHIVED_TEXT = "Product Archivable is archived"
+PRODUCT_UPDATED_ACTION = "product.updated"
+PRODUCT_UPDATED_DETAILS = [{"fields": ["status"]}, {"fields": ["status"]}]
+PRODUCT_VIEWER = {"email": "viewer@example.com", "full_name": "Viewer", "hashed_password": "unused"}
 STATIONS_STATUS_PATH = "/api/runners/status"
 STATION_PATH = "/api/runners/{}"
 STATION_PASSWORD = "hashed"
@@ -687,6 +705,22 @@ MSG_PRODUCT_DELETED = "an administrator deletes a product"
 MSG_PRODUCT_GONE = "the deleted product is gone"
 MSG_PRODUCT_DELETE_MISSING = "deleting an unknown product is not found"
 MSG_PRODUCT_SIGNED_OUT = "a signed-out visitor cannot reach the products"
+MSG_PRODUCT_EDITED = "an administrator edits a product"
+MSG_PRODUCT_EDITED_VALUES = "the product has the new name and description and stays active"
+MSG_PRODUCT_NEW_ACTIVE = "a new product is active"
+MSG_PRODUCT_ARCHIVED = "an administrator archives a product"
+MSG_PRODUCT_ARCHIVED_RUN = "a new run for an archived product is refused"
+MSG_PRODUCT_ARCHIVED_UPLOAD = "a result upload for an archived product is refused"
+MSG_PRODUCT_ARCHIVED_TEXT = "the refusal names the archived product"
+MSG_PRODUCT_RESTORED = "an archived product is set back to active"
+MSG_PRODUCT_RESTORED_RUN = "a restored product takes a new run"
+MSG_PRODUCT_RESTORED_UPLOAD = "a restored product takes a result upload"
+MSG_PRODUCT_AUDITED = "each change of a product is recorded with its fields"
+MSG_PRODUCT_NAME_TAKEN = "renaming a product to a name in use is refused"
+MSG_PRODUCT_NAME_KEPT = "the refused rename leaves the name unchanged"
+MSG_PRODUCT_EDIT_MISSING = "editing an unknown product is not found"
+MSG_PRODUCT_UNKNOWN_STATUS = "an unknown product status is refused"
+MSG_PRODUCT_VIEWER_EDIT = "a user without products manage cannot edit a product"
 MSG_STATION_STATUS = "the Test Station status answers"
 MSG_STATION_LISTED = "the status lists the registered Test Station"
 MSG_STATION_FETCHED = "one Test Station is read"
