@@ -12,7 +12,15 @@ from unittest import mock
 
 from app.api import access_requests
 from app.core.security import get_password_hash
-from app.models import AccessGroup, AccessGroupMember, AccessRequest, AuditEvent, Product, TestRun
+from app.models import (
+    AccessGroup,
+    AccessGroupMember,
+    AccessRequest,
+    AuditEvent,
+    Product,
+    ProductAccess,
+    TestRun,
+)
 from app.models.user import User, UserRole
 from tests.sec.access_requests_http import AccessRequestsHttpBase
 
@@ -29,6 +37,9 @@ def type_name(value):
     """The type name of a value."""
     return type(value).__name__
 
+
+RUN_PRODUCT = "Demo runs"
+BASE_ROLE_GROUPS = {"viewer": "results_viewers", "developer": "test_operators"}
 
 class AccessRequestsHttpTest(AccessRequestsHttpBase):
 
@@ -72,20 +83,30 @@ class AccessRequestsHttpTest(AccessRequestsHttpBase):
             )
         )
 
+    def run_product(self):
+        """The product the stored runs belong to, stored once per app."""
+        found = self.bud.bud_find_in_app(Product, name=RUN_PRODUCT)
+        return found[0] if found else self.bud.bud_add_to_app(Product(name=RUN_PRODUCT))
+
     def stored_run(self, name=None):
-        """Store a completed run and return its id."""
+        """Store a completed run of the runs' product and return its id."""
         return self.bud.bud_add_to_app(
             TestRun(
                 name=name or self.parameters.ACCESS_RUN_NAME,
                 test_case_list="suite",
                 status="Completed",
+                product_id=self.run_product().id,
             )
         ).id
 
     def give(self, user_id, system_key):
-        """Give a person the shipped group with this system key."""
+        """Give a person the shipped group with this system key app-wide and on the runs'
+        product."""
         group = self.bud.bud_find_in_app(AccessGroup, system_key=system_key)[0]
         self.bud.bud_add_to_app(AccessGroupMember(group_id=group.id, user_id=user_id))
+        self.bud.bud_add_to_app(
+            ProductAccess(product_id=self.run_product().id, user_id=user_id, group_id=group.id)
+        )
 
     def headers(self, email):
         """The headers of a signed-in person, the sign-in status kept."""
@@ -312,8 +333,8 @@ class AccessRequestsHttpTest(AccessRequestsHttpBase):
         self.fresh()
         self.person(p.ACCESS_BOSS, "admin")
         holder = self.person("holder@example.com", role)
-        if group:
-            self.give(holder.id, group)
+        if group or role == "developer":
+            self.give(holder.id, group or BASE_ROLE_GROUPS[role])
         headers = self.headers("holder@example.com")
         created = self.ask(self.request_for(self.stored_run()), headers)
         self.tc_checks[name] = {

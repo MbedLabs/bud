@@ -15,7 +15,16 @@ import httpx
 from sqlalchemy import select
 
 from app.api import test_runs
-from app.models import AuditEvent, ReportRequest, User, UserRole
+from app.models import (
+    AccessGroup,
+    AuditEvent,
+    Product,
+    ProductAccess,
+    ReportRequest,
+    TestRun,
+    User,
+    UserRole,
+)
 from app.services import mail_service
 from app.services import report_requests as report_service
 from app.services.mail_service import MailDeliveryError
@@ -109,16 +118,23 @@ class ReportRequestsHttpTest(ReportRequestsHttpBase):
 
     async def collection(self, db):
         p = self.parameters
+        product = Product(name="Demo")
+        db.add(product)
+        await db.flush()
+        db.add(TestRun(id=p.REPORT_RUN_ID, name="Demo run", test_case_list="suite", status="Completed", product_id=product.id))
+        operators = await db.scalar(select(AccessGroup).where(AccessGroup.system_key == "test_operators"))
         for index, (role, active) in enumerate(p.REPORT_ROLES):
-            db.add(
-                User(
-                    email=f"publisher-{index}@example.com",
-                    full_name=f"Person {index}",
-                    role=UserRole(role),
-                    hashed_password="unused",
-                    is_active=active,
-                )
+            user = User(
+                email=f"publisher-{index}@example.com",
+                full_name=f"Person {index}",
+                role=UserRole(role),
+                hashed_password="unused",
+                is_active=active,
             )
+            db.add(user)
+            await db.flush()
+            if role == "developer":
+                db.add(ProductAccess(product_id=product.id, user_id=user.id, group_id=operators.id))
         await db.commit()
         send = mock.MagicMock()
         with bloom(listing(self.remote())), self.mailing(send):
@@ -271,6 +287,14 @@ class ReportRequestsHttpTest(ReportRequestsHttpBase):
         self.bud.bud_sign_in_as(self.person("viewer"))
         viewer_list = self.bud.bud_request(p.GET, p.REPORT_REQUESTS_PATH)
         viewer_refusal = self.bud.bud_request(p.POST, path, json={"reason": "No evidence"})
+        product = self.bud.bud_add_to_app(Product(name="Demo"))
+        self.bud.bud_add_to_app(
+            TestRun(id=p.REPORT_RUN_ID, name="Demo run", test_case_list="suite", status="Completed", product_id=product.id)
+        )
+        operators = self.bud.bud_find_in_app(AccessGroup, system_key="test_operators")[0]
+        self.bud.bud_add_to_app(
+            ProductAccess(product_id=product.id, user_id=p.TEST_ADMIN_ID, group_id=operators.id)
+        )
         self.bud.bud_sign_in_as(self.person("developer"))
         listed = body_of(self.bud.bud_request(p.GET, p.REPORT_REQUESTS_PATH))
         blank = self.bud.bud_request(p.POST, path, json={"reason": " "})

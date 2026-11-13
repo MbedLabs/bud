@@ -16,7 +16,7 @@ from sqlalchemy import func, select
 from app.api import access_requests
 from app.core import access
 from app.models import Artifact, Product, Runner, TestRun
-from app.models.access import AccessGroup, AccessGroupMember, Policy
+from app.models.access import AccessGroup, AccessGroupMember, Policy, ProductAccess
 from app.models.user import User, UserRole
 from tests.api.groups_api import GroupsApiBase
 
@@ -28,6 +28,8 @@ def body_of(response):
     except ValueError:
         return {}
 
+
+BASE_ROLE_GROUPS = {"viewer": "Results Viewers", "developer": "Test Operators"}
 
 def person(email, name, role):
     """A person who is not stored yet."""
@@ -116,6 +118,9 @@ class GroupsApiTest(GroupsApiBase):
             ),
             add(TestRun(name="loose-suite", test_case_list="c", status="Completed")),
         ]
+        self.products = (first, second)
+        for user in (viewer, developer):
+            self.on_products(BASE_ROLE_GROUPS[user.role.value], user)
         artifact = add(
             Artifact(
                 filename="log.txt",
@@ -161,12 +166,26 @@ class GroupsApiTest(GroupsApiBase):
         )
 
     def give(self, group, user):
-        """Give a group to a person."""
-        return self.call(
+        """Give a group to a person, held app-wide and on the seeded products."""
+        answer = self.call(
             self.parameters.POST,
             f"{self.parameters.GROUPS_PATH}/{self.group_id(group)}/members",
             {"user_id": user.id},
         )
+        if answer.status_code == self.parameters.STATUS_CREATED:
+            self.on_products(group, user)
+        return answer
+
+    def on_products(self, group, user):
+        """Hold a group on each seeded product, as the migration gives existing users."""
+        group_id = self.bud.bud_find_in_app(AccessGroup, name=group)[0].id
+        for product in getattr(self, "products", ()):
+            if not self.bud.bud_find_in_app(
+                ProductAccess, product_id=product.id, user_id=user.id, group_id=group_id
+            ):
+                self.bud.bud_add_to_app(
+                    ProductAccess(product_id=product.id, user_id=user.id, group_id=group_id)
+                )
 
     def status(self, method, path, body=None):
         """The status code of one request."""
@@ -398,6 +417,8 @@ class GroupsApiTest(GroupsApiBase):
         groups = self.status(p.GET, p.GROUPS_PATH)
         self.bud.bud_sign_in_as(self.admin)
         self.call(p.DELETE, f"{p.GROUPS_PATH}/{operators}/members/{viewer.id}")
+        for product in self.products:
+            self.call(p.PUT, f"/api/products/{product.id}/groups/{operators}/members", {"user_ids": []})
         self.bud.bud_sign_in_as(viewer)
         self.tc_checks["base role"] = {
             "the viewer stays a viewer": (me.get("role"), "viewer"),
@@ -603,16 +624,19 @@ class GroupsApiTest(GroupsApiBase):
         products = self.get("/api/products")
         stations = self.get("/api/runners/status").get("runners") or [{}]
         checks = {
-            "every run is listed": (
+            "every run of his products is listed": (
                 sorted(r.get("name") for r in listed),
-                ["gateway-suite", "loose-suite", "sensor-suite"],
+                ["gateway-suite", "sensor-suite"],
             ),
             "every product is listed": (
                 [x.get("name") for x in (products if isinstance(products, list) else [])],
                 ["Gateway", "Sensor"],
             ),
             "a product is read": (self.status(p.GET, f"/api/products/{second.id}"), p.STATUS_OK),
-            "the statistics count every run": (self.get(p.RUN_STATS_PATH).get("total_runs"), 3),
+            "the statistics count every run of his products": (
+                self.get(p.RUN_STATS_PATH).get("total_runs"),
+                2,
+            ),
             "an artifact is read": (
                 self.status(p.GET, f"/api/uploads/info/{artifact.id}"),
                 p.STATUS_OK,
@@ -626,7 +650,7 @@ class GroupsApiTest(GroupsApiBase):
         for run in runs:
             checks[f"the run {run.name} is read"] = (
                 self.status(p.GET, f"{p.TEST_RUNS_PATH}/{run.id}"),
-                p.STATUS_OK,
+                p.STATUS_OK if run.product_id else p.STATUS_NOT_FOUND,
             )
         self.tc_checks["hide nothing"] = checks
 

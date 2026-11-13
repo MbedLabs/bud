@@ -11,8 +11,8 @@
 from unittest import mock
 
 from app.api import access_requests
-from app.core.access import base_role_permissions
-from app.models import TestRun
+from app.core.access import app_scoped, base_role_permissions
+from app.models import Product, ProductAccess, TestRun
 from app.models.access import AccessGroupMember
 from app.models.audit import AuditEvent
 from app.models.user import User, UserRole
@@ -117,7 +117,7 @@ class GroupOverlapApiTest(GroupOverlapApiBase):
                 [developer.id],
             )
         groups = {g["name"]: g for g in self.call(p.GET, p.GROUPS_PATH).json()}
-        expected = (
+        expected = app_scoped(
             base_role_permissions(UserRole.developer)
             | set(groups[p.GROUP_STATIONS]["permissions"])
             | set(groups[p.GROUP_ACCESS]["permissions"])
@@ -140,7 +140,7 @@ class GroupOverlapApiTest(GroupOverlapApiBase):
             [p.STATUS_CREATED] * 2,
         )
         checks["viewer holds both groups' access"] = (
-            p.OVERLAP_VIEWER_HELD <= self.me(viewer),
+            app_scoped(frozenset(p.OVERLAP_VIEWER_HELD)) <= self.me(viewer),
             True,
         )
         return checks
@@ -161,7 +161,7 @@ class GroupOverlapApiTest(GroupOverlapApiBase):
         checks["management gone"] = (p.GROUP_MANAGED & set(row["permissions"]), set())
         checks["base allowance left"] = (
             set(row["permissions"]),
-            base_role_permissions(UserRole.developer),
+            app_scoped(base_role_permissions(UserRole.developer)),
         )
         checks["base role and no group"] = ((row["role"], row["groups"]), ("developer", []))
         checks["taking it again"] = (
@@ -260,8 +260,11 @@ class GroupOverlapApiTest(GroupOverlapApiBase):
         """Grant two access requests of a viewer with the same group."""
         p = self.parameters
         boss, _, viewer = self.people()
+        product = self.bud.bud_add_to_app(Product(name="Demo"))
         runs = [
-            self.bud.bud_add_to_app(TestRun(name=name, test_case_list="a", status="Completed"))
+            self.bud.bud_add_to_app(
+                TestRun(name=name, test_case_list="a", status="Completed", product_id=product.id)
+            )
             for name in ("suite", "other suite")
         ]
         self.bud.bud_sign_in_as(boss)
@@ -288,18 +291,22 @@ class GroupOverlapApiTest(GroupOverlapApiBase):
             (granted.status_code, granted.json().get("status")),
             (p.STATUS_OK, "granted"),
         )
-        checks["group added beside the other"] = (
+        checks["app-wide groups unchanged"] = (
             [g["name"] for g in self.access_row(viewer)["groups"]],
-            [p.GROUP_READERS, p.GROUP_OPERATORS],
+            [p.GROUP_READERS],
         )
         again = self.call(p.POST, decisions[1], json={"decision": "granted", "group_id": operators})
         checks["second granted"] = (
             (again.status_code, again.json().get("status")),
             (p.STATUS_OK, "granted"),
         )
-        checks["two memberships"] = (self.rows(viewer), 2)
-        checks["operators held"] = (
-            len(self.bud.bud_find_in_app(AccessGroupMember, group_id=operators, user_id=viewer.id)),
+        checks["one app-wide membership"] = (self.rows(viewer), 1)
+        checks["operators held once on the run's product"] = (
+            len(
+                self.bud.bud_find_in_app(
+                    ProductAccess, group_id=operators, user_id=viewer.id, product_id=product.id
+                )
+            ),
             1,
         )
         return checks

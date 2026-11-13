@@ -13,8 +13,9 @@ from sqlalchemy import Integer, case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.auth import get_current_active_entity
+from app.core.access import holds_on_product
 from app.core.product_access import refuse_archived_product
-from app.core.run_access import load_run, require_run_access
+from app.core.run_access import load_run, require_run_access, require_run_product
 from app.core.runner_auth import authenticate_runner_token
 from app.core.runner_keys import mark_used, resolve_key
 from app.db import get_db
@@ -275,12 +276,15 @@ async def get_result(
         raise HTTPException(status_code=404, detail=TEST_RESULT_NOT_FOUND)
 
     if test_result.test_run_id is None:
-        if isinstance(_current_entity, Runner):
+        if isinstance(_current_entity, Runner) or not await holds_on_product(
+            db, _current_entity, None, "evidence.view"
+        ):
             raise HTTPException(status_code=404, detail=TEST_RESULT_NOT_FOUND)
     else:
         test_run = await db.get(TestRun, test_result.test_run_id)
         if test_run is None:
             raise HTTPException(status_code=404, detail=TEST_RESULT_NOT_FOUND)
         require_run_access(_current_entity, test_run)
+        await require_run_product(db, _current_entity, test_run)
 
     return test_result

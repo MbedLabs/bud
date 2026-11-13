@@ -18,6 +18,8 @@ from app.schemas.schemas import (
     PLMIntegrationSettingsUpdate,
     ProductBase,
     ProductCreate,
+    ProductGroupMembers,
+    ProductMemberResponse,
     ProductResponse,
     ProductStatus,
     ProductUpdate,
@@ -53,6 +55,8 @@ from app.schemas.schemas import (
 __all__ = [
     "ProductBase",
     "ProductCreate",
+    "ProductGroupMembers",
+    "ProductMemberResponse",
     "ProductResponse",
     "ProductStatus",
     "ProductUpdate",

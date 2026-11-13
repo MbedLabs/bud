@@ -14,7 +14,7 @@ from sqlalchemy.orm import selectinload
 from app.api.auth import get_current_active_entity, require_permission, require_role
 from app.api.uploads import get_upload_root
 from app.core.product_access import refuse_archived_product
-from app.core.run_access import load_run
+from app.core.run_access import load_run, readable_runs, require_run_product
 from app.db import get_db
 from app.models import (
     Artifact,
@@ -275,6 +275,10 @@ async def list_test_runs(
             raise HTTPException(status_code=403, detail="Runner cannot list another runner's runs")
         conditions.append(TestRun.runner_id == _current_entity.id)
 
+    readable = await readable_runs(db, _current_entity)
+    if readable is not None:
+        conditions.append(readable)
+
     if status:
         conditions.append(TestRun.status == status)
 
@@ -324,6 +328,9 @@ async def _scope_conditions(
 ) -> Optional[list]:
     """Build the WHERE terms shared by the dashboard aggregate endpoints."""
     conditions: list = []
+    readable = await readable_runs(db, current_entity)
+    if readable is not None:
+        conditions.append(readable)
 
     if isinstance(current_entity, Runner):
         if runner_account and runner_account != current_entity.account:
@@ -700,6 +707,7 @@ async def publish_report(
 ):
     """Publish a completed run, requiring the requested destination when supplied."""
     test_run = await load_run(db, current_user, run_id)
+    await require_run_product(db, current_user, test_run, "bloom_publish.execute")
 
     if test_run.status != "Completed":
         raise HTTPException(

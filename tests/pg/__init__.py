@@ -10,6 +10,7 @@ SUITES = [
     "tests.pg.BUD_execution_request_claims_pg.ExecutionRequestClaimsPgTest",
     "tests.pg.BUD_audit_request_indexes_pg.AuditRequestIndexesPgTest",
     "tests.pg.BUD_product_status_pg.ProductStatusPgTest",
+    "tests.pg.BUD_product_access_pg.ProductAccessPgTest",
     "tests.pg.BUD_token_concurrency_pg.TokenConcurrencyPgTest",
     "tests.pg.BUD_group_overlap_pg.GroupOverlapPgTest",
     "tests.pg.BUD_email_change_pg.EmailChangePgTest",

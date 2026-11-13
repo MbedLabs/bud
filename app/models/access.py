@@ -18,6 +18,7 @@ from sqlalchemy import (
     String,
     Table,
     Text,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -85,3 +86,26 @@ class AccessGroupMember(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     group: Mapped[AccessGroup] = relationship(back_populates="members")
+
+
+class ProductAccess(Base):
+    """A group a user holds on one product."""
+
+    __tablename__ = "product_access"
+    __table_args__ = (
+        UniqueConstraint(
+            "product_id", "user_id", "group_id", name="uq_product_access_product_user_group"
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    product_id: Mapped[int] = mapped_column(
+        ForeignKey("products.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    group_id: Mapped[int] = mapped_column(
+        ForeignKey("access_groups.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

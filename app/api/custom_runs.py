@@ -20,6 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.auth import get_current_active_entity, require_permission
+from app.core.run_access import readable_runs
 from app.db import get_db
 from app.models import ExecutionRequest, Runner, TestRun
 from app.models.user import User
@@ -58,7 +59,12 @@ async def get_test_catalog(
     if isinstance(current_entity, Runner):
         runner_account = current_entity.account
 
-    entries = await build_catalog(db, runner_account=runner_account, suite=suite)
+    entries = await build_catalog(
+        db,
+        runner_account=runner_account,
+        suite=suite,
+        runs=await readable_runs(db, current_entity),
+    )
     return TestCatalogResponse(
         entries=[CatalogEntryResponse(**entry.__dict__) for entry in entries],
         total=len(entries),
@@ -90,7 +96,8 @@ async def create_custom_run(
             status_code=404, detail=f"Test Station '{data.runner_account}' is not registered"
         )
 
-    catalog = await build_catalog(db)
+    allowed = await readable_runs(db, current_user, "custom_runs.create")
+    catalog = await build_catalog(db, runs=allowed)
     plan = plan_custom_run(
         catalog, requested, runner_ids=runner_ids, pinned_runner=data.runner_account
     )
@@ -106,7 +113,7 @@ async def create_custom_run(
 
     created: list[ExecutionRequest] = []
     for assignment in plan.assignments:
-        request = await _assignment_request(db, assignment, data.name, current_user.id)
+        request = await _assignment_request(db, assignment, data.name, current_user.id, allowed)
         db.add(request)
         created.append(request)
     await db.flush()
@@ -138,12 +145,13 @@ def _source_metadata(source_run: TestRun | None) -> dict:
 
 
 async def _assignment_request(
-    db: AsyncSession, assignment, name: str | None, requested_by_id: int
+    db: AsyncSession, assignment, name: str | None, requested_by_id: int, runs=None
 ) -> ExecutionRequest:
-    """The execution request for one Test Station's share of a custom run."""
+    """The execution request for one Test Station's share of a custom run, repeating the
+    newest of the runs ``runs`` admits."""
     known = {
         entry.test_path: entry
-        for entry in await build_catalog(db, runner_account=assignment.runner_account)
+        for entry in await build_catalog(db, runner_account=assignment.runner_account, runs=runs)
     }
     source_run = await _most_recent_source_run(
         db, [known[path].last_run_id for path in assignment.test_paths]

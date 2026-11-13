@@ -128,9 +128,9 @@ class GroupOverlapTest(GroupOverlapBase):
         base = access.base_role_permissions(UserRole.developer)
         return {
             "both": await access.effective_permissions(db, both),
-            "base and groups": base
-            | access.group_permissions(stations)
-            | access.group_permissions(access_managers),
+            "base and groups": access.app_scoped(
+                base | access.group_permissions(stations) | access.group_permissions(access_managers)
+            ),
             "each holder": await access.effective_permissions(db, only_stations)
             | await access.effective_permissions(db, only_access),
             "managed in base": p.GROUP_MANAGED & base,
@@ -147,7 +147,7 @@ class GroupOverlapTest(GroupOverlapBase):
         found = {"one left": await access.effective_permissions(db, developer)}
         await release(db, developer, access_managers)
         found["none left"] = await access.effective_permissions(db, developer)
-        found["developer base"] = access.base_role_permissions(UserRole.developer)
+        found["developer base"] = access.app_scoped(access.base_role_permissions(UserRole.developer))
         north = await custom_group(db, "Auditors north", "audit")
         south = await custom_group(db, "Auditors south", "audit")
         viewer = await add_user(db, "viewer@example.com", UserRole.viewer, p.GROUP_PASSWORD_HASH)
@@ -157,7 +157,7 @@ class GroupOverlapTest(GroupOverlapBase):
         found["audit one"] = await access.effective_permissions(db, viewer)
         await release(db, viewer, south)
         found["audit none"] = await access.effective_permissions(db, viewer)
-        found["viewer base"] = access.base_role_permissions(UserRole.viewer)
+        found["viewer base"] = access.app_scoped(access.base_role_permissions(UserRole.viewer))
         return found
 
     async def admin(self, db, count):

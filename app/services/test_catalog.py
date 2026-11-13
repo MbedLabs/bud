@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import PurePath
-from typing import Optional
+from typing import Any, Optional
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -44,8 +44,10 @@ async def build_catalog(
     *,
     runner_account: Optional[str] = None,
     suite: Optional[str] = None,
+    runs: Optional[Any] = None,
 ) -> list[CatalogEntry]:
-    """Every test case Bud has a record of, newest evidence winning.
+    """Every test case Bud has a record of, newest evidence winning; ``runs`` limits the
+    runs read.
 
     Rows are read oldest first, and the last row seen gives a test case its suite and
     outcome.
@@ -69,6 +71,8 @@ async def build_catalog(
         query = query.where(Runner.account == runner_account)
     if suite:
         query = query.where(TestRun.name == suite)
+    if runs is not None:
+        query = query.where(runs)
 
     entries: dict[str, CatalogEntry] = {}
     methods: dict[str, set[str]] = {}

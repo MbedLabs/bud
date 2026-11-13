@@ -10,10 +10,12 @@
 
 from datetime import datetime
 
-from app.models import Runner, TestResult, TestRun, TestRunEvent
+from app.models import AccessGroup, Product, ProductAccess, Runner, TestResult, TestRun, TestRunEvent
 from app.models.user import User, UserRole
 from tests.sec.run_authorization import RunAuthorizationBase
 
+
+BASE_ROLE_GROUPS = {"viewer": "results_viewers", "developer": "test_operators"}
 
 class RunAuthorizationTest(RunAuthorizationBase):
 
@@ -53,6 +55,7 @@ class RunAuthorizationTest(RunAuthorizationBase):
             )
             for account, token, port in p.RUN_AUTH_STATIONS
         ]
+        self.product = self.bud.bud_add_to_app(Product(name="Demo"))
         runs = [
             self.bud.bud_add_to_app(
                 TestRun(
@@ -61,6 +64,7 @@ class RunAuthorizationTest(RunAuthorizationBase):
                     status="Running",
                     runner_id=station.id,
                     started_at=datetime.utcnow(),
+                    product_id=self.product.id,
                 )
             )
             for letter, station in zip("ab", stations)
@@ -133,6 +137,12 @@ class RunAuthorizationTest(RunAuthorizationBase):
                 is_active=True,
             )
         )
+        key = BASE_ROLE_GROUPS.get(person["role"])
+        if key:
+            group = self.bud.bud_find_in_app(AccessGroup, system_key=key)[0]
+            self.bud.bud_add_to_app(
+                ProductAccess(product_id=self.product.id, user_id=user.id, group_id=group.id)
+            )
         self.bud.bud_sign_in_as(user, as_uploader=True)
         method, path, body = request
         return self.send(method, path, body, runs[0].id, user.email)

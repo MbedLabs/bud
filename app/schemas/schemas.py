@@ -47,6 +47,24 @@ class ProductUpdate(BaseModel):
     status: Optional[ProductStatus] = None
 
 
+class ProductMemberResponse(BaseModel):
+    """A user holding a group on a product."""
+
+    user_id: int
+    email: str
+    full_name: str
+    role: str
+    profile_picture_url: Optional[str] = None
+    group_id: int
+    group_name: str
+
+
+class ProductGroupMembers(BaseModel):
+    """The users who are to hold a group on a product."""
+
+    user_ids: List[int] = Field(default_factory=list, max_length=1000)
+
+
 class ProductResponse(ProductBase):
     """Schema for product response."""
 

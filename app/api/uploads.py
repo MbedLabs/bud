@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.auth import get_current_active_entity, get_current_user
+from app.core.access import holds_on_product
 from app.core.config import settings
 from app.db import get_db
 from app.models import Artifact, Runner, TestRun
@@ -88,6 +89,13 @@ async def _get_accessible_artifact(
         current_entity, artifact
     ):
         raise HTTPException(status_code=403, detail="Runner is not authorized for this artifact")
+    if isinstance(current_entity, User) and not await holds_on_product(
+        db,
+        current_entity,
+        artifact.test_run.product_id if artifact.test_run else None,
+        "evidence.view",
+    ):
+        raise HTTPException(status_code=404, detail="Artifact not found")
     return artifact
 
 
