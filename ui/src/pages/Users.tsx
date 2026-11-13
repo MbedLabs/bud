@@ -1,3 +1,4 @@
+import AccessUsers from '../components/AccessUsers'
 import ProfilePicture from '../components/ProfilePicture'
 import SelectField from '../components/SelectField'
 import { Fragment, useState } from 'react'
@@ -317,6 +318,9 @@ export default function UsersPage() {
           }
         />
       )}
+      <div className="mt-8">
+        <AccessUsers />
+      </div>
     </div>
   )
 }

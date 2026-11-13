@@ -734,8 +734,22 @@ export interface ProductInput {
   status?: ProductStatus
 }
 
+export interface ProductMember {
+  user_id: number
+  email: string
+  full_name: string
+  role: UserRole
+  profile_picture_url: string | null
+  group_id: number
+  group_name: string
+}
+
 export const productsApi = {
   list: async () => (await api.get<Product[]>('/products')).data,
+  get: async (id: number) => (await api.get<Product>(`/products/${id}`)).data,
+  members: async (id: number) => (await api.get<ProductMember[]>(`/products/${id}/members`)).data,
+  setGroupMembers: async (id: number, groupId: number, userIds: number[]) =>
+    (await api.put<ProductMember[]>(`/products/${id}/groups/${groupId}/members`, { user_ids: userIds })).data,
   create: async (data: { name: string; description: string | null }) =>
     (await api.post<Product>('/products', data)).data,
   update: async (id: number, data: ProductInput) =>

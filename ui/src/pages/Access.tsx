@@ -2,14 +2,12 @@ import { useSearchParams } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
 import AccessPolicies from '../components/AccessPolicies'
 import AccessRequestsPanel from '../components/AccessRequestsPanel'
-import AccessUsers from '../components/AccessUsers'
 import UserGroups from '../components/UserGroups'
 import { accessRequestsApi } from '../api/client'
 import { useAuth } from '../contexts/AuthContext'
 import { canManageAccess } from '../lib/access'
 
 const TABS = [
-  { key: 'assignments', label: 'Assignments' },
   { key: 'groups', label: 'Groups' },
   { key: 'policies', label: 'Policies' },
   { key: 'requests', label: 'Requests' },
@@ -18,7 +16,7 @@ const TABS = [
 type TabKey = (typeof TABS)[number]['key']
 
 /**
- * Group assignments, groups, policies and access requests for access managers.
+ * Groups, policies and access requests for access managers.
  */
 export default function AccessPage() {
   const { user } = useAuth()
@@ -35,7 +33,7 @@ export default function AccessPage() {
   }
 
   const requested = params.get('tab')
-  const tab: TabKey = TABS.some((t) => t.key === requested) ? (requested as TabKey) : 'assignments'
+  const tab: TabKey = TABS.some((t) => t.key === requested) ? (requested as TabKey) : 'groups'
   const isAdmin = user?.role === 'admin'
 
   return (
@@ -64,7 +62,6 @@ export default function AccessPage() {
         ))}
       </div>
 
-      {tab === 'assignments' && <AccessUsers />}
       {tab === 'groups' && <UserGroups />}
       {tab === 'policies' && <AccessPolicies canEdit={isAdmin} />}
       {tab === 'requests' && <AccessRequestsPanel />}

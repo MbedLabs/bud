@@ -16,6 +16,7 @@ import { useAuth } from './contexts/AuthContext'
 const CustomRun = lazy(() => import('./pages/CustomRun'))
 const Dashboard = lazy(() => import('./pages/Dashboard'))
 const Products = lazy(() => import('./pages/Products'))
+const ProductDetail = lazy(() => import('./pages/ProductDetail'))
 const Settings = lazy(() => import('./pages/Settings'))
 const TestRunDetail = lazy(() => import('./pages/TestRunDetail'))
 const TestRuns = lazy(() => import('./pages/TestRuns'))
@@ -64,6 +65,7 @@ function App() {
           <Route path="runs/:id" element={<TestRunDetail />} />
           <Route path="test-stations" element={<TestStations />} />
           <Route path="products" element={<Products />} />
+          <Route path="products/:id" element={<ProductDetail />} />
           <Route path="settings" element={<Settings />} />
           <Route path="users" element={<UsersRoute />} />
           <Route path="access" element={<Access />} />

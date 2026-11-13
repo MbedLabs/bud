@@ -112,6 +112,9 @@ const CALLS: Array<[string, unknown[], string, string]> = [
   ['resultsApi.list', [42], 'get', '/results/42'],
 
   ['productsApi.list', [], 'get', '/products'],
+  ['productsApi.get', [5], 'get', '/products/5'],
+  ['productsApi.members', [5], 'get', '/products/5/members'],
+  ['productsApi.setGroupMembers', [5, 3, [7]], 'put', '/products/5/groups/3/members'],
   ['productsApi.create', [{ name: 'Demo', description: null }], 'post', '/products'],
   ['productsApi.update', [5, { status: 'Archived' }], 'patch', '/products/5'],
   ['productsApi.remove', [5], 'delete', '/products/5'],

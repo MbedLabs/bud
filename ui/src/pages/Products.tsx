@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
+import { Link } from 'react-router'
 import { Archive, ArchiveRestore, Check, Copy, Package, Pencil, Plus, Trash2 } from 'lucide-react'
 import { extractApiErrorMessage, productsApi } from '../api/client'
 import type { Product, ProductStatus } from '../api/client'
@@ -185,7 +186,11 @@ export default function Products() {
             <tbody>
               {products.map((product) => (
                 <tr key={product.id} className="border-t border-border align-top">
-                  <td className="px-4 py-2 text-foreground font-medium">{product.name}</td>
+                  <td className="px-4 py-2 font-medium">
+                    <Link to={`/products/${product.id}`} className="text-foreground hover:text-primary hover:underline">
+                      {product.name}
+                    </Link>
+                  </td>
                   <td className="px-4 py-2 text-muted-foreground">{product.description || ''}</td>
                   <td className="px-4 py-2">
                     <StatusBadge status={product.status} />

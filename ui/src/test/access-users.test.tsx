@@ -34,7 +34,7 @@ const operators = {
   is_default: true,
   system_key: 'test_operators',
   policies: [],
-  permissions: ['bloom_publish.execute', 'custom_runs.create', 'evidence.view'],
+  permissions: ['audit.view', 'bloom_publish.execute', 'custom_runs.create', 'evidence.view'],
   members: [{ user_id: 7, email: 'val@example.com', full_name: 'Val Viewer', role: 'viewer' }],
   created_at: '',
   updated_at: '',
