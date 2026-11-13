@@ -37,6 +37,32 @@ def frontend_run_url(run_id: int) -> str | None:
     return f"{base}/runs/{run_id}" if base else None
 
 
+def _assertion_source(assertion: dict) -> str:
+    """The source file of an assertion, with its line when it has one."""
+    source = str(assertion.get("source_file") or "")
+    if assertion.get("source_line") is not None:
+        source = f"{source or '-'}:{assertion['source_line']}"
+    return source
+
+
+def _assertion_detail(result: TestResult, index: int, assertion: dict) -> AssertionDetail:
+    """One recorded assertion of a result as a row of the run report."""
+    passed_value = assertion.get("passed")
+    return AssertionDetail(
+        test_class=result.test_class,
+        test_method=result.test_method,
+        index=index,
+        passed=passed_value if isinstance(passed_value, bool) else None,
+        assertion_type=str(assertion.get("assertion_type") or assertion.get("name") or "Assertion"),
+        message=str(assertion.get("message") or ""),
+        expected=assertion.get("expected"),
+        actual=assertion.get("actual", assertion.get("result")),
+        source=_assertion_source(assertion),
+        metadata=assertion.get("metadata"),
+        traceback=str(assertion.get("traceback") or ""),
+    )
+
+
 def _assertion_details(results: list[TestResult]) -> list[AssertionDetail]:
     details: list[AssertionDetail] = []
     for result in results:
@@ -45,28 +71,7 @@ def _assertion_details(results: list[TestResult]) -> list[AssertionDetail]:
             assertion = raw if isinstance(raw, dict) else {}
             if assertion.get("info") is True or assertion.get("skipped") is True:
                 continue
-            passed_value = assertion.get("passed")
-            passed = passed_value if isinstance(passed_value, bool) else None
-            source = str(assertion.get("source_file") or "")
-            if assertion.get("source_line") is not None:
-                source = f"{source or '-'}:{assertion['source_line']}"
-            details.append(
-                AssertionDetail(
-                    test_class=result.test_class,
-                    test_method=result.test_method,
-                    index=index,
-                    passed=passed,
-                    assertion_type=str(
-                        assertion.get("assertion_type") or assertion.get("name") or "Assertion"
-                    ),
-                    message=str(assertion.get("message") or ""),
-                    expected=assertion.get("expected"),
-                    actual=assertion.get("actual", assertion.get("result")),
-                    source=source,
-                    metadata=assertion.get("metadata"),
-                    traceback=str(assertion.get("traceback") or ""),
-                )
-            )
+            details.append(_assertion_detail(result, index, assertion))
     return details
 
 
@@ -129,6 +134,34 @@ async def build_suite_report(db: AsyncSession, run: TestRun) -> ReportRequest:
     return await _build_run_scoped_report(db, run, title=f"{BUD_PRODUCT_NAME} Suite Report")
 
 
+def _add_outcome(outcome: Outcome, passed: bool | None) -> None:
+    """Count one assertion as passed, failed, or skipped when it has no pass state."""
+    if passed is True:
+        outcome.passed += 1
+    elif passed is False:
+        outcome.failed += 1
+    else:
+        outcome.skipped += 1
+
+
+def _counted_passes(raw_assertions) -> list[bool | None]:
+    """The pass state of each counted assertion: True, False, or None when it has none;
+    information and skipped entries are left out."""
+    assertions = raw_assertions if isinstance(raw_assertions, list) else []
+    passes: list[bool | None] = []
+    for raw in assertions:
+        if isinstance(raw, dict) and (raw.get("info") is True or raw.get("skipped") is True):
+            continue
+        value = raw.get("passed") if isinstance(raw, dict) else None
+        passes.append(value if isinstance(value, bool) else None)
+    return passes
+
+
+def _ranked(values: dict[str, Outcome]) -> list[tuple[str, Outcome]]:
+    """The 60 groups with the most assertions, ties by name."""
+    return sorted(values.items(), key=lambda item: (-item[1].total, item[0]))[:60]
+
+
 async def build_summary_report(
     db: AsyncSession,
     conditions: list,
@@ -157,14 +190,6 @@ async def build_summary_report(
     station_outcomes: dict[str, Outcome] = {}
     day_outcomes: dict[str, Outcome] = {}
 
-    def add(outcome: Outcome, passed: bool | None) -> None:
-        if passed is True:
-            outcome.passed += 1
-        elif passed is False:
-            outcome.failed += 1
-        else:
-            outcome.skipped += 1
-
     for suite_name, station, created_at, raw_assertions in (await db.execute(query)).all():
         suite_key = str(suite_name or "-")
         station_key = str(station or "-")
@@ -172,20 +197,12 @@ async def build_summary_report(
         suite_outcome = suite_outcomes.setdefault(suite_key, Outcome())
         station_outcome = station_outcomes.setdefault(station_key, Outcome())
         day_outcome = day_outcomes.setdefault(day_key, Outcome())
-        assertions = raw_assertions if isinstance(raw_assertions, list) else []
-        for raw in assertions:
-            if isinstance(raw, dict) and (raw.get("info") is True or raw.get("skipped") is True):
-                continue
-            value = raw.get("passed") if isinstance(raw, dict) else None
-            passed = value if isinstance(value, bool) else None
+        for passed in _counted_passes(raw_assertions):
             for target in (overall, suite_outcome, station_outcome, day_outcome):
-                add(target, passed)
+                _add_outcome(target, passed)
 
-    def ranked(values: dict[str, Outcome]) -> list[tuple[str, Outcome]]:
-        return sorted(values.items(), key=lambda item: (-item[1].total, item[0]))[:60]
-
-    per_suite = ranked(suite_outcomes)
-    per_station = ranked(station_outcomes)
+    per_suite = _ranked(suite_outcomes)
+    per_station = _ranked(station_outcomes)
     per_day = sorted(day_outcomes.items(), key=lambda item: item[0], reverse=True)[:60]
 
     return ReportRequest(
