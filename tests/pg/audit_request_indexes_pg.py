@@ -18,7 +18,7 @@ class AuditRequestIndexesPgBase(BudAppTestCase):
         for name, (found, expected) in self.tc_checks[scenario].items():
             self.assertEqual(found, expected, msg=f"{name}: {self.parameters.MSG_PG_CHECK}")
 
-    def bud_the_audit_index_migration_is_the_single_head(self):
+    def bud_the_audit_index_migration_is_in_the_one_lineage(self):
         self.check("head")
 
     def bud_the_audit_indexes_migrate_both_ways_keeping_every_event(self):

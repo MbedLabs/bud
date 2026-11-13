@@ -49,9 +49,12 @@ class AuditRequestIndexesPgTest(AuditRequestIndexesPgBase):
     def setUpClass(self):
         super().setUpClass()
         script = ScriptDirectory.from_config(Config(str(ROOT / "alembic.ini")))
+        heads = script.get_heads()
+        lineage = [revision.revision for revision in script.walk_revisions("base", heads[0])] if heads else []
         self.tc_checks = {
             "head": {
-                "the index migration is the single head": (script.get_heads(), [REVISION]),
+                "one head exists": (len(heads), 1),
+                "the index migration is in the lineage": (REVISION in lineage, True),
                 "the index migration follows the CLI sessions": (script.get_revision(REVISION).down_revision, PREVIOUS),
             },
             "migration": self.bud.bud_await(self.migration()),
@@ -76,15 +79,15 @@ class AuditRequestIndexesPgTest(AuditRequestIndexesPgBase):
                 "VALUES (now(), 'anonymous', 'auth.login', '192.0.2.1', 'failure')"
             )
             checks["no index exists before the migration"] = (INDEXES & await indexes(connection), set())
-            checks["the database upgrades to the head"] = (self.migrate("upgrade", "head", url=url), 0)
+            checks["the database upgrades to the index migration"] = (self.migrate("upgrade", REVISION, url=url), 0)
             checks["the indexes exist after the upgrade"] = (INDEXES <= await indexes(connection), True)
             checks["the event survives the upgrade"] = (await connection.fetchval("SELECT count(*) FROM audit_events"), 1)
-            checks["the database downgrades one step"] = (self.migrate("downgrade", "-1", url=url), 0)
+            checks["the database downgrades to the CLI sessions"] = (self.migrate("downgrade", PREVIOUS, url=url), 0)
             checks["the downgrade returns to the CLI sessions"] = (await connection.fetchval("SELECT version_num FROM alembic_version"), PREVIOUS)
             checks["the indexes are gone after the downgrade"] = (INDEXES & await indexes(connection), set())
             checks["the event survives the downgrade"] = (await connection.fetchval("SELECT count(*) FROM audit_events"), 1)
-            checks["the database upgrades again"] = (self.migrate("upgrade", "head", url=url), 0)
-            checks["the head is reached again"] = (await connection.fetchval("SELECT version_num FROM alembic_version"), REVISION)
+            checks["the database upgrades again"] = (self.migrate("upgrade", REVISION, url=url), 0)
+            checks["the index migration is reached again"] = (await connection.fetchval("SELECT version_num FROM alembic_version"), REVISION)
         finally:
             await connection.close()
             await admin.execute(f'DROP DATABASE IF EXISTS "{name}"')
