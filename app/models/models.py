@@ -23,6 +23,7 @@ from app.db.database import Base
 
 ALL_DELETE_ORPHAN = "all, delete-orphan"
 TEST_RUNS_ID = "test_runs.id"
+PRODUCTS_ID = "products.id"
 
 
 class Product(Base):
@@ -142,7 +143,7 @@ class TestRun(Base):
     bloom_artefact_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
 
     product_id: Mapped[Optional[int]] = mapped_column(
-        ForeignKey("products.id"), index=True, nullable=True
+        ForeignKey(PRODUCTS_ID), index=True, nullable=True
     )
     runner_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("runners.id"), index=True, nullable=True
@@ -205,7 +206,7 @@ class TestResult(Base):
         ForeignKey(TEST_RUNS_ID), index=True, nullable=True
     )
     product_id: Mapped[Optional[int]] = mapped_column(
-        ForeignKey("products.id"), index=True, nullable=True
+        ForeignKey(PRODUCTS_ID), index=True, nullable=True
     )
 
     test_run: Mapped[Optional["TestRun"]] = relationship(back_populates="results")
@@ -319,7 +320,7 @@ class ProductNotificationRule(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     product_id: Mapped[int] = mapped_column(
-        ForeignKey("products.id", ondelete="CASCADE"), index=True, nullable=False
+        ForeignKey(PRODUCTS_ID, ondelete="CASCADE"), index=True, nullable=False
     )
     channel_id: Mapped[int] = mapped_column(
         ForeignKey("notification_channels.id", ondelete="CASCADE"), index=True, nullable=False

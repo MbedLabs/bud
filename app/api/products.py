@@ -43,10 +43,6 @@ from app.services.audit import record_audit_event
 PRODUCT_NOT_FOUND = "Product not found"
 RULE_NOT_FOUND = "Notification rule not found"
 RULE_TARGET = "notification_rule"
-FORBIDDEN_OR_MISSING = {
-    403: {"description": HTTPStatus(403).phrase},
-    404: {"description": HTTPStatus(404).phrase},
-}
 INSUFFICIENT_PERMISSIONS = "Insufficient permissions."
 
 router = APIRouter()
@@ -364,7 +360,10 @@ async def _audit_rule(
 @router.get(
     "/{product_id}/notification-channels",
     response_model=List[ProductNotificationChannelOption],
-    responses=FORBIDDEN_OR_MISSING,
+    responses={
+        403: {"description": HTTPStatus(403).phrase},
+        404: {"description": HTTPStatus(404).phrase},
+    },
 )
 async def list_product_notification_channels(
     product_id: int,
@@ -389,7 +388,10 @@ async def list_product_notification_channels(
 @router.get(
     "/{product_id}/notification-rules",
     response_model=List[ProductNotificationRuleResponse],
-    responses=FORBIDDEN_OR_MISSING,
+    responses={
+        403: {"description": HTTPStatus(403).phrase},
+        404: {"description": HTTPStatus(404).phrase},
+    },
 )
 async def list_product_notification_rules(
     product_id: int,
@@ -420,7 +422,11 @@ async def list_product_notification_rules(
     "/{product_id}/notification-rules",
     response_model=ProductNotificationRuleResponse,
     status_code=201,
-    responses={400: {"description": HTTPStatus(400).phrase}, **FORBIDDEN_OR_MISSING},
+    responses={
+        400: {"description": HTTPStatus(400).phrase},
+        403: {"description": HTTPStatus(403).phrase},
+        404: {"description": HTTPStatus(404).phrase},
+    },
 )
 async def create_product_notification_rule(
     product_id: int,
@@ -458,7 +464,10 @@ async def create_product_notification_rule(
 @router.patch(
     "/{product_id}/notification-rules/{rule_id}",
     response_model=ProductNotificationRuleResponse,
-    responses=FORBIDDEN_OR_MISSING,
+    responses={
+        403: {"description": HTTPStatus(403).phrase},
+        404: {"description": HTTPStatus(404).phrase},
+    },
 )
 async def update_product_notification_rule(
     product_id: int,
@@ -479,7 +488,10 @@ async def update_product_notification_rule(
 @router.delete(
     "/{product_id}/notification-rules/{rule_id}",
     status_code=204,
-    responses=FORBIDDEN_OR_MISSING,
+    responses={
+        403: {"description": HTTPStatus(403).phrase},
+        404: {"description": HTTPStatus(404).phrase},
+    },
 )
 async def delete_product_notification_rule(
     product_id: int,
