@@ -185,7 +185,7 @@ export default function NotificationChannels() {
           <div className="sm:col-span-2">
             <label className="flex items-center gap-2 text-sm text-foreground">
               <input type="checkbox" checked={allProducts} onChange={(e) => setAllProducts(e.target.checked)} />
-              All products
+              <span>All products</span>
             </label>
             <p className="mt-1 text-xs text-muted-foreground">
               Off: the channel receives only the runs of the products whose notification rules name it.
