@@ -6,7 +6,7 @@ which their base role gave them before. Administrators need no row.
 """
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 
 import sqlalchemy as sa
 
@@ -88,7 +88,7 @@ def upgrade():
         key = BASE_ROLE_GROUPS.get(str(role).lower().rsplit(".", 1)[-1])
         if key and key in group_by_key:
             pairs.add((user_id, group_by_key[key]))
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     rows = [
         {"product_id": product_id, "user_id": user_id, "group_id": group_id, "created_at": now}
         for product_id in products

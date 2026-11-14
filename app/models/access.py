@@ -24,12 +24,12 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.database import Base
 
+ACCESS_GROUPS_ID = "access_groups.id"
+
 access_group_policies = Table(
     "access_group_policies",
     Base.metadata,
-    Column(
-        "group_id", Integer, ForeignKey("access_groups.id", ondelete="CASCADE"), primary_key=True
-    ),
+    Column("group_id", Integer, ForeignKey(ACCESS_GROUPS_ID, ondelete="CASCADE"), primary_key=True),
     Column("policy_id", Integer, ForeignKey("policies.id"), primary_key=True),
 )
 
@@ -78,7 +78,7 @@ class AccessGroupMember(Base):
     __tablename__ = "access_group_members"
 
     group_id: Mapped[int] = mapped_column(
-        ForeignKey("access_groups.id", ondelete="CASCADE"), primary_key=True
+        ForeignKey(ACCESS_GROUPS_ID, ondelete="CASCADE"), primary_key=True
     )
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), primary_key=True, index=True
@@ -106,6 +106,6 @@ class ProductAccess(Base):
         ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False
     )
     group_id: Mapped[int] = mapped_column(
-        ForeignKey("access_groups.id", ondelete="CASCADE"), index=True, nullable=False
+        ForeignKey(ACCESS_GROUPS_ID, ondelete="CASCADE"), index=True, nullable=False
     )
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

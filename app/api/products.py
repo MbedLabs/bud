@@ -82,7 +82,7 @@ async def _members(
     "",
     response_model=ProductResponse,
     status_code=201,
-    responses={400: {"description": "Bad Request"}},
+    responses={400: {"description": "Bad Request"}, 403: {"description": "Forbidden"}},
 )
 async def create_product(
     data: ProductCreate,
@@ -149,7 +149,11 @@ async def get_product(
 @router.patch(
     "/{product_id}",
     response_model=ProductResponse,
-    responses={400: {"description": "Bad Request"}, 404: {"description": "Not Found"}},
+    responses={
+        400: {"description": "Bad Request"},
+        403: {"description": "Forbidden"},
+        404: {"description": "Not Found"},
+    },
 )
 async def update_product(
     product_id: int,
@@ -184,7 +188,11 @@ async def update_product(
     return product
 
 
-@router.delete("/{product_id}", status_code=204, responses={404: {"description": "Not Found"}})
+@router.delete(
+    "/{product_id}",
+    status_code=204,
+    responses={403: {"description": "Forbidden"}, 404: {"description": "Not Found"}},
+)
 async def delete_product(
     product_id: int,
     db: AsyncSession = Depends(get_db, scope="function"),

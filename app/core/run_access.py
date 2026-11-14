@@ -12,6 +12,8 @@ from app.models.user import User, UserRole
 
 RunPrincipal = Union[User, Runner]
 
+TEST_RUN_NOT_FOUND = "Test run not found"
+
 
 def require_mutating_user(user: User) -> None:
     """Let only users whose base role is Admin change runs, results and artifacts."""
@@ -28,7 +30,7 @@ def require_run_access(
     """Authorize a user or runner for a run without leaking cross-runner data."""
     if isinstance(principal, Runner):
         if test_run.runner_id != principal.id:
-            raise HTTPException(status_code=404, detail="Test run not found")
+            raise HTTPException(status_code=404, detail=TEST_RUN_NOT_FOUND)
         return
     if mutate:
         require_mutating_user(principal)
@@ -47,7 +49,7 @@ async def load_run(
         await db.execute(select(TestRun).where(TestRun.id == run_id).options(*options))
     ).scalar_one_or_none()
     if test_run is None:
-        raise HTTPException(status_code=404, detail="Test run not found")
+        raise HTTPException(status_code=404, detail=TEST_RUN_NOT_FOUND)
     require_run_access(principal, test_run, mutate=mutate)
     await require_run_product(db, principal, test_run)
     return test_run
@@ -60,7 +62,7 @@ async def require_run_product(
     if isinstance(principal, User) and not await holds_on_product(
         db, principal, test_run.product_id, permission
     ):
-        raise HTTPException(status_code=404, detail="Test run not found")
+        raise HTTPException(status_code=404, detail=TEST_RUN_NOT_FOUND)
 
 
 async def readable_runs(

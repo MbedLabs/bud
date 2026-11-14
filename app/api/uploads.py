@@ -33,6 +33,8 @@ from app.services.artifact_storage import (
 )
 from app.services.audit import record_audit_event
 
+ARTIFACT_NOT_FOUND = "Artifact not found"
+
 router = APIRouter()
 
 logger = logging.getLogger(__name__)
@@ -84,7 +86,7 @@ async def _get_accessible_artifact(
     )
     artifact = result.scalar_one_or_none()
     if artifact is None:
-        raise HTTPException(status_code=404, detail="Artifact not found")
+        raise HTTPException(status_code=404, detail=ARTIFACT_NOT_FOUND)
     if isinstance(current_entity, Runner) and not _can_runner_access_artifact(
         current_entity, artifact
     ):
@@ -95,7 +97,7 @@ async def _get_accessible_artifact(
         artifact.test_run.product_id if artifact.test_run else None,
         "evidence.view",
     ):
-        raise HTTPException(status_code=404, detail="Artifact not found")
+        raise HTTPException(status_code=404, detail=ARTIFACT_NOT_FOUND)
     return artifact
 
 
@@ -319,7 +321,7 @@ async def delete_artifact(
     artifact = result.scalar_one_or_none()
 
     if not artifact:
-        raise HTTPException(status_code=404, detail="Artifact not found")
+        raise HTTPException(status_code=404, detail=ARTIFACT_NOT_FOUND)
 
     if not _can_user_delete_artifact(_current_user):
         raise HTTPException(status_code=403, detail="Only admins may delete artifacts")
