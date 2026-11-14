@@ -1,13 +1,13 @@
-const PRODUCT_RESOURCES = ['evidence', 'reports', 'custom_runs', 'bloom_publish']
+const PRODUCT_RESOURCES = new Set(['evidence', 'reports', 'custom_runs', 'bloom_publish'])
 
 /** Whether the permission counts per product. */
 export function isProductScoped(permission: string): boolean {
-  return PRODUCT_RESOURCES.includes(permission.split('.')[0]) || permission === 'products.manage'
+  return PRODUCT_RESOURCES.has(permission.split('.')[0]) || permission === 'products.manage'
 }
 
 /** Whether the permission counts app-wide. */
 export function isAppScoped(permission: string): boolean {
-  return !PRODUCT_RESOURCES.includes(permission.split('.')[0])
+  return !PRODUCT_RESOURCES.has(permission.split('.')[0])
 }
 
 /** Whether a group gives anything per product. */
