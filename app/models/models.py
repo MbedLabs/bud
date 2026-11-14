@@ -15,6 +15,7 @@ from sqlalchemy import (
     LargeBinary,
     String,
     Text,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -301,10 +302,32 @@ class NotificationChannel(Base):
     secret_encrypted: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     run_filter: Mapped[str] = mapped_column(String(30), default="all")
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    all_products: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
     )
+
+
+class ProductNotificationRule(Base):
+    """A product's finished runs posted to one channel, filtered by the rule's run filter."""
+
+    __tablename__ = "product_notification_rules"
+    __table_args__ = (
+        UniqueConstraint("product_id", "channel_id", name="uq_product_notification_rule"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    product_id: Mapped[int] = mapped_column(
+        ForeignKey("products.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    channel_id: Mapped[int] = mapped_column(
+        ForeignKey("notification_channels.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    run_filter: Mapped[str] = mapped_column(String(30), default="all")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    channel: Mapped["NotificationChannel"] = relationship(lazy="selectin")
 
 
 class NotificationDelivery(Base):

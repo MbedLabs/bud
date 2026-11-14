@@ -35,6 +35,7 @@ from app.db import database as db
 from app.models import (
     NotificationChannel,
     NotificationDelivery,
+    ProductNotificationRule,
     TestResult,
     TestRun,
     TestRunEvent,
@@ -429,16 +430,52 @@ async def _previous_run_was_green(session: AsyncSession, run: TestRun) -> bool:
     )
 
 
+async def filter_accepts(session: AsyncSession, run_filter: str, run: TestRun) -> bool:
+    """Apply a run filter: all runs, failures only, or the first failure after green."""
+    failed = (run.failed_tests or 0) > 0 or _execution_failed(run)
+    if run_filter == "failures":
+        return failed
+    if run_filter == "first_failure":
+        return failed and await _previous_run_was_green(session, run)
+    return True
+
+
 async def channel_wants_run(
     session: AsyncSession, channel: NotificationChannel, run: TestRun
 ) -> bool:
-    """Apply the channel's filter: all runs, failures only, or the first failure after green."""
-    failed = (run.failed_tests or 0) > 0 or _execution_failed(run)
-    if channel.run_filter == "failures":
-        return failed
-    if channel.run_filter == "first_failure":
-        return failed and await _previous_run_was_green(session, run)
-    return True
+    """Apply the channel's own filter to the run."""
+    return await filter_accepts(session, channel.run_filter, run)
+
+
+async def _product_rule_filters(session: AsyncSession, run: TestRun) -> dict[int, list[str]]:
+    """The run filters of the run's product rules, by channel."""
+    if run.product_id is None:
+        return {}
+    rows = (
+        await session.execute(
+            select(ProductNotificationRule.channel_id, ProductNotificationRule.run_filter).where(
+                ProductNotificationRule.product_id == run.product_id
+            )
+        )
+    ).all()
+    filters: dict[int, list[str]] = {}
+    for channel_id, run_filter in rows:
+        filters.setdefault(channel_id, []).append(run_filter)
+    return filters
+
+
+async def channel_takes_run(
+    session: AsyncSession,
+    channel: NotificationChannel,
+    run: TestRun,
+    rule_filters: list[str],
+) -> bool:
+    """Whether the channel's all-products filter or one of the product's rules accepts the run."""
+    filters = ([channel.run_filter] if channel.all_products else []) + rule_filters
+    for run_filter in dict.fromkeys(filters):
+        if await filter_accepts(session, run_filter, run):
+            return True
+    return False
 
 
 async def deliver(
@@ -515,7 +552,8 @@ async def _record_delivery(session, test_run_id: int, channel, delivery, ok: boo
 
 
 async def notify_run_finished(test_run_id: int, *, wait: Optional[Callable] = None) -> int:
-    """Post a finished run to every enabled channel that wants it, once per channel."""
+    """Post a finished run once to every enabled channel whose all-products filter or
+    product rule accepts it."""
     sent = 0
     async with db.async_session_maker() as session:
         try:
@@ -555,8 +593,11 @@ async def notify_run_finished(test_run_id: int, *, wait: Optional[Callable] = No
                 .all()
             )
             summary = await build_summary(session, run)
+            rules = await _product_rule_filters(session, run)
             for channel in channels:
-                if channel.id in already or not await channel_wants_run(session, channel, run):
+                if channel.id in already or not await channel_takes_run(
+                    session, channel, run, rules.get(channel.id, [])
+                ):
                     continue
                 delivery = await deliver(session, channel, summary, wait=wait)
                 ok = bool(delivery and delivery.delivered)

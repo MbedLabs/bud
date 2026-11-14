@@ -22,6 +22,7 @@ from app.models import (
     NotificationChannel,
     NotificationDelivery,
     Product,
+    ProductNotificationRule,
     Runner,
     TestResult,
     TestRun,
@@ -92,6 +93,7 @@ class NotifyTest(NotifyBase):
             self.once,
             self.no_channel,
             self.filters,
+            self.product_rules,
             self.teams_delivery,
             self.redirect,
         ):
@@ -106,7 +108,9 @@ class NotifyTest(NotifyBase):
         return notify.RunSummary(**{**self.parameters.NOTIFY_SUMMARY, **changes})
 
     @staticmethod
-    async def channel(db, fmt="json", run_filter="all", secret=None, name=None, url=None):
+    async def channel(
+        db, fmt="json", run_filter="all", secret=None, name=None, url=None, all_products=True
+    ):
         """Store an enabled channel."""
         channel = NotificationChannel(
             name=name or f"{fmt}-{run_filter}",
@@ -116,6 +120,7 @@ class NotifyTest(NotifyBase):
             secret_encrypted=encrypt_integration_secret(secret) if secret else None,
             run_filter=run_filter,
             enabled=True,
+            all_products=all_products,
         )
         db.add(channel)
         await db.commit()
@@ -469,6 +474,53 @@ class NotifyTest(NotifyBase):
                 await notify.channel_wants_run(db, first, red2),
                 False,
             ),
+        }
+
+    async def product_rules(self, db):
+        demo, abc = Product(name="Demo"), Product(name="ABC")
+        db.add_all([demo, abc])
+        await db.commit()
+        names = {}
+        for name, run_filter, all_products in (
+            ("every", "all", True),
+            ("demo-failures", "all", False),
+            ("demo-all", "failures", True),
+        ):
+            url = f"https://hooks.example.com/{name}"
+            channel = await self.channel(
+                db, name=name, url=url, run_filter=run_filter, all_products=all_products
+            )
+            names[url] = name
+            if name != "every":
+                db.add(
+                    ProductNotificationRule(
+                        product_id=demo.id,
+                        channel_id=channel.id,
+                        run_filter="failures" if name == "demo-failures" else "all",
+                    )
+                )
+        await db.commit()
+        reached = {}
+        for label, product, failed in (
+            ("a green Demo run", demo, 0),
+            ("a red Demo run", demo, 2),
+            ("a green ABC run", abc, 0),
+            ("a red ABC run", abc, 2),
+            ("a red run without product", None, 2),
+        ):
+            Recorder.posts = []
+            run = await self.stored_run(db, passed=1, failed=failed, product=product, name=label)
+            await notify.notify_run_finished(run.id, wait=wait_none())
+            reached[label] = sorted(names[post["url"]] for post in Recorder.posts)
+        self.tc_checks["product rules"] = {
+            f"{label} reaches {expected}": (reached[label], expected)
+            for label, expected in (
+                ("a green Demo run", ["demo-all", "every"]),
+                ("a red Demo run", ["demo-all", "demo-failures", "every"]),
+                ("a green ABC run", ["every"]),
+                ("a red ABC run", ["demo-all", "every"]),
+                ("a red run without product", ["demo-all", "every"]),
+            )
         }
 
     async def teams_delivery(self, db):

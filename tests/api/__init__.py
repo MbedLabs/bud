@@ -13,6 +13,7 @@ SUITES = [
     "tests.api.BUD_notification_channels_api.NotificationChannelsApiTest",
     "tests.api.BUD_products_and_stations_api.ProductsAndStationsApiTest",
     "tests.api.BUD_product_access_api.ProductAccessApiTest",
+    "tests.api.BUD_product_notification_rules_api.ProductNotificationRulesApiTest",
     "tests.api.BUD_artifact_storage.ArtifactStorageTest",
     "tests.api.BUD_results_listing_payload_api.ResultsListingPayloadApiTest",
     "tests.api.BUD_station_naming.StationNamingTest",

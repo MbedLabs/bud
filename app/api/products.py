@@ -2,9 +2,10 @@
 Products API endpoints.
 """
 
+from http import HTTPStatus
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,19 +18,35 @@ from app.api.groups import (
 )
 from app.core.access import app_permissions, group_permissions, holds_on_product
 from app.db import get_db
-from app.models import Product, ProductAccess, Runner
+from app.models import (
+    NotificationChannel,
+    Product,
+    ProductAccess,
+    ProductNotificationRule,
+    Runner,
+)
 from app.models.access import AccessGroup
 from app.models.user import User
 from app.schemas import (
     ProductCreate,
     ProductGroupMembers,
     ProductMemberResponse,
+    ProductNotificationChannelOption,
+    ProductNotificationRuleCreate,
+    ProductNotificationRuleResponse,
+    ProductNotificationRuleUpdate,
     ProductResponse,
     ProductUpdate,
 )
 from app.services.audit import record_audit_event
 
 PRODUCT_NOT_FOUND = "Product not found"
+RULE_NOT_FOUND = "Notification rule not found"
+RULE_TARGET = "notification_rule"
+FORBIDDEN_OR_MISSING = {
+    403: {"description": HTTPStatus(403).phrase},
+    404: {"description": HTTPStatus(404).phrase},
+}
 INSUFFICIENT_PERMISSIONS = "Insufficient permissions."
 
 router = APIRouter()
@@ -212,6 +229,9 @@ async def delete_product(
         details={"name": product.name},
     )
     await db.execute(delete(ProductAccess).where(ProductAccess.product_id == product_id))
+    await db.execute(
+        delete(ProductNotificationRule).where(ProductNotificationRule.product_id == product_id)
+    )
     await db.delete(product)
 
 
@@ -290,3 +310,187 @@ async def set_product_group_members(
         )
     await db.flush()
     return await _members(db, product_id, group_id)
+
+
+async def _managed_product(db: AsyncSession, user: User, product_id: int) -> Product:
+    """The product, when the user holds products.manage on it; 404 or 403 otherwise."""
+    product = await _product(db, product_id)
+    await _require_manage(db, user, product_id)
+    return product
+
+
+def _rule_response(rule: ProductNotificationRule) -> ProductNotificationRuleResponse:
+    """A rule with its channel's name, format and state."""
+    return ProductNotificationRuleResponse(
+        id=rule.id,
+        product_id=rule.product_id,
+        channel_id=rule.channel_id,
+        channel_name=rule.channel.name,
+        channel_format=rule.channel.format,
+        channel_enabled=rule.channel.enabled,
+        run_filter=rule.run_filter,
+    )
+
+
+async def _rule(db: AsyncSession, product_id: int, rule_id: int) -> ProductNotificationRule:
+    """The product's rule with the id; any other rule is a 404."""
+    rule = (
+        await db.execute(
+            select(ProductNotificationRule).where(
+                ProductNotificationRule.id == rule_id,
+                ProductNotificationRule.product_id == product_id,
+            )
+        )
+    ).scalar_one_or_none()
+    if rule is None:
+        raise HTTPException(status_code=404, detail=RULE_NOT_FOUND)
+    return rule
+
+
+async def _audit_rule(
+    db: AsyncSession, action: str, rule: ProductNotificationRule, channel_name: str
+) -> None:
+    """Record a rule change in the audit log with its product, channel and run filter."""
+    await record_audit_event(
+        db,
+        action,
+        target_type=RULE_TARGET,
+        target_id=rule.id,
+        product_id=rule.product_id,
+        details={"channel": channel_name, "run_filter": rule.run_filter},
+    )
+
+
+@router.get(
+    "/{product_id}/notification-channels",
+    response_model=List[ProductNotificationChannelOption],
+    responses=FORBIDDEN_OR_MISSING,
+)
+async def list_product_notification_channels(
+    product_id: int,
+    db: AsyncSession = Depends(get_db, scope="function"),
+    current_user: User = Depends(get_current_user),
+):
+    """The channels a rule on the product can point at, without their URL or secret."""
+    await _managed_product(db, current_user, product_id)
+    channels = (
+        (await db.execute(select(NotificationChannel).order_by(NotificationChannel.name)))
+        .scalars()
+        .all()
+    )
+    return [
+        ProductNotificationChannelOption(
+            id=channel.id, name=channel.name, format=channel.format, enabled=channel.enabled
+        )
+        for channel in channels
+    ]
+
+
+@router.get(
+    "/{product_id}/notification-rules",
+    response_model=List[ProductNotificationRuleResponse],
+    responses=FORBIDDEN_OR_MISSING,
+)
+async def list_product_notification_rules(
+    product_id: int,
+    db: AsyncSession = Depends(get_db, scope="function"),
+    current_user: User = Depends(get_current_user),
+):
+    """The product's rules, by channel name."""
+    await _managed_product(db, current_user, product_id)
+    rules = (
+        (
+            await db.execute(
+                select(ProductNotificationRule)
+                .join(
+                    NotificationChannel,
+                    NotificationChannel.id == ProductNotificationRule.channel_id,
+                )
+                .where(ProductNotificationRule.product_id == product_id)
+                .order_by(NotificationChannel.name)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    return [_rule_response(rule) for rule in rules]
+
+
+@router.post(
+    "/{product_id}/notification-rules",
+    response_model=ProductNotificationRuleResponse,
+    status_code=201,
+    responses={400: {"description": HTTPStatus(400).phrase}, **FORBIDDEN_OR_MISSING},
+)
+async def create_product_notification_rule(
+    product_id: int,
+    data: ProductNotificationRuleCreate,
+    db: AsyncSession = Depends(get_db, scope="function"),
+    current_user: User = Depends(get_current_user),
+):
+    """Post the product's finished runs to a channel, filtered by the rule's run filter."""
+    await _managed_product(db, current_user, product_id)
+    channel = await db.get(NotificationChannel, data.channel_id)
+    if channel is None:
+        raise HTTPException(status_code=404, detail="Notification channel not found")
+    taken = (
+        await db.execute(
+            select(ProductNotificationRule.id).where(
+                ProductNotificationRule.product_id == product_id,
+                ProductNotificationRule.channel_id == channel.id,
+            )
+        )
+    ).scalar_one_or_none()
+    if taken is not None:
+        raise HTTPException(
+            status_code=400, detail="The product already has a rule for this channel"
+        )
+    rule = ProductNotificationRule(
+        product_id=product_id, channel_id=channel.id, run_filter=data.run_filter
+    )
+    db.add(rule)
+    await db.flush()
+    await _audit_rule(db, "notification_rule.created", rule, channel.name)
+    await db.refresh(rule, ["channel"])
+    return _rule_response(rule)
+
+
+@router.patch(
+    "/{product_id}/notification-rules/{rule_id}",
+    response_model=ProductNotificationRuleResponse,
+    responses=FORBIDDEN_OR_MISSING,
+)
+async def update_product_notification_rule(
+    product_id: int,
+    rule_id: int,
+    data: ProductNotificationRuleUpdate,
+    db: AsyncSession = Depends(get_db, scope="function"),
+    current_user: User = Depends(get_current_user),
+):
+    """Change a rule's run filter."""
+    await _managed_product(db, current_user, product_id)
+    rule = await _rule(db, product_id, rule_id)
+    rule.run_filter = data.run_filter
+    await db.flush()
+    await _audit_rule(db, "notification_rule.updated", rule, rule.channel.name)
+    return _rule_response(rule)
+
+
+@router.delete(
+    "/{product_id}/notification-rules/{rule_id}",
+    status_code=204,
+    responses=FORBIDDEN_OR_MISSING,
+)
+async def delete_product_notification_rule(
+    product_id: int,
+    rule_id: int,
+    db: AsyncSession = Depends(get_db, scope="function"),
+    current_user: User = Depends(get_current_user),
+):
+    """Stop posting the product's runs to the rule's channel."""
+    await _managed_product(db, current_user, product_id)
+    rule = await _rule(db, product_id, rule_id)
+    await _audit_rule(db, "notification_rule.deleted", rule, rule.channel.name)
+    await db.delete(rule)
+    await db.flush()
+    return Response(status_code=204)

@@ -578,6 +578,9 @@ class PLMIntegrationSettings(BaseModel):
     bloom_token_rotated_at: Optional[datetime] = None
 
 
+RUN_FILTER_PATTERN = "^(all|failures|first_failure)$"
+
+
 class NotificationChannelResponse(BaseModel):
     """A notification channel as an administrator sees it; the URL and secret stay hidden."""
 
@@ -587,6 +590,7 @@ class NotificationChannelResponse(BaseModel):
     url_prefix: str
     run_filter: str
     enabled: bool
+    all_products: bool = True
     has_secret: bool
     created_at: datetime
 
@@ -602,8 +606,9 @@ class NotificationChannelCreate(BaseModel):
     format: str = Field(..., pattern="^(teams|slack|discord|json)$")
     url: str = Field(..., min_length=1, max_length=2000)
     secret: Optional[str] = Field(default=None, max_length=500)
-    run_filter: str = Field(default="all", pattern="^(all|failures|first_failure)$")
+    run_filter: str = Field(default="all", pattern=RUN_FILTER_PATTERN)
     enabled: bool = True
+    all_products: bool = True
 
 
 class NotificationChannelUpdate(BaseModel):
@@ -613,8 +618,43 @@ class NotificationChannelUpdate(BaseModel):
     format: Optional[str] = Field(default=None, pattern="^(teams|slack|discord|json)$")
     url: Optional[str] = Field(default=None, min_length=1, max_length=2000)
     secret: Optional[str] = Field(default=None, max_length=500)
-    run_filter: Optional[str] = Field(default=None, pattern="^(all|failures|first_failure)$")
+    run_filter: Optional[str] = Field(default=None, pattern=RUN_FILTER_PATTERN)
     enabled: Optional[bool] = None
+    all_products: Optional[bool] = None
+
+
+class ProductNotificationChannelOption(BaseModel):
+    """A channel a product rule can point at; the URL and secret stay hidden."""
+
+    id: int
+    name: str
+    format: str
+    enabled: bool
+
+
+class ProductNotificationRuleResponse(BaseModel):
+    """A product's rule: the channel its finished runs go to and the run filter."""
+
+    id: int
+    product_id: int
+    channel_id: int
+    channel_name: str
+    channel_format: str
+    channel_enabled: bool
+    run_filter: str
+
+
+class ProductNotificationRuleCreate(BaseModel):
+    """A new rule on a product."""
+
+    channel_id: int
+    run_filter: str = Field(default="all", pattern=RUN_FILTER_PATTERN)
+
+
+class ProductNotificationRuleUpdate(BaseModel):
+    """A rule's new run filter."""
+
+    run_filter: str = Field(..., pattern=RUN_FILTER_PATTERN)
 
 
 class NotificationTestResult(BaseModel):

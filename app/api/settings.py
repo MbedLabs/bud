@@ -8,13 +8,13 @@ from typing import List
 from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, HTTPException, Response
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from tenacity import wait_fixed
 
 from app.api.auth import require_permission
 from app.db import get_db
-from app.models import NotificationChannel, SystemSetting
+from app.models import NotificationChannel, ProductNotificationRule, SystemSetting
 from app.models.user import User
 from app.schemas import (
     NotificationChannelCreate,
@@ -279,6 +279,7 @@ def _channel_response(channel: NotificationChannel) -> NotificationChannelRespon
         url_prefix=channel.url_prefix,
         run_filter=channel.run_filter,
         enabled=channel.enabled,
+        all_products=channel.all_products,
         has_secret=bool(channel.secret_encrypted),
         created_at=channel.created_at,
     )
@@ -340,6 +341,7 @@ async def create_notification_channel(
         secret_encrypted=encrypt_integration_secret(data.secret) if data.secret else None,
         run_filter=data.run_filter,
         enabled=data.enabled,
+        all_products=data.all_products,
     )
     db.add(channel)
     await db.flush()
@@ -388,6 +390,8 @@ async def update_notification_channel(
         channel.run_filter = data.run_filter
     if data.enabled is not None:
         channel.enabled = data.enabled
+    if data.all_products is not None:
+        channel.all_products = data.all_products
     await record_audit_event(
         db,
         "notification_channel.updated",
@@ -410,7 +414,7 @@ async def delete_notification_channel(
     db: AsyncSession = Depends(get_db, scope="function"),
     _admin: User = Depends(require_permission("settings", "edit")),
 ):
-    """Remove a channel and its delivery history."""
+    """Remove a channel, its product rules and its delivery history."""
     channel = await _get_channel_or_404(db, channel_id)
     await record_audit_event(
         db,
@@ -418,6 +422,9 @@ async def delete_notification_channel(
         target_type="notification_channel",
         target_id=channel.id,
         details={"name": channel.name},
+    )
+    await db.execute(
+        delete(ProductNotificationRule).where(ProductNotificationRule.channel_id == channel.id)
     )
     await db.delete(channel)
     await db.commit()

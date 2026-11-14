@@ -74,3 +74,6 @@ class NotifyBase(BudAppTestCase):
 
     def bud_a_redirect_is_not_a_delivery(self):
         self.check("redirect")
+
+    def bud_product_rules_route_the_runs_of_their_product(self):
+        self.check("product rules")
