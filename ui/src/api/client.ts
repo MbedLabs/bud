@@ -757,6 +757,17 @@ export const productsApi = {
   remove: async (id: number) => {
     await api.delete(`/products/${id}`)
   },
+  notificationRules: async (id: number) =>
+    (await api.get<ProductNotificationRule[]>(`/products/${id}/notification-rules`)).data,
+  notificationChannels: async (id: number) =>
+    (await api.get<ProductNotificationChannelOption[]>(`/products/${id}/notification-channels`)).data,
+  createNotificationRule: async (id: number, data: { channel_id: number; run_filter: NotificationRunFilter }) =>
+    (await api.post<ProductNotificationRule>(`/products/${id}/notification-rules`, data)).data,
+  updateNotificationRule: async (id: number, ruleId: number, data: { run_filter: NotificationRunFilter }) =>
+    (await api.patch<ProductNotificationRule>(`/products/${id}/notification-rules/${ruleId}`, data)).data,
+  deleteNotificationRule: async (id: number, ruleId: number) => {
+    await api.delete(`/products/${id}/notification-rules/${ruleId}`)
+  },
 }
 
 export const testStationsApi = {
@@ -844,6 +855,7 @@ export interface NotificationChannel {
   url_prefix: string
   run_filter: NotificationRunFilter
   enabled: boolean
+  all_products: boolean
   has_secret: boolean
   created_at: string
 }
@@ -855,6 +867,24 @@ export interface NotificationChannelInput {
   secret?: string
   run_filter?: NotificationRunFilter
   enabled?: boolean
+  all_products?: boolean
+}
+
+export interface ProductNotificationRule {
+  id: number
+  product_id: number
+  channel_id: number
+  channel_name: string
+  channel_format: NotificationFormat
+  channel_enabled: boolean
+  run_filter: NotificationRunFilter
+}
+
+export interface ProductNotificationChannelOption {
+  id: number
+  name: string
+  format: NotificationFormat
+  enabled: boolean
 }
 
 export interface NotificationTestResult {

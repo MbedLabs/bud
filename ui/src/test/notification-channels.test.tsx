@@ -14,6 +14,7 @@ const channels = [
     url_prefix: 'https://hooks.slack.com/services/T000/B0...',
     run_filter: 'failures',
     enabled: true,
+    all_products: true,
     has_secret: false,
     created_at: '',
   },
@@ -72,6 +73,7 @@ describe('Run notifications settings', () => {
         url: 'https://example.com/hook',
         secret: undefined,
         run_filter: 'first_failure',
+        all_products: true,
       }),
     )
     expect(await screen.findByText('Channel added.')).toBeTruthy()
@@ -121,6 +123,28 @@ describe('Run notifications settings', () => {
     expect(
       await screen.findByText('qa-results did not accept the test message after 3 attempt(s): no_service.'),
     ).toBeTruthy()
+  })
+
+  it('shows and switches whether a channel takes every product', async () => {
+    renderIt()
+    await screen.findByText('qa-results')
+    expect(screen.getByText('All products', { selector: 'p' })).toBeTruthy()
+    fireEvent.click(screen.getByLabelText('All products for qa-results'))
+    await waitFor(() => expect(api.notificationsApi.updateChannel).toHaveBeenCalledWith(4, { all_products: false }))
+  })
+
+  it('adds a channel for product rules only', async () => {
+    renderIt()
+    await screen.findByText('qa-results')
+    const allProducts = screen.getByRole('checkbox', { name: 'All products' }) as HTMLInputElement
+    expect(allProducts.checked).toBe(true)
+    fireEvent.click(allProducts)
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'demo' } })
+    fireEvent.change(screen.getByLabelText('Webhook URL'), { target: { value: 'https://example.com/demo' } })
+    fireEvent.click(screen.getByText('Add channel'))
+    await waitFor(() =>
+      expect(api.notificationsApi.createChannel).toHaveBeenCalledWith(expect.objectContaining({ name: 'demo', all_products: false })),
+    )
   })
 
   it('disables and deletes a channel', async () => {

@@ -5,8 +5,9 @@ import { useAuth } from '../contexts/AuthContext'
 import { can, canManageAccess } from '../lib/access'
 import AccessDenied from '../components/AccessDenied'
 import ProductMembers from '../components/ProductMembers'
+import ProductNotificationRules from '../components/ProductNotificationRules'
 
-/** One product: its name, status and description, and the people holding each group on it. */
+/** One product: its name, status and description, the people holding each group on it and its notification rules. */
 export default function ProductDetail() {
   const { id } = useParams<{ id: string }>()
   const productId = Number(id)
@@ -37,6 +38,7 @@ export default function ProductDetail() {
       ) : (
         <p className="text-sm text-muted-foreground">Access management is required to see and change the members of this product.</p>
       )}
+      <ProductNotificationRules productId={product.id} />
     </div>
   )
 }
