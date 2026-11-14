@@ -18,17 +18,18 @@ from sqlalchemy import (
     String,
     Table,
     Text,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.database import Base
 
+ACCESS_GROUPS_ID = "access_groups.id"
+
 access_group_policies = Table(
     "access_group_policies",
     Base.metadata,
-    Column(
-        "group_id", Integer, ForeignKey("access_groups.id", ondelete="CASCADE"), primary_key=True
-    ),
+    Column("group_id", Integer, ForeignKey(ACCESS_GROUPS_ID, ondelete="CASCADE"), primary_key=True),
     Column("policy_id", Integer, ForeignKey("policies.id"), primary_key=True),
 )
 
@@ -77,7 +78,7 @@ class AccessGroupMember(Base):
     __tablename__ = "access_group_members"
 
     group_id: Mapped[int] = mapped_column(
-        ForeignKey("access_groups.id", ondelete="CASCADE"), primary_key=True
+        ForeignKey(ACCESS_GROUPS_ID, ondelete="CASCADE"), primary_key=True
     )
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), primary_key=True, index=True
@@ -85,3 +86,26 @@ class AccessGroupMember(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     group: Mapped[AccessGroup] = relationship(back_populates="members")
+
+
+class ProductAccess(Base):
+    """A group a user holds on one product."""
+
+    __tablename__ = "product_access"
+    __table_args__ = (
+        UniqueConstraint(
+            "product_id", "user_id", "group_id", name="uq_product_access_product_user_group"
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    product_id: Mapped[int] = mapped_column(
+        ForeignKey("products.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    group_id: Mapped[int] = mapped_column(
+        ForeignKey(ACCESS_GROUPS_ID, ondelete="CASCADE"), index=True, nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

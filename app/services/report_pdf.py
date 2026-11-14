@@ -69,11 +69,15 @@ class Outcome:
 
 @dataclass
 class Breakdown:
-    """A titled table of outcomes - per suite, per station, or per time bucket."""
+    """A titled table of outcomes - per suite, per station, or per time bucket.
+
+    total_heading is the heading of the total column, naming what the table counts.
+    """
 
     title: str
     label_heading: str
     rows: list[tuple[str, Outcome]] = field(default_factory=list)
+    total_heading: str = "Total"
 
 
 @dataclass
@@ -121,6 +125,7 @@ class ReportRequest:
     filters: list[tuple[str, str]]
     overall: Outcome
     breakdowns: list[Breakdown] = field(default_factory=list)
+    tests: Optional[Breakdown] = None
     run: Optional[RunDetail] = None
     assertions: list[AssertionDetail] = field(default_factory=list)
     generated_at: Optional[datetime] = None
@@ -174,8 +179,8 @@ class OutcomePie(Flowable):
         self.width = width
         self.height = height
 
-    def wrap(self, availWidth, availHeight):  # noqa: N802
-        self.width = min(self.width, availWidth)
+    def wrap(self, avail_width, avail_height):
+        self.width = min(self.width, avail_width)
         return self.width, self.height
 
     def draw(self):
@@ -192,7 +197,7 @@ class OutcomePie(Flowable):
                 String(
                     4,
                     self.height / 2,
-                    "No test outcomes recorded for this selection.",
+                    "No assertion outcomes recorded for this selection.",
                     fontName="Helvetica-Oblique",
                     fontSize=10,
                     fillColor=MUTED,
@@ -234,7 +239,14 @@ class OutcomePie(Flowable):
 
 
 def _outcome_table(breakdown: Breakdown, styles: dict[str, ParagraphStyle]) -> Table:
-    header = [breakdown.label_heading, "Total", "Passed", "Failed", "Skipped", "Pass rate"]
+    header = [
+        breakdown.label_heading,
+        breakdown.total_heading,
+        "Passed",
+        "Failed",
+        "Skipped",
+        "Pass rate",
+    ]
     data: list[Sequence[object]] = [header]
     for label, outcome in breakdown.rows:
         data.append(
@@ -250,7 +262,7 @@ def _outcome_table(breakdown: Breakdown, styles: dict[str, ParagraphStyle]) -> T
     if not breakdown.rows:
         data.append([Paragraph("Nothing recorded.", styles["body"]), "", "", "", "", ""])
 
-    table = Table(data, colWidths=[None, 46, 46, 46, 46, 56], repeatRows=1, hAlign="LEFT")
+    table = Table(data, colWidths=[None, 76, 46, 46, 46, 56], repeatRows=1, hAlign="LEFT")
     table.setStyle(
         TableStyle(
             [
@@ -278,6 +290,29 @@ def _display(value: object) -> str:
     return str(value)
 
 
+def _outcome_cell(passed: Optional[bool]) -> tuple[str, str]:
+    """The outcome label of an assertion and its colour: Passed, Failed or Skipped."""
+    if passed is True:
+        return "Passed", "#16a34a"
+    if passed is False:
+        return "Failed", "#dc2626"
+    return "Skipped", "#f59e0b"
+
+
+def _evidence(assertion: AssertionDetail) -> list[str]:
+    """The evidence lines of an assertion: its message, source, metadata and trace, escaped."""
+    evidence = []
+    if assertion.message:
+        evidence.append(escape(assertion.message))
+    if assertion.source:
+        evidence.append(f"<b>Source:</b> {escape(assertion.source)}")
+    if assertion.metadata not in (None, {}, []):
+        evidence.append(f"<b>Metadata:</b> {escape(_display(assertion.metadata))}")
+    if assertion.traceback:
+        evidence.append(f"<b>Trace:</b> {escape(assertion.traceback)}")
+    return evidence
+
+
 def _assertions_table(
     assertions: list[AssertionDetail], styles: dict[str, ParagraphStyle]
 ) -> Table:
@@ -288,23 +323,8 @@ def _assertions_table(
         ["Test / method", "Assertion", "Outcome", "Expected", "Actual", "Evidence"]
     ]
     for assertion in assertions:
-        if assertion.passed is True:
-            outcome, colour = "Passed", "#16a34a"
-        elif assertion.passed is False:
-            outcome, colour = "Failed", "#dc2626"
-        else:
-            outcome, colour = "Skipped", "#f59e0b"
-
-        evidence = []
-        if assertion.message:
-            evidence.append(escape(assertion.message))
-        if assertion.source:
-            evidence.append(f"<b>Source:</b> {escape(assertion.source)}")
-        if assertion.metadata not in (None, {}, []):
-            evidence.append(f"<b>Metadata:</b> {escape(_display(assertion.metadata))}")
-        if assertion.traceback:
-            evidence.append(f"<b>Trace:</b> {escape(assertion.traceback)}")
-
+        outcome, colour = _outcome_cell(assertion.passed)
+        evidence = _evidence(assertion)
         data.append(
             [
                 Paragraph(
@@ -555,9 +575,20 @@ def render_report(request: ReportRequest, company_logo=None) -> bytes:
             ]
         )
 
+    if request.tests is not None:
+        story.append(
+            KeepTogether(
+                [
+                    Paragraph(request.tests.title, styles["h2"]),
+                    _outcome_table(request.tests, styles),
+                    Spacer(1, 4 * mm),
+                ]
+            )
+        )
+
     story.extend(
         [
-            Paragraph("Outcomes", styles["h2"]),
+            Paragraph("Assertion outcomes", styles["h2"]),
             Paragraph(
                 f"{request.overall.total} assertions &middot; "
                 f"{request.overall.passed} passed &middot; "

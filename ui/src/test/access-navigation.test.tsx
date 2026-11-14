@@ -50,22 +50,33 @@ describe('Access page', () => {
     expect(screen.getByRole('link', { name: 'Users' }).getAttribute('href')).toBe('/users')
   })
 
+  it('shows the Products sidebar link to a user with products view', () => {
+    auth.user.role = 'viewer'
+    auth.user.permissions = ['products.view']
+    renderPage(<Layout />)
+    expect(screen.getByRole('link', { name: 'Products' }).getAttribute('href')).toBe('/products')
+  })
+
+  it('hides the Products sidebar link from a user without products view', () => {
+    auth.user.role = 'viewer'
+    renderPage(<Layout />)
+    expect(screen.queryByRole('link', { name: 'Products' })).toBeNull()
+  })
+
   it('marks the Access link with the shield check icon', () => {
     renderPage(<Layout />)
     expect(screen.getByRole('link', { name: 'Access' }).querySelector('svg')?.getAttribute('class')).toContain('lucide-shield-check')
   })
 
-  it('has assignments, Groups, Policies and Requests without account administration', async () => {
+  it('has Groups, Policies and Requests and no Assignments tab or account administration', async () => {
     renderPage(<Access />)
     expect(screen.getAllByRole('tab').map((tab) => tab.textContent?.replace(/\d+$/, ''))).toEqual([
-      'Assignments',
       'Groups',
       'Policies',
       'Requests',
     ])
     expect(screen.queryByRole('button', { name: 'Invite User' })).toBeNull()
-    expect(screen.getByText('Groups per user control')).toBeTruthy()
-    fireEvent.click(screen.getByRole('tab', { name: 'Groups' }))
+    expect(screen.queryByText('Groups per user control')).toBeNull()
     expect(screen.getByText('Groups control')).toBeTruthy()
     fireEvent.click(screen.getByRole('tab', { name: 'Policies' }))
     expect(screen.getByText('Policies control editable')).toBeTruthy()
@@ -74,17 +85,18 @@ describe('Access page', () => {
     expect(await screen.findByText('1')).toBeTruthy()
   })
 
-  it('opens the existing Users route and switches to Access without mixing the views', async () => {
+  it('shows the application groups on Users and the groups on Access without mixing the views', async () => {
     renderPage(<App />, '/users')
     expect(await screen.findByRole('button', { name: 'Invite User' })).toBeTruthy()
-    expect(screen.queryByText('Groups per user control')).toBeNull()
+    expect(await screen.findByText('Groups per user control')).toBeTruthy()
     expect(screen.queryByRole('tab')).toBeNull()
     fireEvent.click(screen.getByRole('link', { name: 'Access' }))
-    expect(await screen.findByText('Groups per user control')).toBeTruthy()
+    expect(await screen.findByText('Groups control')).toBeTruthy()
+    expect(screen.queryByText('Groups per user control')).toBeNull()
     expect(screen.queryByRole('button', { name: 'Invite User' })).toBeNull()
     fireEvent.click(screen.getByRole('link', { name: 'Users' }))
     expect(await screen.findByRole('button', { name: 'Invite User' })).toBeTruthy()
-    expect(screen.queryByText('Groups per user control')).toBeNull()
+    expect(screen.queryByText('Groups control')).toBeNull()
   })
 
   it('does not give an Access Manager the account-management route', async () => {
@@ -103,7 +115,7 @@ describe('Access page', () => {
     expect(screen.getByRole('link', { name: 'Access' })).toBeTruthy()
     expect(screen.queryByRole('link', { name: 'Users' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Invite User' })).toBeNull()
-    expect(screen.getByText('Groups per user control')).toBeTruthy()
+    expect(screen.getByText('Groups control')).toBeTruthy()
     fireEvent.click(screen.getByRole('tab', { name: 'Policies' }))
     expect(screen.getByText('Policies control read-only')).toBeTruthy()
   })

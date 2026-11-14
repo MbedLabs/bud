@@ -26,16 +26,50 @@ class ProductBase(BaseModel):
     openproject_id: Optional[str] = None
 
 
+class ProductStatus(str, Enum):
+    """Product status values."""
+
+    ACTIVE = "Active"
+    ARCHIVED = "Archived"
+
+
 class ProductCreate(ProductBase):
     """Schema for creating a product."""
 
     pass
 
 
+class ProductUpdate(BaseModel):
+    """Schema for changing a product's name, description or status."""
+
+    name: Optional[str] = Field(default=None, min_length=1, max_length=255)
+    description: Optional[str] = None
+    status: Optional[ProductStatus] = None
+
+
+class ProductMemberResponse(BaseModel):
+    """A user holding a group on a product."""
+
+    user_id: int
+    email: str
+    full_name: str
+    role: str
+    profile_picture_url: Optional[str] = None
+    group_id: int
+    group_name: str
+
+
+class ProductGroupMembers(BaseModel):
+    """The users who are to hold a group on a product."""
+
+    user_ids: List[int] = Field(default_factory=list, max_length=1000)
+
+
 class ProductResponse(ProductBase):
     """Schema for product response."""
 
     id: int
+    status: ProductStatus = ProductStatus.ACTIVE
     created_at: datetime
     updated_at: datetime
 
@@ -265,8 +299,12 @@ class TestRunList(BaseModel):
 class TestRunStats(BaseModel):
     """Aggregate run and test-case counters behind the dashboard tiles.
 
-    The pass rate is the share of decided (passed or failed) runs that passed; pending runs
-    are left out.
+    The run pass rate is the share of decided (passed or failed) runs that passed; pending runs
+    are left out. total_tests, passed_tests, failed_tests and skipped_tests count test
+    executions, every test case of every matching run; test_pass_rate is passed executions out
+    of all executions. The distinct_* fields count each test case (test class) once, with the
+    outcome of its latest matching run; distinct_test_pass_rate is passed distinct tests out of
+    all distinct tests.
     """
 
     total_runs: int
@@ -279,6 +317,11 @@ class TestRunStats(BaseModel):
     failed_tests: int
     skipped_tests: int
     test_pass_rate: float
+    distinct_tests: int
+    distinct_passed_tests: int
+    distinct_failed_tests: int
+    distinct_skipped_tests: int
+    distinct_test_pass_rate: float
 
 
 class TestRunFilterOptions(BaseModel):
@@ -535,6 +578,9 @@ class PLMIntegrationSettings(BaseModel):
     bloom_token_rotated_at: Optional[datetime] = None
 
 
+RUN_FILTER_PATTERN = "^(all|failures|first_failure)$"
+
+
 class NotificationChannelResponse(BaseModel):
     """A notification channel as an administrator sees it; the URL and secret stay hidden."""
 
@@ -544,6 +590,7 @@ class NotificationChannelResponse(BaseModel):
     url_prefix: str
     run_filter: str
     enabled: bool
+    all_products: bool = True
     has_secret: bool
     created_at: datetime
 
@@ -559,8 +606,9 @@ class NotificationChannelCreate(BaseModel):
     format: str = Field(..., pattern="^(teams|slack|discord|json)$")
     url: str = Field(..., min_length=1, max_length=2000)
     secret: Optional[str] = Field(default=None, max_length=500)
-    run_filter: str = Field(default="all", pattern="^(all|failures|first_failure)$")
+    run_filter: str = Field(default="all", pattern=RUN_FILTER_PATTERN)
     enabled: bool = True
+    all_products: bool = True
 
 
 class NotificationChannelUpdate(BaseModel):
@@ -570,8 +618,43 @@ class NotificationChannelUpdate(BaseModel):
     format: Optional[str] = Field(default=None, pattern="^(teams|slack|discord|json)$")
     url: Optional[str] = Field(default=None, min_length=1, max_length=2000)
     secret: Optional[str] = Field(default=None, max_length=500)
-    run_filter: Optional[str] = Field(default=None, pattern="^(all|failures|first_failure)$")
+    run_filter: Optional[str] = Field(default=None, pattern=RUN_FILTER_PATTERN)
     enabled: Optional[bool] = None
+    all_products: Optional[bool] = None
+
+
+class ProductNotificationChannelOption(BaseModel):
+    """A channel a product rule can point at; the URL and secret stay hidden."""
+
+    id: int
+    name: str
+    format: str
+    enabled: bool
+
+
+class ProductNotificationRuleResponse(BaseModel):
+    """A product's rule: the channel its finished runs go to and the run filter."""
+
+    id: int
+    product_id: int
+    channel_id: int
+    channel_name: str
+    channel_format: str
+    channel_enabled: bool
+    run_filter: str
+
+
+class ProductNotificationRuleCreate(BaseModel):
+    """A new rule on a product."""
+
+    channel_id: int
+    run_filter: str = Field(default="all", pattern=RUN_FILTER_PATTERN)
+
+
+class ProductNotificationRuleUpdate(BaseModel):
+    """A rule's new run filter."""
+
+    run_filter: str = Field(..., pattern=RUN_FILTER_PATTERN)
 
 
 class NotificationTestResult(BaseModel):

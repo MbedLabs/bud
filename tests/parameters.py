@@ -1,0 +1,3291 @@
+"""
+* @file     ${tests/parameters.py}
+* @copyright © EmbedLabs, Aachen ${2026} - all rights reserved
+* @brief    Constants of Bud's tests: drawn test data, expected values and messages.
+* @author   Amine El Omari
+* @date     2026-11-07
+* @version  1.0.0
+* @note     Test data is drawn from SEED; BUDTEST_SEED repeats a run with the same data.
+"""
+
+import os
+import random
+import string
+from datetime import datetime, timedelta, timezone
+
+SEED = int(os.environ.get("BUDTEST_SEED") or random.SystemRandom().randrange(1, 10**9))
+_draw = random.Random(SEED)
+
+
+def _letters(alphabet: str, low: int, high: int) -> str:
+    """A drawn word of ``low`` to ``high`` letters from ``alphabet``."""
+    return "".join(_draw.choices(alphabet, k=_draw.randint(low, high)))
+
+
+def _name() -> str:
+    """A drawn capitalised name."""
+    return _letters(string.ascii_uppercase, 1, 1) + _letters(string.ascii_lowercase, 4, 8)
+
+
+DATABASE = "sqlite+aiosqlite:///:memory:"
+API_BASE = "http://bud.test"
+TEST_RUNS_PREFIX = "/api/test-runs"
+STATS_PATH = "/stats"
+STATUS_OK = 200
+RUN_COMPLETED = "Completed"
+
+ADMIN_ID = _draw.randrange(1, 1000)
+ADMIN_EMAIL = f"{_letters(string.ascii_lowercase, 5, 8)}@example.com"
+STATION_ACCOUNT = f"station-{_letters(string.ascii_lowercase, 4, 8)}"
+STATION_PASSWORD_HASH = _letters(string.ascii_letters, 16, 32)
+STATION_TOKEN = _letters(string.ascii_letters + string.digits, 24, 32)
+
+PASSED = "passed"
+FAILED = "failed"
+SKIPPED = "skipped"
+SUITE = _name()
+OTHER_SUITE = SUITE + _name()
+LATEST_PASSED = _draw.randint(1, 4)
+LATEST_FAILED = _draw.randint(1, 4)
+LATEST_SKIPPED = _draw.randint(1, 4)
+DISTINCT_TESTS = LATEST_PASSED + LATEST_FAILED + LATEST_SKIPPED
+TEST_CLASSES = [f"{_name()}{index}Tests" for index in range(DISTINCT_TESTS)]
+LATEST_OUTCOMES = _draw.sample(
+    [PASSED] * LATEST_PASSED + [FAILED] * LATEST_FAILED + [SKIPPED] * LATEST_SKIPPED,
+    DISTINCT_TESTS,
+)
+EARLIER_OUTCOME = {PASSED: FAILED, FAILED: PASSED, SKIPPED: PASSED}
+EARLIER_OUTCOMES = [EARLIER_OUTCOME[outcome] for outcome in LATEST_OUTCOMES]
+RUN_COUNT = _draw.randint(2, 5)
+METHODS_PER_CLASS = _draw.randint(1, 3)
+OTHER_SUITE_CLASSES = [f"{_name()}{index}OtherTests" for index in range(_draw.randint(1, 3))]
+FIRST_RUN_AT = datetime(2025, 1, 1) + timedelta(minutes=_draw.randrange(0, 365 * 24 * 60))
+RUN_SPACING = timedelta(minutes=_draw.randint(1, 60))
+DISTINCT_PASS_RATE = round(LATEST_PASSED / DISTINCT_TESTS * 100, 1)
+TEST_EXECUTIONS = RUN_COUNT * DISTINCT_TESTS
+
+MSG_STATS_ANSWER = "the run statistics answer"
+MSG_DISTINCT_ONCE = "each test of the suite is counted once however often it ran"
+MSG_DISTINCT_LATEST = (
+    "each distinct test takes the outcome of its latest run, ties to the newer run"
+)
+MSG_DISTINCT_RATE = "the distinct test pass rate is passed distinct tests out of all of them"
+MSG_EXECUTIONS = "test executions count every test of every run"
+MSG_SUITE_FILTER = "without a suite filter the other suite's tests are counted too"
+
+WORK_DIR_SETTING = "BUDTEST_WORK_DIR"
+APP_DATABASE_FOLDER = "bud-app"
+APP_DATABASE_FILE = "test.db"
+TEST_ADMIN_ID = 1
+TEST_ADMIN_EMAIL = "tester@example.com"
+TEST_ADMIN_NAME = "Tester"
+TEST_ADMIN_PASSWORD_HASH = "not-used"
+TEST_STATION_ACCOUNT = "station-01"
+TEST_STATION_PASSWORD_HASH = "x"
+TEST_STATION_TOKEN = "station-token"
+TEST_STATION_PORT = 53035
+TEST_STATION_RUN = "station-run"
+EMPTY_TEST_LIST = "[]"
+RUN_RUNNING = "Running"
+UPLOADS_PATH = "/api/uploads"
+
+DOCKERFILE = "Dockerfile"
+DOCKERFILE_FROM = "FROM "
+DOCKERFILE_UI_BUILD = " AS ui-build"
+DOCKERFILE_UI_BUILD_STAGES = 1
+DOCKERFILE_BUILD_PLATFORM = "--platform=$BUILDPLATFORM"
+MSG_DOCKERFILE_ONE_UI_BUILD = "the Dockerfile has exactly one ui-build stage"
+MSG_DOCKERFILE_BUILD_PLATFORM = "the ui-build stage runs on the build platform"
+
+TIMESTAMP_NAIVE = datetime(2026, 9, 27, 12, 34, 56, 789)
+TIMESTAMP_AWARE = datetime(2026, 9, 27, 14, 34, 56, tzinfo=timezone(timedelta(hours=2)))
+TIMESTAMP_TEXT = "2026-09-27 12:34:56 UTC"
+TIMESTAMP_NONE_TEXT = ""
+MSG_TIMESTAMP_SECONDS = "a time is written in UTC to the second"
+MSG_TIMESTAMP_NONE = "no time is written as an empty text"
+MSG_TIMESTAMP_AWARE = "a time with an offset is converted to UTC"
+
+GET = "GET"
+POST = "POST"
+HEALTH_PATH = "/api/health"
+READY_PATH = "/api/ready"
+HEALTH_HEALTHY = "healthy"
+HEALTH_READY = "ready"
+DATABASE_CONNECTED = "connected"
+MSG_HEALTH_ANSWERS = "the liveness probe answers"
+MSG_HEALTH_HEALTHY = "the liveness probe reports healthy"
+MSG_HEALTH_NO_DATABASE = "the liveness probe does not claim a connected database"
+MSG_READY_ANSWERS = "the readiness probe answers"
+MSG_READY_READY = "the readiness probe reports ready"
+MSG_READY_DATABASE = "the readiness probe reports the database connected"
+
+APP_UPLOAD_FOLDER = "uploads"
+STATUS_CREATED = 201
+UPLOAD_PATH = "/api/uploads/{}"
+HTML_REPORT_NAME = "log.html"
+HTML_REPORT_CONTENT = b"<html><script>alert(1)</script></html>"
+HTML_TYPE = "text/html"
+ATTACHMENT_PATTERN = "^attachment;"
+HTML_REPORT_FILENAME = 'filename="log.html"'
+SANDBOX_POLICY = "sandbox"
+NO_SNIFF = "nosniff"
+MSG_HTML_ACCEPTED = "a station uploads an HTML report"
+MSG_HTML_TYPE = "the uploaded HTML report keeps its content type"
+MSG_HTML_DOWNLOADS = "the HTML report downloads"
+MSG_HTML_ATTACHMENT = "the HTML report downloads as an attachment"
+MSG_HTML_FILENAME = "the download keeps the report's file name"
+MSG_HTML_SANDBOX = "a browser that renders the download renders it sandboxed"
+MSG_HTML_NOSNIFF = "a browser does not sniff the download's content type"
+
+LOG_CAPTURE_CAPACITY = 100000
+INVITE_INFO_PATH = "/api/auth/invite-info"
+INVITE_INFO_QUERY_PATH = "/api/auth/invite-info?token={}"
+ONE_TIME_TOKEN = "SUPERSECRET-DO-NOT-LOG-0123456789abcdef"
+APP_LOGGERS = ("bud", "app")
+MSG_TOKEN_REQUEST_LOGGED = "the application's own log records record the request"
+MSG_TOKEN_NOT_LOGGED = "a one-time token in the body or the query string never reaches the logs"
+
+REPORT_RESULT_CLASS = "Bench"
+REPORT_RESULT_METHOD = "Measures within limit"
+REPORT_RESULT_ENTRIES = [
+    {"passed": True, "assertion_type": "AssertEqual"},
+    {"passed": True, "skipped": True, "assertion_type": "Skip", "message": "no probe"},
+    {"passed": True, "info": True, "assertion_type": "Log"},
+    {"passed": False, "assertion_type": "AssertIn"},
+]
+REPORT_ASSERTION_ROWS = [("AssertEqual", True), ("AssertIn", False)]
+REPORT_ASSERTION_OUTCOME = (1, 1, 0)
+MSG_REPORT_ROWS = "the run report's assertion rows leave out skipped and information entries"
+MSG_REPORT_OUTCOME = "the assertion outcome counts one passed and one failed assertion"
+
+NONE_TYPE = "NoneType"
+TOKEN_SUBJECT = "user@example.com"
+TOKEN_LIFETIME = timedelta(minutes=5)
+TOKEN_EXPIRY_CLAIM = "exp"
+STATION_TOKEN_ACCOUNT = "station-01"
+STATION_TOKEN_TYPE = "runner"
+MSG_ACCESS_TOKEN_DECODES = "an access token decodes with the secret key"
+MSG_ACCESS_TOKEN_SUBJECT = "an access token keeps its subject"
+MSG_ACCESS_TOKEN_EXPIRES = "an access token carries its expiry"
+MSG_STATION_TOKEN_DECODES = "a Test Station token decodes with the secret key"
+MSG_STATION_TOKEN_SUBJECT = "a Test Station token names its account"
+MSG_STATION_TOKEN_TYPE = "a Test Station token is a runner token"
+
+CLOUDRON_MANIFEST = "cloudron/CloudronManifest.json"
+CLOUDRON_DESCRIPTION = "cloudron/DESCRIPTION.md"
+CLOUDRON_CHANGELOG = "cloudron/CHANGELOG"
+PYPROJECT = "pyproject.toml"
+CLOUDRON_TITLE = "Bud TMP by EmbedLabs"
+CLOUDRON_TAGLINE = "Automated software, hardware and system testing"
+CLOUDRON_DESCRIPTION_TEXT = (
+    "Bud TMP by EmbedLabs provides test management and execution for automated "
+    "software, hardware and system testing.\n\n"
+    "Manage Test Stations and execution requests, collect results and artifacts, "
+    "generate reports, and publish completed run reports to Bloom PLM. Manage users "
+    "and policy groups, customize report branding, and receive run notifications."
+)
+CLOUDRON_EMBEDDED = "embedded"
+CLOUDRON_SELF_HOSTED = "self-hosted"
+CLOUDRON_VERSION_SECTION = "[{}]\n"
+CLOUDRON_VERSION_HEADER = r"^\[(\d+(?:\.\d+){0,2})[^\]]*\]$"
+MSG_CLOUDRON_TITLE = "the Cloudron title is the product name"
+MSG_CLOUDRON_TAGLINE = "the Cloudron tagline is the product positioning"
+MSG_CLOUDRON_DESCRIPTION = "the Cloudron description is the product positioning"
+MSG_CLOUDRON_MANIFEST_EMBEDDED = "the Cloudron manifest does not call the product embedded"
+MSG_CLOUDRON_DESCRIPTION_EMBEDDED = "the Cloudron description does not call the product embedded"
+MSG_CLOUDRON_SELF_HOSTED = "the Cloudron description does not call the product self-hosted"
+MSG_CLOUDRON_VERSION = "the Cloudron package version is the product version"
+MSG_CLOUDRON_UPSTREAM = "the Cloudron upstream version is the product version"
+MSG_CLOUDRON_SECTION = "the Cloudron changelog has a section for the product version"
+MSG_CLOUDRON_HEADER = "the Cloudron changelog opens with a version header"
+MSG_CLOUDRON_NEWEST = "the changelog's first version is the product version or a later one"
+
+AUDIT_ACTOR_USER = "user"
+AUDIT_OLD_ACTION = "old"
+AUDIT_NEW_ACTION = "new"
+AUDIT_OLD_AGE = timedelta(days=40)
+AUDIT_NEW_AGE = timedelta(days=5)
+AUDIT_RETENTION_DAYS = 30
+AUDIT_PRUNED = 1
+AUDIT_LEFT = ["new"]
+MSG_AUDIT_PRUNED = "the prune removes the one event older than the retention"
+MSG_AUDIT_LEFT = "the event inside the retention is kept"
+
+RESPONSE_MODEL_PACKAGES = ("app.schemas", "app.api")
+RESPONSE_MODEL_SUFFIXES = ("Response", "Summary", "Item", "Entry", "Created")
+RESPONSE_MODELS_AT_LEAST = 20
+RESPONSE_MODEL_API_PREFIX = "app.api."
+RESPONSE_UNMARKED = []
+MSG_RESPONSE_SCAN_COUNT = "the scan finds more than 20 response models"
+MSG_RESPONSE_SCAN_API = "the scan finds response models declared in app.api"
+MSG_RESPONSE_UTC = "every timestamp a response model carries has the UTC serializer"
+
+START_SCRIPT = "docker/start.sh"
+SUPERVISORD_CONF = "docker/supervisord.conf"
+START_SUPERVISORD = 'exec gosu "$APP_USER" /usr/local/bin/supervisord -c /etc/supervisord.conf'
+START_SUPERVISORD_PREFIX = 'exec gosu "$APP_USER" /usr/local/bin/supervisord'
+START_SUPERVISORD_TIMES = 1
+START_APP_USER = "APP_USER=appuser"
+START_FD_LOOP = "for fd in 1 2; do"
+START_FD_WRITABLE = 'if ! gosu "$APP_USER" test -w "/proc/self/fd/$fd"; then'
+START_FD_CHOWN = 'chown "$APP_UID:$APP_GID" "/proc/self/fd/$fd"'
+START_CLOUDRON_BLOCK = 'if [ -n "${CLOUDRON_APP_ORIGIN:-}" ]; then'
+START_CLOUDRON_ELSE = "\nelse\n"
+START_DATA_CHOWN = 'chown -R "$APP_UID:$APP_GID" /app/data'
+START_MIGRATION = 'gosu "$APP_USER" alembic upgrade head'
+SUPERVISORD_ROOT = "user=root"
+SUPERVISORD_PIDFILE = "pidfile=/run/bud/supervisord.pid"
+DOCKERFILE_ROOT_USER = r"(?m)^USER root$"
+DOCKERFILE_NGINX_USER = "user appuser;"
+DOCKERFILE_NGINX_USER_DROP = "-e '/^[[:space:]]*user[[:space:]]/d'"
+MSG_START_LAST = "start.sh ends by replacing the shell with supervisord run as appuser"
+MSG_START_ONCE = "start.sh starts supervisord once"
+MSG_START_APP_USER = "start.sh runs the app as appuser"
+MSG_START_FD_LOOP = "start.sh goes through the container's output descriptors 1 and 2"
+MSG_START_FD_WRITABLE = "start.sh checks whether appuser can write each descriptor"
+MSG_START_FD_CHOWN = "start.sh gives a descriptor appuser cannot write to appuser"
+MSG_START_FD_FIRST = "the descriptors are given to appuser before supervisord starts"
+MSG_START_DATA_CHOWN = "on Cloudron start.sh gives every file under /app/data to appuser"
+MSG_START_DATA_FIRST = "on Cloudron /app/data is given to appuser before the migration runs"
+MSG_SUPERVISORD_ROOT = "supervisord has no root user setting"
+MSG_SUPERVISORD_PIDFILE = "supervisord keeps its pid file in the appuser runtime folder"
+MSG_DOCKERFILE_ROOT = "the image starts as root"
+MSG_DOCKERFILE_NGINX_USER = "the Dockerfile writes no nginx user directive for appuser"
+MSG_DOCKERFILE_NGINX_DROP = "the Dockerfile removes the user directive from nginx.conf"
+
+TOKEN_HS256 = {"alg": "HS256", "typ": "JWT"}
+TOKEN_HASHES = {"HS256": "sha256", "HS512": "sha512"}
+TOKEN_USER_ID = "7"
+TOKEN_USER_TYPE = "user"
+TOKEN_STATION_TYPE = "runner"
+TOKEN_VERSION = 1
+TOKEN_VALID_MINUTES = 5
+TOKEN_STATION_EXPIRED_MINUTES = -60
+TOKEN_STATION_JTI = "abc"
+TOKEN_REFUSED_CASES = {
+    "expired HS256": ({"alg": "HS256", "typ": "JWT"}, -5),
+    "HS512": ({"alg": "HS512", "typ": "JWT"}, 5),
+    "none": ({"alg": "none", "typ": "JWT"}, 5),
+}
+MSG_TOKEN_HS256 = "a standard HS256 token decodes"
+MSG_TOKEN_ISSUED = "a token Bud issues decodes"
+MSG_TOKEN_REFUSED = "an expired token or a token with another algorithm does not decode"
+MSG_TOKEN_STATION_EXPIRED = "an expired Test Station token does not decode with the expiry check"
+MSG_TOKEN_STATION_NO_CHECK = "an expired Test Station token decodes without the expiry check"
+
+METRICS_PATH = "/api/metrics"
+REQUEST_ID_HEADER = "X-Request-ID"
+REQUEST_ID_MIN_LENGTH = 16
+REQUEST_ID_INCOMING = "trace-me-123"
+METRICS_TEXT_TYPE = "text/plain"
+METRICS_REQUESTS = "http_requests_total"
+METRICS_DURATION = "http_request_duration_seconds"
+METRICS_HEALTH_PATH = 'path="/health"'
+STATUS_NOT_FOUND = 404
+LOG_RECORD_LOGGER = "bud.test"
+LOG_RECORD_MESSAGE = "hello %s"
+LOG_RECORD_ARGUMENT = "world"
+LOG_RECORD_TEXT = "hello world"
+LOG_RECORD_LEVEL = "INFO"
+LOG_REQUEST_ID = "req-abc"
+LOG_HANDLERS = 1
+LOG_JSON_FORMATTER = "JsonLogFormatter"
+MSG_REQUEST_ID_ANSWER = "the liveness probe answers"
+MSG_REQUEST_ID_GENERATED = "the response carries a generated request id"
+MSG_REQUEST_ID_LENGTH = "a generated request id has at least 16 characters"
+MSG_REQUEST_ID_PROPAGATED = "an incoming request id is passed on in the response"
+MSG_METRICS_ANSWER = "the metrics endpoint answers"
+MSG_METRICS_TYPE = "the metrics are in the Prometheus text format"
+MSG_METRICS_REQUESTS = "the metrics count the requests"
+MSG_METRICS_DURATION = "the metrics measure the request duration"
+MSG_METRICS_HEALTH = "the metrics name the probe's path"
+MSG_METRICS_DISABLED = "disabled metrics are not found"
+MSG_LOG_MESSAGE = "a JSON log line carries the formatted message"
+MSG_LOG_LEVEL = "a JSON log line carries the level"
+MSG_LOG_LOGGER = "a JSON log line carries the logger"
+MSG_LOG_REQUEST_ID = "a JSON log line carries the request id"
+MSG_LOG_HANDLERS = "setting up logging twice leaves one root handler"
+MSG_LOG_FORMATTER = "the root handler writes JSON"
+
+USER_PATH = "/api/users/{}"
+DELETE = "DELETE"
+STATUS_NO_CONTENT = 204
+STATUS_BAD_REQUEST = 400
+USER_HASH = "hash"
+USER_DELETED_EMAIL = "to_delete@example.com"
+USER_DELETED_NAME = "To Delete"
+USER_INVITE_HASH = "some-hash"
+USER_INVITE_LIFETIME = timedelta(hours=1)
+USER_INVITER_EMAIL = "inviter@example.com"
+USER_INVITER_NAME = "Inviter"
+USER_INVITEE_EMAIL = "invitee@example.com"
+USER_INVITEE_NAME = "Invitee"
+USER_MISSING_ID = 9999
+USER_SELF_DELETE_DETAIL = "Admin users cannot delete their own account"
+MSG_USER_DELETED = "an administrator deletes a user"
+MSG_USER_GONE = "the deleted user is gone"
+MSG_USER_TOKENS_GONE = "the deleted user's tokens are gone"
+MSG_INVITER_DELETED = "an administrator deletes a user who invited another"
+MSG_INVITER_CLEARED = "the invited user no longer names the deleted inviter"
+MSG_SELF_DELETE_REFUSED = "an administrator cannot delete their own account"
+MSG_SELF_DELETE_DETAIL = "the refusal says the administrator cannot delete their own account"
+MSG_MISSING_USER = "deleting a user that does not exist is not found"
+
+LOGO_PNG = (
+    b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00"
+    b"\x1f\x15\xc4\x89\x00\x00\x00\x0bIDATx\xdac\xfc\xcf\xc0P\x0f\x00\x04\x85\x01\x80\x84\xa9"
+    b"\x8c!\x00\x00\x00\x00IEND\xaeB`\x82"
+)
+LOGO_NAME = "logo.png"
+LOGO_TYPE = "image/png"
+LOGO_NOT_AN_IMAGE = b"nope"
+LOGO_TEXT_TYPE = "text/plain"
+HTTP_EXCEPTION = "HTTPException"
+STATUS_UNSUPPORTED_MEDIA = 415
+PDF_MAGIC = b"%PDF-"
+PDF_FORMAT = "pdf"
+REPORT_TITLE = "Bud Test Report"
+REPORT_SUBTITLE = "Test outcomes"
+REPORT_FILTERS = [("Window", "Last 7 days")]
+REPORT_OVERALL = (9, 1, 2)
+REPORT_BREAKDOWN_TITLE = "Per suite"
+REPORT_BREAKDOWN_LABEL = "Suite"
+REPORT_BREAKDOWN_ROW = "smoke"
+REPORT_APP_VERSION = "1.0.0"
+REPORT_LOGO_IMAGES = 1
+MSG_LOGO_STORED = "an administrator stores a PNG logo"
+MSG_LOGO_SERVED = "the stored logo is served"
+MSG_LOGO_FOR_REPORTS = "reports load the stored logo"
+MSG_LOGO_DELETED = "after the logo is deleted it is not found"
+MSG_LOGO_DELETED_STATUS = "a deleted logo answers not found"
+MSG_LOGO_DELETED_REPORTS = "after the logo is deleted reports load none"
+MSG_LOGO_NOT_IMAGE = "a logo that is not an image is refused"
+MSG_LOGO_NOT_IMAGE_STATUS = "a logo that is not an image is an unsupported media type"
+MSG_REPORT_PDF = "the report without a logo is a PDF"
+MSG_REPORT_LOGO_PDF = "the report with the logo is a PDF"
+MSG_REPORT_LOGO_IMAGE = "the report with the logo has exactly one image more"
+
+PASSWORD_VALID = "correct horse battery"
+PASSWORD_SHORT = "short"
+PASSWORD_CHARACTER = "x"
+PASSWORD_MULTIBYTE = "é" * 37
+PASSWORD_SHORT_CASES = ("empty", "one character", "one under the minimum")
+PASSWORD_TOO_SHORT_TEXT = "at least"
+PASSWORD_TOO_LONG_TEXT = "too long"
+VALUE_ERROR = "ValueError"
+VALIDATION_ERROR = "ValidationError"
+PASSWORD_SCHEMAS = {
+    "UserCreate": ("password", {"email": "u@example.com", "full_name": "U"}),
+    "PasswordChange": ("new_password", {"current_password": "whatever-old"}),
+    "AcceptInviteRequest": ("password", {"token": "t"}),
+    "ResetPasswordRequest": ("new_password", {"token": "t"}),
+}
+MSG_PASSWORD_MINIMUM = "a password of the minimum length is accepted"
+MSG_PASSWORD_SHORT_REFUSED = "a password under the minimum length is refused"
+MSG_PASSWORD_SHORT_TEXT = "the refusal says the password must be at least the minimum length"
+MSG_PASSWORD_LONG_REFUSED = "a password over the byte limit is refused"
+MSG_PASSWORD_LONG_TEXT = "the refusal says the password is too long"
+MSG_PASSWORD_MULTIBYTE_CHARACTERS = "the multibyte password has fewer characters than the byte limit"
+MSG_PASSWORD_MULTIBYTE_REFUSED = "a password over the byte limit in two-byte characters is refused"
+MSG_PASSWORD_SCHEMA_SHORT = "every request that sets a password refuses a short one"
+MSG_PASSWORD_SCHEMA_VALID = "every request that sets a password accepts a valid one"
+
+ALEMBIC_VERSIONS = "alembic/versions"
+ALEMBIC_PATTERN = "*.py"
+ALEMBIC_PACKAGE_FILE = "__init__.py"
+ALEMBIC_HEAD = "009_admin_email_change_workflow"
+ALEMBIC_BASELINE = "009_admin_email_change_workflow.py"
+ALEMBIC_ROOT_MARKERS = ("down_revision: Union[str, Sequence[str], None] = None", "down_revision = None")
+ALEMBIC_TYPED_ROOT = "down_revision: Union[str, Sequence[str], None] = None"
+ALEMBIC_PARENT = "down_revision = "
+ALEMBIC_NO_PARENT = "down_revision = None"
+ALEMBIC_CREATE_ALL = "create_all"
+ALEMBIC_REVISION_ID = 'revision: str = "{}"'
+ALEMBIC_CREATE_TABLE = "op.create_table("
+ALEMBIC_CORE_TABLES = ("users", "test_runs", "test_results", "artifacts")
+ALEMBIC_TABLE_NAME = '"{}"'
+ALEMBIC_DROP_TYPE = "DROP TYPE IF EXISTS"
+MSG_ALEMBIC_ONE_ROOT = "the baseline is the only root of the migration chain"
+MSG_ALEMBIC_PARENT = "every later revision names a parent"
+MSG_ALEMBIC_NOT_ROOT = "no later revision is a root"
+MSG_ALEMBIC_LATER_CREATE_ALL = "no later revision rebuilds the schema from the models"
+MSG_ALEMBIC_HEAD_ID = "the baseline keeps the deployed head's revision id"
+MSG_ALEMBIC_BASELINE_ROOT = "the baseline has no parent"
+MSG_ALEMBIC_NO_CREATE_ALL = "the baseline calls no create_all"
+MSG_ALEMBIC_EXPLICIT_DDL = "the baseline creates its tables with explicit DDL"
+MSG_ALEMBIC_CORE_TABLE = "the baseline creates the core table"
+MSG_ALEMBIC_DROP_TYPE = "the baseline drops its enum types on downgrade"
+
+PUBLIC_ENDPOINTS = (
+    "root",
+    "health_check",
+    "readiness_check",
+    "get_version",
+    "prometheus_metrics",
+    "login",
+    "refresh",
+    "logout",
+    "get_invite_info",
+    "accept_invite",
+    "verify_email",
+    "forgot_password",
+    "reset_password",
+    "confirm_email_change",
+    "register_runner",
+    "setup_status",
+    "create_first_admin",
+    "cli_start",
+    "cli_exchange",
+    "cli_refresh",
+)
+AUTH_DEPENDENCIES = frozenset(
+    {
+        "get_current_active_entity",
+        "get_current_runner",
+        "get_current_user",
+        "get_uploader_entity",
+        "require_admin",
+        "require_runner_api_key",
+        "role_checker",
+    }
+)
+API_PREFIX = "/api"
+MSG_ROUTES_GUARDED = "every API route that is not public has an authentication boundary"
+MSG_GUARD_EMPTY_TREE = "the route guard finds no authentication in an empty dependency tree"
+
+PUT = "PUT"
+STATUS_FORBIDDEN = 403
+STATUS_UNPROCESSABLE = 422
+PLM_PATH = "/api/settings/integrations/PLM"
+SETTING_PATH = "/api/settings/{}"
+BLOOM_URL = "https://bloom.example.com"
+BLOOM_OTHER_ORIGIN = "https://new.example.com"
+BLOOM_SAME_ORIGIN = "https://bloom.example.com/root"
+BLOOM_INVALID_PORT = "https://bloom.example.com:not-a-port"
+BLOOM_TOKEN = "blm_sync_this-is-a-test-service-token"
+BLOOM_KEPT_TOKEN = "blm_sync_keep-this-secret"
+BLOOM_MASKED_TOKEN = "********"
+BLOOM_TOKEN_PREFIX_LENGTH = 20
+BLOOM_TOKEN_FIELD = "bloom_token"
+BLOOM_TOKEN_SETTING = "bloom_token_encrypted"
+BLOOM_PLAINTEXT = "plaintext"
+MSG_PLM_SAVED = "an administrator saves the Bloom URL and token"
+MSG_PLM_HAS_TOKEN = "the answer says a token is saved"
+MSG_PLM_PREFIX = "the answer shows only the token's first 20 characters"
+MSG_PLM_NO_TOKEN_FIELD = "the answer carries no token field"
+MSG_PLM_STORED = "the token is stored"
+MSG_PLM_ENCRYPTED = "the stored token is not the plain token"
+MSG_PLM_GET_NO_TOKEN = "reading the integration never shows the token"
+MSG_PLM_GET_NO_FIELD = "reading the integration carries no token field"
+MSG_PLM_ORIGIN_REFUSED = "a new Bloom origin with the masked token is refused"
+MSG_PLM_ORIGIN_KEPT = "the refused origin change keeps the saved token"
+MSG_PLM_SAME_ORIGIN = "a new URL on the same origin with the masked token is saved"
+MSG_PLM_SAME_ORIGIN_KEPT = "a same-origin URL change keeps the saved token"
+MSG_PLM_INVALID_PORT = "a Bloom URL with an invalid port is refused"
+MSG_SETTING_SECRET_READ = "the generic settings endpoint does not read the Bloom secret"
+MSG_SETTING_SECRET_WRITE = "the generic settings endpoint does not write the Bloom secret"
+
+NGINX_CONF = "docker/nginx.conf"
+SECURITY_HEADERS_CONF = "docker/security-headers.conf"
+SECURITY_HEADERS = (
+    "X-Content-Type-Options",
+    "Referrer-Policy",
+    "Permissions-Policy",
+    "Content-Security-Policy",
+)
+NGINX_ADD_HEADER = "add_header"
+NGINX_HEADER_LINE = "add_header {} "
+NGINX_ALWAYS = "always;"
+NGINX_LOCATION = r"^\s*(location[^\n{]*)\{"
+NGINX_INCLUDE = "include /etc/nginx/security-headers.conf;"
+CSP_HEADER = "Content-Security-Policy"
+CSP_SCRIPT_SELF = "script-src 'self'"
+CSP_SCRIPT_SOURCE = "script-src"
+CSP_UNSAFE_INLINE = "unsafe-inline"
+CSP_FRAME_ANCESTORS = "frame-ancestors 'self'"
+DOCKERFILE_HEADERS_COPY = "docker/security-headers.conf /etc/nginx/security-headers.conf"
+MSG_NGINX_HEADER = "the shared header file sets the security header"
+MSG_NGINX_ALWAYS = "every shared header is sent on error responses too"
+MSG_NGINX_SERVER_INCLUDE = "the server block includes the shared header file"
+MSG_NGINX_LOCATION_INCLUDE = "every location that sets a header of its own includes the shared file"
+MSG_CSP_SCRIPT_SELF = "the CSP allows scripts from the app's own origin"
+MSG_CSP_NO_INLINE = "the CSP forbids inline script"
+MSG_CSP_FRAMES = "the CSP lets only the app's own origin frame it"
+MSG_IMAGE_SHIPS_HEADERS = "the image ships the shared header file"
+
+PATCH = "PATCH"
+TEST_RUNS_PATH = "/api/test-runs"
+TEST_RUN_PATH = "/api/test-runs/{}"
+RESULTS_PATH = "/api/results"
+RUN_WRITE_OPERATIONS = ("create", "patch", "results-create", "results-update")
+PRODUCER_RUN_NAME = "Station run"
+PRODUCER_CASE_LIST = "suite"
+PRODUCER_HUMAN_RUN = {
+    "test_suite_name": "Human-created run",
+    "test_case_list": "suite",
+    "runner_account": "station-01",
+    "status": "Running",
+}
+PRODUCER_HUMAN_PATCH = {"status": "Cancelled", "total_tests": 99}
+PRODUCER_HUMAN_RESULTS = {
+    "test_suite_name": "Human results",
+    "results": [{"test_class": "Suite", "test_method": "test_one", "passed": True}],
+}
+PRODUCER_STATION_RUN = {
+    "test_suite_name": "Station run",
+    "test_case_list": "suite",
+    "runner_account": "station-01",
+    "status": "Running",
+    "url_test_software": "https://example.com/tests.git",
+    "ref_test_software": "release",
+}
+PRODUCER_STATION_COUNTS = {"total_tests": 7, "passed_tests": 5, "failed_tests": 2}
+PRODUCER_COUNTS = (7, 5, 2)
+PRODUCER_REF = "release"
+PRODUCER_UNTOUCHED_TOTAL = 0
+PRODUCER_RUN_COUNT = 1
+PRODUCER_EVENT_COUNT = 0
+MSG_PRODUCER_HUMAN_REFUSED = "a person cannot write a test run record"
+MSG_PRODUCER_STATUS_KEPT = "the run keeps its status"
+MSG_PRODUCER_TOTAL_KEPT = "the run keeps its test count"
+MSG_PRODUCER_NOT_COMPLETED = "the run is not completed"
+MSG_PRODUCER_NO_NEW_RUN = "no run is added"
+MSG_PRODUCER_NO_EVENT = "no run event is recorded"
+MSG_PRODUCER_STATION_CREATES = "a station creates its run"
+MSG_PRODUCER_STATION_UPDATES = "a station updates its run"
+MSG_PRODUCER_RUN_OWNER = "the run belongs to the station"
+MSG_PRODUCER_RUN_COUNTS = "the run keeps the station's counts"
+MSG_PRODUCER_RUN_REF = "the run keeps the test software reference"
+
+SETUP_PATH = "/api/setup"
+SETUP_STATUS_PATH = "/api/setup/status"
+SETUP_PASSWORD = "a-sufficiently-long-passphrase"
+SETUP_OWNER = {
+    "email": "owner@example.com",
+    "password": "a-sufficiently-long-passphrase",
+    "full_name": "Instance Owner",
+}
+SETUP_SECOND_EMAIL = "squatter@example.com"
+SETUP_SHORT_PASSWORD = "short"
+SETUP_REQUIRED = {"setup_required": True}
+SETUP_DONE = {"setup_required": False}
+SETUP_ADMIN_ROLE = "admin"
+SETUP_USERS = 1
+SETUP_RUNNER_KEY = "runner_api_key"
+SETUP_LOGIN_SUFFIX = "/login"
+STATUS_CONFLICT = 409
+MSG_SETUP_STATUS_ANSWERS = "the setup status answers"
+MSG_SETUP_REQUIRED = "an instance without users needs setup"
+MSG_SETUP_DONE_SEEDED = "an instance with a seeded administrator needs no setup"
+MSG_SETUP_CREATED = "setup creates the first administrator"
+MSG_SETUP_ADMIN_ROLE = "the first user is an administrator"
+MSG_SETUP_ADMIN_ACTIVE = "the first administrator is active"
+MSG_SETUP_PASSWORD_HASHED = "the first administrator's password is stored hashed"
+MSG_SETUP_DONE = "after setup the instance needs no setup"
+MSG_SETUP_SECOND_REFUSED = "a second setup is refused"
+MSG_SETUP_ONE_USER = "the refused second setup adds no user"
+MSG_SETUP_SHORT_PASSWORD = "setup refuses a password below the shared policy"
+MSG_SETUP_NO_SECRET = "setup hands over no runner key"
+MSG_SETUP_MESSAGE = "setup answers with a message"
+MSG_SETUP_WITHOUT_MAIL = "setup succeeds when mail is unavailable"
+MSG_SETUP_MAIL_TO = "the welcome email goes to the new administrator"
+MSG_SETUP_MAIL_NAME = "the welcome email names the new administrator"
+MSG_SETUP_MAIL_LINK = "the welcome email links to the sign-in page"
+
+CHANNELS_PATH = "/api/settings/notifications/channels"
+CHANNEL_PATH = "/api/settings/notifications/channels/{}"
+CHANNEL_TEST_PATH = "/api/settings/notifications/channels/{}/test"
+CHANNEL_HOOK = "https://hooks.example.com/services/T000/B000/abcdefghijklmnopqrstuvwxyz"
+CHANNEL_SECRET = "s3cr3t"
+CHANNEL = {
+    "name": "qa",
+    "format": "slack",
+    "url": "https://hooks.example.com/services/T000/B000/abcdefghijklmnopqrstuvwxyz",
+    "secret": "s3cr3t",
+    "run_filter": "failures",
+}
+CHANNEL_PREFIX_LENGTH = 40
+CHANNEL_PREFIX_ELLIPSIS = "..."
+CHANNEL_URL_FIELD = "url"
+CHANNEL_SECRET_FIELD = "secret"
+CHANNEL_PATCH = {"run_filter": "all", "secret": ""}
+CHANNEL_PATCHED_FILTER = "all"
+CHANNEL_INVALID = {
+    "ftp URL": {"url": "ftp://hooks.example.com/x"},
+    "URL with credentials": {"url": "https://user:pw@hooks.example.com/x"},
+    "email format": {"format": "email"},
+    "unknown run filter": {"run_filter": "sometimes"},
+}
+CHANNEL_MISSING_ID = 999
+CHANNEL_TEST_RESULT = {"delivered": True, "attempts": 1, "status_code": 200, "error": None}
+CHANNEL_POST_TEXT = "ok"
+STATUS_UNAUTHORIZED = 401
+MSG_CHANNEL_CREATED = "an administrator adds a channel"
+MSG_CHANNEL_PREFIX = "the answer shows only the URL's first 40 characters"
+MSG_CHANNEL_HAS_SECRET = "the answer says a secret is saved"
+MSG_CHANNEL_NO_URL = "the answer carries no URL field"
+MSG_CHANNEL_NO_SECRET = "the answer carries no secret field"
+MSG_CHANNEL_HOOK_HIDDEN = "the answer never shows the URL"
+MSG_CHANNEL_LISTED = "the channels are listed"
+MSG_CHANNEL_LIST_HOOK = "the list never shows the URL"
+MSG_CHANNEL_LIST_SECRET = "the list never shows the secret"
+MSG_CHANNEL_URL_ENCRYPTED = "the stored URL is not the plain URL"
+MSG_CHANNEL_SECRET_ENCRYPTED = "the stored secret is not the plain secret"
+MSG_CHANNEL_PATCHED = "an administrator changes a channel"
+MSG_CHANNEL_FILTER = "the run filter is changed"
+MSG_CHANNEL_SECRET_CLEARED = "an empty secret clears the saved secret"
+MSG_CHANNEL_URL_KEPT = "a change without a URL keeps the saved URL"
+MSG_CHANNEL_INVALID = "a channel with invalid input is refused"
+MSG_CHANNEL_VALID = "a valid channel is added"
+MSG_CHANNEL_DUPLICATE = "a second channel with the same name is refused"
+MSG_CHANNEL_DELETED = "an administrator deletes a channel"
+MSG_CHANNEL_DELETED_AGAIN = "a deleted channel is not found"
+MSG_CHANNEL_MISSING = "changing a channel that does not exist is not found"
+MSG_CHANNEL_TEST_SENT = "a test message is sent"
+MSG_CHANNEL_TEST_RESULT = "the test message is delivered at the first attempt"
+MSG_CHANNEL_TEST_URL = "the test message goes to the channel's URL"
+MSG_CHANNEL_SIGNED_OUT = "a signed-out visitor cannot list the channels"
+
+PRODUCTS_PATH = "/api/products"
+PRODUCT_PATH = "/api/products/{}"
+PRODUCT = {"name": "Gateway ECU", "description": "Main gateway"}
+PRODUCT_DUPLICATE = {"name": "Duplicate", "description": None}
+PRODUCT_DUPLICATE_TEXT = "already exists"
+PRODUCT_NAMES = ("Zebra", "Alpha", "Mango")
+PRODUCT_FETCHED = "Fetchable"
+PRODUCT_DELETED = "Deletable"
+PRODUCT_MISSING_ID = 99999
+PRODUCT_SIGNED_OUT_CALLS = (
+    ("GET", "/api/products"),
+    ("POST", "/api/products"),
+    ("GET", "/api/products/1"),
+    ("PATCH", "/api/products/1"),
+    ("DELETE", "/api/products/1"),
+)
+PRODUCT_SIGNED_OUT_BODY = {"name": "x"}
+PRODUCT_EDITABLE = {"name": "Editable", "description": "Before"}
+PRODUCT_EDIT = {"name": "Edited", "description": "After"}
+PRODUCT_EDITED_ANSWER = ("Edited", "After", "Active")
+PRODUCT_ARCHIVABLE = "Archivable"
+PRODUCT_STATUS_ACTIVE = "Active"
+PRODUCT_STATUS_ARCHIVED = "Archived"
+PRODUCT_ARCHIVE = {"status": "Archived"}
+PRODUCT_RESTORE = {"status": "Active"}
+PRODUCT_UNKNOWN_STATUS = {"status": "Retired"}
+PRODUCT_RENAMABLE = "Renamable"
+PRODUCT_NAME_TAKEN = "Taken"
+PRODUCT_RUN = {"test_case_list": "Demo.SUITE", "test_suite_name": "Demo suite"}
+PRODUCT_UPLOAD_SUITE = "Demo upload"
+PRODUCT_ARCHIVED_TEXT = "Product Archivable is archived"
+PRODUCT_UPDATED_ACTION = "product.updated"
+PRODUCT_UPDATED_DETAILS = [{"fields": ["status"]}, {"fields": ["status"]}]
+PRODUCT_VIEWER = {"email": "viewer@example.com", "full_name": "Viewer", "hashed_password": "unused"}
+STATIONS_STATUS_PATH = "/api/runners/status"
+STATION_PATH = "/api/runners/{}"
+STATION_PASSWORD = "hashed"
+STATION_TOKEN_PREFIX = "token-"
+STATION_LISTED = "station-01"
+STATION_SOLO = "station-solo"
+STATION_GONE = "station-gone"
+STATION_GHOST = "ghost"
+STATION_SIGNED_OUT_CALLS = (
+    ("GET", "/api/runners/status"),
+    ("GET", "/api/runners/station-01"),
+    ("DELETE", "/api/runners/station-01"),
+)
+MSG_PRODUCT_CREATED = "an administrator adds a product"
+MSG_PRODUCT_NAME = "the product keeps its name"
+MSG_PRODUCT_FIRST = "the first product of a name is added"
+MSG_PRODUCT_DUPLICATE = "a second product of the same name is refused"
+MSG_PRODUCT_DUPLICATE_TEXT = "the refusal says the product already exists"
+MSG_PRODUCT_SORTED = "the products are listed by name"
+MSG_PRODUCT_FETCHED = "one product is read"
+MSG_PRODUCT_MISSING = "an unknown product is not found"
+MSG_PRODUCT_DELETED = "an administrator deletes a product"
+MSG_PRODUCT_GONE = "the deleted product is gone"
+MSG_PRODUCT_DELETE_MISSING = "deleting an unknown product is not found"
+MSG_PRODUCT_SIGNED_OUT = "a signed-out visitor cannot reach the products"
+MSG_PRODUCT_EDITED = "an administrator edits a product"
+MSG_PRODUCT_EDITED_VALUES = "the product has the new name and description and stays active"
+MSG_PRODUCT_NEW_ACTIVE = "a new product is active"
+MSG_PRODUCT_ARCHIVED = "an administrator archives a product"
+MSG_PRODUCT_ARCHIVED_RUN = "a new run for an archived product is refused"
+MSG_PRODUCT_ARCHIVED_UPLOAD = "a result upload for an archived product is refused"
+MSG_PRODUCT_ARCHIVED_TEXT = "the refusal names the archived product"
+MSG_PRODUCT_RESTORED = "an archived product is set back to active"
+MSG_PRODUCT_RESTORED_RUN = "a restored product takes a new run"
+MSG_PRODUCT_RESTORED_UPLOAD = "a restored product takes a result upload"
+MSG_PRODUCT_AUDITED = "each change of a product is recorded with its fields"
+MSG_PRODUCT_NAME_TAKEN = "renaming a product to a name in use is refused"
+MSG_PRODUCT_NAME_KEPT = "the refused rename leaves the name unchanged"
+MSG_PRODUCT_EDIT_MISSING = "editing an unknown product is not found"
+MSG_PRODUCT_UNKNOWN_STATUS = "an unknown product status is refused"
+MSG_PRODUCT_VIEWER_EDIT = "a user without products manage cannot edit a product"
+MSG_STATION_STATUS = "the Test Station status answers"
+MSG_STATION_LISTED = "the status lists the registered Test Station"
+MSG_STATION_FETCHED = "one Test Station is read"
+MSG_STATION_ACCOUNT = "the Test Station keeps its account"
+MSG_STATION_MISSING = "an unknown Test Station is not found"
+MSG_STATION_DELETED = "an administrator deletes a Test Station"
+MSG_STATION_GONE = "the deleted Test Station is gone"
+MSG_STATION_DELETE_MISSING = "deleting an unknown Test Station is not found"
+MSG_STATION_SIGNED_OUT = "a signed-out visitor cannot reach the Test Stations"
+
+UPLOADER = {
+    "id": 7,
+    "email": "uploader@example.com",
+    "full_name": "Uploader",
+    "hashed_password": "hash",
+}
+UPLOAD_MAX_SIZE = 25
+UPLOAD_MAX_RUN_BYTES = 250
+UPLOAD_EXISTING = {
+    "filename": "existing",
+    "original_filename": "existing",
+    "content_type": "text/plain",
+    "size_bytes": 226,
+    "storage_path": "existing",
+    "test_run_id": 1,
+}
+UPLOAD_RUN_ID = 1
+UPLOAD_REMAINING = 24
+UPLOADS_PER_WINDOW = 2
+STATUS_TOO_MANY = 429
+UPLOAD_RATE_TEXT = "rate"
+CLEANUP_RETENTION_DAYS = 30
+CLEANUP_EXPIRED_AGE = timedelta(days=31)
+CLEANUP_ORPHAN_AGE = timedelta(hours=2)
+CLEANUP_ORPHAN = "orphan.log"
+CLEANUP_ORPHAN_BYTES = b"orphan"
+CLEANUP_EXPIRED = "expired.log"
+CLEANUP_EXPIRED_BYTES = b"expired"
+CLEANUP_LEASE = "expired-lease"
+CLEANUP_PRINCIPAL = "user:99"
+CLEANUP_LEASE_BYTES = 25
+CLEANUP_LEASE_AGE = timedelta(minutes=1)
+CLEANUP_ATTEMPT_AGE = timedelta(minutes=16)
+CLEANUP_GRACE_SECONDS = 3600
+CLEANUP_REMOVED = 1
+MSG_UPLOAD_REMAINING = "a run's upload reserves only its remaining capacity"
+MSG_UPLOAD_ONE_ACTIVE = "a second active upload of the same person is refused"
+MSG_UPLOAD_TOO_MANY = "the refusal is too many requests"
+MSG_UPLOAD_RATE = "a third upload start in the window is refused"
+MSG_UPLOAD_RATE_TEXT = "the refusal names the rate limit"
+MSG_CLEANUP_EXPIRED = "the cleanup removes the one expired artifact"
+MSG_CLEANUP_ORPHANS = "the cleanup removes the one old orphan file"
+MSG_CLEANUP_EXPIRED_FILE = "the expired artifact's file is removed"
+MSG_CLEANUP_ORPHAN_FILE = "the orphan file is removed"
+MSG_CLEANUP_LEASE = "the expired upload lease is removed"
+
+RESULTS_RUN_PATH = "/api/results/{}"
+RESULT_DETAIL_PATH = "/api/results/detail/{}"
+RESULT_TRACE = 'Traceback (most recent call last):\n  File "t.py", line 9\nAssertionError: 3 != 4'
+RESULT_ASSERTION_TRACE = "assertion-level trace"
+RESULT_FAILURE = {
+    "test_class": "SmokeTests",
+    "test_method": "test_boot",
+    "passed": False,
+    "duration_seconds": 1.5,
+    "error_message": "3 != 4",
+    "traceback": 'Traceback (most recent call last):\n  File "t.py", line 9\nAssertionError: 3 != 4',
+    "assertions": [{"passed": False, "message": "3 != 4", "traceback": "assertion-level trace"}],
+    "metadata": {"test_case_class": "SmokeTests", "tc_id": "PRJ-TC-001"},
+}
+RESULT_RUN = {"test_suite_name": "Nightly", "test_case_list": "SmokeTests"}
+RESULT_ORDERED_RUN = {"test_suite_name": "Ordered", "test_case_list": "SmokeTests"}
+RESULT_ORDER = ["test_a", "test_b"]
+RESULT_ROWS = 1
+RESULT_TRACE_FIELD = "traceback"
+RESULT_LIST_FIELDS = (
+    "id",
+    "test_class",
+    "test_method",
+    "passed",
+    "duration_seconds",
+    "error_message",
+    "assertions",
+    "test_metadata",
+    "work_package_id",
+    "created_at",
+    "test_run_id",
+)
+RESULT_MISSING_RUN = 999999
+MSG_RESULT_UPLOADED = "a station uploads a failed result to its run"
+MSG_RESULT_ONE_ROW = "the listing has the one result"
+MSG_RESULT_NO_TRACE = "the listing leaves out the method traceback"
+MSG_RESULT_FIELD = "the listing keeps the column the run detail draws"
+MSG_RESULT_ASSERTION_TRACE = "the listing keeps the trace inside an assertion"
+MSG_RESULT_ORDER = "the listing orders results as they were recorded"
+MSG_RESULT_MISSING_RUN = "the results of an unknown run are not found"
+MSG_RESULT_DETAIL_TRACE = "a single result still carries the method traceback"
+MSG_RESULT_STORED_TRACE = "the method traceback is still stored on upload"
+
+RELEASE_SCRIPT = "scripts/image_release.py"
+RELEASE_MODULE = "image_release"
+RELEASE_DIGEST = "sha256:" + "a" * 64
+RELEASE_OTHER_DIGEST = "sha256:" + "b" * 64
+RELEASE_REPOSITORY = "registry.example.com/team/product"
+RELEASE_IMAGE = RELEASE_REPOSITORY + "@" + RELEASE_DIGEST
+RELEASE_MALFORMED = [
+    "",
+    "-v",
+    "--format={{json .}}",
+    "image:stable",
+    "team/product:1.1.0",
+    "registry.example.com/Team/product:1.1.0",
+    "registry.example.com/team/product@sha256:abc",
+    "registry.example.com/team/product:sha-1@" + RELEASE_DIGEST,
+    "registry.example.com/team/product:1.1.0 --push",
+    "registry.example.com/team/product:-latest",
+    "registry.example.com/team/product/",
+    None,
+]
+RELEASE_WELL_FORMED = [
+    RELEASE_REPOSITORY,
+    RELEASE_REPOSITORY + ":sha-" + "0" * 40,
+    RELEASE_REPOSITORY + ":v1.2.0",
+    RELEASE_IMAGE,
+    "localhost:5000/team/product_name:1.2.0-beta.1",
+    "registry.example.com:443/a/b-c/d__e:latest",
+]
+RELEASE_OLDER_ALIASES = ["image:v1.0.0", "image:1.0.0", "image:1", "image:1.0", "image:stable"]
+RELEASE_OLDER_KEPT = ["image:v1.0.0", "image:1.0.0"]
+RELEASE_STABLE = ["image:stable"]
+RELEASE_LATEST = ["image:latest"]
+RELEASE_OLDER_REF = "refs/tags/v1.0.0"
+RELEASE_CURRENT_REF = "refs/tags/v1.1.0"
+RELEASE_BRANCH_REF = "refs/heads/main"
+RELEASE_PRERELEASE_REF = "refs/tags/v1.2.0-beta.1"
+RELEASE_LATEST_TAG = "v1.1.0"
+RELEASE_VERSION_ALIASES = [RELEASE_REPOSITORY + ":stable", RELEASE_REPOSITORY + ":1.1.0"]
+RELEASE_REPEATED_ALIASES = [RELEASE_REPOSITORY + ":1.1.0", RELEASE_REPOSITORY + ":stable"]
+RELEASE_STABLE_ALIASES = [RELEASE_REPOSITORY + ":stable"]
+RELEASE_MALFORMED_PROMOTIONS = {
+    "a dash alias": (RELEASE_IMAGE, [RELEASE_REPOSITORY + ":stable", "-x"]),
+    "an alias without registry": (RELEASE_IMAGE, ["image:stable"]),
+    "a dash image": ("-" + RELEASE_REPOSITORY + "@" + RELEASE_DIGEST, [RELEASE_REPOSITORY + ":stable"]),
+}
+RELEASE_DOCKER_INSPECT = ["docker", "buildx", "imagetools", "inspect"]
+RELEASE_PROMOTIONS = 2
+RUNTIME_ERROR = "RuntimeError"
+RELEASE_OVERWRITE_TEXT = "Refusing to overwrite"
+RELEASE_VERIFY_TEXT = "Digest verification"
+RELEASE_INVALID_TEXT = "Invalid image reference"
+MSG_RELEASE_OLDER = "an older release does not move the floating tags"
+MSG_RELEASE_CURRENT = "the current release promotes stable"
+MSG_RELEASE_STALE_BRANCH = "a stale branch run does not promote latest"
+MSG_RELEASE_PRERELEASE = "a prerelease does not promote stable"
+MSG_RELEASE_CONFLICT = "a version conflict stops the promotion"
+MSG_RELEASE_CONFLICT_TEXT = "the conflict refuses to overwrite the published version"
+MSG_RELEASE_NOTHING_CHANGED = "no alias is changed before the conflict is found"
+MSG_RELEASE_REPEATED = "a repeated promotion points every alias again"
+MSG_RELEASE_SAME_IMAGE = "every alias points at the same image digest"
+MSG_RELEASE_MISMATCH = "a digest mismatch after promotion fails"
+MSG_RELEASE_MISMATCH_TEXT = "the failure names the digest verification"
+MSG_RELEASE_REFUSED = "a malformed reference is refused"
+MSG_RELEASE_REFUSED_TEXT = "the refusal names the invalid image reference"
+MSG_RELEASE_NO_DOCKER = "docker is not called for a malformed reference"
+MSG_RELEASE_DIGEST = "a registry reference's digest is read"
+MSG_RELEASE_INSPECTED = "docker inspects exactly that reference"
+MSG_RELEASE_CHECK = "the reference check accepts exactly what digest passes to docker"
+MSG_RELEASE_NOT_INSPECTED = "the registry is not asked about a malformed promotion"
+MSG_RELEASE_NOT_EXECUTED = "no alias is changed for a malformed promotion"
+
+API_KEYS_PATH = "/api/runners/api-keys"
+REGISTER_PATH = "/api/runners/register"
+API_KEY_HEADER = "X-API-Key"
+STATION_REGISTRATION = {
+    "username": "whatever-the-station-typed",
+    "password": "a-very-long-runner-password-123",
+    "socket_port": 53035,
+}
+STATION_NAMED = "station-01"
+STATION_OTHER = "station-02"
+STATION_RENAMED = "station-01-renamed"
+STATION_MOVED = "moved"
+STATION_IGNORED_USERNAME = "ignored-anyway"
+STATION_UNKNOWN = "nobody"
+STATION_UNKNOWN_NEW = "somebody"
+STATION_KEY_LABEL = "station-01 key"
+STATION_UNNAMED_LABEL = "unnamed key"
+STATION_SECOND_LABEL = "second"
+STATION_BAD_NAMES = ("Demo's station", "lab 2", "station/a", "station#3", "ab")
+STATION_TAKEN_TEXT = "already named"
+STATION_RESERVED_TEXT = "already reserves"
+MSG_KEY_MINTED = "an administrator mints the enrolment keys"
+MSG_STATION_REGISTERED = "the station registers with the key"
+MSG_STATION_NAME_WINS = "the name the administrator chose wins"
+MSG_STATION_OWN_NAME = "a key without a name leaves the station its own"
+MSG_STATION_TOKEN_ID = "the station's token identifies it by id"
+MSG_STATION_NAME_TAKEN = "a name a station already has is refused"
+MSG_STATION_NAME_TAKEN_TEXT = "the refusal says a station is already named so"
+MSG_STATION_NAME_RESERVED = "a name an unused key reserves is refused"
+MSG_STATION_NAME_RESERVED_TEXT = "the refusal says an unused key already reserves the name"
+MSG_STATION_BAD_NAME = "a name that would break a URL is refused"
+MSG_STATION_RENAMED = "an administrator renames a station"
+MSG_STATION_NEW_NAME = "the station answers with its new name"
+MSG_STATION_KEY_RENAMED = "the station's key carries the new name"
+MSG_STATION_TOKEN_KEPT = "a renamed station's token still authenticates"
+MSG_STATION_TOKEN_NAME = "the token resolves to the renamed station"
+MSG_STATION_RENAME_TAKEN = "renaming onto a taken name is refused"
+MSG_STATION_RENAME_UNKNOWN = "renaming an unknown station is not found"
+
+SMOKE_SCRIPT = "scripts/e2e_image_smoke.sh"
+SMOKE_IMAGE = "registry.example.com/team/bud:test"
+SMOKE_ARGV_LOG = "docker-argv.jsonl"
+SMOKE_ARGV_SETTING = "DOCKER_ARGV_LOG"
+SMOKE_RECORDING_DOCKER = """#!/usr/bin/env python3
+import json
+import os
+import sys
+
+args = sys.argv[1:]
+with open(os.environ["DOCKER_ARGV_LOG"], "a", encoding="utf-8") as log:
+    log.write(json.dumps(args) + "\\n")
+if "current" in args:
+    print("0123456789ab (head)")
+    sys.exit(0)
+if args and args[0] == "run" and "--name" in args:
+    name = args[args.index("--name") + 1]
+    if name.startswith("bud-e2e-app-"):
+        sys.exit(23)
+"""
+SMOKE_RUN_PREFIX = ["run", "-d", "--name"]
+SMOKE_APP_NAME = "bud-e2e-app-"
+SMOKE_ADMIN_NAME = "ADMIN_FULL_NAME=E2E Admin"
+SMOKE_DOCKER = """#!/usr/bin/env python3
+import sys
+args = sys.argv[1:]
+if args[0] == "port":
+    print("127.0.0.1:18080")
+elif "current" in args:
+    print("017_release120 (head)")
+"""
+SMOKE_CURL = """#!/usr/bin/env python3
+import json
+import sys
+from pathlib import Path
+from urllib.parse import urlparse
+args = sys.argv[1:]
+url = next(arg for arg in args if arg.startswith("http://"))
+path = urlparse(url).path
+headers = [args[i + 1] for i, arg in enumerate(args) if arg == "-H"]
+fields = [args[i + 1] for i, arg in enumerate(args) if arg == "-F"]
+station = "Authorization: Bearer station-fixture-token" in headers
+admin = "Authorization: Bearer admin-fixture-token" in headers
+if path == "/api/health":
+    print('{"status":"healthy"}')
+elif path == "/api/ready":
+    print('{"status":"ready","database":"connected"}')
+elif path == "/api/version":
+    root = Path(sys.argv[0]).parent
+    print(json.dumps({"version": (root / "version").read_text()}))
+elif path == "/api/auth/login":
+    print('{"access_token":"admin-fixture-token"}')
+elif path == "/api/products":
+    assert admin
+    print('[]')
+elif path == "/api/runners/api-keys":
+    assert admin
+    print('{"api_key":"enrolment-fixture-key"}')
+elif path == "/api/runners/register":
+    assert "X-API-Key: enrolment-fixture-key" in headers
+    print('{"token":"station-fixture-token"}')
+elif path == "/api/test-runs":
+    assert station
+    print('{"id":7}')
+elif path == "/api/uploads":
+    if admin:
+        if "-w" not in args:
+            sys.exit(22)
+        print("403", end="")
+    else:
+        assert station
+        assert "run_id=7" in fields
+        print('{"id":9}')
+elif path == "/api/uploads/info/9":
+    assert admin
+    print('{"id":9}')
+elif path == "/api/uploads/9":
+    assert admin
+    Path(args[args.index("-o") + 1]).write_bytes(b"A" * 2097152)
+else:
+    raise AssertionError(path)
+"""
+SMOKE_VERSION_FILE = "version"
+SMOKE_EXIT_OK = 0
+SMOKE_VERIFIED = "verified sha256"
+SMOKE_PASS = "PASS: Bud published image"
+MSG_SMOKE_ADMIN_NAME = "the administrator's full name stays one docker environment argument"
+MSG_SMOKE_EXIT = "the smoke script passes with station-owned uploads"
+MSG_SMOKE_VERIFIED = "the smoke script verifies the downloaded evidence's SHA-256"
+MSG_SMOKE_PASS = "the smoke script reports the published image passed"
+
+BLOOM_SUITE = {
+    "id": 7,
+    "suite_id": "PRJ-TS-002",
+    "name": "Nightly regression",
+    "url": "https://bloom.example.com/projects/PRJ/suites/7",
+    "matched": 3,
+    "size": 3,
+}
+BLOOM_SUPERSET = {**BLOOM_SUITE, "id": 8, "suite_id": "PRJ-TS-008", "name": "Everything", "size": 40}
+BLOOM_PARTIAL = {
+    **BLOOM_SUITE,
+    "id": 9,
+    "suite_id": "PRJ-TS-009",
+    "name": "Smoke",
+    "matched": 1,
+    "size": 1,
+}
+BLOOM_TIED = {**BLOOM_SUITE, "id": 10, "suite_id": "PRJ-TS-010"}
+BLOOM_SYNCED = 3
+BLOOM_REFERENCE_CASES = {
+    "the suite holding every synced case": ({"suites": [BLOOM_SUITE]}, BLOOM_SYNCED),
+    "the smallest covering suite over a superset": (
+        {"suites": [BLOOM_SUPERSET, BLOOM_SUITE]},
+        BLOOM_SYNCED,
+    ),
+}
+BLOOM_NO_REFERENCE_CASES = {
+    "a suite holding only some cases": ({"suites": [BLOOM_PARTIAL]}, BLOOM_SYNCED),
+    "two covering suites of the same size": ({"suites": [BLOOM_SUITE, BLOOM_TIED]}, BLOOM_SYNCED),
+    "an empty suite list": ({"suites": []}, BLOOM_SYNCED),
+    "no suite list": ({}, BLOOM_SYNCED),
+    "no synced case": ({"suites": [BLOOM_SUITE]}, 0),
+    "a suite given as text in the list": ({"suites": ["PRJ-TS-002"]}, BLOOM_SYNCED),
+    "suites given as text": ({"suites": "PRJ-TS-002"}, BLOOM_SYNCED),
+    "a suite without counts": ({"suites": [{"suite_id": "PRJ-TS-002"}]}, BLOOM_SYNCED),
+}
+BLOOM_URL_SETTING = "bloom_url"
+BLOOM_CACHED_TOKEN = "cached-bloom-token"
+BLOOM_RUN_CASES = "Bud.Tests"
+BLOOM_RUN_COMPLETED = "Completed"
+BLOOM_RESULT = {
+    "test_class": "VoltageTest",
+    "test_method": "bud_check",
+    "passed": True,
+    "test_metadata": {"tc_id": "PRJ-TC-001"},
+}
+BLOOM_NAMED_REPLY = {"updated": 1, "not_found": [], "suites": [{**BLOOM_SUITE, "matched": 1, "size": 1}]}
+BLOOM_UNNAMED_REPLY = {"updated": 1, "not_found": [], "campaigns": []}
+BLOOM_NAMED_RUN = "sync-backlink"
+BLOOM_UNNAMED_RUN = "sync-no-suite"
+BLOOM_EXPOSED_RUN = "exposed-backlink"
+BLOOM_BACKLINK = {
+    "bloom_artefact_id": "PRJ-TS-002",
+    "bloom_artefact_name": "Nightly regression",
+    "bloom_artefact_url": "https://bloom.example.com/projects/PRJ/suites/7",
+}
+MSG_BLOOM_REFERENCE = "the suite that holds every synced case is the reference"
+MSG_BLOOM_NO_REFERENCE = "no suite is the reference"
+MSG_BLOOM_STORED = "a sync stores the suite Bloom named on the run"
+MSG_BLOOM_UNMARKED = "a Bloom reply naming no suite leaves the run unmarked"
+MSG_BLOOM_RUN_READ = "the run is read"
+MSG_BLOOM_EXPOSED = "the run endpoint shows the backlink"
+
+STARTUP_STEPS = (
+    "create_tables",
+    "migrate_user_columns",
+    "migrate_user_roles_to_viewer",
+    "migrate_execution_columns",
+    "seed_admin_user",
+)
+STARTUP_REPAIR_STEPS = [
+    "create_tables",
+    "migrate_user_columns",
+    "migrate_user_roles_to_viewer",
+    "migrate_execution_columns",
+]
+STARTUP_CASES = {
+    "no repair, no seed": (False, False, []),
+    "repair, no seed": (True, False, STARTUP_REPAIR_STEPS),
+    "no repair, seed": (False, True, ["seed_admin_user"]),
+    "repair and seed": (True, True, STARTUP_REPAIR_STEPS + ["seed_admin_user"]),
+}
+MSG_STARTUP_STEPS = "the app's start runs exactly the repair and seed its two settings ask for"
+
+RUN_STATS_PATH = "/api/test-runs/stats"
+RUN_FILTER_OPTIONS_PATH = "/api/test-runs/filter-options"
+STATS_STATIONS = ("station-01", "station-02")
+STATS_STATION_PASSWORD = "x"
+STATS_OLD_AGE = timedelta(days=40)
+STATS_RUNS = (
+    ("Nightly", "Completed", 10, 0, False, 0),
+    ("Nightly", "Completed", 8, 2, False, 0),
+    ("Smoke", "Completed", 5, 0, False, 1),
+    ("Nightly", "Completed", 3, 0, True, 0),
+    ("Smoke", "Running", 0, 0, False, 1),
+)
+STATS_CASES = {
+    "every run": (
+        {},
+        {
+            "total_runs": 5,
+            "passed_runs": 3,
+            "failed_runs": 1,
+            "in_progress_runs": 1,
+            "run_pass_rate": 75.0,
+            "total_tests": 28,
+            "passed_tests": 26,
+            "failed_tests": 2,
+        },
+    ),
+    "the last 7 days": ({"days": 7}, {"total_runs": 4, "total_tests": 25}),
+    "one suite": ({"suite": "Smoke"}, {"total_runs": 2, "passed_runs": 1, "total_tests": 5}),
+    "one Test Station": ({"runner_account": "station-02"}, {"total_runs": 2, "total_tests": 5}),
+    "the filters combined": (
+        {"days": 7, "suite": "Nightly", "runner_account": "station-01"},
+        {"total_runs": 2, "passed_runs": 1, "failed_runs": 1, "run_pass_rate": 50.0},
+    ),
+    "an unknown Test Station": (
+        {"runner_account": "no-such-station"},
+        {"total_runs": 0, "run_pass_rate": 0.0},
+    ),
+}
+STATS_FILTER_OPTIONS = {"suites": ["Nightly", "Smoke"], "runner_accounts": ["station-01", "station-02"]}
+STATS_LITERAL_PATHS = ("/api/test-runs/stats", "/api/test-runs/filter-options")
+MSG_STATS_ANSWERS_FILTERED = "the run statistics answer for the filter"
+MSG_STATS_VALUE = "the run statistics count every matching run"
+MSG_STATS_OPTIONS = "the filter options list the suites and Test Stations that appear in runs"
+MSG_STATS_LITERAL_PATH = "the path resolves as a literal route, not as a run id"
+
+IMAGE_TRUSTED_HOSTS = "127.0.0.1,::1"
+IMAGE_NGINX_PEER = ("127.0.0.1", 50000)
+PROXY_ADDRESS = "10.10.0.7"
+PROXY_OUTSIDER = "203.0.113.9"
+PROXY_OTHER_OUTSIDER = "198.51.100.20"
+PROXY_FORGED = "192.0.2.66"
+PROXY_NETWORK = "10.10.0.0/16"
+PROXY_LOOPBACK = "127.0.0.1"
+PROXY_FURTHER_HOP = "10.10.3.4"
+AUTH_ME_PATH = "/api/auth/me"
+LOGIN_PATH = "/api/auth/login"
+API_REQUEST_ACTION = "api.request"
+REFUSALS_ACTION = "security.repeated_refusals"
+REFUSALS_BELOW_THRESHOLD = 19
+REFUSALS_FLAGGED = 20
+PROXY_LOGIN = {"email": "nobody@example.com", "password": "wrong-password-1"}
+PROXY_LOGIN_ATTEMPTS = 11
+PROXY_ADDRESS_CASES = {
+    "a trusted proxy's forwarded address": (True, PROXY_ADDRESS, PROXY_OUTSIDER, PROXY_OUTSIDER),
+    "further trusted proxies skipped": (
+        True,
+        PROXY_ADDRESS,
+        f"{PROXY_OUTSIDER}, {PROXY_FURTHER_HOP}",
+        PROXY_OUTSIDER,
+    ),
+    "an untrusted sender's forgery": (
+        True,
+        PROXY_OTHER_OUTSIDER,
+        f"{PROXY_FORGED}, {PROXY_ADDRESS}",
+        PROXY_OTHER_OUTSIDER,
+    ),
+    "a forged entry the proxy passed on": (
+        True,
+        PROXY_ADDRESS,
+        f"{PROXY_FORGED}, {PROXY_OUTSIDER}",
+        PROXY_OUTSIDER,
+    ),
+    "the empty default": (False, PROXY_ADDRESS, PROXY_OUTSIDER, PROXY_ADDRESS),
+    "a sender on the container loopback": (False, PROXY_LOOPBACK, PROXY_OUTSIDER, PROXY_OUTSIDER),
+}
+PROXY_WALK_CASES = {
+    "a trusted peer": (PROXY_ADDRESS, [b"192.0.2.1, 203.0.113.9", b"10.10.0.3"], True, PROXY_OUTSIDER),
+    "an untrusted peer": (
+        PROXY_OUTSIDER,
+        [b"192.0.2.1, 203.0.113.9", b"10.10.0.3"],
+        True,
+        PROXY_OUTSIDER,
+    ),
+    "no trusted network": (PROXY_ADDRESS, [b"192.0.2.1, 203.0.113.9", b"10.10.0.3"], False, PROXY_ADDRESS),
+    "no forwarded hop": (PROXY_ADDRESS, [], True, PROXY_ADDRESS),
+    "only trusted hops": (PROXY_ADDRESS, [b"10.10.0.1, 10.10.0.2"], True, "10.10.0.1"),
+    "a hop that is no address": (PROXY_ADDRESS, [b"not-an-address, 10.10.0.2"], True, "10.10.0.2"),
+    "an address with a port": (PROXY_ADDRESS, [b"203.0.113.9:4711"], True, PROXY_OUTSIDER),
+    "an IPv6 address with a port": (PROXY_ADDRESS, [b"[2001:db8::5]:443"], True, "2001:db8::5"),
+    "an IPv4-mapped peer": ("::ffff:10.10.0.7", [b"203.0.113.9"], True, PROXY_OUTSIDER),
+    "a peer that is no address": ("testclient", [b"203.0.113.9"], True, "testclient"),
+}
+NGINX_PROXY_PASS = "proxy_pass http://127.0.0.1:8000;"
+NGINX_FORWARDED_FOR = "proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;"
+NGINX_LOCATIONS_PROXIED = 2
+NGINX_REAL_IP = "real_ip"
+UVICORN_COMMAND = "command=/usr/local/bin/uvicorn"
+UVICORN_FORWARDED_ALLOW = "--forwarded-allow-ips 127.0.0.1,::1"
+MSG_PROXY_DEFAULT = "no proxy network is trusted by default"
+MSG_PROXY_ANSWERS = "the request answers"
+MSG_PROXY_ADDRESS = "the audit event records the resolved client address"
+MSG_PROXY_REFUSED = "a signed-out request is refused"
+MSG_PROXY_NOT_FLAGGED = "19 refusals of each client are not yet flagged"
+MSG_PROXY_FLAGGED = "the 20th refusal of one client is flagged once"
+MSG_PROXY_FLAG_ADDRESS = "the flag names the resolved client address"
+MSG_PROXY_FLAG_COUNT = "the flag counts 20 refused requests"
+MSG_PROXY_RATE_LIMITED = "the 11th failed sign-in of one client is rate limited"
+MSG_PROXY_OTHER_CLIENT = "another client behind the same proxy is not rate limited"
+MSG_PROXY_WALK = "the forwarded client is found walking the hops from the right"
+MSG_NGINX_PROXIED = "both proxied locations pass to uvicorn on loopback"
+MSG_NGINX_APPENDS = "both proxied locations append the address nginx received"
+MSG_NGINX_NO_REAL_IP = "nginx does not rewrite the client address itself"
+MSG_UVICORN_LOOPBACK = "uvicorn trusts forwarding from loopback only"
+
+IDENTITY_NAME = "Bud TMP"
+IDENTITY_FULL = "Bud TMP by EmbedLabs"
+IDENTITY_OVERRIDE = "Attempted Override"
+IDENTITY_OLD_SETTING = "BUD_APP_NAME"
+IDENTITY_INVITE = {
+    "to_email": "user@example.com",
+    "full_name": "User",
+    "invite_link": "https://bud.example.com/invite",
+}
+IDENTITY_INVITE_SUBJECT = "You're invited to Bud TMP"
+IDENTITY_HTML_TITLE = "<title>Bud TMP by EmbedLabs</title>"
+IDENTITY_INVITE_HEADING = "Welcome to Bud TMP by EmbedLabs</h1>"
+IDENTITY_INVITE_TEXT = "You have been invited to join Bud TMP."
+IDENTITY_DOTENV = "BUD_APP_NAME=Attempted Override\nBUD_UPLOADS_PER_15_MINUTES=7\n"
+IDENTITY_DOTENV_CLEARED = ("BUD_DOTENV_DISABLED", "BUD_UPLOADS_PER_15_MINUTES", "UPLOADS_PER_15_MINUTES")
+IDENTITY_DOTENV_UPLOADS = 7
+IDENTITY_ACCESS_REQUEST = {
+    "to_email": "admin@example.com",
+    "admin_name": "Admin",
+    "requester_name": "Reader",
+    "requester_email": "reader@example.com",
+    "resource": "run 7",
+    "project": "",
+    "requested_at": "2026-10-19 08:00:00",
+    "request_id": "req-1",
+    "review_link": "https://bud.example.com/access",
+}
+IDENTITY_REPORT_REQUEST = {
+    "to_email": "publisher@example.com",
+    "publisher_name": "Publisher",
+    "requester_name": "Reader",
+    "requester_email": "reader@example.com",
+    "project": "PRJ",
+    "run_id": "7",
+    "review_link": "https://bud.example.com/runs/7",
+}
+IDENTITY_SUBJECTS = ["Access requested on Bud TMP: run 7", "Report requested on Bud TMP: run #7"]
+IDENTITY_HEADING = ">Bud TMP by EmbedLabs</h1>"
+IDENTITY_REPORT_TEXT = "requested the report for Bud TMP run #7"
+IDENTITY_ROOT_PATH = "/"
+IDENTITY_PROCESS_SCRIPT = (
+    "from fastapi.testclient import TestClient\n"
+    "from app.main import app\n"
+    "print('identity:', app.title)\n"
+    "print('identity:', TestClient(app).get('/').json()['message'])\n"
+)
+IDENTITY_PROCESS_PREFIX = "identity: "
+IDENTITY_PROCESS_LINES = ["identity: Bud TMP by EmbedLabs", "identity: Bud TMP by EmbedLabs"]
+IDENTITY_PROCESS_TIMEOUT = 120
+IDENTITY_TEMPLATES = 8
+IDENTITY_TEMPLATE_TITLE = "<title>${app_identity}</title>"
+IDENTITY_SPELLED_NAME = r"\bBud\b"
+IDENTITY_OPEN_IN = "Open in Bud TMP"
+IDENTITY_SAMPLE = "Bud TMP test message"
+IDENTITY_PDF_RUN = {"run_id": 7, "name": "smoke", "status": "Completed", "run_url": "https://bud.example.com/runs/7"}
+IDENTITY_PDF_TEXTS = ("Bud TMP 1.2.0", "Open in Bud TMP", "Powered by EmbedLabs")
+IDENTITY_PDF_VERSION = "1.2.0"
+IDENTITY_PDF_TITLE = "Run report"
+IDENTITY_PDF_SUBTITLE = "Run 7"
+IDENTITY_SUMMARY_TITLE = "Bud TMP Test Report"
+IDENTITY_MANIFEST = "ui/public/site.webmanifest"
+IDENTITY_MANIFEST_NAMES = ("Bud TMP by EmbedLabs", "Bud TMP")
+MSG_IDENTITY_NAME = "the product name is Bud TMP"
+MSG_IDENTITY_FULL = "the product identity is Bud TMP by EmbedLabs"
+MSG_IDENTITY_NO_SETTING = "the settings have no product name to override"
+MSG_IDENTITY_SUBJECT = "the email subject names the product"
+MSG_IDENTITY_TITLE = "the HTML email is titled with the identity"
+MSG_IDENTITY_HEADING = "the HTML email's heading names the identity"
+MSG_IDENTITY_TEXT = "the text email names the product"
+MSG_IDENTITY_NO_OVERRIDE = "the attempted override appears nowhere in the email"
+MSG_IDENTITY_DOTENV_READ = "the other settings of the dotenv file are still read"
+MSG_IDENTITY_API_TITLE = "the API title is the identity"
+MSG_IDENTITY_ROOT = "the root message is the identity"
+MSG_IDENTITY_PROCESS = "the app starts with the old variable set"
+MSG_IDENTITY_PROCESS_LINES = "the started app keeps its identity"
+MSG_IDENTITY_TEMPLATE_COUNT = "there are eight HTML email templates"
+MSG_IDENTITY_TEMPLATE_TITLE = "every HTML email template titles itself with the identity"
+MSG_IDENTITY_TEMPLATE_SPELLED = "no email template spells the product name"
+MSG_IDENTITY_OPEN_IN = "notifications link with Open in Bud TMP"
+MSG_IDENTITY_SAMPLE = "the sample notification names the product"
+MSG_IDENTITY_PDF_AUTHOR = "the PDF report's author is the identity"
+MSG_IDENTITY_PDF_TEXT = "the PDF report names the product"
+MSG_IDENTITY_SUMMARY = "the summary report's title names the product"
+MSG_IDENTITY_MANIFEST = "the web app manifest names the product"
+
+ME_PATH = "/api/auth/me"
+PICTURE_PATH = "/api/auth/me/picture"
+PICTURE_FILE = "picture.png"
+PICTURE_PNG = "image/png"
+PICTURE_JPEG = "image/jpeg"
+PICTURE_USERS = 2
+PICTURE_USER_EMAIL = "picture-{}@example.com"
+PICTURE_USER_NAME = "Picture User {}"
+PICTURE_PASSWORD_HASH = "unused"
+PICTURE_SIZE = (600, 300)
+PICTURE_STORED_SIZE = (256, 128)
+PICTURE_ROTATED_SIZE = (128, 256)
+PICTURE_METADATA_KEY = "Author"
+PICTURE_METADATA_TEXT = "Metadata must not be retained"
+PICTURE_COLORS = ("purple", "green", "blue", "orange")
+PICTURE_NO_STORE = "private, no-store"
+PICTURE_RENAMED = "Updated name"
+PICTURE_REJECTED = {
+    "malformed": (b"broken", "image/png", 422),
+    "empty": (b"", "image/png", 422),
+    "svg": (b"<svg/>", "image/svg+xml", 415),
+    "oversized": (b"x" * 2_000_001, "image/png", 413),
+}
+PICTURE_HUGE_SIZE = (4001, 4000)
+PICTURE_EXIF_ORIENTATION = 274
+PICTURE_ROTATE_90 = 6
+PICTURE_VIEW_KEYS_CHANGED = {"has_profile_picture", "profile_picture_url", "updated_at"}
+MSG_PICTURE_NONE_YET = "an account without a picture has none to read"
+MSG_PICTURE_SAVED = "an account saves its picture"
+MSG_PICTURE_FLAG = "the account view says a picture is set"
+MSG_PICTURE_NOT_IN_VIEW = "the account view carries no picture bytes"
+MSG_PICTURE_READ = "the account reads its picture"
+MSG_PICTURE_TYPE = "the stored picture is a PNG"
+MSG_PICTURE_NO_STORE = "the picture is not cached"
+MSG_PICTURE_SIZE = "the stored picture is scaled to at most 256 pixels"
+MSG_PICTURE_NO_METADATA = "the stored picture keeps no metadata"
+MSG_PICTURE_OTHER_NONE = "another account sees no picture of its own"
+MSG_PICTURE_OTHER_SAVED = "another account saves its own picture"
+MSG_PICTURE_KEPT = "another account's picture leaves this one unchanged"
+MSG_PICTURE_REPLACED = "a new picture replaces the stored one"
+MSG_PICTURE_PROFILE_SAVED = "an account saves its profile"
+MSG_PICTURE_PROFILE_NAME = "the profile keeps the new name"
+MSG_PICTURE_PERMISSIONS = "the account has permissions"
+MSG_PICTURE_PERMISSIONS_KEPT = "saving the profile keeps the effective permissions"
+MSG_PICTURE_REJECTED = "a rejected upload answers with its refusal"
+MSG_PICTURE_PRESERVED = "a rejected upload keeps the saved picture"
+MSG_PICTURE_SIGNED_OUT = "a signed-out visitor cannot reach a picture"
+MSG_PICTURE_REMOVED = "an account removes its picture"
+MSG_PICTURE_REMOVED_FLAG = "the account view says no picture is set"
+MSG_PICTURE_VIEW_KEPT = "removing the picture keeps the rest of the account view"
+MSG_PICTURE_GONE = "the removed picture is not found"
+MSG_PICTURE_OTHER_VIEW_KEPT = "another account's view is unchanged"
+MSG_PICTURE_REMOVED_AGAIN = "removing the picture again succeeds"
+MSG_PICTURE_UPLOAD_AGAIN = "a picture is saved again after removal"
+MSG_PICTURE_MISMATCH = "a picture whose format does not match its type is refused"
+MSG_PICTURE_TOO_LARGE = "a picture over the pixel limit is refused"
+MSG_PICTURE_NONE_SAVED = "a refused picture is not saved"
+MSG_PICTURE_JPEG = "a JPEG picture is saved"
+MSG_PICTURE_ORIENTED = "the JPEG orientation is applied to the stored picture"
+MSG_PICTURE_NO_EXIF = "the stored picture keeps no EXIF data"
+
+GROUP_STATIONS = "Station Managers"
+GROUP_ACCESS = "Access Managers"
+GROUP_READERS = "Results Viewers"
+GROUP_OPERATORS = "Test Operators"
+GROUP_MANAGED = {"stations.manage", "access.manage"}
+GROUP_AUDIT_VIEW = "audit.view"
+GROUP_ADMIN_MEMBERSHIPS = (0, 1, 3)
+GROUP_ADMIN_GROUPS = ["Results Viewers", "Test Operators", "Station Managers"]
+GROUP_OWNER_GROUPS = ["Test Operators", "Access Managers", "Results Viewers"]
+GROUP_PASSWORD_HASH = "x"
+GROUP_GIVER_NAME = "Boss"
+GROUP_GIVER_EMAIL = "boss@example.com"
+MSG_GROUP_UNION = "the access is the base allowance united with both groups"
+MSG_GROUP_UNION_OF_EACH = "the access equals the union of each group's holder"
+MSG_GROUP_MANAGED = "the two groups add station and access management"
+MSG_GROUP_NOT_BASE = "the developer base role carries neither management permission"
+MSG_GROUP_KEPT = "a permission two groups carry stays while one of them is held"
+MSG_GROUP_DROPPED = "the permission goes with the last group that carries it"
+MSG_GROUP_ADMIN_COUNT = "the administrator holds the given number of groups"
+MSG_GROUP_ADMIN_ALL = "the administrator holds every permission whatever groups are held"
+MSG_GROUP_LISTED = "a user's groups are listed by name, and only that user's"
+MSG_GROUP_VIEWER_REFUSED = "a viewer is refused a station group"
+MSG_GROUP_VIEWER_CODE = "the refusal is unprocessable"
+MSG_GROUP_DEVELOPER_ACCEPTED = "a developer is accepted for a station group"
+MSG_GROUP_GIVER_COVERED = "a giver gives a group their groups cover together"
+MSG_GROUP_GIVER_REFUSED = "a giver is refused a group their groups do not cover"
+MSG_GROUP_GIVER_CODE = "the refusal is forbidden"
+MSG_GROUP_FIRST_GIVE = "the first give adds the membership"
+MSG_GROUP_SECOND_GIVE = "giving the same group again adds nothing"
+MSG_GROUP_ONE_MEMBERSHIP = "the user has one membership"
+
+GROUPS_PATH = "/api/groups"
+ACCESS_USERS_PATH = "/api/access/users"
+GROUP_MEMBERS_PATH = "/api/groups/{}/members"
+GROUP_MEMBER_PATH = "/api/groups/{}/members/{}"
+SEC_PASSWORD = "Correct-Horse-Battery-9"
+SEC_ADMIN_ONLY = "Only an Admin gives Application Administrators"
+SEC_ADMIN_GROUP = "Application Administrators"
+SEC_CATALOGUE = ("Catalogue", "products")
+SEC_CONFIGURATION = ("Configuration", "settings")
+SEC_AUDITORS = ("Auditors", "audit")
+SEC_STATION_GROUPS = ("Station Managers", "Access Managers")
+SEC_COVERED = ("Back desk", "products", "stations")
+SEC_WIDER = ("Back desk and audit", "products", "stations", "audit")
+MSG_SEC_SIGNED_IN = "every person signs in"
+MSG_SEC_GROUPS_CLOSED = "groups without access management leave the group list closed"
+MSG_SEC_USERS_CLOSED = "groups without access management leave the access users closed"
+MSG_SEC_GIVE_CLOSED = "groups without access management cannot give a group"
+MSG_SEC_NO_ROW = "the refused give stores no membership"
+MSG_SEC_ADMIN_GIVE = "a non-admin with every policy cannot give Application Administrators"
+MSG_SEC_ADMIN_REMOVE = "a non-admin with every policy cannot remove an Application Administrator"
+MSG_SEC_HOLDER_KEPT = "the Application Administrator keeps the membership"
+MSG_SEC_VIEWER_REFUSED = "a viewer with several groups is refused a management group"
+MSG_SEC_VIEWER_ROWS = "the refused gives add no membership"
+MSG_SEC_WIDER_REFUSED = "a giver is refused a group adding a policy their groups do not hold"
+MSG_SEC_COVERED_GIVEN = "a giver gives a group their two groups cover"
+MSG_SEC_ONE_ROW = "the given group is the recipient's one membership"
+
+AUDIT_PATH = "/api/audit"
+USERS_PATH = "/api/users"
+API_KEY_PATH = "/api/runners/api-keys/{}"
+AUDIT_WRONG_PASSWORD = "wrong-password-1"
+AUDIT_USER_AGENT = "audit-test/1.0"
+AUDIT_LOGIN_ACTION = "auth.login"
+AUDIT_AUTH_PREFIX = "auth."
+AUDIT_DEACTIVATED_ACTION = "user.deactivated"
+AUDIT_MINTED_ACTION = "enrolment_key.minted"
+AUDIT_REVOKED_ACTION = "enrolment_key.revoked"
+AUDIT_KEY_LABEL = "Station key"
+AUDIT_FAILURE = "failure"
+AUDIT_ANONYMOUS = "anonymous"
+AUDIT_USER_ACTOR = "user"
+AUDIT_ADMIN_NAME = "boss"
+AUDIT_PAGE_TOTAL = 2
+AUDIT_MODULE = "app.api.audit"
+AUDIT_READ_METHODS = {"GET"}
+AUDIT_PICTURE_COLORS = ("red", "blue")
+AUDIT_NEXT_COLORS = ("blue", "green", None)
+AUDIT_PICTURE_PIXELS = (2, 2)
+AUDIT_GUARDED_PATHS = ("/api/audit", "/api/users")
+MSG_AUDIT_SIGNED_IN = "every person signs in"
+MSG_AUDIT_LOGIN_REFUSED = "a wrong password is refused"
+MSG_AUDIT_ONE_EVENT = "one event is recorded"
+MSG_AUDIT_OUTCOME = "the failed sign-in is recorded as a failure"
+MSG_AUDIT_ANONYMOUS = "the failed sign-in is recorded as anonymous"
+MSG_AUDIT_TARGET = "the event names its target"
+MSG_AUDIT_REQUEST_ID = "the event carries the request id"
+MSG_AUDIT_USER_AGENT = "the event carries the user agent"
+MSG_AUDIT_NO_PASSWORD = "the event does not carry the password"
+MSG_AUDIT_DEACTIVATED = "an administrator deactivates a user"
+MSG_AUDIT_ACTOR_USER = "the event records a user as the actor"
+MSG_AUDIT_ACTOR_ADMIN = "the event records the administrator"
+MSG_AUDIT_KEY_STATUSES = "a key is minted and revoked"
+MSG_AUDIT_KEY_LABEL = "the minted event carries the key's label"
+MSG_AUDIT_NO_KEY = "the minted event does not carry the key"
+MSG_AUDIT_MEMBER_REFUSED = "a member cannot read the audit log"
+MSG_AUDIT_ADMIN_READS = "an administrator reads the audit log"
+MSG_AUDIT_TOTAL = "the filtered page counts the two sign-ins"
+MSG_AUDIT_ACTIONS = "the filtered page holds only sign-ins"
+MSG_AUDIT_ACTOR_NAME = "the newest sign-in names its actor"
+MSG_AUDIT_READ_ONLY = "no audit endpoint changes or deletes an event"
+MSG_AUDIT_PICTURE_SAVED = "an account saves its picture"
+MSG_AUDIT_PICTURES_DIFFER = "two accounts' pictures have different links"
+MSG_AUDIT_SIGNED_OUT = "a signed-out visitor cannot read the page"
+MSG_AUDIT_MEMBER_PAGE = "a member cannot read the page"
+MSG_AUDIT_PICTURE_REMOVED = "the member removes the picture"
+MSG_AUDIT_PAGE = "the administrator reads the page"
+MSG_AUDIT_ACTOR_PICTURE = "each actor carries their current picture link"
+MSG_AUDIT_USER_PICTURE = "each listed user carries their current picture link"
+
+LABELS_AUDITOR = {"email": "auditor@example.com", "full_name": "Ada Auditor"}
+LABELS_MEMBER = {"email": "member@example.com", "full_name": "Mia Member"}
+LABELS_RUN = "Nightly smoke"
+LABELS_GONE_RUN = "Removed run"
+LABELS_PRODUCT = "Gateway board"
+LABELS_STATION = "station-07"
+LABELS_GROUP_KEY = "test_operators"
+LABELS_SETTING = "smtp_host"
+LABELS_MISSING_STATION = 999999
+LABELS_PREFIX = "label."
+LABELS_ODD_PREFIX = "odd."
+LABELS_LIMIT = 50
+LABELS_KEY = {"label": "Station key", "key_hash": "hash-1", "key_prefix": "bud_ab"}
+LABELS_ARTIFACT = {
+    "filename": "stored.log",
+    "original_filename": "console.log",
+    "content_type": "text/plain",
+    "size_bytes": 3,
+    "storage_path": "x/stored.log",
+}
+LABELS_RESULT = {"test_class": "PowerTests", "test_method": "test_rail", "passed": True}
+LABELS_CHANNEL = {"name": "Release room", "format": "slack", "url_encrypted": "x", "url_prefix": "https://"}
+LABELS_POLICY_KEY = "results"
+LABELS_ODD_IDS = {"odd.superscript": "²", "odd.huge": "99999999999", "odd.negative": "-1"}
+MSG_LABELS_SIGNED_IN = "the administrator signs in"
+MSG_LABELS_PAGE = "the administrator reads the labelled events"
+MSG_LABELS_NAMED = "the event names the object and whether it is deleted"
+MSG_LABELS_TARGET_ID = "the event keeps the deleted run's id"
+MSG_LABELS_STORED = "the stored event keeps its target type and id"
+MSG_LABELS_ODD = "policies, keys, artifacts, results and channels are named and odd ids are not"
+MSG_LABELS_CHANNEL_CREATED = "the created channel is named"
+
+S3_BUCKET = "bud-test"
+S3_OTHER_BUCKET = "no-such-bucket"
+S3_SETTINGS = {
+    "STORAGE_BACKEND": "s3",
+    "STORAGE_LOCAL_MIRROR": True,
+    "S3_BUCKET": "bud-test",
+    "S3_REGION": "us-east-1",
+    "S3_PREFIX": "bud",
+    "S3_ENDPOINT_URL": "",
+}
+S3_KEY = "bud/{}"
+S3_EVIDENCE_NAME = "trace.txt"
+S3_EVIDENCE = b"evidence"
+S3_REFUSED_NAME = "t.txt"
+S3_REFUSED_DATA = b"x"
+STATUS_UNAVAILABLE = 503
+S3_READ_NAME = "r.txt"
+S3_LOCAL_BYTES = b"local"
+S3_BUCKET_BYTES = b"bucket"
+S3_MISSING_NAME = "gone.txt"
+S3_CLEANUP_FILES = ("kept.txt", "orphan.txt", "old.txt")
+S3_KEPT = "kept.txt"
+S3_MISSING = ("missing.txt", "m.txt")
+S3_OLD = "old.txt"
+S3_GRACE_SECONDS = -60
+S3_MIGRATE_FILES = {"m1.txt": b"one", "m2.txt": b"two two"}
+S3_PARTIAL = (".upload-x.part", b"partial")
+S3_MISMATCHED = ("m3.txt", b"three")
+S3_MIGRATIONS = [(2, 0, []), (0, 2, []), (0, 2, ["m3.txt"])]
+S3_MIGRATE_ARGUMENTS = ["migrate", "--to", "s3"]
+S3_COMMAND_DONE = (1, 2, [])
+S3_COMMAND_MISMATCH = (0, 0, ["x.txt"])
+S3_COMMAND_OUTPUT = "copied 1, already there 2, size mismatches 0"
+S3_COMMAND_CODES = [0, 1, 2]
+S3_READINESS = ["s3", "s3-unreachable", "local"]
+S3_NEEDS_BUCKET = "needs S3_BUCKET"
+S3_DEFAULT_PREFIX = "bud"
+MSG_S3_UPLOADED = "a station uploads evidence"
+MSG_S3_KEYS = "the bucket holds exactly the expected objects"
+MSG_S3_MIRRORED = "the local mirror holds the upload"
+MSG_S3_DOWNLOADED = "the evidence downloads"
+MSG_S3_CONTENT = "the download carries the evidence"
+MSG_S3_ATTACHMENT = "the download is an attachment"
+MSG_S3_SANDBOX = "the download is sandboxed"
+MSG_S3_FALLBACK = "a file the bucket lost downloads from the mirror"
+MSG_S3_UNREACHABLE = "a file neither holds answers unavailable"
+MSG_S3_DELETED = "the evidence is deleted"
+MSG_S3_NOT_MIRRORED = "without the mirror no local file is kept"
+MSG_S3_REFUSED = "an upload to an unreachable bucket is refused"
+MSG_S3_NOTHING_LEFT = "a refused upload leaves no file"
+MSG_S3_READ_STORED = "a stored file is read from the bucket first, then the mirror"
+MSG_S3_EXPIRED = "the cleanup removes the expired artifact"
+MSG_S3_MISSING = "the cleanup counts the artifact whose file is missing"
+MSG_S3_OLD_GONE = "the expired artifact's mirror file is removed"
+MSG_S3_MIGRATIONS = "the migration copies once, skips what is there and names size mismatches"
+MSG_S3_COMMAND_CODES = "the migrate command exits 0, 1 for mismatches and 2 without a bucket"
+MSG_S3_COMMAND_OUTPUT = "the migrate command reports its counts"
+MSG_S3_READINESS = "readiness names the storage and whether it answers"
+MSG_S3_BUCKET_REQUIRED = "S3 storage refuses settings without a bucket"
+MSG_S3_BUCKET_TEXT = "the refusal says S3 needs a bucket"
+MSG_S3_PREFIX = "the default object prefix is bud"
+
+ERROR_BOOM_PATH = "/api/__boom__"
+ERROR_CONFLICT_PATH = "/api/__conflict__"
+ERROR_FK_PATH = "/api/__fk__"
+ERROR_LATE_PATH = "/api/__late_conflict__"
+ERROR_BOOM_TEXT = "something went bang"
+ERROR_SUPPLIED_ID = "support-ref-42"
+ERROR_QUOTE = "Quote reference {} when reporting this."
+ERROR_ID_LENGTH = 32
+ERROR_NO_ID = "-"
+ERROR_LEAKS = ("something went bang", "RuntimeError", "Traceback")
+ERROR_INSERT = "INSERT INTO runners ..."
+ERROR_DELETE = "DELETE FROM runners ..."
+ERROR_DUPLICATE = "duplicate key value: runners_account_key"
+ERROR_STILL_REFERENCED = "still referenced"
+ERROR_CONSTRAINT_LEAKS = ("runners_account_key", "INSERT INTO", "UniqueViolationError")
+ERROR_CONSTRAINT = "runners_account_key"
+ERROR_ALREADY_EXISTS = "already exists"
+STATUS_SERVER_ERROR = 500
+MSG_ERROR_500 = "an unhandled error answers 500"
+MSG_ERROR_REFERENCE = "the answer carries a reference"
+MSG_ERROR_BODY_REFERENCE = "the body names the same reference"
+MSG_ERROR_DETAIL_REFERENCE = "the detail quotes the reference"
+MSG_ERROR_SUPPLIED_HEADER = "the supplied request id is the reference"
+MSG_ERROR_EVENT = "the failed request is audited once with its id and status"
+MSG_ERROR_GENERATED = "a generated reference is a 32-character id"
+MSG_ERROR_NO_LEAK = "the answer does not leak the exception"
+MSG_ERROR_CONFLICT = "a lost race answers conflict"
+MSG_ERROR_ALREADY_EXISTS = "the conflict says the object already exists"
+MSG_ERROR_NO_CONSTRAINT = "the conflict does not leak the constraint"
+MSG_ERROR_FK = "a missing reference is a conflict too"
+MSG_ERROR_LATE = "a failing commit is answered as a conflict"
+MSG_ERROR_SESSION_ROUTES = "routes depend on a database session"
+MSG_ERROR_COMMIT_FIRST = "every route commits its session before its response"
+
+RUN_ARTIFACTS_PATH = "/api/test-runs/{}/artifacts"
+UPLOADS_POST_PATH = "/api/uploads"
+ARTIFACT_RUNS = ("Nightly", "Other")
+ARTIFACT_CASE_LIST = "SmokeTests"
+ARTIFACT_ROWS = (
+    ("b.png", "failure-screenshot.png", "image/png", 2048, "b", "BootTests", "run", 0),
+    ("a.pcap", "throughput.pcap", "application/vnd.tcpdump.pcap", 4096, "a", None, "run", 1),
+    ("c.log", "other-run.log", "text/plain", 10, None, None, "other", 0),
+    ("d.log", "unattached.log", "text/plain", 10, None, None, None, 0),
+)
+ARTIFACT_LISTED = ["throughput.pcap", "failure-screenshot.png"]
+ARTIFACT_OTHER_RUN = "other-run.log"
+ARTIFACT_UNATTACHED = "unattached.log"
+ARTIFACT_PANEL_FIELDS = ("id", "original_filename", "content_type", "size_bytes", "created_at")
+ARTIFACT_STORAGE_FIELD = "storage_path"
+ARTIFACT_EMPTY_RUN = {"test_suite_name": "Empty", "test_case_list": "SmokeTests"}
+ARTIFACT_CAPTURE_RUN = {"test_suite_name": "Captures", "test_case_list": "SmokeTests"}
+ARTIFACT_MISSING_RUN = 999999
+ARTIFACT_ALLOWED_TYPES = (
+    "text/xml",
+    "application/xml",
+    "application/json",
+    "text/plain",
+    "text/csv",
+    "image/png",
+    "image/jpeg",
+    "image/svg+xml",
+    "application/pdf",
+    "application/vnd.tcpdump.pcap",
+    "application/x-pcapng",
+    "application/zip",
+    "application/gzip",
+    "application/octet-stream",
+)
+ARTIFACT_HTML = "text/html"
+ARTIFACT_SCRIPT = "text/javascript"
+ARTIFACT_CAPTURE = ("throughput.pcap", b"\xd4\xc3\xb2\xa1", "application/x-pcapng")
+ARTIFACT_REFUSED = ("page.js", b"alert(1)", "text/javascript")
+ARTIFACT_PLAIN = "text/plain"
+MSG_ARTIFACT_LISTED = "the run lists the files attached to it"
+MSG_ARTIFACT_ORDER = "the files are listed oldest first"
+MSG_ARTIFACT_OTHER_RUN = "another run's file is not listed"
+MSG_ARTIFACT_OTHER_LISTS = "the other run lists its own files"
+MSG_ARTIFACT_UNATTACHED = "a file attached to no run is not listed"
+MSG_ARTIFACT_PANEL_FIELD = "the listing carries what the panel renders"
+MSG_ARTIFACT_RUN_ID = "the listed file names its run"
+MSG_ARTIFACT_NO_STORAGE = "the listing never reveals the storage path"
+MSG_ARTIFACT_EMPTY = "a run with nothing attached lists nothing"
+MSG_ARTIFACT_MISSING_RUN = "an unknown run is not found"
+MSG_ARTIFACT_SIGNED_OUT = "a signed-out visitor cannot list a run's files"
+MSG_ARTIFACT_ALLOWED = "a type a run produces is accepted"
+MSG_ARTIFACT_HTML = "HTML is accepted"
+MSG_ARTIFACT_HTML_SANDBOX = "HTML downloads sandboxed"
+MSG_ARTIFACT_NO_SCRIPT = "script is not accepted"
+MSG_ARTIFACT_CAPTURE = "a packet capture uploads"
+MSG_ARTIFACT_CAPTURE_LISTED = "the uploaded capture is listed"
+MSG_ARTIFACT_REFUSED = "a script upload is an unsupported media type"
+MSG_ARTIFACT_REFUSED_TYPE = "the refusal names the refused type"
+MSG_ARTIFACT_REFUSED_ALLOWED = "the refusal names the allowed types"
+
+RUN_EVENTS_PATH = "/api/test-runs/{}/events"
+RESULTS_VOLTAGE_RUN = {"name": "CI-1-abcdef", "test_case_list": "Bud_Test_Suite.HIL_TEST_CASES"}
+RESULTS_VOLTAGE = [
+    {
+        "test_class": "VoltageTest",
+        "test_method": "bud_check_cell_voltages",
+        "passed": False,
+        "duration_seconds": 1.23,
+        "error_message": "cell 3 out of range",
+        "traceback": "Traceback (most recent call last): ...",
+        "assertions": [
+            {
+                "passed": True,
+                "message": "cell 1 within tolerance",
+                "expected": "3.7±0.05",
+                "actual": "3.71",
+                "timestamp": "2026-04-18T10:00:00",
+                "metadata": {"cell": 1},
+            },
+            {
+                "passed": False,
+                "message": "cell 3 within tolerance",
+                "expected": "3.7±0.05",
+                "actual": "3.50",
+                "timestamp": "2026-04-18T10:00:01",
+                "metadata": {"cell": 3, "tolerance": "±0.05"},
+            },
+        ],
+        "metadata": {"station": "station-01"},
+    },
+    {
+        "test_class": "VoltageTest",
+        "test_method": "bud_check_pack_voltage",
+        "passed": True,
+        "duration_seconds": 0.42,
+        "assertions": [{"passed": True, "message": "pack voltage ok"}],
+    },
+]
+RESULTS_FAILING_METHOD = "bud_check_cell_voltages"
+RESULTS_PASSING_METHOD = "bud_check_pack_voltage"
+RESULTS_TRACE_WORD = "Traceback"
+RESULTS_FAILED_ACTUAL = "3.50"
+RESULTS_FAILED_CELL = 3
+RESULTS_VOLTAGE_COUNTS = (1, 0, 1)
+RESULTS_EVENT_TITLE = "Results uploaded"
+RESULTS_MIXED_RUN = {"name": "CI-2-multi", "test_case_list": "Bud_Test_Suite.MULTI"}
+RESULTS_MIXED = [
+    {"test_class": "AlphaTest", "test_method": "bud_step_one", "passed": True, "duration_seconds": 0.5},
+    {"test_class": "AlphaTest", "test_method": "bud_step_two", "passed": True, "duration_seconds": 0.3},
+    {"test_class": "BetaTest", "test_method": "bud_step_one", "passed": True, "duration_seconds": 0.4},
+    {
+        "test_class": "BetaTest",
+        "test_method": "bud_step_two",
+        "passed": False,
+        "duration_seconds": 0.6,
+        "error_message": "assertion failed",
+    },
+]
+RESULTS_MIXED_COUNTS = (2, 1, 1)
+RESULTS_DETACHED = [
+    {
+        "test_class": "SmokeTest",
+        "test_method": "bud_hello",
+        "passed": True,
+        "assertions": [{"passed": True, "message": "ok"}],
+    }
+]
+RESULTS_SOFTWARE = {
+    "test_suite_name": "Nightly Firmware Validation",
+    "url_test_software": "https://github.com/example/test-suite-repo",
+    "ref_test_software": "tests-abc123def",
+    "url_software_under_test": "https://github.com/example/fw-under-test",
+    "ref_software_under_test": "fw-abc123def",
+}
+RESULTS_SOFTWARE_RESULT = [{"test_class": "SmokeTest", "test_method": "bud_smoke", "passed": True}]
+MSG_RESULTS_UPLOADED = "a station uploads its results"
+MSG_RESULTS_COUNT = "the answer counts the uploaded methods"
+MSG_RESULTS_ROWS = "each uploaded method is stored"
+MSG_RESULTS_FAILED_METHOD = "the failed method is stored as failed"
+MSG_RESULTS_TRACE = "the failed method keeps its traceback"
+MSG_RESULTS_ASSERTIONS = "the failed method keeps both assertions"
+MSG_RESULTS_FAILED_ASSERTION = "the failed assertion keeps its actual value and metadata"
+MSG_RESULTS_PASSED_METHOD = "the passed method is stored as passed"
+MSG_RESULTS_CLASS_COUNTS = "the run counts test classes: a class with a failed method fails"
+MSG_RESULTS_EVENT = "the upload is recorded on the run's timeline"
+MSG_RESULTS_EVENTS_READ = "the run's timeline is read"
+MSG_RESULTS_DETACHED_TIMES = "a run created by the upload is started and completed in order"
+MSG_RESULTS_SOFTWARE = "a run created by the upload keeps the software it names"
+
+RUNS_CREATED = {
+    "test_case_list": "Bud_Test_Suite.HIL_TEST_CASES",
+    "test_suite_name": "Nightly Firmware Validation",
+    "url_test_software": "https://github.com/example/test-suite-repo",
+    "ref_test_software": "tests-abc123def",
+    "url_software_under_test": "https://github.com/example/fw-under-test",
+    "ref_software_under_test": "fw-abc123def",
+    "product_composition_id": 1,
+    "status": "Running",
+}
+RUNS_SUITE = ("Nightly Firmware Validation", "Bud_Test_Suite.HIL_TEST_CASES")
+RUNS_OTHER_SUITE = ("Smoke Validation", "Bud_Test_Suite.SMOKE")
+RUNS_LATEST_BASE = datetime(2026, 7, 2, 10, 0, 0)
+RUNS_SORT_FIELDS = ("name", "status", "runner_account", "duration_seconds", "started_at", "completed_at")
+RUNS_SORT_BASE = datetime(2026, 10, 1, 10)
+RUNS_SORT_STATIONS = (("Zulu", "z-test", 55001, "Room B"), ("Alpha", "a-test", 55002, "Room A"))
+RUNS_STATION_FILTERS = (
+    {"runner_account": "Alpha"},
+    {"location": "Room A"},
+    {"runner_account": "Alpha", "location": "Room A", "q": "suite"},
+)
+RUNS_PAGES = (0, 5, 25)
+RUNS_PAGE_SIZE = 5
+RUNS_MATCHES = 30
+RUNS_DISPLAY_BASE = datetime(2026, 10, 1)
+RUNS_INVALID_SORTS = ({"sort_by": "unknown"}, {"sort_dir": "invalid"})
+MSG_RUNS_CREATED = "a station creates a run"
+MSG_RUNS_SOFTWARE = "the run keeps its suite, cases and software"
+MSG_RUNS_LISTED = "the runs are listed"
+MSG_RUNS_LATEST_TOTAL = "the latest run of each suite is listed once"
+MSG_RUNS_LATEST_ORDER = "the latest runs are listed newest first"
+MSG_RUNS_SORTED = "the runs are sorted in both directions, missing values last"
+MSG_RUNS_STATION_FILTER = "a station filter keeps only that station's run"
+MSG_RUNS_PAGE_TOTAL = "the filtered total counts every match"
+MSG_RUNS_PAGE = "each page holds the next names in order"
+MSG_RUNS_DISPLAY_LATEST = "sorting the latest runs keeps each suite's winner"
+MSG_RUNS_STABLE_TIES = "runs of the same name keep a stable order"
+MSG_RUNS_INVALID_SORT = "an unknown sort is refused"
+
+KEYS_STATION_PASSWORD = "a-very-long-runner-password-123"
+KEYS_LOCATION = "lab-bench-row-1"
+KEYS_PORT = 53035
+KEYS_MINE = "station-mine"
+KEYS_THEIRS = "station-theirs"
+KEYS_RETIRED = "station-retired"
+KEYS_UNKNOWN = "budrnr_not-a-key-anyone-ever-issued"
+KEYS_UPLOAD = {
+    "results": [{"test_class": "SmokeTests", "test_method": "test_boots", "passed": True, "duration_seconds": 1.5}],
+    "test_suite_name": "smoke",
+}
+KEYS_PREFIX = "budrnr_"
+KEYS_PREFIX_LENGTH = 12
+KEYS_LABELS = ("station-a", "station-b")
+MSG_KEYS_FILED = "a station files its results with its key"
+MSG_KEYS_ONE_RUN = "one run is created"
+MSG_KEYS_OWN_STATION = "the run belongs to the key's station, not the one named"
+MSG_KEYS_UNPINNED = "a key that enrolled no station authorises nothing"
+MSG_KEYS_UNKNOWN = "an unknown key is refused"
+MSG_KEYS_NO_RESULT = "a refused upload stores no result"
+MSG_KEYS_INACTIVE = "an inactive station's key is refused"
+MSG_KEYS_REMOVED = "an administrator removes a station"
+MSG_KEYS_STATION_GONE = "the removed station is gone"
+MSG_KEYS_REVOKED_WITH_STATION = "the removed station's keys are revoked"
+MSG_KEYS_RUN_KEPT = "the removed station's run is kept without its station"
+MSG_KEYS_MINTED = "an administrator mints a key"
+MSG_KEYS_SECRET_PREFIX = "the key starts with budrnr_"
+MSG_KEYS_NO_STATION = "a new key names no station"
+MSG_KEYS_LISTED = "the keys are listed"
+MSG_KEYS_ONE_LISTED = "the one key is listed"
+MSG_KEYS_NOT_LISTED = "the list never carries the key"
+MSG_KEYS_PREFIX = "the list shows the key's first 12 characters"
+MSG_KEYS_HASHED = "the stored key is hashed"
+MSG_KEYS_ACCEPTED = "the key is accepted before it is revoked"
+MSG_KEYS_REVOKED = "a revoked key no longer authenticates"
+MSG_KEYS_REVOKE = "an administrator revokes a key"
+MSG_KEYS_EMPTY = "no key is listed after the revoke"
+MSG_KEYS_GONE = "the revoked key is gone"
+MSG_KEYS_REVOKE_AGAIN = "revoking it again is not found"
+
+REGISTER_PAYLOAD = {"username": "station-test-01", "password": "a-very-long-runner-password-123", "socket_port": 53035}
+REGISTER_OTHER_USERNAME = "station-test-02"
+REGISTER_WRONG_PASSWORD = "wrong-password"
+REGISTER_LEGACY = "legacy-station"
+REGISTER_MISMATCH_TEXT = "does not match"
+REGISTER_ANOTHER_STATION_TEXT = "another Test Station"
+REGISTER_HAS_KEY_TEXT = "already has an API key"
+MSG_REGISTER_NO_KEY = "registering without a key is refused"
+MSG_REGISTER_UNKNOWN_KEY = "registering with an unknown key is forbidden"
+MSG_REGISTER_CREATED = "a station registers with a minted key"
+MSG_REGISTER_ACCOUNT = "the station is named as it registered"
+MSG_REGISTER_TOKEN = "the station receives a token"
+MSG_REGISTER_PINNED = "the key is pinned to the station and marked used"
+MSG_REGISTER_AGAIN = "the same station registers again"
+MSG_REGISTER_WRONG_PASSWORD = "a known station with a wrong password is refused"
+MSG_REGISTER_MISMATCH = "the refusal says the password does not match"
+MSG_REGISTER_OTHER_STATION = "a pinned key cannot enrol another station"
+MSG_REGISTER_OTHER_TEXT = "the refusal names another Test Station"
+MSG_REGISTER_DISPLACE = "a second key cannot take over an enrolled station"
+MSG_REGISTER_DISPLACE_TEXT = "the refusal says the station already has a key"
+MSG_REGISTER_ADOPT = "a key adopts a station that has none"
+MSG_REGISTER_KEY_DELETE = "an enrolment key cannot delete a station"
+MSG_REGISTER_VIEWER_DELETE = "a viewer cannot delete a station"
+MSG_REGISTER_VIEWER_KEYS = "a viewer cannot mint, list or revoke keys"
+MSG_REGISTER_ADMIN_DELETE = "an administrator deletes a station"
+
+UPLOAD_RESULT = {"test_class": "SmokeTests", "test_method": "test_boot", "passed": True, "duration_seconds": 1.5}
+UPLOAD_NIGHTLY = {"test_suite_name": "Nightly", "test_case_list": "SmokeTests"}
+UPLOAD_ADHOC = "Ad-hoc suite"
+UPLOAD_PRODUCT = "Gateway ECU"
+UPLOAD_REGRESSION = "Regression"
+UPLOAD_MISSING = 99999
+UPLOAD_FAILING = {"passed": False, "error_message": "assertion failed", "traceback": "Traceback (most recent call last): ..."}
+UPLOAD_RICH = {"assertions": [{"name": "voltage", "passed": True, "actual": 3.3}], "metadata": {"station": "station-01"}}
+UPLOAD_MIXED = [("ClassA", "test_one", True, {}), ("ClassA", "test_two", False, {}), ("ClassB", "test_three", True, {})]
+UPLOAD_MIXED_COUNTS = (2, 1, 1)
+UPLOAD_ROBOT = [
+    ("Suite.Boots", "Boots", True, {}),
+    ("Suite.Flashes", "Flashes", True, {"metadata": {"skipped": True}}),
+    ("Suite.Fails", "Fails", False, {}),
+]
+UPLOAD_ROBOT_COUNTS = (3, 1, 1, 1)
+UPLOAD_TIMED = [("C", "a", True, {"duration_seconds": 1.5}), ("C", "b", True, {"duration_seconds": 2.5})]
+UPLOAD_TIMED_TOTAL = 4.0
+UPLOAD_TOLERANCE = 1e-6
+UPLOAD_STATUSES = ("Running", "Completed")
+UPLOAD_SIGNED_OUT_CALLS = (("POST", "/api/results"), ("GET", "/api/results/1"), ("GET", "/api/results/detail/1"))
+MSG_UPLOAD_EXISTING = "results upload against an existing run"
+MSG_UPLOAD_ANSWER = "the answer names the run and counts the results"
+MSG_UPLOAD_CREATES_RUN = "results without a run create one named after the suite"
+MSG_UPLOAD_PRODUCT_NAME = "the created run is named after the product and the suite"
+MSG_UPLOAD_MISSING_RUN = "uploading to an unknown run is not found"
+MSG_UPLOAD_FAILING = "a failing result with its traceback is accepted"
+MSG_UPLOAD_RICH = "assertions and metadata are accepted"
+MSG_UPLOAD_NO_RESULTS = "a payload without results is refused"
+MSG_UPLOAD_CLASS_COUNTS = "the run counts test classes: a class passes only when every method passes"
+MSG_UPLOAD_SKIPPED = "a class whose results are all skipped counts as skipped"
+MSG_UPLOAD_DURATION = "the run's duration is the sum of every method's"
+MSG_UPLOAD_COMPLETES = "uploading completes a running run"
+MSG_UPLOAD_EVENT = "uploading records an event on the run's timeline"
+MSG_UPLOAD_LISTED = "the run's results are listed"
+MSG_UPLOAD_LIST_MISSING = "listing an unknown run is not found"
+MSG_UPLOAD_DETAIL = "one result is read"
+MSG_UPLOAD_DETAIL_MISSING = "an unknown result is not found"
+MSG_UPLOAD_SIGNED_OUT = "a signed-out visitor cannot reach results"
+
+STORED_SUITE = "stored-report-suite"
+STORED_REPEATED = "repeated-suite"
+STORED_CASES = "Suite.CASES"
+STORED_COUNTS = {"total_tests": 6, "passed_tests": 5, "failed_tests": 1, "skipped_tests": 0}
+STORED_RESULT = {
+    "test_class": "StoredTests",
+    "test_method": "test_assertions",
+    "passed": False,
+    "assertions": [
+        {
+            "passed": True,
+            "assertion_type": "AssertInRange",
+            "message": "current-run-marker",
+            "expected": "[11.5, 14.8] V",
+            "actual": "13.6 V",
+            "source_file": "test_stored.py",
+            "source_line": 42,
+        },
+        {"passed": False, "message": "current-run-failure"},
+    ],
+    "test_metadata": {"tc_id": "PRJ-TC-001"},
+}
+STORED_HISTORICAL = [{"passed": False, "message": "historical-run-must-not-appear"}]
+STORED_RUN_REPORT = "bud-run-{}-{}.pdf"
+STORED_SUITE_REPORT = "bud-suite-{}.pdf"
+STORED_SUITE_PREFIX = "bud-suite-"
+STORED_PDF_TYPE = "application/pdf"
+STORED_REPORT_TEXTS = ("2 assertions", "AssertInRange", "current-run-marker", "[11.5, 14.8] V", "13.6 V", "test_stored.py:42")
+STORED_RUN_ID_TEXT = "BUD-RUN-{}"
+STORED_HISTORICAL_TEXT = "historical-run-must-not-appear"
+STORED_MISSING_RUN = 999_999
+STORED_API_COMPLETED = "api-completed-suite"
+STORED_API_RUNNING = "api-running-suite"
+STORED_CLAIMED = "claimed-suite"
+STORED_CLAIM = "22222222-2222-4222-8222-222222222222"
+STORED_COMPLETE_PATH = "/api/runners/runs/{}/complete"
+STORED_IDEMPOTENCY_HEADER = "Idempotency-Key"
+MSG_STORED_REPORTS = "a finished run leaves its run report and its suite report"
+MSG_STORED_PDF = "each stored report is a PDF of its stated size"
+MSG_STORED_ONCE = "storing the reports twice leaves two reports"
+MSG_STORED_SUITE_DETAIL = "the suite report details its generating run"
+MSG_STORED_SUITE_SCOPE = "the suite report leaves out other runs of the suite"
+MSG_STORED_BROKEN = "a report that will not render stores nothing and does not fail"
+MSG_STORED_MISSING = "a run that does not exist stores nothing"
+MSG_STORED_PATCHED = "a station marks its run completed"
+MSG_STORED_RUNNING = "a run still running has no reports yet"
+MSG_STORED_CLAIM = "a station acknowledges its claimed run"
+
+RUNNER_EXPIRED = timedelta(seconds=-1)
+RUNNER_TYPE = "runner"
+RUNNER_STALE_AGE = timedelta(seconds=90)
+RUNNER_HEARTBEAT_TIMEOUT = 60
+RUNNER_ODD_TYPE = "teststation"
+RUNNER_NUMERIC_ACCOUNT = "001"
+RUNNER_AUTH_REQUIRED = "Authentication required"
+MSG_RUNNER_EXPIRED_REFUSED = "an expired station token does not decode with the expiry check"
+MSG_RUNNER_EXPIRED_CLAIMS = "an expired station token's claims are read without the expiry check"
+MSG_RUNNER_NO_HEARTBEAT = "an expired station token without a heartbeat is refused"
+MSG_RUNNER_HEARTBEAT = "an expired station token with a recent heartbeat is accepted"
+MSG_RUNNER_UPLOADER_JWT = "an uploader with an expired station token and a recent heartbeat is the station"
+MSG_RUNNER_UPLOADER_KEY = "an uploader with a pinned enrolment key is its station"
+MSG_RUNNER_UNPINNED_KEY = "an enrolment key pinned to nobody is refused"
+MSG_RUNNER_ROTATED = "a rotated token replaces the previous one"
+MSG_RUNNER_HEARTBEAT_TIMEOUT = "a heartbeat counts as recent only within the timeout"
+MSG_RUNNER_ODD_TYPE = "a token of an unknown type is refused"
+MSG_RUNNER_NO_TYPE = "a token without a type is refused"
+MSG_RUNNER_STALE_USER = "a person's stale token cannot upload results"
+MSG_RUNNER_STALE_TEXT = "the refusal asks for authentication"
+
+INVITE_PATH = "/api/users/invite"
+RESEND_PATH = "/api/users/{}/resend-invite"
+REVOKE_PATH = "/api/users/{}/revoke-invite"
+USER_EMAIL_PATH = "/api/users/{}/email"
+USERS_NEW = {"email": "new@example.com", "full_name": "New Person", "password": "a-long-enough-password", "role": "viewer"}
+USERS_DUPLICATE = {"email": "dup@example.com", "full_name": "Dup", "password": "a-long-enough-password"}
+USERS_SHORT = {"email": "short@example.com", "full_name": "Short", "password": "abc"}
+USERS_DUPLICATE_TEXT = "already registered"
+USERS_MISSING = 99999
+USERS_ROLE_FIXED_TEXT = "cannot be changed"
+USERS_ADMIN_TEXT = "admin"
+USERS_SIGNED_OUT_CALLS = (
+    ("GET", "/api/users"),
+    ("POST", "/api/users"),
+    ("POST", "/api/users/invite"),
+    ("POST", "/api/users/1/resend-invite"),
+    ("POST", "/api/users/1/revoke-invite"),
+    ("POST", "/api/users/1/email"),
+    ("POST", "/api/users/1/email/approve"),
+    ("DELETE", "/api/users/1/email"),
+    ("PATCH", "/api/users/1"),
+    ("DELETE", "/api/users/1"),
+)
+MSG_USERS_CHECK = "the user administration answers as expected"
+MSG_USERS_SIGNED_OUT = "a signed-out visitor cannot reach a user route"
+
+POLICIES_PATH = "/api/policies"
+GROUP_PATH = "/api/groups/{}"
+ACCESS_REQUESTS_PATH = "/api/access-requests"
+ACCESS_DECISION_PATH = "/api/access-requests/{}/decision"
+SETTING_X_PATH = "/api/settings/x"
+OVERLAP_PEOPLE = (
+    ("boss@example.com", "Bo Boss", "admin"),
+    ("dev@example.com", "Dee Developer", "developer"),
+    ("viewer@example.com", "Val Viewer", "viewer"),
+)
+OVERLAP_DUPLICATE = "The user already has this group"
+OVERLAP_VIEWER_GROUPS = ("Results Viewers", "Test Operators")
+OVERLAP_VIEWER_HELD = {"custom_runs.create", "bloom_publish.execute"}
+OVERLAP_MEMBER_ADDED = "group.member_added"
+MSG_OVERLAP_CHECK = "access over several groups answers as expected"
+
+BLOOM_SYNC_URL = "https://bloom.example.com"
+BLOOM_SYNC_TOKEN = "cached-bloom-token"
+BLOOM_SYNC_RUN_ID = 5
+BLOOM_SYNC_TALLY_RUN_ID = 8
+BLOOM_SYNC_FAILURE = "Invalid credentials produce a documented failure outcome"
+BLOOM_SYNC_COMMENT = "Last result from Bud TMP run {}, executed at {}"
+BLOOM_SYNC_STAGE = "bloom_sync"
+BLOOM_SYNC_NOT_CONFIGURED = "not configured"
+BLOOM_SYNC_SKIPPED = ("skipped", "Bloom sync skipped")
+BLOOM_SYNC_REQUESTED = ("running", "Bloom sync requested")
+BLOOM_SYNC_FAILED = ("failed", "Bloom sync failed", "Bloom returned HTTP 401.")
+BLOOM_SYNC_FAILED_METADATA = {"response": "unauthorized"}
+BLOOM_SYNC_TALLY = {"unidentified": 2, "skipped": 1}
+BLOOM_SYNC_LEFT_OUT = " 2 result(s) had no Bloom tc_id; 1 skipped result(s) were not sent."
+BLOOM_SYNC_UNTAGGED = (
+    "No result metadata included a Bloom tc_id to match. 1 result(s) had no Bloom tc_id."
+)
+BLOOM_SYNC_MIXED = (
+    "Bloom updated 1 test case execution record(s). 1 result(s) had no Bloom tc_id."
+)
+MSG_BLOOM_SYNC_CHECK = "the Bloom sync answers as expected"
+
+ISOLATION_CONFIG = "tests/config.py"
+ISOLATION_KEPT_VARIABLES = ("PATH", "PYTHONPATH", "HOME", "LANG")
+ISOLATION_INHERITED = {
+    "SECRET_KEY": "synthetic-inherited-secret-key-at-least-32-characters",
+    "SMTP_HOST": "smtp.example.com",
+    "SMTP_USERNAME": "synthetic-user",
+    "SMTP_PASSWORD": "synthetic-password",
+    "S3_ACCESS_KEY_ID": "synthetic-access",
+    "S3_SECRET_ACCESS_KEY": "synthetic-storage-secret",
+    "ADMIN_PASSWORD": "synthetic-admin-password",
+}
+ISOLATION_FLAGS = {
+    "BUD_TESTS_USE_DOTENV": "1",
+    "BUD_DOTENV_DISABLED": "0",
+    "BUD_DATABASE_URL": "postgresql://synthetic:synthetic@db.example.com/live",
+}
+ISOLATION_PRELUDE = """
+import json, os, runpy, smtplib, socket, sys
+from pathlib import Path
+original_read = Path.read_text
+def safe_read(path, *args, **kwargs):
+    if path.name == '.env':
+        raise PermissionError('Operator dotenv reads are forbidden')
+    return original_read(path, *args, **kwargs)
+Path.read_text = safe_read
+runpy.run_path(os.environ['BUD_CONFIG_PATH'])
+"""
+ISOLATION_CREDENTIALS_PROBE = """
+keys = ['SECRET_KEY', 'SMTP_HOST', 'SMTP_USERNAME', 'SMTP_PASSWORD', 'S3_ACCESS_KEY_ID', 'S3_SECRET_ACCESS_KEY', 'ADMIN_PASSWORD']
+print(json.dumps({prefix + key: os.environ.get(prefix + key) for prefix in ('', 'BUD_') for key in keys} | {'dotenv': os.environ.get('BUD_DOTENV_DISABLED')}))
+"""
+ISOLATION_REPLACED = {
+    "SECRET_KEY": "test-secret-key-for-ci-at-least-32-characters-long",
+    "SMTP_HOST": "127.0.0.1",
+    "SMTP_USERNAME": "",
+    "SMTP_PASSWORD": "",
+    "S3_ACCESS_KEY_ID": "",
+    "S3_SECRET_ACCESS_KEY": "",
+    "ADMIN_PASSWORD": "ci-admin-password-123",
+}
+ISOLATION_DOTENV_DISABLED = "1"
+ISOLATION_PREFIXES = ("", "BUD_")
+ISOLATION_PROBE_FOLDER = "BUD_PROBE_DIR"
+ISOLATION_BLOCKED = "blocked before network"
+ISOLATION_PROBES = {
+    "external SMTP is blocked before a network connection": (
+        """
+def attempted(*args, **kwargs):
+    raise RuntimeError('Network connection was attempted')
+socket.create_connection = attempted
+try:
+    smtplib.SMTP('smtp.example.com', 587)
+except PermissionError:
+    print('blocked before network')
+""",
+        {},
+        ISOLATION_BLOCKED,
+    ),
+    "SMTP authentication is blocked before credentials are sent": (
+        """
+try:
+    sys.audit('smtplib.send', smtplib.SMTP(), b'AUTH PLAIN synthetic')
+except PermissionError:
+    print('blocked before credentials')
+""",
+        {},
+        "blocked before credentials",
+    ),
+    "the test Mailpit connection is allowed": (
+        "sys.audit('smtplib.connect', smtplib.SMTP(), '127.0.0.1', 11025); print('allowed')",
+        {},
+        "allowed",
+    ),
+    "operator dotenv reads are blocked even with changed flags": (
+        """
+try:
+    sys.audit('open', str(Path.cwd() / '.env'), 'r', 0)
+except PermissionError:
+    print('operator dotenv blocked')
+""",
+        {},
+        "operator dotenv blocked",
+    ),
+    "ambient AWS credentials are replaced": (
+        """
+import boto3
+credentials = boto3.Session().get_credentials()
+print(json.dumps({'access_key': credentials.access_key, 'secret_key': credentials.secret_key, 'source': credentials.method, 'credentials_file': os.environ.get('AWS_SHARED_CREDENTIALS_FILE'), 'config_file': os.environ.get('AWS_CONFIG_FILE'), 'metadata_disabled': os.environ.get('AWS_EC2_METADATA_DISABLED')}))
+""",
+        {
+            "AWS_ACCESS_KEY_ID": "synthetic-inherited-access",
+            "AWS_SECRET_ACCESS_KEY": "synthetic-inherited-secret",
+            "AWS_SESSION_TOKEN": "synthetic-inherited-session",
+        },
+        {
+            "access_key": "test-access-key",
+            "secret_key": "test-secret-key",
+            "source": "env",
+            "credentials_file": "/dev/null",
+            "config_file": "/dev/null",
+            "metadata_disabled": "true",
+        },
+    ),
+    "the settings leave the dotenv source unopened": (
+        """
+from app.core.config import Settings
+path = Path(os.environ['BUD_PROBE_DIR']) / '.env'
+path.write_text('SECRET_KEY=synthetic-file-secret-key-at-least-32-characters\\n')
+opened = []
+sys.addaudithook(lambda event, args: opened.append(args[0]) if event == 'open' and str(args[0]) == str(path) else None)
+Settings(_env_file=path)
+print('dotenv source opened' if opened else 'dotenv source not opened')
+""",
+        {},
+        "dotenv source not opened",
+    ),
+    "an enabled dotenv source opens its file": (
+        """
+from pydantic_settings import BaseSettings, SettingsConfigDict
+class Probe(BaseSettings):
+    model_config = SettingsConfigDict(extra='ignore')
+path = Path(os.environ['BUD_PROBE_DIR']) / '.env'
+path.write_text('SYNTHETIC=1\\n')
+opened = []
+sys.addaudithook(lambda event, args: opened.append(args[0]) if event == 'open' and str(args[0]) == str(path) else None)
+Probe(_env_file=path)
+print('dotenv source opened' if opened else 'dotenv source not opened')
+""",
+        {},
+        "dotenv source opened",
+    ),
+    "the rate limiter leaves a working-directory dotenv unread": (
+        """
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+directory = os.environ['BUD_PROBE_DIR']
+sys.path.insert(0, os.getcwd())
+os.chdir(directory)
+path = Path(directory).resolve() / '.env'
+path.write_text('SYNTHETIC=1\\n')
+opened = []
+sys.addaudithook(lambda event, args: opened.append(args[0]) if event == 'open' and Path(str(args[0])).name == '.env' and Path(str(args[0])).resolve() == path else None)
+Limiter(key_func=get_remote_address)
+control = bool(opened)
+opened.clear()
+from app.core.deps import limiter
+print(json.dumps({'control_reads_dotenv': control, 'app_limiter_reads_dotenv': bool(opened)}))
+""",
+        {},
+        {"control_reads_dotenv": True, "app_limiter_reads_dotenv": False},
+    ),
+    "the default test services use the dedicated ports": (
+        "print(json.dumps({'database': os.environ['DATABASE_URL'], 'smtp': os.environ['SMTP_PORT']}))",
+        {"DATABASE_URL": ""},
+        {
+            "database": "postgresql+asyncpg://test_user:test_password@localhost:15432/test_bud",
+            "smtp": "11025",
+        },
+    ),
+    "another SMTP port outside development is allowed": (
+        "sys.audit('smtplib.connect', smtplib.SMTP(), '127.0.0.1', 21025); print('allowed')",
+        {"TEST_SMTP_PORT": "21025"},
+        "allowed",
+    ),
+    **{
+        f"a connection to the development Mailpit on port {port} is blocked": (
+            f"""
+try:
+    smtplib.SMTP('127.0.0.1', {port})
+except PermissionError:
+    print('blocked before network')
+""",
+            {},
+            ISOLATION_BLOCKED,
+        )
+        for port in (1025, 8025, 25)
+    },
+}
+ISOLATION_DATABASE_TEXT = "Tests require the isolated test database"
+ISOLATION_MAILPIT_TEXT = "dedicated test Mailpit port"
+ISOLATION_REFUSALS = {
+    "an unsafe database is refused without its address": (
+        {"DATABASE_URL": "postgresql://synthetic-user:synthetic-password@db.example.com/live"},
+        ISOLATION_DATABASE_TEXT,
+        ("synthetic-password", "db.example.com"),
+    ),
+    **{
+        f"a database connection override {suffix} is refused": (
+            {
+                "DATABASE_URL": "postgresql+asyncpg://test_user:test_password@localhost:15432/test_bud"
+                + suffix
+            },
+            None,
+            (),
+        )
+        for suffix in ("?host=db.example.com", "?password=synthetic-password", "#fragment", "?port=5433")
+    },
+    **{
+        f"the database {url} is refused": ({"DATABASE_URL": url}, None, ())
+        for url in (
+            "sqlite+aiosqlite:////var/lib/bud/operator.db",
+            "postgresql+psycopg://test_user:test_password@localhost:15432/test_bud",
+        )
+    },
+    **{
+        f"the development Postgres port '{port}' is refused": (
+            {
+                "DATABASE_URL": "postgresql+asyncpg://test_user:test_password@localhost"
+                + (f":{port}" if port != "" else "")
+                + "/test_bud"
+            },
+            ISOLATION_DATABASE_TEXT,
+            (),
+        )
+        for port in (5432, 5433, 5434, 80, "")
+    },
+    **{
+        f"the development Mailpit port '{port}' is refused": (
+            {"TEST_SMTP_PORT": port},
+            ISOLATION_MAILPIT_TEXT,
+            (),
+        )
+        for port in ("1025", "8025", "25", "587", "465", "2525", "0", "70000", "abc", "")
+    },
+}
+ISOLATION_OTHER_POSTGRES = {
+    "DATABASE_URL": "postgresql+asyncpg://test_user:test_password@127.0.0.1:25432/test_bud"
+}
+ISOLATION_STARTED = 0
+MSG_ISOLATION_REPLACED = "the bootstrap replaces the inherited value"
+MSG_ISOLATION_DOTENV = "the bootstrap disables the dotenv files"
+MSG_ISOLATION_PROBE = "the bootstrapped process answers the probe as expected"
+MSG_ISOLATION_REFUSED = "the bootstrap stops on an unsafe setting"
+MSG_ISOLATION_REASON = "the refusal names its reason"
+MSG_ISOLATION_HIDDEN = "the refusal leaves the secret out"
+MSG_ISOLATION_ALLOWED = "the bootstrap starts with another Postgres port outside development"
+
+RUNS_FILTER_STATIONS = (("station-01", "Lab A"), ("station-03", "Lab A"), ("station-02", "Lab B"))
+RUNS_FILTER_NIGHTLY = 30
+RUNS_FILTER_FOUND = "Powertrain Endurance"
+RUNS_FILTER_QUERIES = {
+    "first page": {"limit": 20, "offset": 0},
+    "search": {"limit": 20, "q": "Powertrain"},
+    "test case list": {"limit": 20, "q": "EnduranceTests"},
+    "station account": {"limit": 50, "q": "station-02"},
+    "upper case": {"q": "POWERTRAIN"},
+    "no match": {"q": "no-such-run"},
+    "Lab B": {"location": "Lab B", "limit": 20},
+    "Lab Z": {"location": "Lab Z"},
+}
+RUNS_FILTER_LAB_A = {"location": "Lab A"}
+RUNS_FILTER_LAB_A_NAMES = ["At station-01", "At station-03"]
+RUNS_FILTER_LATEST = {"latest_per_suite": "true"}
+RUNS_FILTER_LATEST_PAGE = {"latest_per_suite": "true", "limit": 2, "offset": 0}
+RUNS_FILTER_LATEST_LAB_B = {"latest_per_suite": "true", "location": "Lab B"}
+MSG_RUNS_FILTER_CHECK = "the run list search and filters answer as expected"
+
+MAIL_SETTINGS = {
+    "SMTP_ENABLED": True,
+    "SMTP_HOST": "mail",
+    "SMTP_PORT": 2525,
+    "SMTP_USERNAME": "",
+    "SMTP_PASSWORD": "",
+    "SMTP_FROM_EMAIL": "noreply@example.com",
+    "SMTP_REPLY_TO": None,
+    "SMTP_STARTTLS": False,
+    "SMTP_SSL": False,
+    "SMTP_TIMEOUT_SECONDS": 9,
+}
+MAIL_SENDER_HOST = {"SMTP_HOST": "smtp.example.com", "SMTP_PORT": 587}
+MAIL_FROM = "Bud TMP by EmbedLabs <noreply@example.com>"
+MAIL_RELAY = "mail:2525"
+MAIL_STARTTLS_TEXTS = ("mail:2525", "STARTTLS=True", "SMTPNotSupportedError")
+MAIL_DELIVERY_ERROR = "MailDeliveryError"
+MAIL_SENT = "Email sent"
+MAIL_PRIVATE = {
+    "to_email": "private-recipient@example.com",
+    "subject": "Private subject with an untrusted marker",
+    "text_body": "private message content",
+}
+MAIL_PRIVATE_TEXTS = ("private-recipient", "untrusted marker", "private message content")
+MAIL_SERVER_RESPONSE = "remote response\nforged log entry"
+MAIL_SERVER_TEXTS = ("remote response", "forged log entry")
+MAIL_LINK = "https://bud.example.com/action?first=1&second=2#token=abc"
+MAIL_SENDERS = {
+    "invite": (
+        "send_invite_email",
+        {"to_email": "user@example.com", "full_name": "Test User", "invite_link": MAIL_LINK},
+    ),
+    "verify_email": (
+        "send_verification_email",
+        {"to_email": "user@example.com", "full_name": "Test User", "verification_link": MAIL_LINK},
+    ),
+    "reset_password": (
+        "send_password_reset_email",
+        {"to_email": "user@example.com", "full_name": "Test User", "reset_link": MAIL_LINK},
+    ),
+    "email_change": (
+        "send_email_change_email",
+        {
+            "to_email": "new@example.com",
+            "full_name": "Test User",
+            "old_email": "old@example.com",
+            "new_email": "new@example.com",
+            "confirm_link": MAIL_LINK,
+        },
+    ),
+    "email_change_authorization": (
+        "send_email_change_authorization_email",
+        {
+            "to_email": "old@example.com",
+            "full_name": "Test User",
+            "old_email": "old@example.com",
+            "new_email": "new@example.com",
+            "confirm_link": MAIL_LINK,
+        },
+    ),
+    "admin_welcome": (
+        "send_admin_welcome_email",
+        {"to_email": "admin@example.com", "full_name": "Test Admin", "login_link": MAIL_LINK},
+    ),
+    "access_request": (
+        "send_access_request_email",
+        {
+            "to_email": "admin@example.com",
+            "admin_name": "Administrator",
+            "requester_name": "Writer <script>",
+            "requester_email": "writer@example.com",
+            "resource": "Publish to Bloom",
+            "project": "PRJ",
+            "requested_at": "2026-10-25T10:00:00Z",
+            "request_id": "42",
+            "review_link": MAIL_LINK,
+        },
+    ),
+    "report_request": (
+        "send_report_request_email",
+        {
+            "to_email": "publisher@example.com",
+            "publisher_name": "Publisher",
+            "requester_name": "Reader <script>",
+            "requester_email": "reader@example.com",
+            "project": "PRJ",
+            "run_id": "42",
+            "review_link": MAIL_LINK,
+        },
+    ),
+}
+MAIL_IDENTITY = "Bud TMP by EmbedLabs"
+MAIL_PRODUCT = "Bud TMP"
+MAIL_TITLE = "<title>Bud TMP by EmbedLabs</title>"
+MAIL_BUTTON = "background:#208337;color:#ffffff"
+MAIL_FOOTER = "(c) 2026 EmbedLabs. All rights reserved."
+MAIL_GREETING = "Hello "
+MAIL_ESCAPED = {
+    "access html escapes the requester": ("access", "html_body", "Writer &lt;script&gt;"),
+    "access text keeps the requester": ("access", "text_body", "Writer <script>"),
+    "report html escapes the requester": ("report", "html_body", "Reader &lt;script&gt;"),
+    "report text keeps the requester": ("report", "text_body", "Reader <script>"),
+    "access html escapes the link": (
+        "access",
+        "html_body",
+        'href="https://bud.example.com/action?first=1&amp;second=2#token=abc"',
+    ),
+}
+MAIL_ACCESS_SUBJECT = "Access requested on Bud TMP: Publish to Bloom"
+MAIL_REPORT_SUBJECT = "Report requested on Bud TMP: run #42"
+MAIL_GRANT = "Grant access in Bud TMP, then mark the request granted or refused."
+MAIL_PUBLISH = "Publish the report from Bud TMP to Bloom or refuse the request with a reason."
+MSG_MAIL_CHECK = "the mail service answers as expected"
+
+RUN_AUTH_STATIONS = (("runner-auth-a", "token-a", 53035), ("runner-auth-b", "token-b", 53036))
+RUN_AUTH_RESULT = {
+    "test_class": "SecretTest",
+    "test_method": "secret_method",
+    "passed": False,
+    "traceback": "sensitive traceback",
+}
+RUN_AUTH_RUN_ID = "run id"
+RUN_AUTH_CROSS_CREATE = {
+    "test_case_list": "suite",
+    "test_suite_name": "cross-owned",
+    "runner_account": "runner-auth-b",
+    "status": "Running",
+}
+RUN_AUTH_LIST_SORTS = ("name", "runner_account", "duration_seconds")
+RUN_AUTH_FOREIGN = {
+    "detail": ("GET", "/api/test-runs/{}", None),
+    "events": ("GET", "/api/test-runs/{}/events", None),
+    "patch": ("PATCH", "/api/test-runs/{}", {"status": "Completed"}),
+    "results": ("GET", "/api/results/{}", None),
+    "artifacts": ("GET", "/api/test-runs/{}/artifacts", None),
+    "results upload": (
+        "POST",
+        "/api/results",
+        {
+            "test_run_id": RUN_AUTH_RUN_ID,
+            "results": [{"test_class": "CrossRunner", "test_method": "forbidden", "passed": True}],
+        },
+    ),
+}
+RUN_AUTH_REFUSED = [403, 404]
+RUN_AUTH_SIGNED_OUT = {"result list": "/api/results/{}", "result detail": "/api/results/detail/{}"}
+RUN_AUTH_VIEWER = {"id": 44, "email": "readonly@example.com", "full_name": "Read Only", "role": "viewer"}
+RUN_AUTH_VIEWER_WRITES = {
+    "product-create": ("POST", "/api/products", {"name": "viewer-product"}),
+    "run-create": ("POST", "/api/test-runs", {"test_case_list": "suite", "test_suite_name": "viewer-run"}),
+    "run-patch": ("PATCH", "/api/test-runs/{}", {"status": "Completed"}),
+    "run-delete": ("DELETE", "/api/test-runs/{}", None),
+    "results-upload": (
+        "POST",
+        "/api/results",
+        {
+            "test_run_id": RUN_AUTH_RUN_ID,
+            "results": [{"test_class": "ViewerUpload", "test_method": "must_be_denied", "passed": True}],
+        },
+    ),
+}
+RUN_AUTH_DEVELOPER = {"id": 45, "email": "developer@example.com", "full_name": "Dev Eloper", "role": "developer"}
+RUN_AUTH_WRITES = {
+    "product-create": ("POST", "/api/products", {"name": "{}-product"}),
+    "run-create": ("POST", "/api/test-runs", {"test_case_list": "suite", "test_suite_name": "developer-run"}),
+    "run-patch": ("PATCH", "/api/test-runs/{}", {"name": "renamed-run"}),
+    "run-delete": ("DELETE", "/api/test-runs/{}", None),
+    "results-upload": (
+        "POST",
+        "/api/results",
+        {
+            "test_run_id": RUN_AUTH_RUN_ID,
+            "results": [{"test_class": "Dev", "test_method": "writes", "passed": True}],
+        },
+    ),
+    "artifact-upload": ("POST", "/api/uploads", "file"),
+    "custom-run": ("POST", "/api/test-runs/custom", {"test_paths": ["suite.Case"]}),
+    "publish": ("POST", "/api/test-runs/{}/publish-to-bloom", None),
+}
+RUN_AUTH_DEVELOPER_STATUS = {
+    "product-create": 403,
+    "run-create": 403,
+    "run-patch": 403,
+    "run-delete": 403,
+    "results-upload": 403,
+    "artifact-upload": 403,
+    "custom-run": 422,
+    "publish": 409,
+}
+RUN_AUTH_VIEWER_WRITER = {
+    "id": 46,
+    "email": "viewer-writes@example.com",
+    "full_name": "View Er",
+    "role": "viewer",
+}
+RUN_AUTH_VIEWER_REFUSALS = {
+    "artifact-upload": "Only stations can upload artifacts",
+    "custom-run": "Insufficient permissions.",
+    "publish": "Insufficient permissions.",
+}
+RUN_AUTH_UPLOAD_FILE = ("log.txt", b"log", "text/plain")
+MSG_RUN_AUTH_OTHER_STATION = "a Test Station cannot create a run for another station"
+MSG_RUN_AUTH_LIST = "a Test Station lists its own runs only"
+MSG_RUN_AUTH_FOREIGN = "a Test Station cannot reach another station's run"
+MSG_RUN_AUTH_SIGNED_OUT = "result reads need a signed-in entity"
+MSG_RUN_AUTH_VIEWER = "a viewer cannot write"
+MSG_RUN_AUTH_DEVELOPER = "a developer queues custom runs and publishes only"
+MSG_RUN_AUTH_DETAIL = "the refusal says why"
+
+ACCESS_PASSWORD = "Correct-Horse-Battery-9"
+ACCESS_RUN_NAME = "Nightly smoke"
+ACCESS_TYPE = "publish-to-bloom"
+ACCESS_BOSS = "boss@example.com"
+ACCESS_MEMBER = "member@example.com"
+ACCESS_MINE_PATH = "/api/access-requests/mine"
+ACCESS_REVIEW_SUFFIX = "/access"
+ACCESS_RESOURCE = "Publish to Bloom (from test run {}: Nightly smoke)"
+ACCESS_REQUESTED = "access.requested"
+ACCESS_REFUSED = "access.refused"
+ACCESS_OTHER_TYPES = ("user", "test-run", "product")
+ACCESS_PICTURES = (
+    ("picture-admin@example.com", "admin", b"admin"),
+    ("picture-first@example.com", "viewer", b"first"),
+    ("picture-second@example.com", "viewer", b"second"),
+)
+ACCESS_FIRST_PICTURES = (b"first", b"replacement", None)
+ACCESS_HOLDERS = {
+    "an administrator": ("admin", None),
+    "a developer": ("developer", None),
+    "a viewer in Test Operators": ("viewer", "test_operators"),
+    "a viewer in App Administration": ("viewer", "app_administration"),
+}
+ACCESS_OPERATORS = "test_operators"
+ACCESS_MANAGERS = "access_managers"
+ACCESS_MANAGER = "manager@example.com"
+ACCESS_PRODUCT = "Gateway board"
+ACCESS_GONE_RUN = "Removed run"
+MSG_ACCESS_CHECK = "the access requests answer as expected"
+
+LIFECYCLE_PASSWORD = "a-sufficiently-long-password"
+LIFECYCLE_NEW_PASSWORD = "an-entirely-different-password"
+LIFECYCLE_TOKEN = r"#token=([A-Za-z0-9_\-]+)"
+LIFECYCLE_INVITE_PATH = "/api/users/invite"
+LIFECYCLE_INVITE_INFO_PATH = "/api/auth/invite-info"
+LIFECYCLE_ACCEPT_PATH = "/api/auth/accept-invite"
+LIFECYCLE_FORGOT_PATH = "/api/auth/forgot-password"
+LIFECYCLE_RESET_PATH = "/api/auth/reset-password"
+LIFECYCLE_CONFIRM_PATH = "/api/auth/confirm-email-change"
+LIFECYCLE_USER_PATH = "/api/users/{}"
+LIFECYCLE_REFUSED = (400, 401, 404)
+LIFECYCLE_STRING = "str"
+MSG_LIFECYCLE_CHECK = "the one-time link flow answers as expected"
+
+BLOOM_REPORT_RUN = "Nightly HIL"
+BLOOM_REPORT_TC_ID = "PRJ-TC-001"
+BLOOM_REPORT_FILES = (
+    ("bud-run-{}.pdf", "application/pdf", b"%PDF-1.4 run"),
+    ("report_junit.xml", "application/xml", b"<testsuites/>"),
+    ("bench.log", "application/octet-stream", b"INFO boot"),
+    ("failure.png", "image/png", b"PNG"),
+)
+BLOOM_REPORT_URL = "https://bloom.test"
+BLOOM_REPORT_TOKEN = "blm_sync_token"
+BLOOM_PUBLISH_PATH = "/api/test-runs/{}/publish-to-bloom"
+BLOOM_PUBLISHED = ["bud-run-{}.pdf", "report_junit.xml"]
+BLOOM_PUBLISH_ANSWER = {"document_id": 12, "doc_id": "PRJ-RPT-001", "created": True}
+BLOOM_PUBLISH_PREFIX = "PRJ"
+BLOOM_PUBLISH_LEGACY = "Legacy complete"
+BLOOM_PUBLISH_LEGACY_FILES = ["bud-run-{}-Legacy-complete.pdf", "bud-suite-Legacy-complete.pdf"]
+BLOOM_PUBLISH_IDENTIFIERS = {
+    "no test case": ([], "no canonical Bloom test-case IDs"),
+    "a short test case": (["TC-1"], "not a canonical Bloom test-case ID"),
+    "two projects": (["PRJ-TC-001", "ABC-TC-002"], "multiple Bloom projects"),
+}
+BLOOM_PUBLISH_NOT_CONFIGURED = "not configured"
+BLOOM_PUBLISH_COMPLETED = "completed"
+BLOOM_PUBLISH_REFUSAL = "Project not found"
+BLOOM_PUBLISH_UNREACHABLE = "Could not reach Bloom"
+BLOOM_PUBLISH_MISSING_RUN = 999999
+STATUS_BAD_GATEWAY = 502
+MSG_BLOOM_PUBLISH_CHECK = "publishing to Bloom answers as expected"
+
+REPORT_REQUESTS_PATH = "/api/report-requests"
+REPORT_REFUSE_PATH = "/api/report-requests/{}/refuse"
+REPORT_PUBLISH_PATH = "/api/report-requests/{}/publish"
+REPORT_REMOTE = {
+    "id": 1,
+    "run_id": 41,
+    "project_prefix": "PRJ",
+    "requester_name": "Reader",
+    "requester_email": "reader@example.com",
+    "status": "pending",
+    "reason": None,
+}
+REPORT_RUN_ID = 41
+REPORT_ROLES = (("admin", True), ("developer", True), ("viewer", True), ("admin", False))
+REPORT_NOTIFIED = {"publisher-0@example.com", "publisher-1@example.com"}
+REPORT_REVIEW_SUFFIX = "/runs/41"
+REPORT_REQUESTER = "reader@example.com"
+REPORT_ACTOR = b"Bud TMP user #1"
+REPORT_DIFFERENT_PROJECT = "different Bloom project"
+REPORT_NO_LONGER = "no longer available"
+REPORT_PAGES_SEEN = [0, 100, 101]
+REPORT_PUBLISHED_ACTION = "report.published"
+REPORT_SERVICE_ACTOR = "service"
+REPORT_MAIL_LINK = "http://localhost:3000/runs/41"
+MSG_REPORT_CHECK = "the report requests answer as expected"
+
+NOTIFY_BASE_URL = "https://bud.example.com"
+NOTIFY_SUMMARY = {
+    "run_id": 7,
+    "name": "Nightly",
+    "product": "Gateway",
+    "station": "station-01",
+    "software_under_test": "2.4.1",
+    "started_by": "station-01",
+    "passed": 10,
+    "failed": 2,
+    "skipped": 0,
+    "duration_seconds": 65.0,
+    "run_url": "https://bud.example.com/runs/7",
+    "bloom_url": "https://bloom.example.com/suites/3",
+    "bloom_sync_error": None,
+    "failed_tests": ["test_a", "test_b"],
+    "more_failed": 0,
+}
+NOTIFY_STATION_EXIT = "Station exit"
+NOTIFY_SYNC_ERROR = "Bloom returned HTTP 500."
+NOTIFY_RUN_SYNC_ERROR = "Bloom returned HTTP 502."
+NOTIFY_FAILED_LINE = "a, b +4 more"
+NOTIFY_SLACK_RED = "#E01E5A"
+NOTIFY_TEAMS_RED = "E01E5A"
+NOTIFY_SECRET = "s3cr3t"
+NOTIFY_SIGNATURE_PREFIX = "sha256="
+NOTIFY_SIGNATURE_LENGTH = 71
+NOTIFY_RETRY_ROWS = [(1, False, 500), (2, False, None), (3, True, 204)]
+NOTIFY_EVENT = "run.finished"
+NOTIFY_CONNECTOR_URL = "https://acme.webhook.office.com/webhookb2/abc/IncomingWebhook/def"
+NOTIFY_WORKFLOW_URLS = (
+    "https://prod-12.westeurope.logic.azure.com:443/workflows/abc/triggers/manual/paths/invoke",
+    "https://default1234.environment.api.powerplatform.com/powerautomate/automations/direct/x",
+)
+NOTIFY_ATTACKER_URL = "https://powerplatform.com.attacker.example/x"
+NOTIFY_FACTS = {"Product", "Station", "Duration"}
+MSG_NOTIFY_CHECK = "the run-finished notification answers as expected"
+
+LIFE_RUN = {
+    "test_suite_name": "Nightly",
+    "test_case_list": "SmokeTests",
+    "url_test_software": "https://github.test/tests",
+    "ref_test_software": "main",
+}
+LIFE_MISSING = 99999
+LIFE_FINAL_COUNTERS = {
+    "status": "Completed",
+    "total_tests": 10,
+    "passed_tests": 8,
+    "failed_tests": 1,
+    "skipped_tests": 1,
+    "duration_seconds": 42.5,
+}
+LIFE_SETTINGS_PATH = "/api/settings"
+LIFE_PLM_PATH = "/api/settings/integrations/PLM"
+LIFE_BLOOM_URL = "https://bloom.example.com"
+LIFE_BAD_URLS = ("not-a-url", "ftp://bloom.example.com", "https://user:pass@bloom.example.com", "//bloom.example.com")
+LIFE_SIGNED_OUT = (
+    ("GET", "/api/settings"),
+    ("GET", "/api/settings/anything"),
+    ("PUT", "/api/settings/anything"),
+    ("GET", "/api/settings/integrations/PLM"),
+    ("POST", "/api/settings/integrations/PLM"),
+)
+MSG_LIFE_CHECK = "the run and settings endpoints answer as expected"
+STATUS_SERVICE_UNAVAILABLE = 503
+
+PDF_SUMMARY_PATH = "/api/reports/test-runs.pdf"
+PDF_RUN_PATH = "/api/reports/test-runs/{}.pdf"
+PDF_MISSING_RUN = 99999999
+PDF_START = b"%PDF-"
+PDF_END = b"%%EOF"
+PDF_EMBEDLABS = "https://www.embedlabs.net"
+PDF_WORDMARK = "Powered by EmbedLabs"
+PDF_BREAKDOWNS = ("Per suite", "Per Test Station", "Per day")
+PDF_CHART = ("Passed", "Failed", "Skipped")
+PDF_EMPTY = "No assertion outcomes recorded"
+PDF_RUN_URL = "https://bud.example/test-runs/42"
+PDF_SOFTWARE_URL = "https://github.test/tests"
+PDF_ASSERTION_TEXTS = (
+    "2 assertions",
+    "AssertInRange",
+    "supply stayed inside the safe window",
+    "[11.5, 14.8] V",
+    "13.6 V",
+    "test_thermal.py:84",
+    "assertion-level trace marker",
+)
+PDF_HOSTILE_NAMES = ("../../etc/passwd", "a/b\\c", 'quote"inside', "crlf\r\ninjected: yes", "semi;colon")
+PDF_FORBIDDEN = ("/", "\\", '"', "\r", "\n", ";")
+PDF_SEEDED_TEXTS = ("report-suite", "other-suite", "report-station", "5 assertions")
+MSG_PDF_CHECK = "the PDF reports answer as expected"
+
+AUTH_PASSWORD = "a-sufficiently-long-password"
+AUTH_PERSON = "person@example.com"
+AUTH_REFRESH_NAME = "bud_refresh_token"
+AUTH_REFRESH_COOKIE = r"bud_refresh_token=([^;]+)"
+AUTH_MAILED_TOKEN = r"#token=([^\s<]+)"
+AUTH_REFRESH_PATH = "/api/auth/refresh"
+AUTH_LOGOUT_PATH = "/api/auth/logout"
+AUTH_ME_PATH = "/api/auth/me"
+AUTH_ME_EMAIL_PATH = "/api/auth/me/email"
+AUTH_ME_PASSWORD_PATH = "/api/auth/me/password"
+AUTH_FORGOT_PATH = "/api/auth/forgot-password"
+AUTH_RESET_PATH = "/api/auth/reset-password"
+AUTH_INVITE_INFO_PATH = "/api/auth/invite-info"
+AUTH_ACCEPT_PATH = "/api/auth/accept-invite"
+AUTH_VERIFY_PATH = "/api/auth/verify-email"
+AUTH_CONFIRM_PATH = "/api/auth/confirm-email-change"
+AUTH_REFUSED = (400, 401, 404)
+AUTH_WRONG_PASSWORD = (400, 401)
+AUTH_INFO_ANSWERS = (200, 400, 404)
+MSG_AUTH_CHECK = "the authentication endpoints answer as expected"
+
+CLI_VERIFIER = "v" * 43
+CLI_START = {"client_name": "CLI client", "mode": "code", "state": "state"}
+CLI_START_PATH = "/api/auth/cli/start"
+CLI_APPROVE_PATH = "/api/auth/cli/approve"
+CLI_CHECK_PATH = "/api/auth/cli/check"
+CLI_DENY_PATH = "/api/auth/cli/deny"
+CLI_EXCHANGE_PATH = "/api/auth/cli/exchange"
+CLI_SESSION_PATH = "/api/auth/cli/sessions/{}"
+CLI_ROUTE_PATH = "/api/auth/cli/{}"
+CLI_UNKNOWN_SESSION = "00000000-0000-0000-0000-000000000001"
+CLI_BAD_CALLBACKS = (
+    "https://127.0.0.1:1234/callback",
+    "http://example.com:1234/callback",
+    "http://127.0.0.2:1234/callback",
+    "http://127.0.0.1/callback",
+    "http://localhost:0/callback",
+    "http://localhost:65536/callback",
+    "http://user@localhost:1234/callback",
+    "http://localhost:1234/callback#fragment",
+    "http://localhost:1234/callback?code=old",
+    "http://localhost:1234/callback?state=old",
+    "http://localhost:1234/callback?%63ode=old",
+    "http://localhost:1234/callback?CODE=old",
+    "http://localhost.evil.test:1234/callback",
+    "http://127.0.0.1:1234\\@evil.test/callback",
+)
+CLI_LOOPBACK_HOSTS = ("127.0.0.1", "localhost", "[::1]")
+CLI_BAD_FIELDS = (
+    {"code_challenge": "x" * 42},
+    {"code_challenge": "+" * 43},
+    {"code_challenge": "x" * 44},
+    {"state": ""},
+    {"mode": "poll"},
+    {"mode": "callback"},
+    {"redirect_uri": "http://localhost:1234/callback"},
+    {"client_name": " "},
+)
+CLI_EXCHANGE_FAILURES = {
+    "pending": "unknown_or_unapproved_session",
+    "bad_code": "code_or_verifier_mismatch",
+    "bad_verifier": "code_or_verifier_mismatch",
+    "expired": "expired_or_consumed",
+    "disabled": "inactive_or_changed_user",
+    "version": "inactive_or_changed_user",
+}
+CLI_REFUSED = (400, 401)
+CLI_STATION_REFUSED = (401, 403)
+CLI_BAD_VERIFIERS = ("v" * 42, "v" * 129, "!" * 43)
+CLI_BAD_REFRESH_IDS = (None, "invalid", 999999)
+CLI_BAD_BINDINGS = ("expired", "used", "wrong_user", "wrong_purpose")
+CLI_LIMITED_ROUTES = ("start", "exchange", "refresh")
+CLI_DENY_BODIES = ({}, {"session_id": "invalid"}, {"session_id": "00000000-0000-0000-0000-000000000001", "extra": "field"})
+CLI_CHECK_LIMITS = {"check": 30, "approve": 10}
+CLI_WRONG_CODE = "AAAA-AAAA"
+CLI_STATION = "cli-test-station"
+STATUS_TOO_MANY = 429
+MSG_CLI_SEC_CHECK = "the CLI authorization answers as expected"
+
+CONFIG_ENV_KEYS = (
+    "ACCESS_TOKEN_EXPIRE_MINUTES",
+    "ADMIN_EMAIL",
+    "ADMIN_FULL_NAME",
+    "ADMIN_PASSWORD",
+    "AUTO_SEED_ADMIN",
+    "APP_BASE_URL",
+    "BUD_ACCESS_TOKEN_EXPIRE_MINUTES",
+    "BUD_ADMIN_EMAIL",
+    "BUD_ADMIN_FULL_NAME",
+    "BUD_ADMIN_PASSWORD",
+    "BUD_AUTO_SEED_ADMIN",
+    "BUD_APP_BASE_URL",
+    "BUD_CORS_ORIGINS",
+    "BUD_DATABASE_URL",
+    "BUD_ENV",
+    "BUD_EMAIL_VERIFICATION_TOKEN_TTL_HOURS",
+    "BUD_ENABLE_DOCS",
+    "BUD_FRONTEND_BASE_URL",
+    "BUD_INVITE_TOKEN_TTL_HOURS",
+    "BUD_INTEGRATION_ENCRYPTION_KEY",
+    "BUD_MAX_UPLOAD_SIZE",
+    "BUD_MAX_UPLOAD_SIZE_BYTES",
+    "BUD_MAX_RUN_UPLOAD_BYTES",
+    "BUD_MIN_UPLOAD_FREE_BYTES",
+    "BUD_UPLOADS_PER_15_MINUTES",
+    "BUD_MAX_CONCURRENT_UPLOADS_PER_PRINCIPAL",
+    "BUD_ARTIFACT_RETENTION_DAYS",
+    "BUD_UPLOAD_STREAM_CHUNK_BYTES",
+    "BUD_PASSWORD_RESET_TOKEN_TTL_HOURS",
+    "BUD_RUN_STARTUP_DATA_REPAIR",
+    "BUD_RUNNER_API_KEY",
+    "BUD_RUNNER_HEARTBEAT_TIMEOUT",
+    "BUD_RUNNER_TOKEN_EXPIRE_HOURS",
+    "BUD_SECRET_KEY",
+    "BUD_SMTP_ENABLED",
+    "BUD_SMTP_FROM_EMAIL",
+    "BUD_SMTP_FROM_NAME",
+    "BUD_SMTP_HOST",
+    "BUD_SMTP_PASSWORD",
+    "BUD_SMTP_PORT",
+    "BUD_SMTP_REPLY_TO",
+    "BUD_SMTP_SSL",
+    "BUD_SMTP_STARTTLS",
+    "BUD_SMTP_TIMEOUT_SECONDS",
+    "BUD_SMTP_USERNAME",
+    "BUD_UPLOAD_DIR",
+    "CORS_ORIGINS",
+    "DATABASE_URL",
+    "APP_ENV",
+    "EMAIL_VERIFICATION_TOKEN_TTL_HOURS",
+    "ENABLE_DOCS",
+    "FRONTEND_BASE_URL",
+    "INVITE_TOKEN_TTL_HOURS",
+    "INTEGRATION_ENCRYPTION_KEY",
+    "MAX_UPLOAD_SIZE",
+    "MAX_UPLOAD_SIZE_BYTES",
+    "MAX_RUN_UPLOAD_BYTES",
+    "MIN_UPLOAD_FREE_BYTES",
+    "UPLOADS_PER_15_MINUTES",
+    "MAX_CONCURRENT_UPLOADS_PER_PRINCIPAL",
+    "ARTIFACT_RETENTION_DAYS",
+    "UPLOAD_STREAM_CHUNK_BYTES",
+    "PASSWORD_RESET_TOKEN_TTL_HOURS",
+    "RUN_STARTUP_DATA_REPAIR",
+    "RUNNER_API_KEY",
+    "RUNNER_HEARTBEAT_TIMEOUT",
+    "RUNNER_TOKEN_EXPIRE_HOURS",
+    "SECRET_KEY",
+    "SMTP_ENABLED",
+    "SMTP_FROM_EMAIL",
+    "SMTP_FROM_NAME",
+    "SMTP_HOST",
+    "SMTP_PASSWORD",
+    "SMTP_PORT",
+    "SMTP_REPLY_TO",
+    "SMTP_SSL",
+    "SMTP_STARTTLS",
+    "SMTP_TIMEOUT_SECONDS",
+    "SMTP_USERNAME",
+    "UPLOAD_DIR",
+)
+CONFIG_PRODUCTION = {
+    "BUD_ENV": "production",
+    "BUD_SECRET_KEY": "b" * 32,
+    "BUD_ADMIN_EMAIL": "ops@example.com",
+    "BUD_ADMIN_PASSWORD": "this-is-a-long-password",
+}
+CONFIG_PRODUCTION_BASELINE = {
+    "BUD_DATABASE_URL": "postgresql://bud:strong-db-pass@db:5432/buddb",
+    "BUD_RUNNER_API_KEY": "r" * 32,
+}
+CONFIG_MIB = 1024 * 1024
+CONFIG_CASES = {
+    "the BUD_ prefixed variables are read": (
+        {
+            "BUD_SECRET_KEY": "b" * 32,
+            "BUD_DATABASE_URL": "postgresql://bud:bud@localhost:5432/buddb",
+            "BUD_ACCESS_TOKEN_EXPIRE_MINUTES": "42",
+            "BUD_APP_BASE_URL": "http://localhost:8001",
+            "BUD_FRONTEND_BASE_URL": "http://localhost:5174",
+            "BUD_CORS_ORIGINS": '["http://localhost:5174"]',
+            "BUD_ENABLE_DOCS": "true",
+            "BUD_ADMIN_EMAIL": "admin@example.com",
+            "BUD_ADMIN_PASSWORD": "admin-password",
+            "BUD_ADMIN_FULL_NAME": "Bud Admin",
+            "BUD_RUNNER_API_KEY": "runner-key",
+            "BUD_RUNNER_TOKEN_EXPIRE_HOURS": "12",
+            "BUD_RUNNER_HEARTBEAT_TIMEOUT": "45",
+            "BUD_UPLOAD_DIR": "/var/lib/bud-uploads",
+            "BUD_MAX_UPLOAD_SIZE": "12345",
+            "BUD_INVITE_TOKEN_TTL_HOURS": "48",
+            "BUD_EMAIL_VERIFICATION_TOKEN_TTL_HOURS": "6",
+            "BUD_PASSWORD_RESET_TOKEN_TTL_HOURS": "3",
+            "BUD_SMTP_ENABLED": "true",
+            "BUD_SMTP_HOST": "smtp.example.com",
+            "BUD_SMTP_PORT": "2525",
+            "BUD_SMTP_USERNAME": "smtp-user",
+            "BUD_SMTP_PASSWORD": "smtp-password",
+            "BUD_SMTP_FROM_EMAIL": "noreply@example.com",
+            "BUD_SMTP_FROM_NAME": "Attempted Override",
+            "BUD_SMTP_REPLY_TO": "reply@example.com",
+            "BUD_SMTP_STARTTLS": "false",
+            "BUD_SMTP_SSL": "true",
+            "BUD_SMTP_TIMEOUT_SECONDS": "9",
+        },
+        {
+            "SECRET_KEY": "b" * 32,
+            "DATABASE_URL": "postgresql://bud:bud@localhost:5432/buddb",
+            "ACCESS_TOKEN_EXPIRE_MINUTES": 42,
+            "APP_BASE_URL": "http://localhost:8001",
+            "FRONTEND_BASE_URL": "http://localhost:5174",
+            "CORS_ORIGINS": ["http://localhost:5174"],
+            "ENABLE_DOCS": True,
+            "ADMIN_EMAIL": "admin@example.com",
+            "ADMIN_PASSWORD": "admin-password",
+            "ADMIN_FULL_NAME": "Bud Admin",
+            "RUNNER_API_KEY": "runner-key",
+            "RUNNER_TOKEN_EXPIRE_HOURS": 12,
+            "RUNNER_HEARTBEAT_TIMEOUT": 45,
+            "UPLOAD_DIR": "/var/lib/bud-uploads",
+            "MAX_UPLOAD_SIZE": 12345,
+            "INVITE_TOKEN_TTL_HOURS": 48,
+            "EMAIL_VERIFICATION_TOKEN_TTL_HOURS": 6,
+            "PASSWORD_RESET_TOKEN_TTL_HOURS": 3,
+            "SMTP_ENABLED": True,
+            "SMTP_HOST": "smtp.example.com",
+            "SMTP_PORT": 2525,
+            "SMTP_USERNAME": "smtp-user",
+            "SMTP_PASSWORD": "smtp-password",
+            "SMTP_FROM_EMAIL": "noreply@example.com",
+            "SMTP_REPLY_TO": "reply@example.com",
+            "SMTP_STARTTLS": False,
+            "SMTP_SSL": True,
+            "SMTP_TIMEOUT_SECONDS": 9,
+        },
+        None,
+    ),
+    "the unprefixed variables are a fallback": (
+        {
+            "SECRET_KEY": "s" * 32,
+            "SMTP_ENABLED": "true",
+            "SMTP_HOST": "smtp.unprefixed.example.com",
+            "SMTP_FROM_EMAIL": "noreply@example.com",
+        },
+        {
+            "SECRET_KEY": "s" * 32,
+            "SMTP_ENABLED": True,
+            "SMTP_HOST": "smtp.unprefixed.example.com",
+            "SMTP_FROM_EMAIL": "noreply@example.com",
+        },
+        None,
+    ),
+    "the upload limits have safe defaults": (
+        {"BUD_SECRET_KEY": "b" * 32},
+        {
+            "MAX_UPLOAD_SIZE": 25 * CONFIG_MIB,
+            "MAX_UPLOAD_SIZE_HARD_LIMIT_BYTES": 100 * CONFIG_MIB,
+            "MAX_RUN_UPLOAD_BYTES": 250 * CONFIG_MIB,
+            "MIN_UPLOAD_FREE_BYTES": 1024 * CONFIG_MIB,
+            "UPLOADS_PER_15_MINUTES": 10,
+            "MAX_CONCURRENT_UPLOADS_PER_PRINCIPAL": 1,
+            "ARTIFACT_RETENTION_DAYS": 30,
+            "UPLOAD_STREAM_CHUNK_BYTES": CONFIG_MIB,
+        },
+        None,
+    ),
+    "an operator raises the file limit to 100 MiB": (
+        {"BUD_SECRET_KEY": "b" * 32, "BUD_MAX_UPLOAD_SIZE_BYTES": str(100 * CONFIG_MIB)},
+        {"MAX_UPLOAD_SIZE": 100 * CONFIG_MIB},
+        None,
+    ),
+    "a file limit above 100 MiB is refused": (
+        {"BUD_SECRET_KEY": "b" * 32, "BUD_MAX_UPLOAD_SIZE_BYTES": str(100 * CONFIG_MIB + 1)},
+        {},
+        "100 MiB",
+    ),
+    "the BUD_ prefixed variables win": (
+        {
+            "SECRET_KEY": "s" * 32,
+            "BUD_SECRET_KEY": "b" * 32,
+            "SMTP_HOST": "smtp.unprefixed.example.com",
+            "BUD_SMTP_HOST": "smtp.bud-prefixed.example.com",
+        },
+        {"SECRET_KEY": "b" * 32, "SMTP_HOST": "smtp.bud-prefixed.example.com"},
+        None,
+    ),
+    "production refuses the default administrator email": (
+        {**CONFIG_PRODUCTION, **CONFIG_PRODUCTION_BASELINE, "BUD_ADMIN_EMAIL": "admin@example.com"},
+        {},
+        "ADMIN_EMAIL",
+    ),
+    "production refuses the default administrator password": (
+        {**CONFIG_PRODUCTION, **CONFIG_PRODUCTION_BASELINE, "BUD_ADMIN_PASSWORD": "changeme123"},
+        {},
+        "ADMIN_PASSWORD",
+    ),
+    "production refuses a short administrator password": (
+        {**CONFIG_PRODUCTION, **CONFIG_PRODUCTION_BASELINE, "BUD_ADMIN_PASSWORD": "short-password"},
+        {},
+        "at least 16",
+    ),
+    "development allows the bootstrap defaults": (
+        {
+            "BUD_ENV": "development",
+            "BUD_SECRET_KEY": "b" * 32,
+            "BUD_ADMIN_EMAIL": "admin@example.com",
+            "BUD_ADMIN_PASSWORD": "changeme123",
+        },
+        {"ADMIN_EMAIL": "admin@example.com", "ADMIN_PASSWORD": "changeme123"},
+        None,
+    ),
+    "development seeds the administrator and repairs data by default": (
+        {"BUD_ENV": "development", "BUD_SECRET_KEY": "b" * 32},
+        {"AUTO_SEED_ADMIN": True, "RUN_STARTUP_DATA_REPAIR": True},
+        None,
+    ),
+    "production seeds no administrator and repairs no data by default": (
+        {**CONFIG_PRODUCTION, **CONFIG_PRODUCTION_BASELINE},
+        {"AUTO_SEED_ADMIN": False, "RUN_STARTUP_DATA_REPAIR": False},
+        None,
+    ),
+    "production seeds the administrator when asked": (
+        {**CONFIG_PRODUCTION, **CONFIG_PRODUCTION_BASELINE, "BUD_AUTO_SEED_ADMIN": "true"},
+        {"AUTO_SEED_ADMIN": True},
+        None,
+    ),
+    "production repairs data when asked": (
+        {**CONFIG_PRODUCTION, **CONFIG_PRODUCTION_BASELINE, "BUD_RUN_STARTUP_DATA_REPAIR": "true"},
+        {"RUN_STARTUP_DATA_REPAIR": True},
+        None,
+    ),
+    "production refuses the placeholder secret key": (
+        {**CONFIG_PRODUCTION, **CONFIG_PRODUCTION_BASELINE, "BUD_SECRET_KEY": "replace-with-a-strong-random-secret"},
+        {},
+        "placeholder",
+    ),
+    "production starts without a shared station key": (
+        {**CONFIG_PRODUCTION, "BUD_DATABASE_URL": "postgresql://bud:strong-db-pass@db:5432/buddb"},
+        {"RUNNER_API_KEY": ""},
+        None,
+    ),
+    "production refuses the default database password in a built address": (
+        {**CONFIG_PRODUCTION, "BUD_RUNNER_API_KEY": "r" * 32},
+        {},
+        "DB_PASSWORD",
+    ),
+    "production accepts the default database password beside a full address": (
+        {
+            **CONFIG_PRODUCTION,
+            "BUD_DATABASE_URL": "postgresql://bud:an-actually-strong-password@db:5432/buddb",
+            "BUD_RUNNER_API_KEY": "r" * 32,
+        },
+        {"DATABASE_URL": "postgresql://bud:an-actually-strong-password@db:5432/buddb", "DB_PASSWORD": "bud"},
+        None,
+    ),
+    "production accepts a complete configuration": (
+        {**CONFIG_PRODUCTION, "BUD_DB_PASSWORD": "a-strong-non-default-db-password", "BUD_RUNNER_API_KEY": "r" * 32},
+        {"RUNNER_API_KEY": "r" * 32},
+        None,
+    ),
+    "the legacy front-end address fills the app address": (
+        {"BUD_SECRET_KEY": "b" * 32, "BUD_FRONTEND_BASE_URL": "https://legacy.example.com"},
+        {"APP_BASE_URL": "https://legacy.example.com"},
+        None,
+    ),
+    "the app address wins over the legacy front-end address": (
+        {
+            "BUD_SECRET_KEY": "b" * 32,
+            "BUD_APP_BASE_URL": "https://app.example.com",
+            "BUD_FRONTEND_BASE_URL": "https://legacy.example.com",
+        },
+        {"APP_BASE_URL": "https://app.example.com"},
+        None,
+    ),
+}
+CONFIG_STRING_FIELDS = ("SMTP_FROM_EMAIL", "SMTP_REPLY_TO")
+CONFIG_DROPPED_FIELD = "SMTP_FROM_NAME"
+CONFIG_BUILT_PASSWORD = "a-strong-non-default-db-password"
+MSG_CONFIG_CHECK = "the settings follow the environment as expected"
+
+
+AUDIT_HTTP_PASSWORD = "Correct-Horse-Battery-9"
+AUDIT_HTTP_STATION_PASSWORD = "a-very-long-runner-password-123"
+AUDIT_HTTP_ACTION = "api.request"
+AUDIT_HTTP_FLAG = "security.repeated_refusals"
+AUDIT_HTTP_CLIENT_IP = "testclient"
+AUDIT_HTTP_FORGED = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidHlwZSI6InVzZXIifQ.forged-signature"
+AUDIT_HTTP_UPLOAD = {
+    "results": [{"test_class": "Smoke", "test_method": "test_boots", "passed": True}],
+    "test_suite_name": "smoke",
+}
+AUDIT_HTTP_FLAG_DETAILS = {"denied_requests": 20, "threshold": 20, "window_minutes": 10}
+AUDIT_HTTP_FOREIGN_ORIGIN = "https://foreign.example.com"
+AUDIT_HTTP_NOT_FOUND = "/api/wp-admin/setup-config.php"
+AUDIT_HTTP_DEACTIVATED = "Account is deactivated"
+AUDIT_HTTP_INSUFFICIENT = "Insufficient permissions."
+AUDIT_HTTP_WRITE_FAILED = "api.request could not be recorded"
+MSG_AUDIT_HTTP_CHECK = "the request audit answers as expected"
+
+UPLOAD_API_PATH = "/api/uploads"
+UPLOAD_INFO_PATH = "/api/uploads/info/{}"
+UPLOAD_FILE = ("artifact.txt", b"data", "text/plain")
+UPLOAD_ONLY_ADMINS = "Only admins"
+UPLOAD_NOT_AUTHORIZED = "not authorized"
+UPLOAD_RUN_NOT_FOUND = "Test run not found"
+UPLOAD_TOO_LARGE = "File too large"
+UPLOAD_FREE_SPACE = "free space"
+UPLOAD_RUN_ID_REQUIRED = "run_id is required"
+UPLOAD_STATIONS_ONLY = "Only stations can upload artifacts"
+UPLOAD_QUOTA = "quota"
+STATUS_TOO_LARGE = 413
+STATUS_INSUFFICIENT_STORAGE = 507
+MSG_UPLOAD_CHECK = "the station and upload endpoints answer as expected"
+
+GROUPS_PATH = "/api/groups"
+POLICIES_PATH_ALL = "/api/policies"
+GROUPS_DEFAULT = ["Application Administrators", "Access Managers", "Results Viewers", "Station Managers", "Test Operators"]
+GROUPS_DEFAULT_POLICIES = [
+    "Results",
+    "Custom runs",
+    "Reports publishing",
+    "Stations",
+    "Products",
+    "Settings and integrations",
+    "Audit log",
+    "Access management",
+]
+GROUPS_BUNDLES = {
+    "Results Viewers": ["Results"],
+    "Test Operators": ["Custom runs", "Reports publishing", "Results"],
+    "Station Managers": ["Results", "Stations"],
+    "Access Managers": ["Access management", "Results", "Stations"],
+}
+GROUPS_LAB_PERMISSIONS = ["custom_runs.create", "evidence.view", "products.view", "reports.export", "stations.view"]
+GROUPS_VIEWER_PERMISSIONS = ["evidence.view", "products.view", "reports.export", "stations.view"]
+GROUPS_BAD_PAYLOADS = ({"role": "admin"}, {"permission": "write"}, {"product_ids": [1]}, {"policy_ids": "x"})
+GROUPS_STATION_GROUPS = ("Station Managers", "Access Managers", "Application Administrators")
+GROUPS_RECIPIENT_ROLES = ("admin", "developer", "viewer")
+GROUPS_WRITES = (
+    ("custom_runs.create", "POST", "/api/test-runs/custom", {"test_paths": ["a.B"]}),
+    ("bloom_publish.execute", "POST", "/api/test-runs/{run}/publish-to-bloom", None),
+    ("stations.manage", "POST", "/api/runners/api-keys", {"name": "k"}),
+    ("stations.manage", "GET", "/api/runners/api-keys", None),
+    ("stations.manage", "PATCH", "/api/runners/station-1", {"is_active": True}),
+    ("products.manage", "POST", "/api/products", {"name": "New"}),
+    ("settings.view", "GET", "/api/settings", None),
+    ("settings.edit", "PUT", "/api/settings/x", {"value": "y"}),
+    ("settings.view", "GET", "/api/settings/notifications/channels", None),
+    ("settings.edit", "DELETE", "/api/company-logo/logo", None),
+    ("audit.view", "GET", "/api/audit", None),
+    ("access.manage", "GET", "/api/groups", None),
+    ("access.manage", "GET", "/api/access-requests", None),
+    ("admin", "GET", "/api/users", None),
+    ("reports.export", "GET", "/api/reports/test-runs/{run}.pdf", None),
+    ("settings.view", "GET", "/api/settings/integrations/PLM", None),
+    ("settings.edit", "POST", "/api/settings/integrations/PLM", {}),
+    ("settings.edit", "POST", "/api/settings/notifications/channels/999/test", None),
+    ("settings.edit", "PUT", "/api/company-logo/logo", None),
+    ("access.manage", "POST", "/api/access-requests/999/decision", {"decision": "refused"}),
+    ("admin", "POST", "/api/users/{viewer}/email/approve", None),
+    ("stations.manage", "DELETE", "/api/runners/api-keys/999", None),
+    ("admin", "DELETE", "/api/uploads/{artifact}", None),
+    ("admin", "DELETE", "/api/test-runs/{run}", None),
+    ("products.manage", "DELETE", "/api/products/{product}", None),
+    ("stations.manage", "DELETE", "/api/runners/station-1", None),
+)
+GROUPS_ALLOWED = {
+    "viewer": {"reports.export"},
+    "developer": {"reports.export", "custom_runs.create", "bloom_publish.execute"},
+    "station_manager": {"reports.export", "custom_runs.create", "bloom_publish.execute", "stations.manage"},
+    "admin": {name for name, *_ in GROUPS_WRITES},
+}
+MSG_GROUPS_CHECK = "access over groups answers as expected"
+
+CLI_PASSWORD = "Cli-Password-123"
+CLI_NEW_PASSWORD = "Changed-Cli-Password-456"
+CLI_CALLBACK = "http://127.0.0.1:41234/callback?client=terminal"
+CLI_RFC_VERIFIER = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+CLI_RFC_CHALLENGE = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
+CLI_RFC_CODE = "BUUZ-WHVV"
+CLI_CODE_OFF = "Code sign-in is turned off on this instance. Use callback mode."
+CLI_INVALID = "Invalid or expired authorization session"
+CLI_SESSION_FIELDS = {"session_id", "client_name", "mode", "redirect_uri", "expires_at", "consumed", "created_at"}
+CLI_TOKEN_FIELDS = {"access_token", "refresh_token", "token_type", "user"}
+CLI_REFRESH_PATH = "/api/auth/cli/refresh"
+CLI_MODES = ("callback", "code")
+CLI_DENY_STATES = ("approved", "denied", "expired", "unknown")
+CLI_GOOD_TYPED = ("BUUZ-WHVV", "buuz-whvv", "BUUZWHVV", "BUUZ WHVV")
+CLI_BAD_TYPED = ("BUUZ-WHVW", "BUUZ-WHV", "BUUZ-WHVVA", "BUUZ-WHV1", "")
+MSG_CLI_CHECK = "CLI sign-in answers as expected"
+
+CUSTOM_PATH = "/api/test-runs/custom"
+CUSTOM_CATALOG_PATH = "/api/test-catalog"
+CUSTOM_CLAIM_PATH = "/api/runners/claim-run"
+CUSTOM_COMPLETE_PATH = "/api/runners/runs/{}/complete"
+CUSTOM_REQUESTS_PATH = "/api/execution-requests"
+CUSTOM_CLAIM_ID = "11111111-1111-4111-8111-111111111111"
+CUSTOM_SECOND_CLAIM_ID = "22222222-2222-4222-8222-222222222222"
+CUSTOM_REPOSITORY = "https://git.test/tests.git"
+CUSTOM_REFERENCE = "release-2026"
+CUSTOM_VOLTAGE = "demo_voltage.VoltageTest"
+CUSTOM_BOOT = "boot_suite.BootTest"
+CUSTOM_THERMAL = "thermal.ThermalTest"
+CUSTOM_GHOST = "nowhere.GhostTest"
+MSG_CUSTOM_CHECK = "custom runs answer as expected"
+
+PG_ENROLMENT = [200, 201, 201]
+PG_REFRESH_COOKIE = "bud_refresh_token"
+PG_REFRESH_PATH = "/api/auth/refresh"
+MSG_PG_CHECK = "the app on PostgreSQL answers as expected"
+PA_PRODUCTS_PATH = "/api/products"
+PA_MEMBERS_PATH = "/api/products/{}/members"
+PA_GROUP_MEMBERS_PATH = "/api/products/{}/groups/{}/members"
+PA_PRODUCT_PATH = "/api/products/{}"
+PA_RUNS_PATH = "/api/test-runs"
+PA_RUN_PATH = "/api/test-runs/{}"
+PA_STATS_PATH = "/api/test-runs/stats"
+PA_ME_PATH = "/api/auth/me"
+PA_PRODUCT_A = "Demo"
+PA_PRODUCT_B = "ABC"
+PA_RUN_A = "Demo - Robot Checks"
+PA_RUN_B = "ABC - Robot Checks"
+PA_RUN_NONE = "Unknown Project - Robot Checks"
+PA_RUN_LIST = "Demo.SUITE"
+PA_RUN_STATUS = "Completed"
+PA_VIEW_POLICY = {"name": "Demo results", "permissions": {"evidence": ["view"]}}
+PA_MANAGE_POLICY = {"name": "Demo product manager", "permissions": {"products": ["view", "manage"]}}
+PA_VIEW_GROUP = "Demo results group"
+PA_MANAGE_GROUP = "Demo product managers"
+PA_VIEWER = {"email": "reader@example.com", "full_name": "Rita Reader", "hashed_password": "unused"}
+PA_MANAGER = {"email": "keeper@example.com", "full_name": "Kai Keeper", "hashed_password": "unused"}
+PA_NEWCOMER = {"email": "newcomer@example.com", "full_name": "Nora New", "hashed_password": "unused"}
+PA_RENAME = {"description": "Changed"}
+PA_ADDED_ACTION = "product.member_added"
+PA_REMOVED_ACTION = "product.member_removed"
+MSG_PA_LIST = "a user sees only the runs of the products where he holds a group"
+MSG_PA_STATS = "the statistics count only the runs of his products"
+MSG_PA_OWN_RUN = "a run of his product is read"
+MSG_PA_OTHER_RUN = "a run of another product is not found"
+MSG_PA_NO_PRODUCT = "a run without a product is not found for him"
+MSG_PA_ADMIN_NO_PRODUCT = "an administrator reads a run without a product"
+MSG_PA_ME = "his own permissions list what he holds on some product"
+MSG_PA_SET = "an administrator sets the users holding a group on a product"
+MSG_PA_SET_MEMBERS = "the product's members are the users that were set"
+MSG_PA_ADDED = "adding a member is recorded"
+MSG_PA_CLEARED = "an empty selection removes the members"
+MSG_PA_REMOVED = "removing a member is recorded"
+MSG_PA_NOT_MANAGER = "a user without access management cannot set a product's members"
+MSG_PA_MANAGE_OWN = "products manage on a product lets him edit that product"
+MSG_PA_MANAGE_OTHER = "products manage on one product does not let him edit another"
+MSG_PA_CREATE = "products manage on one product does not let him create products"
+
+PNR_RULES_PATH = "/api/products/{}/notification-rules"
+PNR_RULE_PATH = "/api/products/{}/notification-rules/{}"
+PNR_CHANNELS_PATH = "/api/products/{}/notification-channels"
+PNR_PRODUCT_PATH = "/api/products/{}"
+PNR_PRODUCT_A = "Demo"
+PNR_PRODUCT_B = "ABC"
+PNR_ROUTED_CHANNEL = "Demo runs"
+PNR_EVERY_CHANNEL = "Every run"
+PNR_MISSING_ID = 999999
+PNR_MANAGE_POLICY = {"name": "Demo notifications", "permissions": {"products": ["view", "manage"]}}
+PNR_VIEW_POLICY = {"name": "Demo readers", "permissions": {"evidence": ["view"]}}
+PNR_MANAGE_GROUP = "Demo product managers"
+PNR_VIEW_GROUP = "Demo readers"
+PNR_MANAGER = {"email": "keeper@example.com", "full_name": "Kai Keeper", "hashed_password": "unused"}
+PNR_VIEWER = {"email": "reader@example.com", "full_name": "Rita Reader", "hashed_password": "unused"}
+PNR_FAILURES = "failures"
+PNR_ALL = "all"
+PNR_CREATED_ACTION = "notification_rule.created"
+PNR_UPDATED_ACTION = "notification_rule.updated"
+PNR_DELETED_ACTION = "notification_rule.deleted"
+MSG_PNR_ALL_PRODUCTS_DEFAULT = "a new channel takes every product unless switched off"
+MSG_PNR_ALL_PRODUCTS_OFF = "a channel switched off for all products says so"
+MSG_PNR_ALL_PRODUCTS_PATCH = "a channel's all-products switch is changed"
+MSG_PNR_CREATED = "an administrator adds a rule to a product"
+MSG_PNR_DUPLICATE = "a second rule for the same channel on the product is refused"
+MSG_PNR_MISSING_CHANNEL = "a rule for an unknown channel is not found"
+MSG_PNR_MISSING_PRODUCT = "a rule on an unknown product is not found"
+MSG_PNR_MISSING_RULE = "an unknown rule is not found"
+MSG_PNR_LISTED = "the product's rules list channel, format and filter"
+MSG_PNR_OPTIONS = "the channels offered for a rule are every channel by name"
+MSG_PNR_OPTIONS_HIDDEN = "the channels offered for a rule carry no URL or secret"
+MSG_PNR_MANAGER = "a user with products.manage on the product lists, adds, changes and removes its rules"
+MSG_PNR_OTHER_PRODUCT = "products.manage on one product gives no rule on another"
+MSG_PNR_VIEWER = "a user without products.manage on the product gets no rule"
+MSG_PNR_AUDITED = "every rule change is in the audit log with the product"
+MSG_PNR_CHANNEL_DELETED = "deleting a channel removes its rules"
+MSG_PNR_PRODUCT_DELETED = "deleting a product removes its rules"
+MSG_PNR_ROUTING = "a finished run reaches the channels its product rules and the all-products channels accept"
+MSG_PNR_PG = "the notification rules migration"

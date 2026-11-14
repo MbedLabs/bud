@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.auth import get_current_active_entity, get_current_user
+from app.core.access import holds_on_product
 from app.core.config import settings
 from app.db import get_db
 from app.models import Artifact, Runner, TestRun
@@ -31,6 +32,8 @@ from app.services.artifact_storage import (
     validate_display_metadata,
 )
 from app.services.audit import record_audit_event
+
+ARTIFACT_NOT_FOUND = "Artifact not found"
 
 router = APIRouter()
 
@@ -83,11 +86,18 @@ async def _get_accessible_artifact(
     )
     artifact = result.scalar_one_or_none()
     if artifact is None:
-        raise HTTPException(status_code=404, detail="Artifact not found")
+        raise HTTPException(status_code=404, detail=ARTIFACT_NOT_FOUND)
     if isinstance(current_entity, Runner) and not _can_runner_access_artifact(
         current_entity, artifact
     ):
         raise HTTPException(status_code=403, detail="Runner is not authorized for this artifact")
+    if isinstance(current_entity, User) and not await holds_on_product(
+        db,
+        current_entity,
+        artifact.test_run.product_id if artifact.test_run else None,
+        "evidence.view",
+    ):
+        raise HTTPException(status_code=404, detail=ARTIFACT_NOT_FOUND)
     return artifact
 
 
@@ -311,7 +321,7 @@ async def delete_artifact(
     artifact = result.scalar_one_or_none()
 
     if not artifact:
-        raise HTTPException(status_code=404, detail="Artifact not found")
+        raise HTTPException(status_code=404, detail=ARTIFACT_NOT_FOUND)
 
     if not _can_user_delete_artifact(_current_user):
         raise HTTPException(status_code=403, detail="Only admins may delete artifacts")

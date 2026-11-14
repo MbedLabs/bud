@@ -518,6 +518,11 @@ export interface TestRunStatsFilters {
   suite?: string
 }
 
+/**
+ * Run statistics. The `*_tests` counters and `test_pass_rate` count test executions, every test
+ * of every matching run; the `distinct_*` counters count each test once, with the outcome of its
+ * latest matching run.
+ */
 export interface TestRunStats {
   total_runs: number
   passed_runs: number
@@ -529,6 +534,11 @@ export interface TestRunStats {
   failed_tests: number
   skipped_tests: number
   test_pass_rate: number
+  distinct_tests: number
+  distinct_passed_tests: number
+  distinct_failed_tests: number
+  distinct_skipped_tests: number
+  distinct_test_pass_rate: number
 }
 
 export interface TestRunFilterOptions {
@@ -687,7 +697,7 @@ export const testRunsApi = {
     return response.data
   },
 
-  /** Dashboard counters aggregated server-side over every matching run. */
+  /** Dashboard counters aggregated server-side: runs, test executions and distinct tests. */
   stats: async (params?: TestRunStatsFilters) => {
     const response = await api.get<TestRunStats>('/test-runs/stats', { params })
     return response.data
@@ -704,6 +714,48 @@ export const resultsApi = {
   list: async (testRunId: number) => {
     const response = await api.get<TestResult[]>(`/results/${testRunId}`)
     return response.data
+  },
+}
+
+export type ProductStatus = 'Active' | 'Archived'
+
+export interface Product {
+  id: number
+  name: string
+  description: string | null
+  status: ProductStatus
+  created_at: string
+  updated_at: string
+}
+
+export interface ProductInput {
+  name?: string
+  description?: string | null
+  status?: ProductStatus
+}
+
+export interface ProductMember {
+  user_id: number
+  email: string
+  full_name: string
+  role: UserRole
+  profile_picture_url: string | null
+  group_id: number
+  group_name: string
+}
+
+export const productsApi = {
+  list: async () => (await api.get<Product[]>('/products')).data,
+  get: async (id: number) => (await api.get<Product>(`/products/${id}`)).data,
+  members: async (id: number) => (await api.get<ProductMember[]>(`/products/${id}/members`)).data,
+  setGroupMembers: async (id: number, groupId: number, userIds: number[]) =>
+    (await api.put<ProductMember[]>(`/products/${id}/groups/${groupId}/members`, { user_ids: userIds })).data,
+  create: async (data: { name: string; description: string | null }) =>
+    (await api.post<Product>('/products', data)).data,
+  update: async (id: number, data: ProductInput) =>
+    (await api.patch<Product>(`/products/${id}`, data)).data,
+  remove: async (id: number) => {
+    await api.delete(`/products/${id}`)
   },
 }
 

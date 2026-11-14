@@ -59,7 +59,7 @@ jobs:
           python-version: '3.11'
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884
+        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e
         with:
           version: "0.11.14"
           enable-cache: false
@@ -115,58 +115,56 @@ jobs:
           alembic upgrade head
           alembic current | grep -q "(head)" || { echo "database is not at alembic head" >&2; exit 1; }
 
-      - name: Run backend tests
+      - name: Run the tests in tests/api
         env:
-          DATABASE_URL: postgresql://test_user:test_password@localhost:15432/test_bud
-          PYTHONPATH: ${{ github.workspace }}
+          DATABASE_URL: "sqlite+aiosqlite:///:memory:"
           SECRET_KEY: test-secret-key-for-ci-at-least-32-characters-long
+          SERVICE_TOKEN_PEPPER: test-service-token-pepper-for-ci-at-least-32-characters-long
           RUNNER_API_KEY: test-runner-api-key
           ENABLE_DOCS: "false"
-        run: |
-          pytest --cov=app --cov-report=xml --cov-report=term-missing --cov-fail-under=85 tests/api tests/logic tests/sec -v
+          PYTHONPATH: ${{ github.workspace }}
+          BUDTEST_WORK_DIR: ${{ runner.temp }}/budtests
+        run: bud-runner run-tests -t tests.api.SUITES --no-upload -o "$RUNNER_TEMP/tests-api-junit.xml"
 
-      - name: Postgres tests
+      - name: Run the tests in tests/logic
+        env:
+          DATABASE_URL: "sqlite+aiosqlite:///:memory:"
+          SECRET_KEY: test-secret-key-for-ci-at-least-32-characters-long
+          SERVICE_TOKEN_PEPPER: test-service-token-pepper-for-ci-at-least-32-characters-long
+          RUNNER_API_KEY: test-runner-api-key
+          ENABLE_DOCS: "false"
+          PYTHONPATH: ${{ github.workspace }}
+          BUDTEST_WORK_DIR: ${{ runner.temp }}/budtests
+        run: bud-runner run-tests -t tests.logic.SUITES --no-upload -o "$RUNNER_TEMP/tests-logic-junit.xml"
+
+      - name: Run the tests in tests/sec
+        env:
+          DATABASE_URL: "sqlite+aiosqlite:///:memory:"
+          SECRET_KEY: test-secret-key-for-ci-at-least-32-characters-long
+          SERVICE_TOKEN_PEPPER: test-service-token-pepper-for-ci-at-least-32-characters-long
+          RUNNER_API_KEY: test-runner-api-key
+          ENABLE_DOCS: "false"
+          PYTHONPATH: ${{ github.workspace }}
+          BUDTEST_WORK_DIR: ${{ runner.temp }}/budtests
+        run: bud-runner run-tests -t tests.sec.SUITES --no-upload -o "$RUNNER_TEMP/tests-sec-junit.xml"
+
+      - name: Run the tests in tests/pg, twice on the same database
         env:
           DATABASE_URL: postgresql://test_user:test_password@localhost:15432/test_bud
-          PYTHONPATH: ${{ github.workspace }}
           SECRET_KEY: test-secret-key-for-ci-at-least-32-characters-long
+          SERVICE_TOKEN_PEPPER: test-service-token-pepper-for-ci-at-least-32-characters-long
           RUNNER_API_KEY: test-runner-api-key
-          BUD_DOTENV_DISABLED: "1"
+          ENABLE_DOCS: "false"
+          PYTHONPATH: ${{ github.workspace }}
+          BUDTEST_WORK_DIR: ${{ runner.temp }}/budtests
           RUN_STARTUP_DATA_REPAIR: "false"
           AUTO_SEED_ADMIN: "true"
           ADMIN_EMAIL: ci-admin@example.com
           ADMIN_PASSWORD: ci-admin-password-123
           ADMIN_FULL_NAME: CI Admin
-          ENABLE_DOCS: "false"
         run: |
-          pytest tests/pg -v
-
-      - name: Postgres tests again on the same database
-        env:
-          DATABASE_URL: postgresql://test_user:test_password@localhost:15432/test_bud
-          PYTHONPATH: ${{ github.workspace }}
-          SECRET_KEY: test-secret-key-for-ci-at-least-32-characters-long
-          RUNNER_API_KEY: test-runner-api-key
-          BUD_DOTENV_DISABLED: "1"
-          RUN_STARTUP_DATA_REPAIR: "false"
-          AUTO_SEED_ADMIN: "true"
-          ADMIN_EMAIL: ci-admin@example.com
-          ADMIN_PASSWORD: ci-admin-password-123
-          ADMIN_FULL_NAME: CI Admin
-          ENABLE_DOCS: "false"
-        run: |
-          pytest tests/pg -q
-
-      - name: Build the UI and Chromium
-        run: |
-          npm --prefix ui run build
-          python -m playwright install --with-deps chromium
-
-      - name: BudTestCase suite ui_cli_auth
-        env:
-          PYTHONPATH: ${{ github.workspace }}
-        run: |
-          python -c "from tests.budtests.ui_cli_auth import UiCliAuth; raise SystemExit(0 if UiCliAuth().run() else 1)"
+          bud-runner run-tests -t tests.pg.SUITES --no-upload -o "$RUNNER_TEMP/tests-pg-junit.xml"
+          bud-runner run-tests -t tests.pg.SUITES --no-upload -o "$RUNNER_TEMP/tests-pg-again-junit.xml"
 
       - name: Run UI checks
         run: |

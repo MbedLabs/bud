@@ -16,6 +16,7 @@ from app.api.auth import require_role
 from app.core.config import settings
 from app.core.security import get_password_hash
 from app.db.database import get_db
+from app.models.access import ProductAccess
 from app.models.user import User, UserRole
 from app.models.user_token import UserToken, UserTokenPurpose
 from app.schemas.auth import (
@@ -478,6 +479,7 @@ async def delete_user(
 
     try:
         await db.execute(delete(UserToken).where(UserToken.user_id == user_id))
+        await db.execute(delete(ProductAccess).where(ProductAccess.user_id == user_id))
         await db.execute(
             update(UserToken)
             .where(UserToken.created_by_user_id == user_id)
