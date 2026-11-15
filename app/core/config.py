@@ -107,7 +107,7 @@ class Settings(BaseSettings):
         default=None,
         validation_alias=AliasChoices("BUD_AUTH_COOKIE_SECURE", "AUTH_COOKIE_SECURE"),
     )
-    BUD_APP_VERSION: str = "1.2.0"
+    BUD_APP_VERSION: str = "1.3.0"
 
     APP_BASE_URL: str = Field(
         default=HTTP_LOCALHOST_8001,
