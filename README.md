@@ -2,7 +2,7 @@
 
 Bud TMP is a test management and execution platform for automated software, hardware, and system testing. It gives teams one place to monitor Test Stations, inspect runs and assertions, retain artifacts, and connect execution evidence to Bloom PLM.
 
-> **Release:** 1.2.0 public beta
+> **Release:** 1.3.0 public beta
 
 ## What Bud provides
 
@@ -223,7 +223,7 @@ Set `BUD_VERSION` in `.env`:
 
 | Tag | Use |
 |---|---|
-| `1.2.0` | Immutable production release |
+| `1.3.0` | Immutable production release |
 | `1.0` / `1` | Moving release channels |
 | `stable` | Newest stable release |
 | `latest` | Rolling image from `main` |

@@ -1,4 +1,10 @@
 [1.3.0]
+* Products page: add, edit, archive, restore and delete products, and copy a product's ID for the runner.
+* Access per product, as projects in Bloom PLM: each product's page lists its members per group, and the app-wide groups are set on the Users page. Every user keeps access to every existing product.
+* Run notifications per product, each rule with its own filter. Every existing channel keeps receiving the runs of all products.
+* Every API call and every refused attempt is recorded in the audit log; access requests and the audit log name runs, products and users instead of showing numbers.
+* The dashboard counts distinct tests and test executions separately.
+* Users shows the groups each user holds.
 * Bud TMP by EmbedLabs is the product name across the application, emails, API, reports and run notifications; the BUD_APP_NAME environment setting no longer changes it.
 * The confirmation, Test Station rename, invite and email change dialogs close with Escape.
 * The administrator welcome email confirms the account and names the next steps; the outdated runner key paragraph is removed.

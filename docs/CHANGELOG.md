@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.3.0 - unreleased
+## 1.3.0 - 2026-11-15
 
 ### Added
 
@@ -12,7 +12,7 @@
 
 ### Changed
 
-- Access is given per product, as projects in Bloom PLM. A group held on a product gives its permissions on runs, results and artifacts, reports, custom runs, publishing to Bloom and managing the product on that product only; Test Stations, settings, the audit log, access management, viewing products and creating products stay app-wide. Every list, statistic, report and single read of a run is limited to the user's products; a run without a product is read by administrators only. Each product's page lists one roster per group under Product members, where access managers add and remove people (`GET /api/products/{id}/members`, `PUT /api/products/{id}/groups/{group_id}/members`, recorded as `product.member_added` and `product.member_removed`). The Access page loses its Assignments tab; the app-wide groups are set on the Users page under Application groups. The base roles Viewer and Developer no longer give anything per product by themselves. Migration `022_product_access` gives every user, on every existing product, the groups he held and the default group of his base role (Results Viewers, Test Operators), so nobody loses access to existing products.
+- Access is given per product, as projects in Bloom PLM. A group held on a product gives its permissions on runs, results and artifacts, reports, custom runs, publishing to Bloom and managing the product on that product only; Test Stations, settings, the audit log, access management, viewing products and creating products stay app-wide. Every list, statistic, report and single read of a run is limited to the user's products; a run without a product is read by administrators only. Each product's page lists one roster per group under Product members, where access managers add and remove people (`GET /api/products/{id}/members`, `PUT /api/products/{id}/groups/{group_id}/members`, recorded as `product.member_added` and `product.member_removed`). The Access page loses its Assignments tab; the app-wide groups are set on the Users page under Application groups. The base roles Viewer and Developer no longer give anything per product by themselves. Migration `022_product_access` gives every user, on every existing product, the groups they held and the default group of his base role (Results Viewers, Test Operators), so nobody loses access to existing products.
 - The CLI sign-in approval page uses the Bud TMP sign-in card with its logo and footer and shows the request code boxes, the requesting client, the account it signs in as, the request and expiry times and Approve and Deny side by side. The code hint, the client name label, the warnings and the callback address are no longer shown.
 - Every email uses one structure: the product identity in the heading, one linked action and the same copy in HTML and plain text. The invitation, verification, password reset, access request and report request emails name Bud TMP in their next step.
 - The product identity is fixed as Bud TMP by EmbedLabs across the application, emails, API, reports and run notifications. The sidebar shows Bud TMP with by EmbedLabs beneath it. The `BUD_APP_NAME` setting is removed; an existing environment variable or `.env` entry with that name is ignored.
@@ -24,7 +24,7 @@
 
 ### Fixed
 
-- An administrator who opened a test run that does not exist was shown "You don't have access to this resource" with a Request access button, and could request access from himself; the request was emailed to him too. A test run that does not exist now shows "Test run not found" to everyone, with no request, and an administrator is never shown the access-denied page. A user refused a test run is no longer offered a request for it: only Publish to Bloom can be requested. A user who already holds Publish to Bloom, every administrator and developer included, can no longer request it (the API answers 409 and sends no email), and nobody is emailed about their own request.
+- An administrator who opened a test run that does not exist was shown "You don't have access to this resource" with a Request access button, and could request access from themselves; the request was emailed to them too. A test run that does not exist now shows "Test run not found" to everyone, with no request, and an administrator is never shown the access-denied page. A user refused a test run is no longer offered a request for it: only Publish to Bloom can be requested. A user who already holds Publish to Bloom, every administrator and developer included, can no longer request it (the API answers 409 and sends no email), and nobody is emailed about their own request.
 - Access requests and the audit log showed numbers instead of names: "Test run 42", "Publish to Bloom (from run 42)" and "test_run 42". They now show the run, product, Test Station, user, group, policy, enrolment key, notification channel, artifact or result by its name, and the access request email names the run. A number is shown only for an object that no longer exists, marked "(deleted)".
 - An unexpected server error (500) quotes the id of the request that failed in its message, its `request_id` and its `x-request-id` header, the id the access log and the audit log hold for that request; before, it quoted `-`.
 - Administrator welcome emails confirm the account is ready and give product-specific next steps, with matching HTML and plain-text instructions. The obsolete one-time runner registration key instructions are removed.
@@ -32,7 +32,7 @@
 ### Security
 
 - CLI and MCP sign-in: the approval page no longer shows the request code; the approver types the code the terminal or AI client shows, and the server checks it on `POST /api/auth/cli/check` and on approve, both rate limited. A wrong code is recorded as `auth.cli_code_mismatch` and the request stays pending.
-- Pillow raised to 13.0.0, certifi to 2026.10.19, dnspython to 2.9.0, follow-redirects to 1.16.1, vitest to 4.1.12 and zod to 4.6.7, the patched releases.
+- Pillow raised to 13.0.0, certifi to 2026.10.19, dnspython to 2.9.2, follow-redirects to 1.16.1, vitest to 4.1.12 and zod to 4.6.7, the patched releases.
 
 ## 1.2.0 - 2026-10-17
 
