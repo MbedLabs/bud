@@ -6,18 +6,19 @@ from typing import Optional
 from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, Query, Response
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.auth import get_current_active_entity
 from app.api.company_logo import load_report_logo
-from app.api.test_runs import _scope_conditions
+from app.api.test_runs import _distinct_test_outcomes, _scope_conditions
 from app.core.run_access import load_run
 from app.db import get_db
 from app.models import Runner, TestRun
 from app.models.user import User
 from app.services.audit import record_audit_event
-from app.services.report_pdf import render_report
+from app.services.report_pdf import Outcome, render_report
 from app.services.run_reports import build_run_report, build_summary_report
 
 router = APIRouter()
@@ -44,6 +45,33 @@ def _safe_filename(stem: str) -> str:
     return (cleaned or "bud-report") + ".pdf"
 
 
+async def _test_outcomes(db: AsyncSession, conditions: list) -> list[tuple[str, Outcome]]:
+    """The distinct tests and the test executions of the matching runs, each as a labelled row."""
+    query = select(
+        func.coalesce(func.sum(TestRun.passed_tests), 0),
+        func.coalesce(func.sum(TestRun.failed_tests), 0),
+        func.coalesce(func.sum(TestRun.skipped_tests), 0),
+    )
+    if conditions:
+        query = query.where(*conditions)
+    passed, failed, skipped = (await db.execute(query)).one()
+    distinct, distinct_passed, distinct_skipped = await _distinct_test_outcomes(db, conditions)
+    return [
+        (
+            "Distinct tests, each by its latest run",
+            Outcome(
+                passed=distinct_passed,
+                failed=distinct - distinct_passed - distinct_skipped,
+                skipped=distinct_skipped,
+            ),
+        ),
+        (
+            "Test executions, every run of every test",
+            Outcome(passed=passed, failed=failed, skipped=skipped),
+        ),
+    ]
+
+
 @router.get("/test-runs.pdf", responses={403: {"description": "Forbidden"}})
 async def test_run_summary_report(
     days: Optional[int] = Query(
@@ -56,7 +84,8 @@ async def test_run_summary_report(
     db: AsyncSession = Depends(get_db, scope="function"),
     current_entity: User | Runner = Depends(get_current_active_entity),
 ):
-    """A filtered test report: overall pie chart plus per-suite, per-station and per-day tables.
+    """A filtered test report: distinct tests and test executions, the overall pie chart, and
+    per-suite, per-station and per-day tables.
 
     An unknown Test Station filter matches no runs, as in the statistics endpoint.
     """
@@ -73,7 +102,12 @@ async def test_run_summary_report(
     )
     pdf = render_report(
         await build_summary_report(
-            db, conditions, days=days, runner_account=runner_account, suite=suite
+            db,
+            conditions,
+            days=days,
+            runner_account=runner_account,
+            suite=suite,
+            tests=await _test_outcomes(db, conditions),
         ),
         await load_report_logo(db),
     )

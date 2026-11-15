@@ -3,6 +3,7 @@ import { Outlet, Link, useLocation } from 'react-router'
 import {
   LayoutDashboard, ListChecks, PlayCircle, Server, Settings, Sun, Moon,
   LogOut, ChevronDown, ChevronLeft, ChevronRight, Users, ExternalLink, ScrollText, ShieldCheck,
+  Package,
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { can, canManageAccess } from '../lib/access'
@@ -23,12 +24,14 @@ const BLOOM_PLM_URL = getBloomUrl()
 
 const SIDEBAR_EDGE = { expanded: '15rem', collapsed: '3.5rem' } as const
 
-const navigation = [
+const baseNavigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Test Runs', href: '/runs', icon: PlayCircle },
   { name: 'Custom Run', href: '/custom-run', icon: ListChecks },
   { name: 'Test Stations', href: '/test-stations', icon: Server },
 ]
+
+const productsNavigation = { name: 'Products', href: '/products', icon: Package }
 
 /** The role badge colours for a base role. */
 function roleBadgeClasses(role?: string): string {
@@ -75,6 +78,10 @@ export default function Layout() {
   useEffect(() => {
     localStorage.setItem('bud-sidebar-collapsed', String(sidebarCollapsed))
   }, [sidebarCollapsed])
+
+  const navigation = can(user, 'products.view')
+    ? [...baseNavigation, productsNavigation]
+    : baseNavigation
 
   const activeNav = navigation.find(n =>
     n.href === location.pathname ||

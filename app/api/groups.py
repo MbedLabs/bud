@@ -10,7 +10,7 @@ copy.
 from http import HTTPStatus
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -24,7 +24,7 @@ from app.core.access import (
     user_groups,
 )
 from app.db.database import get_db
-from app.models.access import AccessGroup, AccessGroupMember, Policy
+from app.models.access import AccessGroup, AccessGroupMember, Policy, ProductAccess
 from app.models.user import User, UserRole
 from app.schemas.groups import (
     AccessGroupRef,
@@ -324,6 +324,7 @@ async def delete_group(
     await record_audit_event(
         db, "group.deleted", target_type="group", target_id=group_id, details={"name": group.name}
     )
+    await db.execute(delete(ProductAccess).where(ProductAccess.group_id == group_id))
     await db.delete(group)
     await db.flush()
 

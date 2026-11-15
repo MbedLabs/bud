@@ -134,6 +134,11 @@ export const stats = {
   failed_tests: 5,
   skipped_tests: 1,
   test_pass_rate: 80,
+  distinct_tests: 10,
+  distinct_passed_tests: 7,
+  distinct_failed_tests: 2,
+  distinct_skipped_tests: 1,
+  distinct_test_pass_rate: 70,
 }
 
 export const filterOptions = {

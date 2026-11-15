@@ -8,13 +8,13 @@ from typing import List
 from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, HTTPException, Response
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from tenacity import wait_fixed
 
 from app.api.auth import require_permission
 from app.db import get_db
-from app.models import NotificationChannel, SystemSetting
+from app.models import NotificationChannel, ProductNotificationRule, SystemSetting
 from app.models.user import User
 from app.schemas import (
     NotificationChannelCreate,
@@ -143,6 +143,57 @@ async def get_plm_integration(
     )
 
 
+def _check_bloom_url(url: str) -> None:
+    """Refuse with a 422 a Bloom URL that is not an absolute HTTP(S) URL without credentials."""
+    parsed = urlparse(url)
+    if (
+        parsed.scheme not in {"http", "https"}
+        or not parsed.netloc
+        or not parsed.hostname
+        or parsed.username is not None
+        or parsed.password is not None
+    ):
+        raise HTTPException(status_code=422, detail="Bloom URL must be an absolute HTTP(S) URL.")
+
+
+async def _clear_bloom_token(db: AsyncSession) -> None:
+    """Delete the saved Bloom result-sync credential, its prefix, its rotation time and the legacy token."""
+    for key in (
+        "bloom_token_encrypted",
+        "bloom_token_prefix",
+        "bloom_token_rotated_at",
+        "bloom_token",
+    ):
+        setting = await db.get(SystemSetting, key)
+        if setting:
+            await db.delete(setting)
+
+
+def _new_token_updates(token: str) -> list[tuple[str, str]]:
+    """The settings that store a new Bloom result-sync credential, or a 422 when it is not one."""
+    if not token.startswith("blm_sync_"):
+        raise HTTPException(
+            status_code=422,
+            detail="Bloom token must be a scoped blm_sync_ service credential.",
+        )
+    rotated_at = datetime.now(timezone.utc).replace(tzinfo=None)
+    return [
+        ("bloom_token_encrypted", encrypt_integration_secret(token)),
+        ("bloom_token_prefix", token[:20]),
+        ("bloom_token_rotated_at", rotated_at.isoformat()),
+    ]
+
+
+async def _store_settings(db: AsyncSession, updates: list[tuple[str, str]]) -> None:
+    """Write each system setting, updating a stored one and adding a missing one."""
+    for key, val in updates:
+        setting = await db.get(SystemSetting, key)
+        if setting:
+            setting.value = val
+        else:
+            db.add(SystemSetting(key=key, value=val))
+
+
 @router.post(
     "/integrations/PLM",
     response_model=PLMIntegrationSettings,
@@ -156,15 +207,7 @@ async def update_plm_integration(
     """
     Update PLM integration settings.
     """
-    parsed = urlparse(data.bloom_url)
-    if (
-        parsed.scheme not in {"http", "https"}
-        or not parsed.netloc
-        or not parsed.hostname
-        or parsed.username is not None
-        or parsed.password is not None
-    ):
-        raise HTTPException(status_code=422, detail="Bloom URL must be an absolute HTTP(S) URL.")
+    _check_bloom_url(data.bloom_url)
     new_origin = _origin(data.bloom_url)
 
     updates = [("bloom_url", data.bloom_url.rstrip("/"))]
@@ -190,36 +233,11 @@ async def update_plm_integration(
             ),
         )
     if data.clear_bloom_token:
-        for key in (
-            "bloom_token_encrypted",
-            "bloom_token_prefix",
-            "bloom_token_rotated_at",
-            "bloom_token",
-        ):
-            setting = await db.get(SystemSetting, key)
-            if setting:
-                await db.delete(setting)
+        await _clear_bloom_token(db)
     elif data.bloom_token and not masked:
-        if not data.bloom_token.startswith("blm_sync_"):
-            raise HTTPException(
-                status_code=422,
-                detail="Bloom token must be a scoped blm_sync_ service credential.",
-            )
-        rotated_at = datetime.now(timezone.utc).replace(tzinfo=None)
-        updates.extend(
-            [
-                ("bloom_token_encrypted", encrypt_integration_secret(data.bloom_token)),
-                ("bloom_token_prefix", data.bloom_token[:20]),
-                ("bloom_token_rotated_at", rotated_at.isoformat()),
-            ]
-        )
+        updates.extend(_new_token_updates(data.bloom_token))
 
-    for key, val in updates:
-        setting = await db.get(SystemSetting, key)
-        if setting:
-            setting.value = val
-        else:
-            db.add(SystemSetting(key=key, value=val))
+    await _store_settings(db, updates)
 
     legacy = await db.get(SystemSetting, "bloom_token")
     if legacy:
@@ -261,6 +279,7 @@ def _channel_response(channel: NotificationChannel) -> NotificationChannelRespon
         url_prefix=channel.url_prefix,
         run_filter=channel.run_filter,
         enabled=channel.enabled,
+        all_products=channel.all_products,
         has_secret=bool(channel.secret_encrypted),
         created_at=channel.created_at,
     )
@@ -322,6 +341,7 @@ async def create_notification_channel(
         secret_encrypted=encrypt_integration_secret(data.secret) if data.secret else None,
         run_filter=data.run_filter,
         enabled=data.enabled,
+        all_products=data.all_products,
     )
     db.add(channel)
     await db.flush()
@@ -370,6 +390,8 @@ async def update_notification_channel(
         channel.run_filter = data.run_filter
     if data.enabled is not None:
         channel.enabled = data.enabled
+    if data.all_products is not None:
+        channel.all_products = data.all_products
     await record_audit_event(
         db,
         "notification_channel.updated",
@@ -392,7 +414,7 @@ async def delete_notification_channel(
     db: AsyncSession = Depends(get_db, scope="function"),
     _admin: User = Depends(require_permission("settings", "edit")),
 ):
-    """Remove a channel and its delivery history."""
+    """Remove a channel, its product rules and its delivery history."""
     channel = await _get_channel_or_404(db, channel_id)
     await record_audit_event(
         db,
@@ -400,6 +422,9 @@ async def delete_notification_channel(
         target_type="notification_channel",
         target_id=channel.id,
         details={"name": channel.name},
+    )
+    await db.execute(
+        delete(ProductNotificationRule).where(ProductNotificationRule.channel_id == channel.id)
     )
     await db.delete(channel)
     await db.commit()

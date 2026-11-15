@@ -5,23 +5,12 @@ import {
   extractApiErrorMessage,
   notificationsApi,
   type NotificationChannel,
+  type NotificationChannelInput,
   type NotificationFormat,
   type NotificationRunFilter,
 } from '../api/client'
+import { FILTER_OPTIONS, FORMAT_OPTIONS, filterLabel, formatLabel } from '../lib/notifications'
 import Select from './Select'
-
-const FORMATS: { value: NotificationFormat; label: string }[] = [
-  { value: 'teams', label: 'Microsoft Teams' },
-  { value: 'slack', label: 'Slack' },
-  { value: 'discord', label: 'Discord' },
-  { value: 'json', label: 'JSON' },
-]
-
-const FILTERS: { value: NotificationRunFilter; label: string }[] = [
-  { value: 'all', label: 'All finished runs' },
-  { value: 'failures', label: 'Failures only' },
-  { value: 'first_failure', label: 'First failure after a green run' },
-]
 
 const inputClass =
   'w-full px-3 py-2 bg-background border border-input rounded-md text-sm text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-ring focus:border-ring transition-colors'
@@ -35,6 +24,7 @@ export default function NotificationChannels() {
   const [url, setUrl] = useState('')
   const [secret, setSecret] = useState('')
   const [runFilter, setRunFilter] = useState<NotificationRunFilter>('all')
+  const [allProducts, setAllProducts] = useState(true)
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null)
 
   const { data: channels, isLoading } = useQuery({
@@ -51,11 +41,13 @@ export default function NotificationChannels() {
         url: url.trim(),
         secret: secret || undefined,
         run_filter: runFilter,
+        all_products: allProducts,
       }),
     onSuccess: () => {
       setName('')
       setUrl('')
       setSecret('')
+      setAllProducts(true)
       setMessage({ ok: true, text: 'Channel added.' })
       void refresh()
     },
@@ -63,8 +55,8 @@ export default function NotificationChannels() {
   })
 
   const update = useMutation({
-    mutationFn: ({ id, enabled }: { id: number; enabled: boolean }) =>
-      notificationsApi.updateChannel(id, { enabled }),
+    mutationFn: ({ id, changes }: { id: number; changes: NotificationChannelInput }) =>
+      notificationsApi.updateChannel(id, changes),
     onSuccess: refresh,
     onError: (error) => setMessage({ ok: false, text: extractApiErrorMessage(error, 'Could not update the channel') }),
   })
@@ -111,18 +103,29 @@ export default function NotificationChannels() {
         ) : (
           <ul className="divide-y divide-border border border-border rounded-md">
             {(channels ?? []).map((channel) => (
-              <li key={channel.id} className="flex items-center gap-3 px-3 py-2 text-sm">
+              <li key={channel.id} className="flex flex-wrap items-center gap-3 px-3 py-2 text-sm">
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-foreground">{channel.name}</p>
                   <p className="text-xs text-muted-foreground">
-                    {FORMATS.find((option) => option.value === channel.format)?.label} · {FILTERS.find((option) => option.value === channel.run_filter)?.label}
+                    {formatLabel(channel.format)} · {filterLabel(channel.run_filter)}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {channel.all_products ? 'All products' : 'Product rules only'}
                   </p>
                 </div>
                 <label className="flex items-center gap-1 text-xs text-muted-foreground">
                   <input
                     type="checkbox"
+                    checked={channel.all_products}
+                    onChange={(e) => update.mutate({ id: channel.id, changes: { all_products: e.target.checked } })}
+                    aria-label={`All products for ${channel.name}`}
+                  />All products
+                </label>
+                <label className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <input
+                    type="checkbox"
                     checked={channel.enabled}
-                    onChange={(e) => update.mutate({ id: channel.id, enabled: e.target.checked })}
+                    onChange={(e) => update.mutate({ id: channel.id, changes: { enabled: e.target.checked } })}
                     aria-label={`Enable ${channel.name}`}
                   />Enabled
                 </label>
@@ -165,7 +168,7 @@ export default function NotificationChannels() {
           </div>
           <div>
             <label htmlFor="channel-format" className={labelClass}>Format</label>
-            <Select id="channel-format" label="Format" value={format} onChange={setFormat} options={FORMATS} />
+            <Select id="channel-format" label="Format" value={format} onChange={setFormat} options={FORMAT_OPTIONS} />
           </div>
           <div className="sm:col-span-2">
             <label htmlFor="channel-url" className={labelClass}>Webhook URL</label>
@@ -177,7 +180,16 @@ export default function NotificationChannels() {
           </div>
           <div>
             <label htmlFor="channel-filter" className={labelClass}>Post</label>
-            <Select id="channel-filter" label="Post" value={runFilter} onChange={setRunFilter} options={FILTERS} />
+            <Select id="channel-filter" label="Post" value={runFilter} onChange={setRunFilter} options={FILTER_OPTIONS} />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="flex items-center gap-2 text-sm text-foreground">
+              <input type="checkbox" checked={allProducts} onChange={(e) => setAllProducts(e.target.checked)} />
+              <span>All products</span>
+            </label>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Off: the channel receives only the runs of the products whose notification rules name it.
+            </p>
           </div>
           <div className="sm:col-span-2 flex justify-end">
             <button

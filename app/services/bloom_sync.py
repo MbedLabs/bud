@@ -22,6 +22,24 @@ from app.services.run_events import record_test_run_event
 logger = logging.getLogger(__name__)
 
 
+def _executed_at(res: TestResult) -> str:
+    """When a result ran, in ISO format; the current time when it carries none."""
+    if res.created_at:
+        return res.created_at.isoformat()
+    return datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
+
+
+def _merge_result(entry: dict, res: TestResult, executed_at: str) -> None:
+    """Keep the latest execution time in a test case's row, and fail the row with the
+    result's error when the result failed."""
+    if executed_at > entry["executed_at"]:
+        entry["executed_at"] = executed_at
+    if not res.passed:
+        entry["status"] = "Failed"
+        if res.error_message:
+            entry["comment"] = res.error_message
+
+
 async def _coalesce_results_by_tc_id(
     results: AsyncIterable[TestResult], test_run_id: int, tally: Optional[dict] = None
 ) -> list[dict]:
@@ -49,11 +67,7 @@ async def _coalesce_results_by_tc_id(
             counts["skipped"] += 1
             continue
 
-        executed_at = (
-            res.created_at.isoformat()
-            if res.created_at
-            else datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
-        )
+        executed_at = _executed_at(res)
         entry = grouped.setdefault(
             tc_id,
             {
@@ -64,14 +78,7 @@ async def _coalesce_results_by_tc_id(
                 "bud_run_id": test_run_id,
             },
         )
-
-        if executed_at > entry["executed_at"]:
-            entry["executed_at"] = executed_at
-
-        if not res.passed:
-            entry["status"] = "Failed"
-            if res.error_message:
-                entry["comment"] = res.error_message
+        _merge_result(entry, res, executed_at)
 
     return list(grouped.values())
 
@@ -125,6 +132,52 @@ def _suite_reference(data: dict, synced: int) -> dict | None:
     if len(covering) > 1 and covering[0]["size"] == covering[1]["size"]:
         return None
     return covering[0]
+
+
+async def _record_sync_completed(session, test_run_id: int, data: dict, left_out: str) -> None:
+    """Record Bloom's answer to a sync and link the run to the suite that holds its test cases."""
+    logger.info(
+        f"Successfully synced {data.get('updated')} results to Bloom for run {test_run_id}."
+        + (f" Not found: {data.get('not_found')}" if data.get("not_found") else "")
+    )
+    await record_test_run_event(
+        session,
+        test_run_id=test_run_id,
+        stage="bloom_sync",
+        status="completed" if not data.get("not_found") else "warning",
+        title="Bloom sync completed",
+        message=(
+            f"Bloom updated {data.get('updated', 0)} test case execution record(s)."
+            + (
+                f" Unmatched tc_id values: {', '.join(data.get('not_found', []))}."
+                if data.get("not_found")
+                else ""
+            )
+            + left_out
+        ),
+        event_metadata=data,
+    )
+    suite = _suite_reference(data, data.get("updated", 0))
+    if suite:
+        test_run = await session.get(TestRun, test_run_id)
+        if test_run:
+            test_run.bloom_artefact_id = suite.get("suite_id")
+            test_run.bloom_artefact_name = suite.get("name")
+            test_run.bloom_artefact_url = suite.get("url")
+
+
+async def _record_sync_failed(session, test_run_id: int, response) -> None:
+    """Record the HTTP error Bloom answered a sync with."""
+    logger.error(f"Failed to sync to Bloom: {response.status_code} - {response.text}")
+    await record_test_run_event(
+        session,
+        test_run_id=test_run_id,
+        stage="bloom_sync",
+        status="failed",
+        title="Bloom sync failed",
+        message=f"Bloom returned HTTP {response.status_code}.",
+        event_metadata={"response": response.text[:500]},
+    )
 
 
 async def sync_results_to_bloom(test_run_id: int):
@@ -203,48 +256,10 @@ async def sync_results_to_bloom(test_run_id: int):
             response = await _post_to_bloom_with_retry(bloom_url, bloom_token, payload_results)
 
             if response.status_code == 200:
-                data = response.json()
-                logger.info(
-                    f"Successfully synced {data.get('updated')} results to Bloom for run {test_run_id}."
-                    + (f" Not found: {data.get('not_found')}" if data.get("not_found") else "")
-                )
-                await record_test_run_event(
-                    session,
-                    test_run_id=test_run_id,
-                    stage="bloom_sync",
-                    status="completed" if not data.get("not_found") else "warning",
-                    title="Bloom sync completed",
-                    message=(
-                        f"Bloom updated {data.get('updated', 0)} test case execution record(s)."
-                        + (
-                            f" Unmatched tc_id values: {', '.join(data.get('not_found', []))}."
-                            if data.get("not_found")
-                            else ""
-                        )
-                        + left_out
-                    ),
-                    event_metadata=data,
-                )
-                suite = _suite_reference(data, data.get("updated", 0))
-                if suite:
-                    test_run = await session.get(TestRun, test_run_id)
-                    if test_run:
-                        test_run.bloom_artefact_id = suite.get("suite_id")
-                        test_run.bloom_artefact_name = suite.get("name")
-                        test_run.bloom_artefact_url = suite.get("url")
-                await session.commit()
+                await _record_sync_completed(session, test_run_id, response.json(), left_out)
             else:
-                logger.error(f"Failed to sync to Bloom: {response.status_code} - {response.text}")
-                await record_test_run_event(
-                    session,
-                    test_run_id=test_run_id,
-                    stage="bloom_sync",
-                    status="failed",
-                    title="Bloom sync failed",
-                    message=f"Bloom returned HTTP {response.status_code}.",
-                    event_metadata={"response": response.text[:500]},
-                )
-                await session.commit()
+                await _record_sync_failed(session, test_run_id, response)
+            await session.commit()
 
         except Exception as e:
             logger.exception(f"Error during Bloom sync for run {test_run_id}: {e}")

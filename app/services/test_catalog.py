@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import PurePath
-from typing import Optional
+from typing import Any, Optional
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -44,8 +44,10 @@ async def build_catalog(
     *,
     runner_account: Optional[str] = None,
     suite: Optional[str] = None,
+    runs: Optional[Any] = None,
 ) -> list[CatalogEntry]:
-    """Every test case Bud has a record of, newest evidence winning.
+    """Every test case Bud has a record of, newest evidence winning; ``runs`` limits the
+    runs read.
 
     Rows are read oldest first, and the last row seen gives a test case its suite and
     outcome.
@@ -69,6 +71,8 @@ async def build_catalog(
         query = query.where(Runner.account == runner_account)
     if suite:
         query = query.where(TestRun.name == suite)
+    if runs is not None:
+        query = query.where(runs)
 
     entries: dict[str, CatalogEntry] = {}
     methods: dict[str, set[str]] = {}
@@ -121,6 +125,35 @@ class Plan:
     unassigned: list[Unassigned]
 
 
+def _stations_for(
+    test_path: str,
+    entry: Optional[CatalogEntry],
+    runner_ids: dict[str, int],
+    pinned_runner: Optional[str],
+) -> Unassigned | list[str]:
+    """The registered stations a requested test case runs on (the pinned station when one
+    is pinned), or its Unassigned entry."""
+    if entry is None:
+        return Unassigned(
+            test_path=test_path,
+            reason="Bud has no record of this test case running anywhere.",
+        )
+    available = [account for account in entry.runner_accounts if account in runner_ids]
+    if not available:
+        return Unassigned(
+            test_path=test_path,
+            reason="The Test Station this ran on is no longer registered.",
+        )
+    if pinned_runner:
+        if pinned_runner not in available:
+            return Unassigned(
+                test_path=test_path,
+                reason=f"Has not run on {pinned_runner}; it has run on {', '.join(available)}.",
+            )
+        return [pinned_runner]
+    return available
+
+
 def plan_custom_run(
     catalog: list[CatalogEntry],
     requested: list[str],
@@ -139,43 +172,13 @@ def plan_custom_run(
     undecided: list[tuple[str, list[str]]] = []
 
     for test_path in requested:
-        entry = known.get(test_path)
-        if entry is None:
-            unassigned.append(
-                Unassigned(
-                    test_path=test_path,
-                    reason="Bud has no record of this test case running anywhere.",
-                )
-            )
-            continue
-
-        available = [account for account in entry.runner_accounts if account in runner_ids]
-        if not available:
-            unassigned.append(
-                Unassigned(
-                    test_path=test_path,
-                    reason="The Test Station this ran on is no longer registered.",
-                )
-            )
-            continue
-
-        if pinned_runner:
-            if pinned_runner not in available:
-                unassigned.append(
-                    Unassigned(
-                        test_path=test_path,
-                        reason=f"Has not run on {pinned_runner}; it has run on "
-                        f"{', '.join(available)}.",
-                    )
-                )
-                continue
-            grouped.setdefault(pinned_runner, []).append(test_path)
-            continue
-
-        if len(available) == 1:
-            grouped.setdefault(available[0], []).append(test_path)
+        stations = _stations_for(test_path, known.get(test_path), runner_ids, pinned_runner)
+        if isinstance(stations, Unassigned):
+            unassigned.append(stations)
+        elif len(stations) == 1:
+            grouped.setdefault(stations[0], []).append(test_path)
         else:
-            undecided.append((test_path, available))
+            undecided.append((test_path, stations))
 
     for test_path, available in undecided:
         already_used = [account for account in available if account in grouped]

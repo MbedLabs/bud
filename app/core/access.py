@@ -1,18 +1,21 @@
-"""What a Bud user may do: their base role's allowance plus the policies of their groups.
+"""What a Bud user may do, app-wide and per product.
 
 The base role (Admin, Developer, Viewer) is the user's own and set at invitation. Admin
-holds every permission. Viewer is allowed the Results policy; Developer is allowed Results,
-Custom runs and Publish to Bloom. Groups are bundles of policies; a user can have several,
-and a group only adds. Human access is not scoped by products or stations.
+holds every permission on every product. Groups are bundles of policies. Product-scoped
+permissions (runs, results and artifacts, reports, custom runs, publishing to Bloom and
+managing a product) count only on the products where the user holds the group; app-wide
+permissions come from the base role and the groups the user holds app-wide. Products.manage
+held app-wide covers every product.
 """
 
 from dataclasses import dataclass
+from typing import Optional
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models.access import AccessGroup, AccessGroupMember, Policy
+from app.models.access import AccessGroup, AccessGroupMember, Policy, ProductAccess
 from app.models.user import User, UserRole
 
 PERMISSION_CATALOGUE: dict[str, tuple[str, ...]] = {
@@ -32,6 +35,16 @@ ALL_PERMISSIONS: frozenset[str] = frozenset(
     for resource, actions in PERMISSION_CATALOGUE.items()
     for action in actions
 )
+
+PRODUCT_RESOURCES: frozenset[str] = frozenset(
+    {"evidence", "reports", "custom_runs", "bloom_publish"}
+)
+
+PRODUCT_SCOPED: frozenset[str] = frozenset(
+    name for name in ALL_PERMISSIONS if name.split(".", 1)[0] in PRODUCT_RESOURCES
+) | {"products.manage"}
+
+APP_SCOPED: frozenset[str] = (ALL_PERMISSIONS - PRODUCT_SCOPED) | {"products.manage"}
 
 
 @dataclass(frozen=True)
@@ -185,19 +198,75 @@ async def user_groups(db: AsyncSession, user_id: int) -> list[AccessGroup]:
     )
 
 
+def app_scoped(names: frozenset[str]) -> frozenset[str]:
+    """The names among ``names`` that count app-wide."""
+    return frozenset(name for name in names if name in APP_SCOPED)
+
+
+def product_scoped(names: frozenset[str]) -> frozenset[str]:
+    """The names among ``names`` that count on a product."""
+    return frozenset(name for name in names if name in PRODUCT_SCOPED)
+
+
+async def app_permissions(db: AsyncSession, user: User) -> frozenset[str]:
+    """The app-wide permissions of the base role and of the groups the user holds app-wide."""
+    if user.role == UserRole.admin:
+        return ALL_PERMISSIONS
+    allowed = set(app_scoped(base_role_permissions(user.role)))
+    for group in await user_groups(db, user.id):
+        allowed |= app_scoped(group_permissions(group))
+    return frozenset(allowed)
+
+
+async def product_grants(db: AsyncSession, user: User) -> dict[int, frozenset[str]]:
+    """The product-scoped permissions the user holds on each product through its groups."""
+    rows = (
+        await db.execute(
+            select(ProductAccess.product_id, AccessGroup)
+            .join(AccessGroup, AccessGroup.id == ProductAccess.group_id)
+            .where(ProductAccess.user_id == user.id)
+            .options(selectinload(AccessGroup.policies))
+        )
+    ).all()
+    grants: dict[int, set[str]] = {}
+    for product_id, group in rows:
+        grants.setdefault(product_id, set()).update(product_scoped(group_permissions(group)))
+    return {product_id: frozenset(names) for product_id, names in grants.items()}
+
+
 async def effective_permissions(db: AsyncSession, user: User) -> frozenset[str]:
-    """The base role's allowance plus every policy of every group the user has."""
-    allowed = set(base_role_permissions(user.role))
+    """The app-wide permissions plus every product-scoped permission held on some product."""
+    allowed = set(await app_permissions(db, user))
     if user.role == UserRole.admin:
         return frozenset(allowed)
-    for group in await user_groups(db, user.id):
-        allowed |= group_permissions(group)
+    for names in (await product_grants(db, user)).values():
+        allowed |= names
     return frozenset(allowed)
 
 
 async def has_permission(db: AsyncSession, user: User, permission: str) -> bool:
-    """Whether the user holds ``resource.action``."""
+    """Whether the user holds ``resource.action`` app-wide or on some product."""
     return permission in await effective_permissions(db, user)
+
+
+async def product_ids_with(
+    db: AsyncSession, user: User, permission: str
+) -> Optional[frozenset[int]]:
+    """The products on which the user holds the permission, or None when it covers every
+    product (an administrator, or products.manage held app-wide)."""
+    if user.role == UserRole.admin or permission in await app_permissions(db, user):
+        return None
+    grants = await product_grants(db, user)
+    return frozenset(product_id for product_id, names in grants.items() if permission in names)
+
+
+async def holds_on_product(
+    db: AsyncSession, user: User, product_id: Optional[int], permission: str
+) -> bool:
+    """Whether the user holds the permission on the product; a run without a product is
+    covered only where the permission covers every product."""
+    ids = await product_ids_with(db, user, permission)
+    return ids is None or (product_id is not None and product_id in ids)
 
 
 async def seed_default_access(db: AsyncSession) -> None:

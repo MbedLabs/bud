@@ -39,7 +39,7 @@ const operators = {
   is_default: true,
   system_key: 'test_operators',
   policies: [],
-  permissions: ['bloom_publish.execute', 'custom_runs.create', 'evidence.view'],
+  permissions: ['audit.view', 'bloom_publish.execute', 'custom_runs.create', 'evidence.view'],
   members: [dee],
   created_at: '',
   updated_at: '',

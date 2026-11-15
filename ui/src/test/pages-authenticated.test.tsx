@@ -115,31 +115,37 @@ describe('the dashboard', () => {
 
     expect(await within(card('Total Test Runs')).findByText('5')).toBeTruthy()
     expect(screen.getAllByText('60%').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('30 tests').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Tests: 10 distinct, 30 executions').length).toBeGreaterThan(0)
   })
 
-  it('separates the run pass rate from the test pass rate', async () => {
+  it('separates the run pass rate from the distinct test and test execution pass rates', async () => {
     renderAt('/', '/', <Dashboard />)
 
     expect(await within(card('Run Pass Rate')).findByText('60%')).toBeTruthy()
-    expect(within(card('Test Pass Rate')).getByText('80%')).toBeTruthy()
+    expect(within(card('Distinct Test Pass Rate')).getByText('70%')).toBeTruthy()
+    expect(within(card('Test Execution Pass Rate')).getByText('80%')).toBeTruthy()
   })
 
   it('accounts for the tests that were skipped', async () => {
     renderAt('/', '/', <Dashboard />)
 
-    expect(await screen.findByText(/1 test\(s\) skipped/)).toBeTruthy()
-    expect(within(card('Test Outcomes')).getByText('Skipped')).toBeTruthy()
+    expect(await within(card('Distinct Test Pass Rate')).findByText(/1 skipped included/)).toBeTruthy()
+    expect(within(card('Test Execution Pass Rate')).getByText(/1 skipped included/)).toBeTruthy()
+    expect(within(card('Distinct Test Outcomes')).getByText('Skipped')).toBeTruthy()
+    expect(within(card('Test Execution Outcomes')).getByText('Skipped')).toBeTruthy()
   })
 
-  it('splits both runs and tests by outcome', async () => {
+  it('splits runs, distinct tests and test executions by outcome', async () => {
     renderAt('/', '/', <Dashboard />)
-    await within(card('Test Outcomes')).findByText('24')
+    await within(card('Test Execution Outcomes')).findByText('24')
 
-    const tests = within(card('Test Outcomes'))
+    const distinct = within(card('Distinct Test Outcomes'))
+    const executions = within(card('Test Execution Outcomes'))
     const runs = within(card('Run Outcomes'))
-    expect(tests.getByText('Passed')).toBeTruthy()
-    expect(tests.getByText('Skipped')).toBeTruthy()
+    expect(distinct.getByText('7')).toBeTruthy()
+    expect(distinct.getByText('Passed')).toBeTruthy()
+    expect(executions.getByText('Passed')).toBeTruthy()
+    expect(executions.getByText('Skipped')).toBeTruthy()
     expect(runs.getByText('Passed')).toBeTruthy()
     expect(runs.getByText('In progress')).toBeTruthy()
   })

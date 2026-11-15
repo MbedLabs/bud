@@ -9,7 +9,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.auth import require_permission
+from app.core.access import holds_on_product
 from app.core.identity import BUD_PRODUCT_NAME
+from app.core.run_access import readable_runs
 from app.db import get_db
 from app.models import ReportRequest, TestRun, User
 from app.services.audit import record_audit_event
@@ -41,6 +43,9 @@ async def pending_requests(
     query = query.where(ReportRequest.bloom_url == url, ReportRequest.status == "pending")
     if run_id is not None:
         query = query.where(ReportRequest.run_id == run_id)
+    readable = await readable_runs(db, _user, "bloom_publish.execute")
+    if readable is not None:
+        query = query.where(readable)
     rows = (await db.execute(query.order_by(ReportRequest.id))).all()
     return [
         {
@@ -85,7 +90,10 @@ async def refuse_request(
         .where(ReportRequest.id == request_id, ReportRequest.bloom_url == url)
         .with_for_update()
     )
-    if row is None:
+    run = await db.get(TestRun, row.run_id) if row is not None and row.run_id else None
+    if row is None or not await holds_on_product(
+        db, user, run.product_id if run else None, "bloom_publish.execute"
+    ):
         raise HTTPException(status_code=404, detail="Request not found")
     if row.status != "pending":
         raise HTTPException(status_code=409, detail="Request is already closed")

@@ -2,6 +2,7 @@ import { Fragment, useEffect, useRef, useState } from 'react'
 import type { KeyboardEvent } from 'react'
 import { Navigate, useSearchParams } from 'react-router'
 import { api, extractApiErrorMessage } from '../api/client'
+import AuthPageShell from '../components/AuthPageShell'
 import { useAuth } from '../contexts/AuthContext'
 
 interface CliSession {
@@ -40,7 +41,6 @@ const CHECK_TEXT: Record<CodeCheck, string> = {
   mismatch: 'This code does not match. Check the code in your terminal, or deny this request.',
   limited: 'Too many attempts. Wait a minute and try again.',
 }
-const WARNING = 'rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-800 dark:text-amber-300'
 
 /** Check that a target is an HTTP loopback URL on the stored callback's origin and path, without credentials. */
 function onStoredCallback(target: URL, redirectTo: string, original: URL) {
@@ -167,7 +167,7 @@ function RequestCodeBoxes({ chars, onChange }: Readonly<RequestCodeBoxesProps>) 
   }
 
   return (
-    <fieldset aria-describedby="cli-request-code-help" className="min-w-0">
+    <fieldset className="min-w-0">
       <legend className="block text-sm text-muted-foreground">Request code</legend>
       <div className="mt-1 flex items-center gap-1.5 sm:gap-2">
         {CODE_BOXES.map((index) => (
@@ -209,7 +209,7 @@ interface DenyButtonProps {
 /** Render the Deny action that ends the request on the server. */
 function DenyButton({ busy, onDeny }: Readonly<DenyButtonProps>) {
   return (
-    <button type="button" disabled={busy} onClick={onDeny} className="rounded-lg border border-border px-4 py-2 disabled:opacity-50">Deny</button>
+    <button type="button" disabled={busy} onClick={onDeny} className="flex-1 rounded-lg border border-border px-4 py-2 disabled:opacity-50">Deny</button>
   )
 }
 
@@ -225,25 +225,17 @@ interface PendingRequestProps {
   onDeny: () => void
 }
 
-/** Render the request code boxes, client, account, times, warnings and the Approve and Deny actions. */
+/** Render the request code boxes, client, account, times and the Approve and Deny actions. */
 function PendingRequest({ session, userName, userEmail, busy, codeChars, codeCheck, onCodeChange, onApprove, onDeny }: Readonly<PendingRequestProps>) {
   return (
     <div>
       <RequestCodeBoxes chars={codeChars} onChange={onCodeChange} />
-      <p id="cli-request-code-help" className="text-sm mt-1">Type the code your terminal or AI client shows next to the link.</p>
       <output className={`block text-sm mb-4 ${codeCheck === 'match' ? '' : 'text-destructive'}`}>{CHECK_TEXT[codeCheck]}</output>
-      <p className="text-sm text-muted-foreground">Client name, as given by the requesting client (not verified)</p>
       <p className="font-semibold text-lg mb-3 break-all">{session.client_name}</p>
-      <p className="mb-3">Approving signs this client in to Bud as {userName} ({userEmail}), with your full permissions.</p>
-      <p className="text-sm text-muted-foreground mb-1">{session.mode === 'callback' ? 'Local loopback callback' : 'One-time exchange code'}</p>
-      {session.redirect_uri && <p className="text-sm break-all mb-3">{session.redirect_uri}</p>}
+      <p className="mb-3">Approving signs this client in to Bud TMP as {userName} ({userEmail}).</p>
       <p className="text-sm mb-3">Requested {localTime(session.created_at)}. Expires {localTime(session.expires_at)}.</p>
-      <p className={`${WARNING} mb-3`}>Approve only a sign-in you started yourself, on your own computer, in the last few minutes.</p>
-      {session.mode === 'code' && (
-        <p className={`${WARNING} mb-3`}>Code sign-in: after you approve, this page shows a one-time code. Anyone who has that code can sign in to Bud as you until it expires.</p>
-      )}
       <div className="flex gap-3 mt-5">
-        <button type="button" disabled={busy || codeCheck !== 'match'} onClick={onApprove} className="rounded-lg bg-primary px-4 py-2 text-primary-foreground disabled:opacity-50">{busy ? 'Working...' : 'Approve'}</button>
+        <button type="button" disabled={busy || codeCheck !== 'match'} onClick={onApprove} className="flex-1 rounded-lg bg-primary px-4 py-2 text-primary-foreground disabled:opacity-50">{busy ? 'Working...' : 'Approve'}</button>
         <DenyButton busy={busy} onDeny={onDeny} />
       </div>
     </div>
@@ -296,7 +288,6 @@ function ApprovalBody({ error, blocked, denied, approval, session, userName, use
   if (approval?.exchange_code) {
     return (
       <div>
-        <p>Paste this code only into the client where you started this sign-in. Never send it to anyone.</p>
         <code className="block my-4 break-all rounded-lg border border-border bg-background p-4 select-all">{approval.exchange_code}</code>
         <p className="text-sm text-muted-foreground mb-4">Expires {localTime(approval.expires_at ?? '')}.</p>
         <button type="button" onClick={onCopy} className="rounded-lg bg-primary px-4 py-2 text-primary-foreground">Copy code</button>
@@ -466,9 +457,9 @@ export default function CliAuthApprovePage() {
   const displayedError = validSession ? error : 'This authorization link is invalid or missing its session.'
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-gradient-auth p-4">
-      <div className="w-full max-w-lg rounded-2xl border border-border bg-card p-8 shadow-2xl text-foreground">
-        <h1 className="text-2xl font-bold mb-4">Connect a client to Bud</h1>
+    <AuthPageShell>
+      <div className="text-foreground">
+        <h1 className="text-2xl font-bold mb-4">Connect a client to Bud TMP</h1>
         <ApprovalBody
           error={displayedError}
           blocked={blocked}
@@ -487,6 +478,6 @@ export default function CliAuthApprovePage() {
           onCopy={() => void copyCode()}
         />
       </div>
-    </main>
+    </AuthPageShell>
   )
 }

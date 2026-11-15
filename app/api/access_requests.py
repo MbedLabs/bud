@@ -19,12 +19,13 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.auth import get_current_user, require_permission
-from app.api.groups import give_group, load_group
-from app.core.access import effective_permissions, group_permissions
+from app.api.groups import check_giveable, give_group, load_group
+from app.core.access import effective_permissions, group_permissions, holds_on_product
 from app.core.config import settings
 from app.core.observability import request_id_var
 from app.core.timestamps import second_utc
 from app.db.database import get_db
+from app.models import ProductAccess, TestRun
 from app.models.access_request import AccessRequest
 from app.models.user import User, UserRole
 from app.services.audit import record_audit_event
@@ -138,6 +139,59 @@ async def _labelled(
     return answers
 
 
+async def _run_product(db: AsyncSession, resource_ref: str) -> Optional[int]:
+    """The product of the run the reference names, or None."""
+    if not resource_ref.isdigit():
+        return None
+    return await db.scalar(select(TestRun.product_id).where(TestRun.id == int(resource_ref)))
+
+
+async def give_product_group(
+    db: AsyncSession, actor: User, product_id: int, group, user: User
+) -> None:
+    """Give the user the group on the product; a group held there is left as it is."""
+    await check_giveable(db, actor, group, user)
+    held = await db.scalar(
+        select(ProductAccess.id).where(
+            ProductAccess.product_id == product_id,
+            ProductAccess.group_id == group.id,
+            ProductAccess.user_id == user.id,
+        )
+    )
+    if held is not None:
+        return
+    db.add(ProductAccess(product_id=product_id, user_id=user.id, group_id=group.id))
+    await record_audit_event(
+        db,
+        "product.member_added",
+        target_type="product",
+        target_id=product_id,
+        product_id=product_id,
+        details={"user_id": user.id, "group_id": group.id},
+    )
+    await db.flush()
+
+
+async def _grant(db: AsyncSession, admin: User, row: AccessRequest, group_id: int) -> int:
+    """Give the requester the chosen group: on the run's product for Publish to Bloom, else
+    app-wide; return the group's id."""
+    group = await load_group(db, group_id)
+    publish = row.resource_type == PUBLISH_TO_BLOOM
+    if publish and "bloom_publish.execute" not in group_permissions(group):
+        raise HTTPException(status_code=422, detail="This group does not give Publish to Bloom")
+    requester = await db.get(User, row.user_id)
+    if requester is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    if not publish:
+        await give_group(db, admin, group, requester)
+        return group.id
+    product_id = await _run_product(db, row.resource_ref)
+    if product_id is None:
+        raise HTTPException(status_code=422, detail="This run belongs to no product")
+    await give_product_group(db, admin, product_id, group, requester)
+    return group.id
+
+
 async def _requested_resource(db: AsyncSession, resource_ref: str) -> str:
     """How the email names the request: Publish to Bloom and the number and name of the run."""
     labels = LabelResolver()
@@ -167,7 +221,9 @@ async def request_access(
 ):
     """Ask the administrators for Publish to Bloom; a repeat within 24 hours returns the first
     request, and a holder of Publish to Bloom is refused with 409."""
-    if PUBLISH_PERMISSION in await effective_permissions(db, current_user):
+    if await holds_on_product(
+        db, current_user, await _run_product(db, data.resource_ref), PUBLISH_PERMISSION
+    ):
         raise HTTPException(status_code=409, detail=ALREADY_HELD)
     existing = await _recent_request(db, current_user.id, data.resource_type, data.resource_ref)
     if existing is not None:
@@ -277,16 +333,7 @@ async def decide_access_request(
             raise HTTPException(
                 status_code=422, detail="Choose the group that gives Publish to Bloom"
             )
-        group = await load_group(db, data.group_id)
-        if row.resource_type == PUBLISH_TO_BLOOM and (
-            "bloom_publish.execute" not in group_permissions(group)
-        ):
-            raise HTTPException(status_code=422, detail="This group does not give Publish to Bloom")
-        requester = await db.get(User, row.user_id)
-        if requester is None:
-            raise HTTPException(status_code=404, detail="User not found")
-        await give_group(db, admin, group, requester)
-        group_id = group.id
+        group_id = await _grant(db, admin, row, data.group_id)
     row.status = data.decision
     row.decided_by_user_id = admin.id
     row.decided_at = datetime.now(timezone.utc).replace(tzinfo=None)

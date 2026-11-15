@@ -4,19 +4,21 @@ import { X } from 'lucide-react'
 import { accessApi, extractApiErrorMessage, groupsApi, type AccessUser, type Group, type GroupMember } from '../api/client'
 import { useAuth } from '../contexts/AuthContext'
 import { can } from '../lib/access'
+import { givesAppAccess } from '../lib/accessScope'
 import ProfilePicture from './ProfilePicture'
 
-/** The people assigned to each Bud policy group. */
+/** The people holding each group app-wide; only the group's app-wide permissions count. */
 export default function AccessUsers() {
   const { user, refreshUser } = useAuth()
   const users = useQuery({ queryKey: ['access-users'], queryFn: accessApi.users })
   const groups = useQuery({ queryKey: ['groups'], queryFn: groupsApi.list })
-  if (users.isPending || groups.isPending) return <p className="text-sm text-muted-foreground">Loading assignments...</p>
-  if (users.isError || groups.isError) return <p role="alert" className="text-sm text-destructive">Could not load assignments. <button type="button" onClick={() => { void users.refetch(); void groups.refetch() }} className="underline">Retry</button></p>
+  if (users.isPending || groups.isPending) return <p className="text-sm text-muted-foreground">Loading application groups...</p>
+  if (users.isError || groups.isError) return <p role="alert" className="text-sm text-destructive">Could not load application groups. <button type="button" onClick={() => { void users.refetch(); void groups.refetch() }} className="underline">Retry</button></p>
   return <section>
-    <h2 className="text-xl font-semibold text-foreground mb-4">Assignments</h2>
+    <h2 className="text-xl font-semibold text-foreground mb-1">Application groups</h2>
+    <p className="mb-4 text-sm text-muted-foreground">Groups held across the whole application: Test Stations, settings, the audit log, access and products. Access to a product&apos;s runs is given on that product.</p>
     <div className="grid gap-4 sm:grid-cols-2">
-      {groups.data.map((group) => <GroupRoster key={group.id} group={group} people={users.data} onChange={refreshUser} canAssign={(group.system_key !== 'app_administration' || user?.role === 'admin') && group.permissions.every((permission) => can(user, permission))} />)}
+      {groups.data.filter(givesAppAccess).map((group) => <GroupRoster key={group.id} group={group} people={users.data} onChange={refreshUser} canAssign={(group.system_key !== 'app_administration' || user?.role === 'admin') && group.permissions.every((permission) => can(user, permission))} />)}
     </div>
   </section>
 }

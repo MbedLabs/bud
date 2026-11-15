@@ -7,6 +7,7 @@ import { accessApi } from '../api/client'
 
 const getAuthUser = vi.hoisted(() => vi.fn())
 
+vi.mock('../components/AccessUsers', () => ({ default: () => null }))
 vi.mock('../contexts/AuthContext', () => ({
   useAuth: () => ({ user: getAuthUser() }),
 }))

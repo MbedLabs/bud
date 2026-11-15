@@ -9,9 +9,9 @@ from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
 
-from app.core.access import has_permission
+from app.core.access import holds_on_product
 from app.core.config import settings
-from app.models import ReportRequest, User
+from app.models import ReportRequest, TestRun, User
 from app.services.audit import record_audit_event
 from app.services.bloom_publish import BloomNotConfigured, bloom_credentials
 from app.services.mail_service import MailConfigurationError, send_report_request_email
@@ -132,14 +132,21 @@ async def notify_publishers(db: AsyncSession, url: str) -> None:
         await db.commit()
         return
     users = (await db.scalars(select(User).where(User.is_active.is_(True)))).all()
-    publishers = [
-        (user.id, user.email, user.full_name)
-        for user in users
-        if await has_permission(db, user, "bloom_publish.execute")
-    ]
+    publishers_by_request = {}
+    for request_id in request_ids:
+        product_id = await db.scalar(
+            select(TestRun.product_id)
+            .join(ReportRequest, ReportRequest.run_id == TestRun.id)
+            .where(ReportRequest.id == request_id)
+        )
+        publishers_by_request[request_id] = [
+            (user.id, user.email, user.full_name)
+            for user in users
+            if await holds_on_product(db, user, product_id, "bloom_publish.execute")
+        ]
     await db.commit()
     for request_id in request_ids:
-        for user_id, email, name in publishers:
+        for user_id, email, name in publishers_by_request[request_id]:
             row = await db.scalar(
                 select(ReportRequest)
                 .where(ReportRequest.id == request_id, ReportRequest.status == "pending")

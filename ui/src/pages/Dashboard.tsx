@@ -11,7 +11,7 @@ import {
 } from '../api/client'
 import { formatDateTime } from '../lib/dateTime'
 import { CheckCircle, XCircle, PlayCircle, Server, TrendingUp, Activity, Filter, X, MinusCircle, Clock } from 'lucide-react'
-import OutcomeDonut from '../components/OutcomeDonut'
+import OutcomeDonut, { type OutcomeSegment } from '../components/OutcomeDonut'
 import RunStatusBadge from '../components/RunStatusBadge'
 import PdfReportButton from '../components/PdfReportButton'
 
@@ -26,9 +26,10 @@ const TIME_RANGES: { label: string; days?: number }[] = [
 ]
 
 /**
- * The dashboard. Every counter is aggregated by the server over the whole filtered set. The run
- * pass rate counts a run as failed when one of its tests fails, and the test pass rate counts
- * executed tests.
+ * The dashboard. Every counter is aggregated by the server over the whole filtered set. Tests are
+ * shown twice, each labelled: distinct tests count each test once with the outcome of its latest
+ * run, and test executions count every run of every test. The run pass rate counts a run as
+ * failed when one of its tests fails; each pass rate names its base.
  */
 export default function Dashboard() {
   const [days, setDays] = useState<number | undefined>(DEFAULT_DAYS)
@@ -76,7 +77,13 @@ export default function Dashboard() {
   const passedRuns = stats?.passed_runs ?? 0
   const failedRuns = stats?.failed_runs ?? 0
   const passRate = stats?.run_pass_rate ?? 0
-  const testPassRate = stats?.test_pass_rate ?? 0
+  const executionPassRate = stats?.test_pass_rate ?? 0
+  const distinctPassRate = stats?.distinct_test_pass_rate ?? 0
+  const decidedRuns = passedRuns + failedRuns
+  const totalExecutions = stats?.total_tests ?? 0
+  const skippedExecutions = stats?.skipped_tests ?? 0
+  const distinctTests = stats?.distinct_tests ?? 0
+  const distinctSkipped = stats?.distinct_skipped_tests ?? 0
 
   const stationOptions = filterOptions?.runner_accounts ?? []
   const suiteOptions = filterOptions?.suites ?? []
@@ -146,21 +153,25 @@ export default function Dashboard() {
           value={statsLoading ? '—' : totalRuns}
           icon={PlayCircle}
           gradient="from-primary to-bud-orange"
-          subtitle={stats ? `${stats.total_tests} tests` : undefined}
+          subtitle={stats ? testCounts('Tests', stats.distinct_tests, stats.total_tests) : undefined}
         />
         <StatCard
-          title="Passed"
+          title="Passed Runs"
           value={statsLoading ? '—' : passedRuns}
           icon={CheckCircle}
           gradient="from-emerald-500 to-emerald-700"
-          subtitle={stats ? `${stats.passed_tests} tests passed` : undefined}
+          subtitle={
+            stats ? testCounts('Tests passed', stats.distinct_passed_tests, stats.passed_tests) : undefined
+          }
         />
         <StatCard
-          title="Failed"
+          title="Failed Runs"
           value={statsLoading ? '—' : failedRuns}
           icon={XCircle}
           gradient="from-red-500 to-red-700"
-          subtitle={stats ? `${stats.failed_tests} tests failed` : undefined}
+          subtitle={
+            stats ? testCounts('Tests failed', stats.distinct_failed_tests, stats.failed_tests) : undefined
+          }
         />
         <StatCard
           title="Test Stations Online"
@@ -172,52 +183,49 @@ export default function Dashboard() {
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <PassRateMeter
           title="Run Pass Rate"
           caption={
-            stats && stats.in_progress_runs > 0
-              ? `${stats.in_progress_runs} run(s) still in progress are excluded`
-              : 'Share of decided runs that passed'
+            `Passed runs out of ${decidedRuns} decided run(s)` +
+            (stats && stats.in_progress_runs > 0 ? `; ${stats.in_progress_runs} in progress excluded` : '')
           }
           rate={passRate}
         />
         <PassRateMeter
-          title="Test Pass Rate"
+          title="Distinct Test Pass Rate"
           caption={
-            stats && stats.skipped_tests > 0
-              ? `${stats.skipped_tests} test(s) skipped and not counted either way`
-              : 'Share of executed tests that passed'
+            `Passed distinct tests out of all ${distinctTests}, each by its latest run` +
+            (distinctSkipped > 0 ? `; ${distinctSkipped} skipped included` : '')
           }
-          rate={testPassRate}
+          rate={distinctPassRate}
+        />
+        <PassRateMeter
+          title="Test Execution Pass Rate"
+          caption={
+            `Passed executions out of all ${totalExecutions} test executions` +
+            (skippedExecutions > 0 ? `; ${skippedExecutions} skipped included` : '')
+          }
+          rate={executionPassRate}
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <OutcomeDonut
-          title="Test Outcomes"
-          caption="Every test case in range, by result"
-          totalLabel="tests"
-          segments={[
-            {
-              label: 'Passed',
-              value: stats?.passed_tests ?? 0,
-              tone: 'text-emerald-600 dark:text-emerald-400',
-              icon: CheckCircle,
-            },
-            {
-              label: 'Failed',
-              value: stats?.failed_tests ?? 0,
-              tone: 'text-red-600 dark:text-red-400',
-              icon: XCircle,
-            },
-            {
-              label: 'Skipped',
-              value: stats?.skipped_tests ?? 0,
-              tone: 'text-muted-foreground',
-              icon: MinusCircle,
-            },
-          ]}
+          title="Distinct Test Outcomes"
+          caption="Each test in range once, by the result of its latest run"
+          totalLabel="distinct tests"
+          segments={testSegments(
+            stats?.distinct_passed_tests ?? 0,
+            stats?.distinct_failed_tests ?? 0,
+            distinctSkipped,
+          )}
+        />
+        <OutcomeDonut
+          title="Test Execution Outcomes"
+          caption="Every execution of every test in range, by result"
+          totalLabel="executions"
+          segments={testSegments(stats?.passed_tests ?? 0, stats?.failed_tests ?? 0, skippedExecutions)}
         />
         <OutcomeDonut
           title="Run Outcomes"
@@ -336,6 +344,20 @@ export default function Dashboard() {
       </div>
     </div>
   )
+}
+
+/** A stat card subtitle naming both test counts, such as "Tests: 193 distinct, 1930 executions". */
+function testCounts(label: string, distinct: number | undefined, executions: number): string {
+  return `${label}: ${distinct ?? 0} distinct, ${executions} executions`
+}
+
+/** The passed, failed and skipped segments of a test outcome donut. */
+function testSegments(passed: number, failed: number, skipped: number): OutcomeSegment[] {
+  return [
+    { label: 'Passed', value: passed, tone: 'text-emerald-600 dark:text-emerald-400', icon: CheckCircle },
+    { label: 'Failed', value: failed, tone: 'text-red-600 dark:text-red-400', icon: XCircle },
+    { label: 'Skipped', value: skipped, tone: 'text-muted-foreground', icon: MinusCircle },
+  ]
 }
 
 /** A dashboard list's message while it loads or when it is empty; null when it has rows. */
