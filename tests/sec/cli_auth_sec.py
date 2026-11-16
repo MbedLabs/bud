@@ -19,7 +19,7 @@ class CliAuthSecBase(BudAppTestCase):
     def check(self, scenario):
         """Assert every named check of one scenario: its found value against its expected one, or
         among the expected ones when the check says so."""
-        for name, (found, expected, *among) in self.tc_checks[scenario].items():
+        for name, (found, expected, *among) in self.checks[scenario].items():
             message = f"{name}: {self.parameters.MSG_CLI_SEC_CHECK}"
             if among:
                 self.assertIn(found, list(expected), msg=message)

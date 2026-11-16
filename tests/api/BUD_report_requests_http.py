@@ -67,7 +67,7 @@ class ReportRequestsHttpTest(ReportRequestsHttpBase):
 
     def setUpClass(self):
         super().setUpClass()
-        self.tc_checks = {}
+        self.checks = {}
         for scenario in (self.collection, self.retry, self.checkpoints, self.paging, self.removed):
             self.bud.bud_start_app()
             self.bud.bud_delete_in_app(User)
@@ -142,7 +142,7 @@ class ReportRequestsHttpTest(ReportRequestsHttpBase):
             second = await report_service.sync_report_requests(db)
         rows = await self.requests(db)
         row = rows[0] if rows else self.request_row(requester_email=None, notified_user_ids=[])
-        self.tc_checks["collection"] = {
+        self.checks["collection"] = {
             "the first collection stores one request": (first, 1),
             "the second collection stores none": (second, 0),
             "the active publishers are mailed": (
@@ -184,7 +184,7 @@ class ReportRequestsHttpTest(ReportRequestsHttpBase):
             current.update(status="delivered")
             await report_service.sync_report_requests(db)
             row = ((await self.requests(db)) or [self.request_row(status=None)])[0]
-        self.tc_checks["retry"] = {
+        self.checks["retry"] = {
             "the request stays pending after the failed mail": (after_failure[0], "pending"),
             "nobody is recorded as notified after the failed mail": (after_failure[1], False),
             "the next collection notifies the publisher": (notified, 1),
@@ -216,7 +216,7 @@ class ReportRequestsHttpTest(ReportRequestsHttpBase):
         with bloom(listing(self.remote())), self.mailing(retry):
             await report_service.sync_report_requests(db)
         again = retry.call_args.kwargs.get("to_email") if retry.call_args else first
-        self.tc_checks["checkpoints"] = {
+        self.checks["checkpoints"] = {
             "the interrupted delivery is raised": ("delivery interrupted" in str(raised), True),
             "the retry mails one publisher": (retry.call_count, 1),
             "the retry skips the publisher already mailed": (again != first, True),
@@ -238,7 +238,7 @@ class ReportRequestsHttpTest(ReportRequestsHttpBase):
         with bloom(serve):
             first = await report_service.sync_report_requests(db)
             second = await report_service.sync_report_requests(db)
-        self.tc_checks["paging"] = {
+        self.checks["paging"] = {
             "the first collection pages through every request": (first, 101),
             "the second collection finds none": (second, 0),
             "the polls start after the highest stored id": (seen, p.REPORT_PAGES_SEEN),
@@ -252,7 +252,7 @@ class ReportRequestsHttpTest(ReportRequestsHttpBase):
         with bloom(lambda request: httpx.Response(200, json=[])), self.mailing(send):
             await report_service.sync_report_requests(db)
         row = ((await self.requests(db)) or [self.request_row(status=None, reason="")])[0]
-        self.tc_checks["removed"] = {
+        self.checks["removed"] = {
             "the request is refused": (row.status, "refused"),
             "the reason says it is gone from Bloom": (
                 p.REPORT_NO_LONGER in (row.reason or ""),
@@ -313,7 +313,7 @@ class ReportRequestsHttpTest(ReportRequestsHttpBase):
 
         with bloom(accept):
             accepted = self.bud.bud_request(p.POST, path, json={"reason": "Evidence incomplete"})
-        self.tc_checks["refusal"] = {
+        self.checks["refusal"] = {
             "a viewer cannot list requests": (viewer_list.status_code, p.STATUS_FORBIDDEN),
             "a viewer cannot refuse": (viewer_refusal.status_code, p.STATUS_FORBIDDEN),
             "a developer lists the request": (
@@ -347,7 +347,7 @@ class ReportRequestsHttpTest(ReportRequestsHttpBase):
         answer = {"document_id": 7, "doc_id": "PRJ-RPT-001", "created": True}
         with mock.patch.object(test_runs, "post_to_bloom", mock.AsyncMock(return_value=answer)):
             published = self.bud.bud_request(p.POST, path)
-        self.tc_checks["publication"] = {
+        self.checks["publication"] = {
             "a failed publication is reported": (failed.status_code, p.STATUS_BAD_GATEWAY),
             "every request stays pending after the failure": (after_failure, {"pending"}),
             "the publication succeeds": (published.status_code, p.STATUS_OK),
@@ -374,7 +374,7 @@ class ReportRequestsHttpTest(ReportRequestsHttpBase):
             )
         message = (captured or [{"html_body": "", "text_body": ""}])[0]
         html, text = message.get("html_body") or "", message.get("text_body") or ""
-        self.tc_checks["mail"] = {
+        self.checks["mail"] = {
             "the HTML leaves no placeholder": ("${" in html, False),
             "the text leaves no placeholder": ("${" in text, False),
             "the HTML links the run": (f'href="{p.REPORT_MAIL_LINK}"' in html, True),
@@ -399,7 +399,7 @@ class ReportRequestsHttpTest(ReportRequestsHttpBase):
         answer = {"document_id": 7, "doc_id": "PRJ-RPT-001", "created": True}
         with mock.patch.object(test_runs, "post_to_bloom", mock.AsyncMock(return_value=answer)):
             published = self.bud.bud_request(p.POST, path)
-        self.tc_checks["destination"] = {
+        self.checks["destination"] = {
             "the publication is refused": (refused.status_code, p.STATUS_CONFLICT),
             "the refusal names the other project": (
                 p.REPORT_DIFFERENT_PROJECT in str(body_of(refused).get("detail")),
@@ -422,7 +422,7 @@ class ReportRequestsHttpTest(ReportRequestsHttpBase):
         events = self.bud.bud_find_in_app(AuditEvent, action=p.REPORT_PUBLISHED_ACTION) or [
             AuditEvent(actor_type=None)
         ]
-        self.tc_checks["delivered"] = {
+        self.checks["delivered"] = {
             "the refusal answers": (response.status_code, p.STATUS_OK),
             "the answer says delivered": (body_of(response).get("status"), "delivered"),
             "the request is delivered": (self.stored(row.id).status, "delivered"),

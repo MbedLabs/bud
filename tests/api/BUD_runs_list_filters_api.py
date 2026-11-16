@@ -23,7 +23,7 @@ class RunsListFiltersApiTest(RunsListFiltersApiBase):
 
     def setUpClass(self):
         super().setUpClass()
-        self.tc_checks = {}
+        self.checks = {}
         self.many()
         self.located()
         self.latest()
@@ -80,7 +80,7 @@ class RunsListFiltersApiTest(RunsListFiltersApiBase):
         )
         self.add_runs(ids["station-02"], (p.RUNS_FILTER_FOUND, "EnduranceTests", timedelta(days=1)))
         body = {case: self.listed(query) for case, query in p.RUNS_FILTER_QUERIES.items()}
-        self.tc_checks["search"] = {
+        self.checks["search"] = {
             "the first page leaves the run out": (
                 p.RUNS_FILTER_FOUND in names(body["first page"]),
                 False,
@@ -99,7 +99,7 @@ class RunsListFiltersApiTest(RunsListFiltersApiBase):
             "a term matching nothing finds no run": (body["no match"].get("runs"), []),
             "a term matching nothing counts none": (body["no match"].get("total"), 0),
         }
-        self.tc_checks["location pages"] = {
+        self.checks["location pages"] = {
             "the Lab B run is found past the first page": (
                 names(body["Lab B"]),
                 [p.RUNS_FILTER_FOUND],
@@ -116,7 +116,7 @@ class RunsListFiltersApiTest(RunsListFiltersApiBase):
         for minutes, account in enumerate(("station-01", "station-03", "station-02")):
             self.add_runs(ids[account], (f"At {account}", "c", timedelta(minutes=minutes)))
         body = self.listed(p.RUNS_FILTER_LAB_A)
-        self.tc_checks["location"] = {
+        self.checks["location"] = {
             "the runs of both Lab A stations": (sorted(names(body)), p.RUNS_FILTER_LAB_A_NAMES),
             "Lab A counts two runs": (body.get("total"), 2),
         }
@@ -131,7 +131,7 @@ class RunsListFiltersApiTest(RunsListFiltersApiBase):
             ("Other", "c", timedelta()),
         )
         body = self.listed(self.parameters.RUNS_FILTER_LATEST)
-        self.tc_checks["latest"] = {
+        self.checks["latest"] = {
             "the repeated suite appears once": (names(body).count("Repeated"), 1),
             "the other suite appears": ("Other" in names(body), True),
             "two suites are counted": (body.get("total"), 2),
@@ -146,7 +146,7 @@ class RunsListFiltersApiTest(RunsListFiltersApiBase):
             ("Repeated", "newer", timedelta()),
         )
         body = self.listed(self.parameters.RUNS_FILTER_LATEST)
-        self.tc_checks["newest"] = {
+        self.checks["newest"] = {
             "the newer run is kept": (
                 [run.get("test_case_list") for run in body.get("runs", [])],
                 ["newer"],
@@ -165,7 +165,7 @@ class RunsListFiltersApiTest(RunsListFiltersApiBase):
             ],
         )
         body = self.listed(self.parameters.RUNS_FILTER_LATEST_PAGE)
-        self.tc_checks["paging"] = {
+        self.checks["paging"] = {
             "three suites are counted": (body.get("total"), 3),
             "the page holds two runs": (len(body.get("runs", [])), 2),
         }
@@ -177,7 +177,7 @@ class RunsListFiltersApiTest(RunsListFiltersApiBase):
         self.add_runs(ids["station-02"], ("Shared", "c", timedelta(hours=1)))
         body = self.listed(self.parameters.RUNS_FILTER_LATEST_LAB_B)
         runs = body.get("runs") or [{}]
-        self.tc_checks["narrowed"] = {
+        self.checks["narrowed"] = {
             "Lab B counts one run": (body.get("total"), 1),
             "the Lab B run is kept": (runs[0].get("runner_account"), "station-02"),
         }

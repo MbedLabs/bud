@@ -41,12 +41,12 @@ class RunStatsApiTest(RunStatsApiBase):
                     runner_id=stations[station].id,
                 )
             )
-        self.tc_stats = {
+        self.stats = {
             case: self.bud.bud_request(p.GET, p.RUN_STATS_PATH, params=query)
             for case, (query, _) in p.STATS_CASES.items()
         }
-        self.tc_options = self.bud.bud_request(p.GET, p.RUN_FILTER_OPTIONS_PATH)
-        self.tc_literal = {
+        self.options = self.bud.bud_request(p.GET, p.RUN_FILTER_OPTIONS_PATH)
+        self.literal = {
             path: self.bud.bud_request(p.GET, path).status_code for path in p.STATS_LITERAL_PATHS
         }
 

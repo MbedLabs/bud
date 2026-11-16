@@ -17,13 +17,13 @@ from tests.bud_test_base import BudAppTestCase
 class RunsApiBase(BudAppTestCase):
 
     def bud_created_run_keeps_its_software(self):
-        p, found = self.parameters, self.tc_created
+        p, found = self.parameters, self.created
         self.print_variables(found)
         self.assertEqual(found["status"], p.STATUS_CREATED, msg=p.MSG_RUNS_CREATED)
         self.assertEqual(found["stored"], found["expected"], msg=p.MSG_RUNS_SOFTWARE)
 
     def bud_latest_run_per_suite(self):
-        p, found = self.parameters, self.tc_latest
+        p, found = self.parameters, self.latest
         self.print_variables(found)
         self.assertEqual(found["status"], p.STATUS_OK, msg=p.MSG_RUNS_LISTED)
         self.assertEqual(found["total"], 2, msg=p.MSG_RUNS_LATEST_TOTAL)
@@ -32,11 +32,11 @@ class RunsApiBase(BudAppTestCase):
     @parameterized(params.RUNS_SORT_FIELDS)
     def bud_runs_sort_both_ways(self, field):
         p = self.parameters
-        for status, ids, expected in self.tc_sorted[field]["directions"]:
+        for status, ids, expected in self.sorted[field]["directions"]:
             self.print_variables({"field": field, "ids": ids, "expected": expected})
             self.assertEqual(status, p.STATUS_OK, msg=p.MSG_RUNS_LISTED)
             self.assertEqual(ids, expected, msg=p.MSG_RUNS_SORTED)
-        for status, total, ids, expected in self.tc_sorted[field]["filters"]:
+        for status, total, ids, expected in self.sorted[field]["filters"]:
             self.assertEqual(status, p.STATUS_OK, msg=p.MSG_RUNS_LISTED)
             self.assertEqual(total, 1, msg=p.MSG_RUNS_STATION_FILTER)
             self.assertEqual(ids, expected, msg=p.MSG_RUNS_STATION_FILTER)
@@ -44,7 +44,7 @@ class RunsApiBase(BudAppTestCase):
     @parameterized(params.RUNS_PAGES)
     def bud_sorting_happens_before_pagination(self, offset):
         p = self.parameters
-        status, total, names = self.tc_pages[offset]
+        status, total, names = self.pages[offset]
         self.print_variables({"offset": offset, "names": names})
         self.assertEqual(status, p.STATUS_OK, msg=p.MSG_RUNS_LISTED)
         self.assertEqual(total, p.RUNS_MATCHES, msg=p.MSG_RUNS_PAGE_TOTAL)
@@ -56,17 +56,17 @@ class RunsApiBase(BudAppTestCase):
 
     def bud_display_sort_keeps_winners_and_stable_ties(self):
         p = self.parameters
-        for status, total, ids, expected in self.tc_display["latest"]:
+        for status, total, ids, expected in self.display["latest"]:
             self.print_variables({"ids": ids, "expected": expected})
             self.assertEqual(status, p.STATUS_OK, msg=p.MSG_RUNS_LISTED)
             self.assertEqual(total, 2, msg=p.MSG_RUNS_LATEST_TOTAL)
             self.assertEqual(ids, expected, msg=p.MSG_RUNS_DISPLAY_LATEST)
-        for ids, expected in self.tc_display["ties"]:
+        for ids, expected in self.display["ties"]:
             self.assertEqual(ids, expected, msg=p.MSG_RUNS_STABLE_TIES)
 
     def bud_invalid_sorting_is_refused(self):
         self.assertEqual(
-            self.tc_invalid,
+            self.invalid,
             [self.parameters.STATUS_UNPROCESSABLE] * len(self.parameters.RUNS_INVALID_SORTS),
             msg=self.parameters.MSG_RUNS_INVALID_SORT,
         )

@@ -19,9 +19,9 @@ class SecurityTest(SecurityBase):
         access = security.create_access_token(
             {"sub": self.parameters.TOKEN_SUBJECT}, expires_delta=self.parameters.TOKEN_LIFETIME
         )
-        self.tc_access = security.decode_access_token(access)
+        self.access = security.decode_access_token(access)
         station = security.generate_runner_token(self.parameters.STATION_TOKEN_ACCOUNT)
-        self.tc_station = security.decode_access_token(station)
+        self.station = security.decode_access_token(station)
 
     def tearDownClass(self):
         super().tearDownClass()

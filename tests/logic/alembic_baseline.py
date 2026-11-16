@@ -18,17 +18,17 @@ class AlembicBaselineBase(BudAppTestCase):
 
     def bud_baseline_is_the_only_root(self):
         self.assertEqual(
-            self.tc_roots,
+            self.roots,
             [self.parameters.ALEMBIC_BASELINE],
             msg=self.parameters.MSG_ALEMBIC_ONE_ROOT,
             abort_on_fail=False,
         )
 
     def bud_every_later_revision_names_a_parent(self):
-        self.print_variables({"later revisions": list(self.tc_later)})
+        self.print_variables({"later revisions": list(self.later)})
         without_parent = [
             name
-            for name, source in self.tc_later.items()
+            for name, source in self.later.items()
             if self.parameters.ALEMBIC_PARENT not in source
         ]
         self.assertEqual(
@@ -36,7 +36,7 @@ class AlembicBaselineBase(BudAppTestCase):
         )
         roots = [
             name
-            for name, source in self.tc_later.items()
+            for name, source in self.later.items()
             if self.parameters.ALEMBIC_NO_PARENT in source
         ]
         self.assertEqual(roots, [], msg=self.parameters.MSG_ALEMBIC_NOT_ROOT, abort_on_fail=False)
@@ -44,7 +44,7 @@ class AlembicBaselineBase(BudAppTestCase):
     def bud_no_later_revision_rebuilds_the_schema(self):
         rebuilding = [
             name
-            for name, source in self.tc_later.items()
+            for name, source in self.later.items()
             if self.parameters.ALEMBIC_CREATE_ALL in source
         ]
         self.assertEqual(
@@ -54,27 +54,27 @@ class AlembicBaselineBase(BudAppTestCase):
     def bud_baseline_keeps_the_deployed_head_id(self):
         self.assertIn(
             self.parameters.ALEMBIC_REVISION_ID.format(self.parameters.ALEMBIC_HEAD),
-            self.tc_baseline,
+            self.baseline,
             msg=self.parameters.MSG_ALEMBIC_HEAD_ID,
             abort_on_fail=False,
         )
         self.assertIn(
             self.parameters.ALEMBIC_TYPED_ROOT,
-            self.tc_baseline,
+            self.baseline,
             msg=self.parameters.MSG_ALEMBIC_BASELINE_ROOT,
             abort_on_fail=False,
         )
 
     def bud_baseline_uses_explicit_ddl(self):
         self.assertEqual(
-            self.tc_create_all_calls,
+            self.create_all_calls,
             [],
             msg=self.parameters.MSG_ALEMBIC_NO_CREATE_ALL,
             abort_on_fail=False,
         )
         self.assertIn(
             self.parameters.ALEMBIC_CREATE_TABLE,
-            self.tc_baseline,
+            self.baseline,
             msg=self.parameters.MSG_ALEMBIC_EXPLICIT_DDL,
             abort_on_fail=False,
         )
@@ -83,7 +83,7 @@ class AlembicBaselineBase(BudAppTestCase):
     def bud_baseline_creates_the_core_table(self, table):
         self.assertIn(
             self.parameters.ALEMBIC_TABLE_NAME.format(table),
-            self.tc_baseline,
+            self.baseline,
             msg=self.parameters.MSG_ALEMBIC_CORE_TABLE,
             abort_on_fail=False,
         )
@@ -91,7 +91,7 @@ class AlembicBaselineBase(BudAppTestCase):
     def bud_baseline_drops_enum_types_on_downgrade(self):
         self.assertIn(
             self.parameters.ALEMBIC_DROP_TYPE,
-            self.tc_baseline,
+            self.baseline,
             msg=self.parameters.MSG_ALEMBIC_DROP_TYPE,
             abort_on_fail=False,
         )

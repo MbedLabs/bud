@@ -20,7 +20,7 @@ class SessionInvalidationPgTest(SessionInvalidationPgBase):
     def setUpClass(self):
         super().setUpClass()
         self.client = self.bud.bud_start_live_app()
-        self.tc_checks = {"change": self.scenario("change"), "reset": self.scenario("reset")}
+        self.checks = {"change": self.scenario("change"), "reset": self.scenario("reset")}
 
     def log_in(self, email, password):
         """Sign a person in with a cleared cookie jar."""

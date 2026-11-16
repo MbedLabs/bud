@@ -14,9 +14,9 @@ from tests.bud_test_base import BudAppTestCase
 class ResponseTimestampsBase(BudAppTestCase):
 
     def bud_scan_finds_the_response_models(self):
-        self.print_variables({"response models": len(self.tc_models)})
+        self.print_variables({"response models": len(self.models)})
         self.assertGreater(
-            len(self.tc_models),
+            len(self.models),
             self.parameters.RESPONSE_MODELS_AT_LEAST,
             msg=self.parameters.MSG_RESPONSE_SCAN_COUNT,
             abort_on_fail=False,
@@ -25,7 +25,7 @@ class ResponseTimestampsBase(BudAppTestCase):
     def bud_scan_finds_models_of_the_api(self):
         api_models = [
             name
-            for name in self.tc_models
+            for name in self.models
             if name.startswith(self.parameters.RESPONSE_MODEL_API_PREFIX)
         ]
         self.print_variables({"app.api response models": api_models})
@@ -37,7 +37,7 @@ class ResponseTimestampsBase(BudAppTestCase):
 
     def bud_every_response_timestamp_is_utc(self):
         self.assertEqual(
-            self.tc_unmarked,
+            self.unmarked,
             self.parameters.RESPONSE_UNMARKED,
             msg=self.parameters.MSG_RESPONSE_UTC,
             abort_on_fail=False,

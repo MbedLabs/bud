@@ -22,24 +22,24 @@ class RunAuthorizationTest(RunAuthorizationBase):
     def setUpClass(self):
         super().setUpClass()
         p = self.parameters
-        self.tc_cross_create = self.as_station(p.POST, p.TEST_RUNS_PATH, p.RUN_AUTH_CROSS_CREATE)
-        self.tc_lists = {sort_by: self.listed(sort_by) for sort_by in p.RUN_AUTH_LIST_SORTS}
-        self.tc_foreign = {
+        self.cross_create = self.as_station(p.POST, p.TEST_RUNS_PATH, p.RUN_AUTH_CROSS_CREATE)
+        self.lists = {sort_by: self.listed(sort_by) for sort_by in p.RUN_AUTH_LIST_SORTS}
+        self.foreign = {
             operation: self.as_station(method, path, body, foreign=True)
             for operation, (method, path, body) in p.RUN_AUTH_FOREIGN.items()
         }
-        self.tc_signed_out = {
-            read: self.signed_out(path) for read, path in p.RUN_AUTH_SIGNED_OUT.items()
+        self.signed_out = {
+            read: self._signed_out(path) for read, path in p.RUN_AUTH_SIGNED_OUT.items()
         }
-        self.tc_viewer = {
+        self.viewer = {
             operation: self.as_person(p.RUN_AUTH_VIEWER, request)
             for operation, request in p.RUN_AUTH_VIEWER_WRITES.items()
         }
-        self.tc_developer = {
+        self.developer = {
             operation: self.as_person(p.RUN_AUTH_DEVELOPER, p.RUN_AUTH_WRITES[operation])
             for operation in p.RUN_AUTH_DEVELOPER_STATUS
         }
-        self.tc_viewer_writes = {
+        self.viewer_writes = {
             operation: self.as_person(p.RUN_AUTH_VIEWER_WRITER, p.RUN_AUTH_WRITES[operation])
             for operation in p.RUN_AUTH_VIEWER_REFUSALS
         }
@@ -118,7 +118,7 @@ class RunAuthorizationTest(RunAuthorizationBase):
             ids = []
         return response.status_code, ids, runs[0].id, runs[1].id
 
-    def signed_out(self, path):
+    def _signed_out(self, path):
         """One result read without a signed-in entity."""
         _, runs, result = self.seed(signed_in=False)
         target = result.id if "detail" in path else runs[1].id

@@ -14,7 +14,7 @@ from tests.bud_test_base import BudAppTestCase
 class ResultsApiBase(BudAppTestCase):
 
     def bud_upload_keeps_assertions_and_counts_classes(self):
-        p, found = self.parameters, self.tc_voltage
+        p, found = self.parameters, self.voltage
         self.print_variables({key: value for key, value in found.items() if key != "failing"})
         self.assertEqual(found["status"], p.STATUS_CREATED, msg=p.MSG_RESULTS_UPLOADED)
         self.assertEqual(found["count"], 2, msg=p.MSG_RESULTS_COUNT)
@@ -37,20 +37,20 @@ class ResultsApiBase(BudAppTestCase):
         )
 
     def bud_two_classes_count_one_passed_and_one_failed(self):
-        p, found = self.parameters, self.tc_mixed
+        p, found = self.parameters, self.mixed
         self.print_variables(found)
         self.assertEqual(found["status"], p.STATUS_CREATED, msg=p.MSG_RESULTS_UPLOADED)
         self.assertEqual(found["counts"], p.RESULTS_MIXED_COUNTS, msg=p.MSG_RESULTS_CLASS_COUNTS)
 
     def bud_detached_upload_creates_a_completed_run(self):
-        p, found = self.parameters, self.tc_detached
+        p, found = self.parameters, self.detached
         self.print_variables(found)
         self.assertEqual(found["status"], p.STATUS_CREATED, msg=p.MSG_RESULTS_UPLOADED)
         self.assertEqual(found["count"], 1, msg=p.MSG_RESULTS_COUNT)
         self.assertEqual(found["times in order"], True, msg=p.MSG_RESULTS_DETACHED_TIMES)
 
     def bud_detached_upload_keeps_the_software(self):
-        p, found = self.parameters, self.tc_software
+        p, found = self.parameters, self.software
         self.print_variables(found)
         self.assertEqual(found["status"], p.STATUS_CREATED, msg=p.MSG_RESULTS_UPLOADED)
         expected = {**p.RESULTS_SOFTWARE}

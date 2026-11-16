@@ -16,7 +16,7 @@ class DockerfileTest(DockerfileBase):
     def setUpClass(self):
         super().setUpClass()
         lines = self.bud.bud_read_repository_file(self.parameters.DOCKERFILE).splitlines()
-        self.tc_ui_build_from = [
+        self.ui_build_from = [
             line
             for line in lines
             if line.startswith(self.parameters.DOCKERFILE_FROM)

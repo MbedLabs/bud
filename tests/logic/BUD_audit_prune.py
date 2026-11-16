@@ -21,8 +21,8 @@ class AuditPruneTest(AuditPruneBase):
         self.bud.bud_add_audit_event(
             self.parameters.AUDIT_NEW_ACTION, self.parameters.AUDIT_NEW_AGE
         )
-        self.tc_removed = self.bud.bud_prune_audit(self.parameters.AUDIT_RETENTION_DAYS)
-        self.tc_left = self.bud.bud_audit_actions()
+        self.removed = self.bud.bud_prune_audit(self.parameters.AUDIT_RETENTION_DAYS)
+        self.left = self.bud.bud_audit_actions()
 
     def tearDownClass(self):
         super().tearDownClass()

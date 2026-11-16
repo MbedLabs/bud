@@ -33,7 +33,7 @@ class RunsLifecycleApiTest(RunsLifecycleApiBase):
 
     def setUpClass(self):
         super().setUpClass()
-        self.tc_checks = {}
+        self.checks = {}
         for scenario in (
             self.create,
             self.creation_event,
@@ -85,7 +85,7 @@ class RunsLifecycleApiTest(RunsLifecycleApiBase):
         p = self.parameters
         self.fresh()
         response = self.create_run()
-        self.tc_checks["create"] = {
+        self.checks["create"] = {
             "the run is created": (response.status_code, p.STATUS_CREATED),
             "the run is named after its suite": (
                 body_of(response).get("name"),
@@ -98,7 +98,7 @@ class RunsLifecycleApiTest(RunsLifecycleApiBase):
         p = self.parameters
         self.fresh()
         events = self.events(self.created_id())
-        self.tc_checks["creation event"] = {
+        self.checks["creation event"] = {
             "the events are read": (events.status_code, p.STATUS_OK),
             "the creation is recorded": (len(body_of(events) or []) >= 1, True),
         }
@@ -108,7 +108,7 @@ class RunsLifecycleApiTest(RunsLifecycleApiBase):
         self.fresh()
         run_id = self.created_id()
         fetched = self.get(f"{p.TEST_RUNS_PATH}/{run_id}")
-        self.tc_checks["read"] = {
+        self.checks["read"] = {
             "the run is read": (fetched.status_code, p.STATUS_OK),
             "the run read is the one created": (body_of(fetched).get("id"), run_id),
             "an unknown run is not found": (
@@ -139,7 +139,7 @@ class RunsLifecycleApiTest(RunsLifecycleApiBase):
         for index in range(3):
             self.create_run(test_suite_name=f"Suite{index}")
         page = body_of(self.get(p.TEST_RUNS_PATH, params={"limit": 2, "offset": 0}))
-        self.tc_checks["list"] = {
+        self.checks["list"] = {
             "the list counts both runs": ((listed.get("total") or 0) >= 2, True),
             "the list names both runs": (names(listed) >= {"One", "Two"}, True),
             "the suite filter keeps the wanted suite": (names(wanted), {"Wanted"}),
@@ -170,7 +170,7 @@ class RunsLifecycleApiTest(RunsLifecycleApiBase):
                 self.get(p.TEST_RUNS_PATH, params={"latest_per_suite": "true"})
             ).get("runs", [])
         ]
-        self.tc_checks["latest"] = {
+        self.checks["latest"] = {
             "the repeated suite appears once": (names.count("Repeated"), 1),
             "the other suite appears": ("Other" in names, True),
         }
@@ -180,7 +180,7 @@ class RunsLifecycleApiTest(RunsLifecycleApiBase):
         self.fresh()
         response = self.patch_run(self.created_id(), p.LIFE_FINAL_COUNTERS)
         body = body_of(response)
-        self.tc_checks["counters"] = {
+        self.checks["counters"] = {
             "the update succeeds": (response.status_code, p.STATUS_OK),
             "the run is completed": (body.get("status"), "Completed"),
             "the passed count is stored": (
@@ -202,7 +202,7 @@ class RunsLifecycleApiTest(RunsLifecycleApiBase):
         self.patch_run(run_id, {"status": "Completed"})
         after = body_of(self.get(f"{p.TEST_RUNS_PATH}/{run_id}")).get("completed_at")
         events_after = len(body_of(self.events(run_id)) or [])
-        self.tc_checks["completion"] = {
+        self.checks["completion"] = {
             "a running run has no completion time": (type_name(before), p.NONE_TYPE),
             "a completed run has a completion time": (type_name(after) != p.NONE_TYPE, True),
             "the status change is recorded as an event": (events_after > events_before, True),
@@ -213,7 +213,7 @@ class RunsLifecycleApiTest(RunsLifecycleApiBase):
         self.fresh()
         unknown = self.patch_run(p.LIFE_MISSING, {"status": "Completed"})
         elsewhere = self.patch_run(self.created_id(), {"status": "Elsewhere"})
-        self.tc_checks["update refusals"] = {
+        self.checks["update refusals"] = {
             "an unknown run is not found": (unknown.status_code, p.STATUS_NOT_FOUND),
             "an unknown status is refused": (elsewhere.status_code, p.STATUS_UNPROCESSABLE),
         }
@@ -232,7 +232,7 @@ class RunsLifecycleApiTest(RunsLifecycleApiBase):
         )
         with_results = self.bud.bud_request(p.DELETE, f"{p.TEST_RUNS_PATH}/{run_id}")
         orphans = self.bud.bud_find_in_app(TestResult, test_run_id=run_id)
-        self.tc_checks["deletion"] = {
+        self.checks["deletion"] = {
             "the run is deleted": (deleted.status_code, p.STATUS_NO_CONTENT),
             "the run is gone": (len(remaining), 0),
             "an unknown run is not found": (unknown.status_code, p.STATUS_NOT_FOUND),
@@ -275,7 +275,7 @@ class RunsLifecycleApiTest(RunsLifecycleApiBase):
         only = body_of(self.get(p.RUN_STATS_PATH, params={"suite": "Only"}))
         self.fresh()
         nobody = body_of(self.get(p.RUN_STATS_PATH, params={"runner_account": "nobody"}))
-        self.tc_checks["stats"] = {
+        self.checks["stats"] = {
             "both runs are counted": ((whole.get("total_runs") or 0) >= 2, True),
             "their tests are counted": ((whole.get("total_tests") or 0) >= 20, True),
             "their passed tests are counted": ((whole.get("passed_tests") or 0) >= 16, True),
@@ -305,7 +305,7 @@ class RunsLifecycleApiTest(RunsLifecycleApiBase):
             )
         )
         options = body_of(self.get(p.RUN_FILTER_OPTIONS_PATH))
-        self.tc_checks["options"] = {
+        self.checks["options"] = {
             "the suite is offered": ("Optioned" in (options.get("suites") or []), True),
             "the station is offered": (
                 "opt-station" in (options.get("runner_accounts") or []),
@@ -327,7 +327,7 @@ class RunsLifecycleApiTest(RunsLifecycleApiBase):
         stored = (
             self.bud.bud_find_in_app(SystemSetting, key="mode") or [SystemSetting(value=None)]
         )[0]
-        self.tc_checks["settings"] = {
+        self.checks["settings"] = {
             "the settings are listed": (listed.status_code, p.STATUS_OK),
             "a setting is written": (written.status_code, p.STATUS_OK),
             "the setting is read": (read.status_code, p.STATUS_OK),
@@ -389,12 +389,12 @@ class RunsLifecycleApiTest(RunsLifecycleApiBase):
                 self.save_bloom(url, "blm_sync_t").status_code,
                 p.STATUS_UNPROCESSABLE,
             )
-        self.tc_checks["plm"] = checks
+        self.checks["plm"] = checks
 
     def signed_out(self):
         p = self.parameters
         self.bud.bud_start_app(signed_in=False)
-        self.tc_checks["signed out"] = {
+        self.checks["signed out"] = {
             f"{method} {path} needs a signed-in person": (
                 self.bud.bud_request(method, path, json={"value": "x"}).status_code,
                 p.STATUS_UNAUTHORIZED,

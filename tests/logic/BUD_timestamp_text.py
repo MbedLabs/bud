@@ -16,9 +16,9 @@ class TimestampTextTest(TimestampTextBase):
 
     def setUpClass(self):
         super().setUpClass()
-        self.tc_naive = timestamps.second_utc(self.parameters.TIMESTAMP_NAIVE)
-        self.tc_none = timestamps.second_utc(None)
-        self.tc_aware = timestamps.second_utc(self.parameters.TIMESTAMP_AWARE)
+        self.naive = timestamps.second_utc(self.parameters.TIMESTAMP_NAIVE)
+        self.none = timestamps.second_utc(None)
+        self.aware = timestamps.second_utc(self.parameters.TIMESTAMP_AWARE)
 
     def tearDownClass(self):
         super().tearDownClass()

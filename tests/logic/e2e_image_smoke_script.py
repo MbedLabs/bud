@@ -14,16 +14,16 @@ from tests.bud_test_base import BudAppTestCase
 class E2eImageSmokeScriptBase(BudAppTestCase):
 
     def bud_admin_name_is_one_docker_argument(self):
-        self.print_variables({"app run": self.tc_app_run})
+        self.print_variables({"app run": self.app_run})
         self.assertIn(
             self.parameters.SMOKE_ADMIN_NAME,
-            self.tc_app_run,
+            self.app_run,
             msg=self.parameters.MSG_SMOKE_ADMIN_NAME,
         )
 
     def bud_smoke_script_passes(self):
         p = self.parameters
-        result = self.tc_smoke
+        result = self.smoke
         self.print_variables({"exit code": result.returncode, "stderr": result.stderr})
         self.assertEqual(result.returncode, p.SMOKE_EXIT_OK, msg=p.MSG_SMOKE_EXIT)
         self.assertIn(p.SMOKE_VERIFIED, result.stdout, msg=p.MSG_SMOKE_VERIFIED)

@@ -17,7 +17,7 @@ from tests.bud_test_base import BudAppTestCase
 class UnhandledErrorsHttpBase(BudAppTestCase):
 
     def bud_500_carries_a_reference_to_quote(self):
-        p, found = self.parameters, self.tc_boom
+        p, found = self.parameters, self.boom
         self.print_variables(found)
         self.assertEqual(found["status"], p.STATUS_SERVER_ERROR, msg=p.MSG_ERROR_500)
         self.assertTrue(
@@ -29,7 +29,7 @@ class UnhandledErrorsHttpBase(BudAppTestCase):
         self.assertIn(str(found["reference"]), found["detail"], msg=p.MSG_ERROR_DETAIL_REFERENCE)
 
     def bud_500_quotes_the_supplied_id(self):
-        p, found = self.parameters, self.tc_supplied
+        p, found = self.parameters, self.supplied
         self.print_variables(found)
         self.assertEqual(found["status"], p.STATUS_SERVER_ERROR, msg=p.MSG_ERROR_500)
         self.assertEqual(found["reference"], p.ERROR_SUPPLIED_ID, msg=p.MSG_ERROR_SUPPLIED_HEADER)
@@ -46,7 +46,7 @@ class UnhandledErrorsHttpBase(BudAppTestCase):
         )
 
     def bud_500_quotes_the_generated_id(self):
-        p, found = self.parameters, self.tc_generated
+        p, found = self.parameters, self.generated
         self.print_variables(found)
         self.assertNotEqual(found["reference"], p.ERROR_NO_ID, msg=p.MSG_ERROR_REFERENCE)
         self.assertEqual(len(found["reference"]), p.ERROR_ID_LENGTH, msg=p.MSG_ERROR_GENERATED)
@@ -61,10 +61,10 @@ class UnhandledErrorsHttpBase(BudAppTestCase):
 
     @parameterized(params.ERROR_LEAKS)
     def bud_500_does_not_leak_the_exception(self, text):
-        self.assertNotIn(text, self.tc_boom["text"], msg=self.parameters.MSG_ERROR_NO_LEAK)
+        self.assertNotIn(text, self.boom["text"], msg=self.parameters.MSG_ERROR_NO_LEAK)
 
     def bud_lost_race_is_a_conflict(self):
-        p, found = self.parameters, self.tc_conflict
+        p, found = self.parameters, self.conflict
         self.print_variables(found)
         self.assertEqual(found["status"], p.STATUS_CONFLICT, msg=p.MSG_ERROR_CONFLICT)
         self.assertEqual(
@@ -78,16 +78,16 @@ class UnhandledErrorsHttpBase(BudAppTestCase):
     @parameterized(params.ERROR_CONSTRAINT_LEAKS)
     def bud_conflict_does_not_leak_the_constraint(self, text):
         self.assertNotIn(
-            text, self.tc_conflict["text"], msg=self.parameters.MSG_ERROR_NO_CONSTRAINT
+            text, self.conflict["text"], msg=self.parameters.MSG_ERROR_NO_CONSTRAINT
         )
 
     def bud_missing_reference_is_a_conflict(self):
-        p, found = self.parameters, self.tc_missing_reference
+        p, found = self.parameters, self.missing_reference
         self.assertEqual(found["status"], p.STATUS_CONFLICT, msg=p.MSG_ERROR_FK)
         self.assertNotIn(p.ERROR_STILL_REFERENCED, found["text"], msg=p.MSG_ERROR_NO_LEAK)
 
     def bud_failing_commit_is_a_conflict(self):
-        p, found = self.parameters, self.tc_late
+        p, found = self.parameters, self.late
         self.print_variables(found)
         self.assertEqual(found["status"], p.STATUS_CONFLICT, msg=p.MSG_ERROR_LATE)
         self.assertEqual(
@@ -98,8 +98,8 @@ class UnhandledErrorsHttpBase(BudAppTestCase):
     def bud_every_route_commits_before_its_response(self):
         p = self.parameters
         self.assertTrue(
-            self.tc_session_routes > 0,
+            self.session_routes > 0,
             msg=p.MSG_ERROR_SESSION_ROUTES,
-            actual=self.tc_session_routes,
+            actual=self.session_routes,
         )
-        self.assertEqual(self.tc_late_routes, [], msg=p.MSG_ERROR_COMMIT_FIRST)
+        self.assertEqual(self.late_routes, [], msg=p.MSG_ERROR_COMMIT_FIRST)

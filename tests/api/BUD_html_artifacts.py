@@ -17,14 +17,14 @@ class HtmlArtifactsTest(HtmlArtifactsBase):
         super().setUpClass()
         self.bud.bud_start_app()
         self.bud.bud_add_test_station()
-        self.tc_upload = self.bud.bud_station_upload(
+        self.upload = self.bud.bud_station_upload(
             self.parameters.HTML_REPORT_NAME,
             self.parameters.HTML_REPORT_CONTENT,
             self.parameters.HTML_TYPE,
         )
-        self.tc_download = self.bud.bud_request(
+        self.download = self.bud.bud_request(
             self.parameters.GET,
-            self.parameters.UPLOAD_PATH.format(self.tc_upload.json().get("id")),
+            self.parameters.UPLOAD_PATH.format(self.upload.json().get("id")),
         )
 
     def tearDownClass(self):

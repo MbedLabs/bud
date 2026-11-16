@@ -47,14 +47,14 @@ class RouteAuthMatrixTest(RouteAuthMatrixBase):
     def setUpClass(self):
         super().setUpClass()
         routes = list(api_routes(main.app, self.parameters.API_PREFIX))
-        self.tc_route_count = len(routes)
-        self.tc_unprotected = [
+        self.route_count = len(routes)
+        self.unprotected = [
             f"{','.join(sorted(route.methods or set()))} {path} ({route.endpoint.__name__})"
             for path, route in routes
             if route.endpoint.__name__ not in self.parameters.PUBLIC_ENDPOINTS
             and dependency_names(route.dependant).isdisjoint(self.parameters.AUTH_DEPENDENCIES)
         ]
-        self.tc_empty_tree = dependency_names(Dependant())
+        self.empty_tree = dependency_names(Dependant())
 
     def tearDownClass(self):
         super().tearDownClass()

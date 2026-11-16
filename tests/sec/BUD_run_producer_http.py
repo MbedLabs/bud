@@ -19,25 +19,25 @@ class RunProducerHttpTest(RunProducerHttpBase):
 
     def setUpClass(self):
         super().setUpClass()
-        self.tc_human = {}
+        self.human = {}
         for role in UserRole:
             for operation in self.parameters.RUN_WRITE_OPERATIONS:
-                self.tc_human[f"{role.value}, {operation}"] = self.human_write(role, operation)
+                self.human[f"{role.value}, {operation}"] = self.human_write(role, operation)
         self.bud.bud_start_app()
         station = self.bud.bud_add_test_station(with_run=False)
-        self.tc_station_id = station.id
-        self.tc_created = self.bud.bud_station_request(
+        self.station_id = station.id
+        self.created = self.bud.bud_station_request(
             self.parameters.POST,
             self.parameters.TEST_RUNS_PATH,
             json=self.parameters.PRODUCER_STATION_RUN,
         )
-        run_id = self.tc_created.json().get("id")
-        self.tc_updated = self.bud.bud_station_request(
+        run_id = self.created.json().get("id")
+        self.updated = self.bud.bud_station_request(
             self.parameters.PATCH,
             self.parameters.TEST_RUN_PATH.format(run_id),
             json=self.parameters.PRODUCER_STATION_COUNTS,
         )
-        self.tc_station_run = (self.bud.bud_find_in_app(TestRun, id=run_id) or [None])[0]
+        self.station_run = (self.bud.bud_find_in_app(TestRun, id=run_id) or [None])[0]
 
     def human_write(self, role, operation):
         """One run write by a person of the role on a fresh app, and the run state after it."""

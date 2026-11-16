@@ -22,35 +22,35 @@ class SetupApiTest(SetupApiBase):
         super().setUpClass()
         p = self.parameters
         self.empty_app()
-        self.tc_empty = self.bud.bud_request(p.GET, p.SETUP_STATUS_PATH)
+        self.empty = self.bud.bud_request(p.GET, p.SETUP_STATUS_PATH)
         self.bud.bud_start_app(signed_in=False)
-        self.tc_seeded = self.bud.bud_request(p.GET, p.SETUP_STATUS_PATH)
+        self.seeded = self.bud.bud_request(p.GET, p.SETUP_STATUS_PATH)
         self.empty_app()
-        self.tc_created = self.bud.bud_request(p.POST, p.SETUP_PATH, json=p.SETUP_OWNER)
-        self.tc_admin = (self.bud.bud_find_in_app(User, email=p.SETUP_OWNER["email"]) or [None])[0]
-        self.tc_after_setup = self.status()
-        self.tc_second = self.bud.bud_request(
+        self.created = self.bud.bud_request(p.POST, p.SETUP_PATH, json=p.SETUP_OWNER)
+        self.admin = (self.bud.bud_find_in_app(User, email=p.SETUP_OWNER["email"]) or [None])[0]
+        self.after_setup = self.status()
+        self.second = self.bud.bud_request(
             p.POST, p.SETUP_PATH, json={**p.SETUP_OWNER, "email": p.SETUP_SECOND_EMAIL}
         )
-        self.tc_users = len(self.bud.bud_find_in_app(User))
+        self.users = len(self.bud.bud_find_in_app(User))
         self.empty_app()
-        self.tc_short = self.bud.bud_request(
+        self.short = self.bud.bud_request(
             p.POST, p.SETUP_PATH, json={**p.SETUP_OWNER, "password": p.SETUP_SHORT_PASSWORD}
         )
         self.empty_app()
         with mock.patch.object(setup, "send_admin_welcome_email", return_value=None):
-            self.tc_quiet_body = self.bud.bud_request(
+            self.quiet_body = self.bud.bud_request(
                 p.POST, p.SETUP_PATH, json=p.SETUP_OWNER
             ).json()
-        self.tc_after_quiet = self.status()
+        self.after_quiet = self.status()
         self.empty_app()
         with mock.patch.object(setup, "send_admin_welcome_email", self.mail_unavailable):
-            self.tc_no_mail = self.bud.bud_request(p.POST, p.SETUP_PATH, json=p.SETUP_OWNER)
-        self.tc_after_no_mail = self.status()
+            self.no_mail = self.bud.bud_request(p.POST, p.SETUP_PATH, json=p.SETUP_OWNER)
+        self.after_no_mail = self.status()
         self.empty_app()
-        self.tc_sent = {}
+        self.sent = {}
         with mock.patch.object(
-            setup, "send_admin_welcome_email", lambda **values: self.tc_sent.update(values)
+            setup, "send_admin_welcome_email", lambda **values: self.sent.update(values)
         ):
             self.bud.bud_request(p.POST, p.SETUP_PATH, json=p.SETUP_OWNER)
 

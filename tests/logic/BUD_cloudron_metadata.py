@@ -19,10 +19,10 @@ class CloudronMetadataTest(CloudronMetadataBase):
     def setUpClass(self):
         super().setUpClass()
         read = self.bud.bud_read_repository_file
-        self.tc_manifest = json.loads(read(self.parameters.CLOUDRON_MANIFEST))
-        self.tc_description = read(self.parameters.CLOUDRON_DESCRIPTION).strip()
-        self.tc_changelog = read(self.parameters.CLOUDRON_CHANGELOG)
-        self.tc_version = tomllib.loads(read(self.parameters.PYPROJECT))["project"]["version"]
+        self.manifest = json.loads(read(self.parameters.CLOUDRON_MANIFEST))
+        self.description = read(self.parameters.CLOUDRON_DESCRIPTION).strip()
+        self.changelog = read(self.parameters.CLOUDRON_CHANGELOG)
+        self.version = tomllib.loads(read(self.parameters.PYPROJECT))["project"]["version"]
 
     def tearDownClass(self):
         super().tearDownClass()

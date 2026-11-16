@@ -38,11 +38,11 @@ class UsersTest(UsersBase):
                 + self.parameters.USER_INVITE_LIFETIME,
             )
         )
-        self.tc_delete = self.bud.bud_request(
+        self.delete = self.bud.bud_request(
             self.parameters.DELETE, self.parameters.USER_PATH.format(user.id)
         )
-        self.tc_deleted_users = self.bud.bud_find_in_app(User, id=user.id)
-        self.tc_deleted_tokens = self.bud.bud_find_in_app(UserToken, user_id=user.id)
+        self.deleted_users = self.bud.bud_find_in_app(User, id=user.id)
+        self.deleted_tokens = self.bud.bud_find_in_app(UserToken, user_id=user.id)
         inviter = self.bud.bud_add_to_app(
             User(
                 email=self.parameters.USER_INVITER_EMAIL,
@@ -60,14 +60,14 @@ class UsersTest(UsersBase):
                 invited_by_user_id=inviter.id,
             )
         )
-        self.tc_inviter_delete = self.bud.bud_request(
+        self.inviter_delete = self.bud.bud_request(
             self.parameters.DELETE, self.parameters.USER_PATH.format(inviter.id)
         )
-        self.tc_invitee = self.bud.bud_find_in_app(User, id=invitee.id)[0]
-        self.tc_self = self.bud.bud_request(
+        self.invitee = self.bud.bud_find_in_app(User, id=invitee.id)[0]
+        self.self = self.bud.bud_request(
             self.parameters.DELETE, self.parameters.USER_PATH.format(self.parameters.TEST_ADMIN_ID)
         )
-        self.tc_missing = self.bud.bud_request(
+        self.missing = self.bud.bud_request(
             self.parameters.DELETE,
             self.parameters.USER_PATH.format(self.parameters.USER_MISSING_ID),
         )

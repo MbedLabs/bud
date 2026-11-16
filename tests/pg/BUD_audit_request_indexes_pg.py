@@ -51,7 +51,7 @@ class AuditRequestIndexesPgTest(AuditRequestIndexesPgBase):
         script = ScriptDirectory.from_config(Config(str(ROOT / "alembic.ini")))
         heads = script.get_heads()
         lineage = [revision.revision for revision in script.walk_revisions("base", heads[0])] if heads else []
-        self.tc_checks = {
+        self.checks = {
             "head": {
                 "one head exists": (len(heads), 1),
                 "the index migration is in the lineage": (REVISION in lineage, True),

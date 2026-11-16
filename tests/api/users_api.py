@@ -18,7 +18,7 @@ class UsersApiBase(BudAppTestCase):
 
     def check(self, section):
         """Assert every named check of one section: its found value against its expected one."""
-        for name, (found, expected) in self.tc_checks[section].items():
+        for name, (found, expected) in self.checks[section].items():
             self.assertEqual(found, expected, msg=f"{name}: {self.parameters.MSG_USERS_CHECK}")
 
     def bud_lists_and_creates_users(self):
@@ -36,7 +36,7 @@ class UsersApiBase(BudAppTestCase):
     @parameterized(params.USERS_SIGNED_OUT_CALLS)
     def bud_signed_out_visitor_cannot_reach_user_routes(self, method, path):
         self.assertEqual(
-            self.tc_signed_out[(method, path)],
+            self.signed_out[(method, path)],
             self.parameters.STATUS_UNAUTHORIZED,
             msg=self.parameters.MSG_USERS_SIGNED_OUT,
         )

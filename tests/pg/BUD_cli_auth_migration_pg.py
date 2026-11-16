@@ -117,7 +117,7 @@ class CliAuthMigrationPgTest(CliAuthMigrationPgBase):
         heads = script.get_heads()
         lineage = [revision.revision for revision in script.walk_revisions("base", heads[0])] if heads else []
         self.script = script
-        self.tc_checks = {
+        self.checks = {
             "head": {
                 "one head exists": (len(heads), 1),
                 "the CLI sessions are in the lineage": ("019_cli_auth_sessions" in lineage, True),
@@ -128,9 +128,9 @@ class CliAuthMigrationPgTest(CliAuthMigrationPgBase):
         }
         self.client = self.bud.bud_start_live_app()
         with mock.patch.object(settings, "CLI_CODE_MODE_ENABLED", True):
-            self.tc_checks["winners"] = self.winners()
-            self.tc_checks["approve or deny"] = self.approve_or_deny()
-            self.tc_checks["lock"] = self.bud.bud_await(self.lock())
+            self.checks["winners"] = self.winners()
+            self.checks["approve or deny"] = self.approve_or_deny()
+            self.checks["lock"] = self.bud.bud_await(self.lock())
 
     def migrate(self, *arguments, url):
         return self.bud.bud_alembic(list(arguments), url).returncode

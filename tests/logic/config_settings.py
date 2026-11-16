@@ -19,5 +19,5 @@ class ConfigSettingsBase(BudAppTestCase):
     @parameterized(params.CONFIG_CASES)
     def bud_the_settings_follow_the_environment(self, case):
         self.print_variables({"case": case, "environment": self.parameters.CONFIG_CASES[case][0]})
-        for name, (found, expected) in self.tc_checks[case].items():
+        for name, (found, expected) in self.checks[case].items():
             self.assertEqual(found, expected, msg=f"{name}: {self.parameters.MSG_CONFIG_CHECK}")

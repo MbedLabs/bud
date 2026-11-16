@@ -14,9 +14,9 @@ from tests.bud_test_base import BudAppTestCase
 class HtmlArtifactsBase(BudAppTestCase):
 
     def bud_html_report_is_accepted(self):
-        self.print_variables({"status": self.tc_upload.status_code, "body": self.tc_upload.text})
+        self.print_variables({"status": self.upload.status_code, "body": self.upload.text})
         self.assertEqual(
-            self.tc_upload.status_code,
+            self.upload.status_code,
             self.parameters.STATUS_CREATED,
             msg=self.parameters.MSG_HTML_ACCEPTED,
             abort_on_fail=True,
@@ -24,7 +24,7 @@ class HtmlArtifactsBase(BudAppTestCase):
 
     def bud_html_report_keeps_its_type(self):
         self.assertEqual(
-            self.tc_upload.json()["content_type"],
+            self.upload.json()["content_type"],
             self.parameters.HTML_TYPE,
             msg=self.parameters.MSG_HTML_TYPE,
             abort_on_fail=False,
@@ -32,10 +32,10 @@ class HtmlArtifactsBase(BudAppTestCase):
 
     def bud_html_report_downloads(self):
         self.print_variables(
-            {"status": self.tc_download.status_code, "headers": dict(self.tc_download.headers)}
+            {"status": self.download.status_code, "headers": dict(self.download.headers)}
         )
         self.assertEqual(
-            self.tc_download.status_code,
+            self.download.status_code,
             self.parameters.STATUS_OK,
             msg=self.parameters.MSG_HTML_DOWNLOADS,
             abort_on_fail=True,
@@ -43,7 +43,7 @@ class HtmlArtifactsBase(BudAppTestCase):
 
     def bud_download_is_an_attachment(self):
         self.assertRegex(
-            self.tc_download.headers["content-disposition"],
+            self.download.headers["content-disposition"],
             self.parameters.ATTACHMENT_PATTERN,
             msg=self.parameters.MSG_HTML_ATTACHMENT,
             abort_on_fail=False,
@@ -52,14 +52,14 @@ class HtmlArtifactsBase(BudAppTestCase):
     def bud_download_keeps_the_file_name(self):
         self.assertIn(
             self.parameters.HTML_REPORT_FILENAME,
-            self.tc_download.headers["content-disposition"],
+            self.download.headers["content-disposition"],
             msg=self.parameters.MSG_HTML_FILENAME,
             abort_on_fail=False,
         )
 
     def bud_download_is_sandboxed(self):
         self.assertEqual(
-            self.tc_download.headers["content-security-policy"],
+            self.download.headers["content-security-policy"],
             self.parameters.SANDBOX_POLICY,
             msg=self.parameters.MSG_HTML_SANDBOX,
             abort_on_fail=False,
@@ -67,7 +67,7 @@ class HtmlArtifactsBase(BudAppTestCase):
 
     def bud_download_is_not_sniffed(self):
         self.assertEqual(
-            self.tc_download.headers["x-content-type-options"],
+            self.download.headers["x-content-type-options"],
             self.parameters.NO_SNIFF,
             msg=self.parameters.MSG_HTML_NOSNIFF,
             abort_on_fail=False,

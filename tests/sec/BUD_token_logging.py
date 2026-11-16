@@ -27,7 +27,7 @@ class TokenLoggingTest(TokenLoggingBase):
             json=token,
         )
         records = self.bud.bud_stop_log_capture()
-        self.tc_app_logs = "\n".join(
+        self.app_logs = "\n".join(
             record.getMessage()
             for record in records
             if record.name.startswith(self.parameters.APP_LOGGERS)

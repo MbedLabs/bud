@@ -15,18 +15,18 @@ class RunnersRegisterApiBase(BudAppTestCase):
 
     def bud_minted_keys_are_minted(self):
         self.assertEqual(
-            self.tc_minted,
-            [self.parameters.STATUS_CREATED] * len(self.tc_minted),
+            self.minted,
+            [self.parameters.STATUS_CREATED] * len(self.minted),
             msg=self.parameters.MSG_KEY_MINTED,
         )
 
     def bud_registration_needs_a_known_key(self):
         p = self.parameters
-        self.assertEqual(self.tc_no_key, p.STATUS_UNPROCESSABLE, msg=p.MSG_REGISTER_NO_KEY)
-        self.assertEqual(self.tc_unknown_key, p.STATUS_FORBIDDEN, msg=p.MSG_REGISTER_UNKNOWN_KEY)
+        self.assertEqual(self.no_key, p.STATUS_UNPROCESSABLE, msg=p.MSG_REGISTER_NO_KEY)
+        self.assertEqual(self.unknown_key, p.STATUS_FORBIDDEN, msg=p.MSG_REGISTER_UNKNOWN_KEY)
 
     def bud_minted_key_registers_and_pins_the_station(self):
-        p, found = self.parameters, self.tc_pinned
+        p, found = self.parameters, self.pinned
         self.print_variables(found)
         self.assertEqual(found["status"], p.STATUS_CREATED, msg=p.MSG_REGISTER_CREATED)
         self.assertEqual(
@@ -36,12 +36,12 @@ class RunnersRegisterApiBase(BudAppTestCase):
         self.assertEqual(found["pinned"], (found["station id"], True), msg=p.MSG_REGISTER_PINNED)
 
     def bud_same_station_registers_again(self):
-        p, found = self.parameters, self.tc_again
+        p, found = self.parameters, self.again
         self.assertEqual(found["first"], p.STATUS_CREATED, msg=p.MSG_REGISTER_CREATED)
         self.assertEqual(found["second"], (p.STATUS_CREATED, True), msg=p.MSG_REGISTER_AGAIN)
 
     def bud_wrong_password_is_refused(self):
-        p, found = self.parameters, self.tc_wrong_password
+        p, found = self.parameters, self.wrong_password
         self.print_variables(found)
         self.assertEqual(found["first"], p.STATUS_CREATED, msg=p.MSG_REGISTER_CREATED)
         self.assertEqual(found["status"], p.STATUS_BAD_REQUEST, msg=p.MSG_REGISTER_WRONG_PASSWORD)
@@ -50,7 +50,7 @@ class RunnersRegisterApiBase(BudAppTestCase):
         )
 
     def bud_pinned_key_cannot_enrol_another_station(self):
-        p, found = self.parameters, self.tc_other_station
+        p, found = self.parameters, self.other_station
         self.print_variables(found)
         self.assertEqual(found["first"], p.STATUS_CREATED, msg=p.MSG_REGISTER_CREATED)
         self.assertEqual(found["status"], p.STATUS_FORBIDDEN, msg=p.MSG_REGISTER_OTHER_STATION)
@@ -59,20 +59,20 @@ class RunnersRegisterApiBase(BudAppTestCase):
         )
 
     def bud_second_key_cannot_displace_the_first(self):
-        p, found = self.parameters, self.tc_displace
+        p, found = self.parameters, self.displace
         self.print_variables(found)
         self.assertEqual(found["first"], p.STATUS_CREATED, msg=p.MSG_REGISTER_CREATED)
         self.assertEqual(found["status"], p.STATUS_CONFLICT, msg=p.MSG_REGISTER_DISPLACE)
         self.assertIn(p.REGISTER_HAS_KEY_TEXT, found["detail"], msg=p.MSG_REGISTER_DISPLACE_TEXT)
 
     def bud_key_adopts_a_station_without_one(self):
-        p, found = self.parameters, self.tc_adopt
+        p, found = self.parameters, self.adopt
         self.print_variables(found)
         self.assertEqual(found["status"], p.STATUS_CREATED, msg=p.MSG_REGISTER_CREATED)
         self.assertEqual(found["pinned"], [found["legacy id"]], msg=p.MSG_REGISTER_ADOPT)
 
     def bud_who_may_delete_stations_and_manage_keys(self):
-        p, found = self.parameters, self.tc_deletes
+        p, found = self.parameters, self.deletes
         self.print_variables(found)
         self.assertEqual(found["registered"], [p.STATUS_CREATED] * 3, msg=p.MSG_REGISTER_CREATED)
         self.assertEqual(found["key delete"], p.STATUS_UNAUTHORIZED, msg=p.MSG_REGISTER_KEY_DELETE)

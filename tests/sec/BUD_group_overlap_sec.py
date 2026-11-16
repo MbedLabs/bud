@@ -18,13 +18,13 @@ class GroupOverlapSecTest(GroupOverlapSecBase):
 
     def setUpClass(self):
         super().setUpClass()
-        self.tc_logins = []
-        self.tc_closed = self.closed()
-        self.tc_admin_group = self.admin_group()
-        self.tc_viewer = self.viewer()
-        self.tc_spread = self.spread()
+        self.logins = []
+        self.closed = self._closed()
+        self.admin_group = self._admin_group()
+        self.viewer = self._viewer()
+        self.spread = self._spread()
 
-    def closed(self):
+    def _closed(self):
         """A viewer holding five groups without access management."""
         p = self.fresh()
         viewer = self.user("member@example.com", UserRole.viewer)
@@ -45,7 +45,7 @@ class GroupOverlapSecTest(GroupOverlapSecBase):
             "rows": self.rows(target),
         }
 
-    def admin_group(self):
+    def _admin_group(self):
         """A developer holding access management and every other policy across groups."""
         p = self.fresh()
         giver = self.user("giver@example.com", UserRole.developer)
@@ -73,7 +73,7 @@ class GroupOverlapSecTest(GroupOverlapSecBase):
             "holder rows": self.rows(holder),
         }
 
-    def viewer(self):
+    def _viewer(self):
         """An administrator gives management groups to a viewer holding three groups."""
         p = self.fresh()
         self.user("boss@example.com", UserRole.admin)
@@ -92,7 +92,7 @@ class GroupOverlapSecTest(GroupOverlapSecBase):
         found.update({"rows": self.rows(viewer), "held": len(held)})
         return found
 
-    def spread(self):
+    def _spread(self):
         """A giver with products in one group gives groups covering more."""
         p = self.fresh()
         giver = self.user("giver@example.com", UserRole.developer)
@@ -147,7 +147,7 @@ class GroupOverlapSecTest(GroupOverlapSecBase):
             self.parameters.LOGIN_PATH,
             json={"email": email, "password": self.parameters.SEC_PASSWORD},
         )
-        self.tc_logins.append(response.status_code)
+        self.logins.append(response.status_code)
         return {"Authorization": f"Bearer {response.json().get('access_token')}"}
 
     def give(self, group_id, user_id, headers):

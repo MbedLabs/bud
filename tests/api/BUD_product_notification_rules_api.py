@@ -26,14 +26,14 @@ class ProductNotificationRulesApiTest(ProductNotificationRulesApiBase):
         self.key = mock.patch.object(settings, "INTEGRATION_ENCRYPTION_KEY", Fernet.generate_key().decode())
         self.key.start()
         bud.bud_start_app()
-        self.tc_checks = {}
+        self.checks = {}
         product_a = bud.bud_add_to_app(Product(name=p.PNR_PRODUCT_A))
         product_b = bud.bud_add_to_app(Product(name=p.PNR_PRODUCT_B))
         every = self.add_channel(p.PNR_EVERY_CHANNEL)
         routed = self.add_channel(p.PNR_ROUTED_CHANNEL, all_products=False)
         patched = bud.bud_request(p.PATCH, p.CHANNEL_PATH.format(every.json()["id"]), json={"all_products": False})
         bud.bud_request(p.PATCH, p.CHANNEL_PATH.format(every.json()["id"]), json={"all_products": True})
-        self.tc_checks["all products"] = {
+        self.checks["all products"] = {
             p.MSG_PNR_ALL_PRODUCTS_DEFAULT: (every.json().get("all_products"), True),
             p.MSG_PNR_ALL_PRODUCTS_OFF: (routed.json().get("all_products"), False),
             p.MSG_PNR_ALL_PRODUCTS_PATCH: (patched.json().get("all_products"), False),
@@ -42,7 +42,7 @@ class ProductNotificationRulesApiTest(ProductNotificationRulesApiBase):
 
         created = self.add_rule(product_a.id, routed_id, p.PNR_FAILURES)
         rules = bud.bud_request(p.GET, p.PNR_RULES_PATH.format(product_a.id)).json()
-        self.tc_checks["administrator"] = {
+        self.checks["administrator"] = {
             p.MSG_PNR_CREATED: (created.status_code, p.STATUS_CREATED),
             p.MSG_PNR_DUPLICATE: (self.add_rule(product_a.id, routed_id, p.PNR_ALL).status_code, p.STATUS_BAD_REQUEST),
             p.MSG_PNR_MISSING_CHANNEL: (
@@ -63,7 +63,7 @@ class ProductNotificationRulesApiTest(ProductNotificationRulesApiBase):
             ),
         }
         options = bud.bud_request(p.GET, p.PNR_CHANNELS_PATH.format(product_a.id))
-        self.tc_checks["options"] = {
+        self.checks["options"] = {
             p.MSG_PNR_OPTIONS: (
                 [channel["name"] for channel in options.json()],
                 sorted([p.PNR_EVERY_CHANNEL, p.PNR_ROUTED_CHANNEL]),
@@ -89,7 +89,7 @@ class ProductNotificationRulesApiTest(ProductNotificationRulesApiBase):
         )
         added = self.add_rule(product_a.id, every_id, p.PNR_FAILURES)
         removed = bud.bud_request(p.DELETE, p.PNR_RULE_PATH.format(product_a.id, added.json().get("id"))).status_code
-        self.tc_checks["manager"] = {
+        self.checks["manager"] = {
             p.MSG_PNR_MANAGER: (
                 (listed, changed.status_code, changed.json().get("run_filter"), added.status_code, removed),
                 (p.STATUS_OK, p.STATUS_OK, p.PNR_ALL, p.STATUS_CREATED, p.STATUS_NO_CONTENT),
@@ -117,14 +117,14 @@ class ProductNotificationRulesApiTest(ProductNotificationRulesApiBase):
             ),
             (p.STATUS_FORBIDDEN,) * 4,
         )
-        self.tc_checks["refused"] = refused
+        self.checks["refused"] = refused
 
         events = [
             (event.action, event.product_id)
             for action in (p.PNR_CREATED_ACTION, p.PNR_UPDATED_ACTION, p.PNR_DELETED_ACTION)
             for event in bud.bud_find_in_app(AuditEvent, action=action)
         ]
-        self.tc_checks["audit"] = {
+        self.checks["audit"] = {
             p.MSG_PNR_AUDITED: (
                 sorted(events),
                 sorted(
@@ -142,7 +142,7 @@ class ProductNotificationRulesApiTest(ProductNotificationRulesApiBase):
         self.add_rule(product_b.id, every_id, p.PNR_ALL)
         bud.bud_request(p.DELETE, p.CHANNEL_PATH.format(routed_id))
         bud.bud_request(p.DELETE, p.PNR_PRODUCT_PATH.format(product_b.id))
-        self.tc_checks["removal"] = {
+        self.checks["removal"] = {
             p.MSG_PNR_CHANNEL_DELETED: (len(bud.bud_find_in_app(ProductNotificationRule, channel_id=routed_id)), 0),
             p.MSG_PNR_PRODUCT_DELETED: (
                 len(bud.bud_find_in_app(ProductNotificationRule, product_id=product_b.id)),

@@ -14,16 +14,16 @@ from tests.bud_test_base import BudAppTestCase
 class RunStatsDistinctBase(BudAppTestCase):
 
     def bud_statistics_answer(self):
-        self.print_variables({"status": self.tc_suite_stats.status_code})
+        self.print_variables({"status": self.suite_stats.status_code})
         self.assertEqual(
-            self.tc_suite_stats.status_code,
+            self.suite_stats.status_code,
             self.parameters.STATUS_OK,
             msg=self.parameters.MSG_STATS_ANSWER,
             abort_on_fail=True,
         )
 
     def bud_each_test_is_counted_once(self):
-        stats = self.tc_suite_stats.json()
+        stats = self.suite_stats.json()
         self.print_variables(
             {"runs": self.parameters.RUN_COUNT, "distinct": stats["distinct_tests"]}
         )
@@ -35,7 +35,7 @@ class RunStatsDistinctBase(BudAppTestCase):
         )
 
     def bud_latest_run_decides_each_test(self):
-        stats = self.tc_suite_stats.json()
+        stats = self.suite_stats.json()
         found = (
             stats["distinct_passed_tests"],
             stats["distinct_failed_tests"],
@@ -52,7 +52,7 @@ class RunStatsDistinctBase(BudAppTestCase):
         )
 
     def bud_distinct_pass_rate_counts_passed_distinct_tests(self):
-        rate = self.tc_suite_stats.json()["distinct_test_pass_rate"]
+        rate = self.suite_stats.json()["distinct_test_pass_rate"]
         self.print_variables({"distinct pass rate": rate})
         self.assertEqual(
             rate,
@@ -62,7 +62,7 @@ class RunStatsDistinctBase(BudAppTestCase):
         )
 
     def bud_executions_count_every_run(self):
-        total = self.tc_suite_stats.json()["total_tests"]
+        total = self.suite_stats.json()["total_tests"]
         self.print_variables({"test executions": total})
         self.assertEqual(
             total,
@@ -72,7 +72,7 @@ class RunStatsDistinctBase(BudAppTestCase):
         )
 
     def bud_other_suite_counts_without_the_filter(self):
-        distinct = self.tc_all_stats.json()["distinct_tests"]
+        distinct = self.all_stats.json()["distinct_tests"]
         self.print_variables({"distinct without filter": distinct})
         self.assertEqual(
             distinct,

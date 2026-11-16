@@ -17,7 +17,7 @@ from tests.bud_test_base import BudAppTestCase
 class RunAuthorizationBase(BudAppTestCase):
 
     def bud_station_cannot_create_a_run_for_another_station(self):
-        response = self.tc_cross_create
+        response = self.cross_create
         self.print_variables({"status": response.status_code, "body": response.text})
         self.assertEqual(
             response.status_code,
@@ -27,7 +27,7 @@ class RunAuthorizationBase(BudAppTestCase):
 
     @parameterized(params.RUN_AUTH_LIST_SORTS)
     def bud_station_lists_its_own_runs_only(self, sort_by):
-        status, ids, own, other = self.tc_lists[sort_by]
+        status, ids, own, other = self.lists[sort_by]
         self.print_variables({"sort_by": sort_by, "status": status, "listed": ids})
         self.assertEqual(status, self.parameters.STATUS_OK, msg=self.parameters.MSG_RUN_AUTH_LIST)
         self.assertIn(own, ids, msg=self.parameters.MSG_RUN_AUTH_LIST)
@@ -35,7 +35,7 @@ class RunAuthorizationBase(BudAppTestCase):
 
     @parameterized(params.RUN_AUTH_FOREIGN)
     def bud_station_cannot_reach_another_stations_run(self, operation):
-        response = self.tc_foreign[operation]
+        response = self.foreign[operation]
         self.print_variables(
             {"operation": operation, "status": response.status_code, "body": response.text}
         )
@@ -47,7 +47,7 @@ class RunAuthorizationBase(BudAppTestCase):
 
     @parameterized(params.RUN_AUTH_SIGNED_OUT)
     def bud_result_reads_need_a_signed_in_entity(self, read):
-        response = self.tc_signed_out[read]
+        response = self.signed_out[read]
         self.print_variables({"read": read, "status": response.status_code, "body": response.text})
         self.assertEqual(
             response.status_code,
@@ -57,7 +57,7 @@ class RunAuthorizationBase(BudAppTestCase):
 
     @parameterized(params.RUN_AUTH_VIEWER_WRITES)
     def bud_viewer_is_read_only(self, operation):
-        response = self.tc_viewer[operation]
+        response = self.viewer[operation]
         self.print_variables(
             {"operation": operation, "status": response.status_code, "body": response.text}
         )
@@ -69,7 +69,7 @@ class RunAuthorizationBase(BudAppTestCase):
 
     @parameterized(params.RUN_AUTH_DEVELOPER_STATUS)
     def bud_developer_queues_custom_runs_and_publishes_only(self, operation):
-        response = self.tc_developer[operation]
+        response = self.developer[operation]
         self.print_variables(
             {"operation": operation, "status": response.status_code, "body": response.text}
         )
@@ -81,7 +81,7 @@ class RunAuthorizationBase(BudAppTestCase):
 
     @parameterized(params.RUN_AUTH_VIEWER_REFUSALS)
     def bud_viewer_cannot_upload_queue_or_publish(self, operation):
-        response = self.tc_viewer_writes[operation]
+        response = self.viewer_writes[operation]
         self.print_variables(
             {"operation": operation, "status": response.status_code, "body": response.text}
         )

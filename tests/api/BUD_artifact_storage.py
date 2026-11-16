@@ -32,7 +32,7 @@ class ArtifactStorageTest(ArtifactStorageBase):
         with mock.patch.multiple(settings, **limits):
             db = self.fresh_session()
             self.bud.bud_add_to_app(Artifact(**p.UPLOAD_EXISTING))
-            self.tc_lease = attempt(
+            self.lease = attempt(
                 lambda: run(
                     artifact_storage.reserve_upload(
                         db, self.uploader(), test_run_id=p.UPLOAD_RUN_ID
@@ -41,7 +41,7 @@ class ArtifactStorageTest(ArtifactStorageBase):
             )
             db = self.fresh_session()
             first = run(artifact_storage.reserve_upload(db, self.uploader(), test_run_id=None))
-            self.tc_second_upload = attempt(
+            self.second_upload = attempt(
                 lambda: run(artifact_storage.reserve_upload(db, self.uploader(), test_run_id=None))
             )
             run(artifact_storage.release_upload(db, first.id))
@@ -50,7 +50,7 @@ class ArtifactStorageTest(ArtifactStorageBase):
             for _ in range(p.UPLOADS_PER_WINDOW):
                 lease = run(artifact_storage.reserve_upload(db, self.uploader(), test_run_id=None))
                 run(artifact_storage.release_upload(db, lease.id))
-            self.tc_third_upload = attempt(
+            self.third_upload = attempt(
                 lambda: run(artifact_storage.reserve_upload(db, self.uploader(), test_run_id=None))
             )
         self.cleanup()
@@ -95,14 +95,14 @@ class ArtifactStorageTest(ArtifactStorageBase):
                     principal_key=p.CLEANUP_PRINCIPAL, created_at=now - p.CLEANUP_ATTEMPT_AGE
                 )
             )
-            self.tc_report = run(
+            self.report = run(
                 artifact_cleanup.reconcile_artifacts(
                     db, orphan_grace_seconds=p.CLEANUP_GRACE_SECONDS
                 )
             )
-        self.tc_expired_file_left = expired.exists()
-        self.tc_orphan_left = orphan.exists()
-        self.tc_lease_left = (self.bud.bud_find_in_app(UploadLease, id=p.CLEANUP_LEASE) or [None])[
+        self.expired_file_left = expired.exists()
+        self.orphan_left = orphan.exists()
+        self.lease_left = (self.bud.bud_find_in_app(UploadLease, id=p.CLEANUP_LEASE) or [None])[
             0
         ]
 

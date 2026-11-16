@@ -39,7 +39,7 @@ class IntegrityConflictPgTest(IntegrityConflictPgBase):
             body = first.json()
         except ValueError:
             body = {}
-        self.tc_checks = {
+        self.checks = {
             "conflict": {
                 "the violation is a conflict": (first.status_code, self.parameters.STATUS_CONFLICT),
                 "the answer says it already exists": ("already exists" in str(body.get("detail")), True),

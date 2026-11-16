@@ -30,7 +30,7 @@ class TokenConcurrencyPgTest(TokenConcurrencyPgBase):
     def setUpClass(self):
         super().setUpClass()
         self.client = self.bud.bud_start_live_app()
-        self.tc_checks = {"refresh": self.refresh(), "reset": self.reset(), "invite": self.invite(), "verify": self.verify()}
+        self.checks = {"refresh": self.refresh(), "reset": self.reset(), "invite": self.invite(), "verify": self.verify()}
 
     @staticmethod
     def fire(request):

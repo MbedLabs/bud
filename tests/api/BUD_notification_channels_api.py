@@ -50,42 +50,42 @@ class NotificationChannelsApiTest(NotificationChannelsApiBase):
         )
         self.key.start()
         self.bud.bud_start_app()
-        self.tc_created = self.add()
-        self.tc_listed = self.bud.bud_request(p.GET, p.CHANNELS_PATH)
-        channel_id = self.tc_created.json().get("id")
-        self.tc_stored = self.bud.bud_find_in_app(NotificationChannel, id=channel_id)[0]
+        self.created = self.add()
+        self.listed = self.bud.bud_request(p.GET, p.CHANNELS_PATH)
+        channel_id = self.created.json().get("id")
+        self.stored = self.bud.bud_find_in_app(NotificationChannel, id=channel_id)[0]
         self.bud.bud_start_app()
         channel_id = self.add().json()["id"]
-        self.tc_url_before = self.stored_url(channel_id)
-        self.tc_patched = self.bud.bud_request(
+        self.url_before = self.stored_url(channel_id)
+        self.patched = self.bud.bud_request(
             p.PATCH, p.CHANNEL_PATH.format(channel_id), json=p.CHANNEL_PATCH
         )
-        self.tc_url_after = self.stored_url(channel_id)
+        self.url_after = self.stored_url(channel_id)
         self.bud.bud_start_app()
-        self.tc_invalid = {
+        self.invalid = {
             case: self.add(**change).status_code for case, change in p.CHANNEL_INVALID.items()
         }
-        self.tc_valid = self.add().status_code
-        self.tc_duplicate = self.add().status_code
+        self.valid = self.add().status_code
+        self.duplicate = self.add().status_code
         self.bud.bud_start_app()
         channel_id = self.add().json()["id"]
-        self.tc_deleted = self.bud.bud_request(
+        self.deleted = self.bud.bud_request(
             p.DELETE, p.CHANNEL_PATH.format(channel_id)
         ).status_code
-        self.tc_deleted_again = self.bud.bud_request(
+        self.deleted_again = self.bud.bud_request(
             p.DELETE, p.CHANNEL_PATH.format(channel_id)
         ).status_code
-        self.tc_missing = self.bud.bud_request(
+        self.missing = self.bud.bud_request(
             p.PATCH, p.CHANNEL_PATH.format(p.CHANNEL_MISSING_ID), json={}
         ).status_code
         self.bud.bud_start_app()
         AcceptingClient.posted = []
         with mock.patch.object(notify.httpx, "AsyncClient", AcceptingClient):
             channel_id = self.add().json()["id"]
-            self.tc_test = self.bud.bud_request(p.POST, p.CHANNEL_TEST_PATH.format(channel_id))
-        self.tc_posted = list(AcceptingClient.posted)
+            self.test = self.bud.bud_request(p.POST, p.CHANNEL_TEST_PATH.format(channel_id))
+        self.posted = list(AcceptingClient.posted)
         self.bud.bud_start_app(signed_in=False)
-        self.tc_signed_out = self.bud.bud_request(p.GET, p.CHANNELS_PATH).status_code
+        self.signed_out = self.bud.bud_request(p.GET, p.CHANNELS_PATH).status_code
 
     def add(self, **changes):
         """Add a channel with the given changes to the example channel."""

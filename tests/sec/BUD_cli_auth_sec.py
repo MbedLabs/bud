@@ -61,7 +61,7 @@ class CliAuthSecTest(CliAuthSecBase):
         self.start_body = {**p.CLI_START, "code_challenge": self.challenge}
         patch = mock.patch.object(settings, "CLI_CODE_MODE_ENABLED", True)
         patch.start()
-        self.tc_checks = {}
+        self.checks = {}
         self.callbacks()
         self.fields()
         self.confirmation()
@@ -164,7 +164,7 @@ class CliAuthSecTest(CliAuthSecBase):
                 },
             )
             checks[f"{host} is accepted"] = (response.status_code, p.STATUS_OK)
-        self.tc_checks["callbacks"] = checks
+        self.checks["callbacks"] = checks
 
     def fields(self):
         p = self.parameters
@@ -176,7 +176,7 @@ class CliAuthSecTest(CliAuthSecBase):
                 self.post(p.CLI_START_PATH, json={**self.start_body, **changes}).status_code,
                 p.STATUS_UNPROCESSABLE,
             )
-        self.tc_checks["fields"] = checks
+        self.checks["fields"] = checks
 
     def confirmation(self):
         p = self.parameters
@@ -190,7 +190,7 @@ class CliAuthSecTest(CliAuthSecBase):
         failures = self.events("auth.cli_approve", "failure")
         event = failures[0] if failures else AuditEvent(details={})
         later = self.bud.bud_request(p.GET, p.CLI_SESSION_PATH.format(session_id), headers=headers)
-        self.tc_checks["confirmation"] = {
+        self.checks["confirmation"] = {
             "a signed-out read is refused": (anonymous_read.status_code, p.STATUS_UNAUTHORIZED),
             "a signed-out approval is refused": (
                 anonymous_approval.status_code,
@@ -253,7 +253,7 @@ class CliAuthSecTest(CliAuthSecBase):
         failures = self.events("auth.cli_exchange", "failure")
         event = failures[0] if failures else AuditEvent(details={})
         details = json.dumps(event.details)
-        self.tc_checks[f"exchange {failure}"] = {
+        self.checks[f"exchange {failure}"] = {
             "the exchange is refused": (response.status_code, p.CLI_REFUSED, "among"),
             "no access token is returned": ("access_token" in body_of(response), False),
             "no token is stored": (len(self.bud.bud_find_in_app(UserToken)), 0),
@@ -275,7 +275,7 @@ class CliAuthSecTest(CliAuthSecBase):
     def verifiers(self):
         p = self.parameters
         self.fresh()
-        self.tc_checks["verifiers"] = {
+        self.checks["verifiers"] = {
             f"a verifier of {len(verifier)} characters like {verifier[:3]} is refused": (
                 self.post(
                     p.CLI_EXCHANGE_PATH,
@@ -304,7 +304,7 @@ class CliAuthSecTest(CliAuthSecBase):
                 found if isinstance(found, int) else type_name(found),
                 p.STATUS_UNAUTHORIZED,
             )
-        self.tc_checks["refresh rows"] = checks
+        self.checks["refresh rows"] = checks
 
     def binding(self, condition):
         p = self.parameters
@@ -339,7 +339,7 @@ class CliAuthSecTest(CliAuthSecBase):
             {"sub": str(user.id), "type": "user", "ver": 1, "cli_refresh_id": row.id}
         )
         found = self.entity_status(token)
-        self.tc_checks[f"binding {condition}"] = {
+        self.checks[f"binding {condition}"] = {
             "the token is refused": (
                 found if isinstance(found, int) else type_name(found),
                 p.STATUS_UNAUTHORIZED,
@@ -363,7 +363,7 @@ class CliAuthSecTest(CliAuthSecBase):
             except HTTPException:
                 return False
 
-        self.tc_checks["station"] = {
+        self.checks["station"] = {
             "the station token resolves to the station": (self.bud.bud_await(resolve()), True)
         }
 
@@ -382,7 +382,7 @@ class CliAuthSecTest(CliAuthSecBase):
         statuses = [
             self.post(p.CLI_ROUTE_PATH.format(path), json=body).status_code for _ in range(31)
         ]
-        self.tc_checks[f"limited {path}"] = {
+        self.checks[f"limited {path}"] = {
             "the route answers too many requests": (p.STATUS_TOO_MANY in statuses, True),
             "the limiter stays enabled": (limiter.enabled, True),
         }
@@ -421,7 +421,7 @@ class CliAuthSecTest(CliAuthSecBase):
             )
             checks[f"{mode}: the request is kept"] = (stored, [str(session_id).replace("-", "")])
             checks[f"{mode}: the person still reads the request"] = (kept.status_code, p.STATUS_OK)
-        self.tc_checks["deny"] = checks
+        self.checks["deny"] = checks
 
     def deny_bodies(self):
         p = self.parameters
@@ -446,7 +446,7 @@ class CliAuthSecTest(CliAuthSecBase):
             statuses,
             {p.STATUS_BAD_REQUEST},
         )
-        self.tc_checks["deny bodies"] = checks
+        self.checks["deny bodies"] = checks
 
     def mismatch(self):
         p = self.parameters
@@ -465,7 +465,7 @@ class CliAuthSecTest(CliAuthSecBase):
             for event in self.events("auth.cli_code_mismatch")
         ]
         approval = self.post(p.CLI_APPROVE_PATH, json=right, headers=headers)
-        self.tc_checks["mismatch"] = {
+        self.checks["mismatch"] = {
             "a wrong code is refused on check": (wrong_check.status_code, p.STATUS_BAD_REQUEST),
             "a wrong code is refused on approval": (
                 wrong_approval.status_code,
@@ -508,7 +508,7 @@ class CliAuthSecTest(CliAuthSecBase):
                 {p.STATUS_BAD_REQUEST},
             )
             checks[f"{path} refuses past its limit"] = (statuses[-1], p.STATUS_TOO_MANY)
-        self.tc_checks["check limits"] = checks
+        self.checks["check limits"] = checks
 
     def approved_elsewhere(self):
         p = self.parameters
@@ -534,7 +534,7 @@ class CliAuthSecTest(CliAuthSecBase):
                 p.CLI_APPROVE_PATH, json=self.approve_body(session_id), headers=headers
             )
         failures = self.events("auth.cli_approve", "failure")
-        self.tc_checks["approved elsewhere"] = {
+        self.checks["approved elsewhere"] = {
             "the approval is refused": (refused.status_code, p.STATUS_BAD_REQUEST),
             "one failed approval is audited": (len(failures), 1),
             "the audit says the request was not pending": (

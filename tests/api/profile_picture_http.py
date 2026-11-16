@@ -17,7 +17,7 @@ from tests.bud_test_base import BudAppTestCase
 class ProfilePictureHttpBase(BudAppTestCase):
 
     def bud_picture_round_trip_is_account_scoped(self):
-        p, found = self.parameters, self.tc_round_trip
+        p, found = self.parameters, self.round_trip
         self.print_variables(found)
         self.assertEqual(found["none yet"], p.STATUS_NOT_FOUND, msg=p.MSG_PICTURE_NONE_YET)
         self.assertEqual(found["saved"], p.STATUS_OK, msg=p.MSG_PICTURE_SAVED)
@@ -36,7 +36,7 @@ class ProfilePictureHttpBase(BudAppTestCase):
         self.assertEqual(found["replaced"], True, msg=p.MSG_PICTURE_REPLACED)
 
     def bud_profile_save_keeps_the_permissions(self):
-        p, found = self.parameters, self.tc_profile
+        p, found = self.parameters, self.profile
         self.print_variables(found)
         self.assertEqual(found["saved"], p.STATUS_OK, msg=p.MSG_PICTURE_PROFILE_SAVED)
         self.assertEqual(found["name"], p.PICTURE_RENAMED, msg=p.MSG_PICTURE_PROFILE_NAME)
@@ -46,22 +46,22 @@ class ProfilePictureHttpBase(BudAppTestCase):
     @parameterized(params.PICTURE_REJECTED)
     def bud_rejected_upload_keeps_the_saved_picture(self, case):
         p = self.parameters
-        saved, status, kept = self.tc_rejected[case]
+        saved, status, kept = self.rejected[case]
         self.print_variables({"case": case, "saved": saved, "status": status, "kept": kept})
         self.assertEqual(saved, p.STATUS_OK, msg=p.MSG_PICTURE_SAVED)
         self.assertEqual(status, p.PICTURE_REJECTED[case][2], msg=p.MSG_PICTURE_REJECTED)
         self.assertEqual(kept, True, msg=p.MSG_PICTURE_PRESERVED)
 
     def bud_signed_out_visitor_cannot_reach_a_picture(self):
-        self.print_variables({"statuses": self.tc_signed_out})
+        self.print_variables({"statuses": self.signed_out})
         self.assertEqual(
-            self.tc_signed_out,
+            self.signed_out,
             [self.parameters.STATUS_UNAUTHORIZED] * 3,
             msg=self.parameters.MSG_PICTURE_SIGNED_OUT,
         )
 
     def bud_removal_is_account_scoped_and_repeatable(self):
-        p, found = self.parameters, self.tc_removal
+        p, found = self.parameters, self.removal
         self.print_variables(found)
         self.assertEqual(found["saved"], [p.STATUS_OK, p.STATUS_OK], msg=p.MSG_PICTURE_SAVED)
         self.assertEqual(found["removed"], p.STATUS_OK, msg=p.MSG_PICTURE_REMOVED)
@@ -76,14 +76,14 @@ class ProfilePictureHttpBase(BudAppTestCase):
         self.assertEqual(found["read again"], p.STATUS_OK, msg=p.MSG_PICTURE_READ)
 
     def bud_format_must_match_and_size_is_bounded(self):
-        p, found = self.parameters, self.tc_bounds
+        p, found = self.parameters, self.bounds
         self.print_variables(found)
         self.assertEqual(found["mismatch"], p.STATUS_UNSUPPORTED_MEDIA, msg=p.MSG_PICTURE_MISMATCH)
         self.assertEqual(found["huge"], p.STATUS_UNPROCESSABLE, msg=p.MSG_PICTURE_TOO_LARGE)
         self.assertEqual(found["none saved"], p.STATUS_NOT_FOUND, msg=p.MSG_PICTURE_NONE_SAVED)
 
     def bud_jpeg_orientation_is_applied_without_exif(self):
-        p, found = self.parameters, self.tc_jpeg
+        p, found = self.parameters, self.jpeg
         self.print_variables(found)
         self.assertEqual(found["saved"], p.STATUS_OK, msg=p.MSG_PICTURE_JPEG)
         self.assertEqual(found["size"], p.PICTURE_ROTATED_SIZE, msg=p.MSG_PICTURE_ORIENTED)

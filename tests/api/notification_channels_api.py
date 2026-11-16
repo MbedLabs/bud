@@ -17,9 +17,9 @@ from tests.bud_test_base import BudAppTestCase
 class NotificationChannelsApiBase(BudAppTestCase):
 
     def bud_channel_is_added(self):
-        self.print_variables({"status": self.tc_created.status_code, "body": self.tc_created.text})
+        self.print_variables({"status": self.created.status_code, "body": self.created.text})
         self.assertEqual(
-            self.tc_created.status_code,
+            self.created.status_code,
             self.parameters.STATUS_CREATED,
             msg=self.parameters.MSG_CHANNEL_CREATED,
             abort_on_fail=True,
@@ -27,7 +27,7 @@ class NotificationChannelsApiBase(BudAppTestCase):
 
     def bud_answer_hides_url_and_secret(self):
         p = self.parameters
-        body = self.tc_created.json()
+        body = self.created.json()
         self.assertEqual(
             body.get("url_prefix"),
             p.CHANNEL_HOOK[: p.CHANNEL_PREFIX_LENGTH] + p.CHANNEL_PREFIX_ELLIPSIS,
@@ -42,21 +42,21 @@ class NotificationChannelsApiBase(BudAppTestCase):
             p.CHANNEL_SECRET_FIELD, body, msg=p.MSG_CHANNEL_NO_SECRET, abort_on_fail=False
         )
         self.assertNotIn(
-            p.CHANNEL_HOOK, self.tc_created.text, msg=p.MSG_CHANNEL_HOOK_HIDDEN, abort_on_fail=False
+            p.CHANNEL_HOOK, self.created.text, msg=p.MSG_CHANNEL_HOOK_HIDDEN, abort_on_fail=False
         )
 
     def bud_list_hides_url_and_secret(self):
         p = self.parameters
-        self.print_variables({"status": self.tc_listed.status_code, "body": self.tc_listed.text})
+        self.print_variables({"status": self.listed.status_code, "body": self.listed.text})
         self.assertEqual(
-            self.tc_listed.status_code, p.STATUS_OK, msg=p.MSG_CHANNEL_LISTED, abort_on_fail=False
+            self.listed.status_code, p.STATUS_OK, msg=p.MSG_CHANNEL_LISTED, abort_on_fail=False
         )
         self.assertNotIn(
-            p.CHANNEL_HOOK, self.tc_listed.text, msg=p.MSG_CHANNEL_LIST_HOOK, abort_on_fail=False
+            p.CHANNEL_HOOK, self.listed.text, msg=p.MSG_CHANNEL_LIST_HOOK, abort_on_fail=False
         )
         self.assertNotIn(
             p.CHANNEL_SECRET,
-            self.tc_listed.text,
+            self.listed.text,
             msg=p.MSG_CHANNEL_LIST_SECRET,
             abort_on_fail=False,
         )
@@ -64,48 +64,48 @@ class NotificationChannelsApiBase(BudAppTestCase):
     def bud_url_and_secret_are_stored_encrypted(self):
         p = self.parameters
         self.print_variables(
-            {"url": self.tc_stored.url_encrypted, "secret": self.tc_stored.secret_encrypted}
+            {"url": self.stored.url_encrypted, "secret": self.stored.secret_encrypted}
         )
         self.assertNotIn(
             p.CHANNEL_HOOK,
-            self.tc_stored.url_encrypted,
+            self.stored.url_encrypted,
             msg=p.MSG_CHANNEL_URL_ENCRYPTED,
             abort_on_fail=False,
         )
         self.assertNotIn(
             p.CHANNEL_SECRET,
-            self.tc_stored.secret_encrypted,
+            self.stored.secret_encrypted,
             msg=p.MSG_CHANNEL_SECRET_ENCRYPTED,
             abort_on_fail=False,
         )
 
     def bud_change_keeps_the_url_and_clears_the_secret(self):
         p = self.parameters
-        self.print_variables({"status": self.tc_patched.status_code, "body": self.tc_patched.text})
+        self.print_variables({"status": self.patched.status_code, "body": self.patched.text})
         self.assertEqual(
-            self.tc_patched.status_code, p.STATUS_OK, msg=p.MSG_CHANNEL_PATCHED, abort_on_fail=True
+            self.patched.status_code, p.STATUS_OK, msg=p.MSG_CHANNEL_PATCHED, abort_on_fail=True
         )
         self.assertEqual(
-            self.tc_patched.json().get("run_filter"),
+            self.patched.json().get("run_filter"),
             p.CHANNEL_PATCHED_FILTER,
             msg=p.MSG_CHANNEL_FILTER,
             abort_on_fail=False,
         )
         self.assertEqual(
-            self.tc_patched.json().get("has_secret"),
+            self.patched.json().get("has_secret"),
             False,
             msg=p.MSG_CHANNEL_SECRET_CLEARED,
             abort_on_fail=False,
         )
         self.assertEqual(
-            self.tc_url_after, self.tc_url_before, msg=p.MSG_CHANNEL_URL_KEPT, abort_on_fail=False
+            self.url_after, self.url_before, msg=p.MSG_CHANNEL_URL_KEPT, abort_on_fail=False
         )
 
     @parameterized(params.CHANNEL_INVALID)
     def bud_invalid_channel_is_refused(self, case):
-        self.print_variables({"case": case, "status": self.tc_invalid[case]})
+        self.print_variables({"case": case, "status": self.invalid[case]})
         self.assertEqual(
-            self.tc_invalid[case],
+            self.invalid[case],
             self.parameters.STATUS_UNPROCESSABLE,
             msg=self.parameters.MSG_CHANNEL_INVALID,
             abort_on_fail=False,
@@ -113,12 +113,12 @@ class NotificationChannelsApiBase(BudAppTestCase):
 
     def bud_duplicate_name_is_refused(self):
         p = self.parameters
-        self.print_variables({"first": self.tc_valid, "second": self.tc_duplicate})
+        self.print_variables({"first": self.valid, "second": self.duplicate})
         self.assertEqual(
-            self.tc_valid, p.STATUS_CREATED, msg=p.MSG_CHANNEL_VALID, abort_on_fail=False
+            self.valid, p.STATUS_CREATED, msg=p.MSG_CHANNEL_VALID, abort_on_fail=False
         )
         self.assertEqual(
-            self.tc_duplicate,
+            self.duplicate,
             p.STATUS_BAD_REQUEST,
             msg=p.MSG_CHANNEL_DUPLICATE,
             abort_on_fail=False,
@@ -127,40 +127,40 @@ class NotificationChannelsApiBase(BudAppTestCase):
     def bud_deleted_and_missing_channels(self):
         p = self.parameters
         self.print_variables(
-            {"delete": self.tc_deleted, "again": self.tc_deleted_again, "missing": self.tc_missing}
+            {"delete": self.deleted, "again": self.deleted_again, "missing": self.missing}
         )
         self.assertEqual(
-            self.tc_deleted, p.STATUS_NO_CONTENT, msg=p.MSG_CHANNEL_DELETED, abort_on_fail=False
+            self.deleted, p.STATUS_NO_CONTENT, msg=p.MSG_CHANNEL_DELETED, abort_on_fail=False
         )
         self.assertEqual(
-            self.tc_deleted_again,
+            self.deleted_again,
             p.STATUS_NOT_FOUND,
             msg=p.MSG_CHANNEL_DELETED_AGAIN,
             abort_on_fail=False,
         )
         self.assertEqual(
-            self.tc_missing, p.STATUS_NOT_FOUND, msg=p.MSG_CHANNEL_MISSING, abort_on_fail=False
+            self.missing, p.STATUS_NOT_FOUND, msg=p.MSG_CHANNEL_MISSING, abort_on_fail=False
         )
 
     def bud_test_message_is_delivered(self):
         p = self.parameters
-        self.print_variables({"status": self.tc_test.status_code, "body": self.tc_test.text})
+        self.print_variables({"status": self.test.status_code, "body": self.test.text})
         self.assertEqual(
-            self.tc_test.status_code, p.STATUS_OK, msg=p.MSG_CHANNEL_TEST_SENT, abort_on_fail=True
+            self.test.status_code, p.STATUS_OK, msg=p.MSG_CHANNEL_TEST_SENT, abort_on_fail=True
         )
         self.assertEqual(
-            self.tc_test.json(),
+            self.test.json(),
             p.CHANNEL_TEST_RESULT,
             msg=p.MSG_CHANNEL_TEST_RESULT,
             abort_on_fail=False,
         )
         self.assertEqual(
-            self.tc_posted, [p.CHANNEL_HOOK], msg=p.MSG_CHANNEL_TEST_URL, abort_on_fail=False
+            self.posted, [p.CHANNEL_HOOK], msg=p.MSG_CHANNEL_TEST_URL, abort_on_fail=False
         )
 
     def bud_signed_out_visitor_cannot_list_channels(self):
         self.assertEqual(
-            self.tc_signed_out,
+            self.signed_out,
             self.parameters.STATUS_UNAUTHORIZED,
             msg=self.parameters.MSG_CHANNEL_SIGNED_OUT,
             abort_on_fail=False,

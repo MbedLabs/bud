@@ -25,17 +25,17 @@ class RunnersRegisterApiTest(RunnersRegisterApiBase):
         p = self.parameters
         self.unlimited = mock.patch.object(limiter, "enabled", False)
         self.unlimited.start()
-        self.tc_minted = []
+        self.minted = []
         self.bud.bud_start_app()
-        self.tc_no_key = self.bud.bud_request(
+        self.no_key = self.bud.bud_request(
             p.POST, p.REGISTER_PATH, json=p.REGISTER_PAYLOAD
         ).status_code
-        self.tc_unknown_key = self.register(p.KEYS_UNKNOWN).status_code
+        self.unknown_key = self.register(p.KEYS_UNKNOWN).status_code
         self.bud.bud_start_app()
         response = self.register(self.mint())
         station = self.bud.bud_find_in_app(Runner, account=p.REGISTER_PAYLOAD["username"])
         keys = self.bud.bud_find_in_app(RunnerApiKey)
-        self.tc_pinned = {
+        self.pinned = {
             "status": response.status_code,
             "account": response.json().get("account"),
             "token": response.json().get("token"),
@@ -48,13 +48,13 @@ class RunnersRegisterApiTest(RunnersRegisterApiBase):
         key = self.mint()
         first = self.register(key).status_code
         second = self.register(key)
-        self.tc_again = {"first": first, "second": (second.status_code, "token" in second.json())}
-        self.tc_wrong_password = self.refusal(password=p.REGISTER_WRONG_PASSWORD)
-        self.tc_other_station = self.refusal(username=p.REGISTER_OTHER_USERNAME)
+        self.again = {"first": first, "second": (second.status_code, "token" in second.json())}
+        self.wrong_password = self.refusal(password=p.REGISTER_WRONG_PASSWORD)
+        self.other_station = self.refusal(username=p.REGISTER_OTHER_USERNAME)
         self.bud.bud_start_app()
         first = self.register(self.mint(p.KEYS_LABELS[0])).status_code
         response = self.register(self.mint(p.KEYS_LABELS[1]))
-        self.tc_displace = {
+        self.displace = {
             "first": first,
             "status": response.status_code,
             "detail": str(response.json().get("detail")),
@@ -69,12 +69,12 @@ class RunnersRegisterApiTest(RunnersRegisterApiBase):
             )
         )
         response = self.register(self.mint(), username=p.REGISTER_LEGACY)
-        self.tc_adopt = {
+        self.adopt = {
             "status": response.status_code,
             "pinned": [key.runner_id for key in self.bud.bud_find_in_app(RunnerApiKey)],
             "legacy id": legacy.id,
         }
-        self.tc_deletes = self.deletes()
+        self.deletes = self._deletes()
 
     def mint(self, label=None):
         """Mint a key as the administrator and return it."""
@@ -82,7 +82,7 @@ class RunnersRegisterApiTest(RunnersRegisterApiBase):
         response = self.bud.bud_request(
             p.POST, p.API_KEYS_PATH, json={"label": label or p.KEYS_LABELS[0]}
         )
-        self.tc_minted.append(response.status_code)
+        self.minted.append(response.status_code)
         return response.json().get("api_key")
 
     def register(self, key, **changes):
@@ -107,7 +107,7 @@ class RunnersRegisterApiTest(RunnersRegisterApiBase):
             "detail": str(response.json().get("detail")),
         }
 
-    def deletes(self):
+    def _deletes(self):
         """Who may delete a station and manage keys."""
         p = self.parameters
         found = {"registered": []}

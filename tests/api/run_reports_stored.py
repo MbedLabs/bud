@@ -18,43 +18,43 @@ class RunReportsStoredBase(BudAppTestCase):
 
     def bud_finished_run_stores_both_reports(self):
         self.assertEqual(
-            self.tc_names, self.tc_expected_names, msg=self.parameters.MSG_STORED_REPORTS
+            self.names, self.expected_names, msg=self.parameters.MSG_STORED_REPORTS
         )
 
     def bud_stored_reports_are_pdfs(self):
         p = self.parameters
-        self.print_variables({"reports": self.tc_pdfs})
-        self.assertEqual(len(self.tc_pdfs), 2, msg=p.MSG_STORED_REPORTS)
-        for magic, size, length, content_type in self.tc_pdfs:
+        self.print_variables({"reports": self.pdfs})
+        self.assertEqual(len(self.pdfs), 2, msg=p.MSG_STORED_REPORTS)
+        for magic, size, length, content_type in self.pdfs:
             self.assertEqual(magic, p.PDF_MAGIC, msg=p.MSG_STORED_PDF)
             self.assertEqual(size, length, msg=p.MSG_STORED_PDF)
             self.assertEqual(content_type, p.STORED_PDF_TYPE, msg=p.MSG_STORED_PDF)
 
     def bud_storing_twice_does_not_duplicate(self):
-        self.assertEqual(len(self.tc_twice), 2, msg=self.parameters.MSG_STORED_ONCE)
+        self.assertEqual(len(self.twice), 2, msg=self.parameters.MSG_STORED_ONCE)
 
     @parameterized(params.STORED_REPORT_TEXTS)
     def bud_suite_report_details_its_run(self, text):
-        self.assertIn(text, self.tc_suite_text, msg=self.parameters.MSG_STORED_SUITE_DETAIL)
+        self.assertIn(text, self.suite_text, msg=self.parameters.MSG_STORED_SUITE_DETAIL)
 
     def bud_suite_report_names_its_run_only(self):
         p = self.parameters
         self.assertIn(
-            p.STORED_RUN_ID_TEXT.format(self.tc_current_id),
-            self.tc_suite_text,
+            p.STORED_RUN_ID_TEXT.format(self.current_id),
+            self.suite_text,
             msg=p.MSG_STORED_SUITE_DETAIL,
         )
-        self.assertNotIn(p.STORED_HISTORICAL_TEXT, self.tc_suite_text, msg=p.MSG_STORED_SUITE_SCOPE)
+        self.assertNotIn(p.STORED_HISTORICAL_TEXT, self.suite_text, msg=p.MSG_STORED_SUITE_SCOPE)
 
     def bud_broken_renderer_stores_nothing(self):
-        self.print_variables({"stored": self.tc_broken})
-        self.assertEqual(self.tc_broken, ([], []), msg=self.parameters.MSG_STORED_BROKEN)
+        self.print_variables({"stored": self.broken})
+        self.assertEqual(self.broken, ([], []), msg=self.parameters.MSG_STORED_BROKEN)
 
     def bud_missing_run_stores_nothing(self):
-        self.assertEqual(self.tc_missing, [], msg=self.parameters.MSG_STORED_MISSING)
+        self.assertEqual(self.missing, [], msg=self.parameters.MSG_STORED_MISSING)
 
     def bud_completing_through_the_api_stores_the_reports(self):
-        p, found = self.parameters, self.tc_api
+        p, found = self.parameters, self.api
         self.print_variables(found)
         self.assertEqual(found["patched"], p.STATUS_OK, msg=p.MSG_STORED_PATCHED)
         self.assertEqual(

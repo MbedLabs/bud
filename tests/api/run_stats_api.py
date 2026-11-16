@@ -18,7 +18,7 @@ class RunStatsApiBase(BudAppTestCase):
 
     @parameterized(params.STATS_CASES)
     def bud_statistics_count_every_matching_run(self, case):
-        response = self.tc_stats[case]
+        response = self.stats[case]
         self.print_variables({"case": case, "status": response.status_code, "body": response.text})
         self.assertEqual(
             response.status_code,
@@ -34,16 +34,16 @@ class RunStatsApiBase(BudAppTestCase):
             )
 
     def bud_filter_options_list_suites_and_stations(self):
-        self.print_variables({"filter options": self.tc_options.text})
+        self.print_variables({"filter options": self.options.text})
         for field, expected in self.parameters.STATS_FILTER_OPTIONS.items():
             self.assertEqual(
-                self.tc_options.json().get(field), expected, msg=self.parameters.MSG_STATS_OPTIONS
+                self.options.json().get(field), expected, msg=self.parameters.MSG_STATS_OPTIONS
             )
 
     @parameterized(params.STATS_LITERAL_PATHS)
     def bud_path_is_not_shadowed_by_the_run_id_route(self, path):
         self.assertEqual(
-            self.tc_literal[path],
+            self.literal[path],
             self.parameters.STATUS_OK,
             msg=self.parameters.MSG_STATS_LITERAL_PATH,
         )

@@ -28,18 +28,18 @@ class ObjectStorageTest(ObjectStorageBase):
     def setUpClass(self):
         super().setUpClass()
         p = self.parameters
-        self.tc_round_trip = self.on_s3(self.round_trip)
-        self.tc_unmirrored = self.on_s3(self.unmirrored)
-        self.tc_refused = self.on_s3(self.refused)
-        self.tc_read_stored = self.on_s3(self.read_stored)
-        self.tc_cleanup = self.on_s3(self.cleanup)
-        self.tc_migrations = self.on_s3(self.migrations)
-        self.tc_command_codes, self.tc_command_output = self.on_s3(self.command)
-        self.tc_readiness = self.on_s3(self.readiness)
-        self.tc_no_bucket = self.bud.bud_attempt(
+        self.round_trip = self.on_s3(self._round_trip)
+        self.unmirrored = self.on_s3(self._unmirrored)
+        self.refused = self.on_s3(self._refused)
+        self.read_stored = self.on_s3(self._read_stored)
+        self.cleanup = self.on_s3(self._cleanup)
+        self.migrations = self.on_s3(self._migrations)
+        self.command_codes, self.command_output = self.on_s3(self.command)
+        self.readiness = self.on_s3(self._readiness)
+        self.no_bucket = self.bud.bud_attempt(
             lambda: Settings(STORAGE_BACKEND="s3", S3_BUCKET="")
         )
-        self.tc_prefix = Settings(STORAGE_BACKEND="s3", S3_BUCKET="b").S3_PREFIX
+        self.prefix = Settings(STORAGE_BACKEND="s3", S3_BUCKET="b").S3_PREFIX
 
     def on_s3(self, scenario):
         """Run one scenario on a fresh app whose storage is a fresh moto bucket."""
@@ -67,7 +67,7 @@ class ObjectStorageTest(ObjectStorageBase):
             name or p.S3_EVIDENCE_NAME, io.BytesIO(data or p.S3_EVIDENCE), p.LOGO_TEXT_TYPE
         )
 
-    def round_trip(self, s3):
+    def _round_trip(self, s3):
         """Upload, download, lose the bucket copy, lose the mirror and delete."""
         p, request = self.parameters, self.bud.bud_request
         uploaded = self.upload()
@@ -98,7 +98,7 @@ class ObjectStorageTest(ObjectStorageBase):
         found["deleted"] = request(p.DELETE, path).status_code
         return found
 
-    def unmirrored(self, s3):
+    def _unmirrored(self, s3):
         """Upload and delete without the local mirror."""
         p, request = self.parameters, self.bud.bud_request
         with mock.patch.object(settings, "STORAGE_LOCAL_MIRROR", False):
@@ -113,7 +113,7 @@ class ObjectStorageTest(ObjectStorageBase):
                 "keys": self.keys(s3),
             }
 
-    def refused(self, s3):
+    def _refused(self, s3):
         """Upload to a bucket that does not exist."""
         p = self.parameters
         with mock.patch.object(settings, "S3_BUCKET", p.S3_OTHER_BUCKET):
@@ -121,7 +121,7 @@ class ObjectStorageTest(ObjectStorageBase):
         files = [path.name for path in uploads.get_upload_root().iterdir() if path.is_file()]
         return {"status": status, "files": files}
 
-    def read_stored(self, s3):
+    def _read_stored(self, s3):
         """Read a file from the mirror, then from the bucket, then a missing one twice."""
         p, run = self.parameters, self.bud.bud_await
         root = uploads.ensure_upload_dir()
@@ -140,7 +140,7 @@ class ObjectStorageTest(ObjectStorageBase):
                 )
         return found
 
-    def cleanup(self, s3):
+    def _cleanup(self, s3):
         """Reconcile a kept, an orphan and an expired file and an artifact whose file is missing."""
         p, run = self.parameters, self.bud.bud_await
         root = uploads.ensure_upload_dir()
@@ -175,7 +175,7 @@ class ObjectStorageTest(ObjectStorageBase):
             "old left": (root / p.S3_OLD).exists(),
         }
 
-    def migrations(self, s3):
+    def _migrations(self, s3):
         """Migrate twice, then again with one size the bucket reports wrongly."""
         p, run = self.parameters, self.bud.bud_await
         root = uploads.ensure_upload_dir()
@@ -214,7 +214,7 @@ class ObjectStorageTest(ObjectStorageBase):
                     codes.append(storage_cli.main(p.S3_MIGRATE_ARGUMENTS))
         return codes, output.getvalue()
 
-    def readiness(self, s3):
+    def _readiness(self, s3):
         """Readiness on the bucket, on a missing bucket and on local storage."""
         p = self.parameters
         storage = [self.bud.bud_request(p.GET, p.READY_PATH).json().get("storage")]

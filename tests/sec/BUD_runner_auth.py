@@ -55,7 +55,7 @@ class RunnerAuthTest(RunnerAuthBase):
         super().setUpClass()
         p = self.parameters
         token = self.station_token("station-expired", expired=True)
-        self.tc_ignore_exp = {
+        self.ignore_exp = {
             "checked": type_name(decode_access_token(token)),
             "claims": {
                 key: (runner_auth.decode_access_token_ignore_exp(token) or {}).get(key)
@@ -63,9 +63,9 @@ class RunnerAuthTest(RunnerAuthBase):
             },
             "expected": {"sub": "station-expired", "type": p.RUNNER_TYPE},
         }
-        self.tc_heartbeat = self.scenario(self.heartbeat)
-        self.tc_uploader = self.scenario(self.uploader)
-        self.tc_rotated = self.scenario(self.rotated)
+        self.heartbeat = self.scenario(self._heartbeat)
+        self.uploader = self.scenario(self._uploader)
+        self.rotated = self.scenario(self._rotated)
         with mock.patch.object(
             runner_auth.settings, "RUNNER_HEARTBEAT_TIMEOUT", p.RUNNER_HEARTBEAT_TIMEOUT
         ):
@@ -77,9 +77,9 @@ class RunnerAuthTest(RunnerAuthBase):
             )
             stale = runner_auth.runner_has_recent_heartbeat(station)
             station.last_heartbeat = now()
-            self.tc_timeout = (stale, runner_auth.runner_has_recent_heartbeat(station))
-        self.tc_types = self.scenario(self.types)
-        self.tc_stale_user = self.stale_user()
+            self.timeout = (stale, runner_auth.runner_has_recent_heartbeat(station))
+        self.types = self.scenario(self._types)
+        self.stale_user = self._stale_user()
 
     def station_token(self, account, expired=False, **claims):
         """A station token, expired when asked."""
@@ -114,7 +114,7 @@ class RunnerAuthTest(RunnerAuthBase):
         self.bud.bud_start_app()
         return self.bud.bud_await(run(self.bud.bud_open_session(on_app=True)))
 
-    async def heartbeat(self, db):
+    async def _heartbeat(self, db):
         """Expired tokens of a station without and with a recent heartbeat."""
         stale = self.station_token("station-stale", expired=True)
         await self.station(db, "station-stale", stale)
@@ -127,7 +127,7 @@ class RunnerAuthTest(RunnerAuthBase):
             "live account": "station-live",
         }
 
-    async def uploader(self, db):
+    async def _uploader(self, db):
         """Uploaders with an expired token, a pinned key and an unpinned key."""
         token = self.station_token("uploader-station", expired=True)
         await self.station(db, "uploader-station", token, heartbeat=now())
@@ -149,7 +149,7 @@ class RunnerAuthTest(RunnerAuthBase):
             ),
         }
 
-    async def rotated(self, db):
+    async def _rotated(self, db):
         """The previous token of a station whose token was rotated."""
         old = self.station_token("station-rotated")
         current = self.station_token("station-rotated", jti="new")
@@ -159,7 +159,7 @@ class RunnerAuthTest(RunnerAuthBase):
             type_name(await runner_auth.authenticate_runner_token(current, db)),
         )
 
-    async def types(self, db):
+    async def _types(self, db):
         """Tokens of an unknown type and without a type."""
         p = self.parameters
         if await db.get(User, 1) is None:
@@ -195,7 +195,7 @@ class RunnerAuthTest(RunnerAuthBase):
             "untyped": await refusal(auth.get_current_active_entity(token=untyped, db=db)),
         }
 
-    def stale_user(self):
+    def _stale_user(self):
         """A person's token issued before their session version changed."""
         p = self.parameters
         self.bud.bud_start_app(signed_in=False)

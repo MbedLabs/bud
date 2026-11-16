@@ -93,24 +93,24 @@ class GroupOverlapTest(GroupOverlapBase):
 
     def setUpClass(self):
         super().setUpClass()
-        self.tc_all_permissions = ALL_PERMISSIONS
-        self.tc_union = self.scenario(self.union)
-        self.tc_release = self.scenario(self.release_groups)
-        self.tc_admin = {
-            count: self.scenario(lambda db, count=count: self.admin(db, count))
+        self.all_permissions = ALL_PERMISSIONS
+        self.union = self.scenario(self._union)
+        self.release = self.scenario(self.release_groups)
+        self.admin = {
+            count: self.scenario(lambda db, count=count: self._admin(db, count))
             for count in self.parameters.GROUP_ADMIN_MEMBERSHIPS
         }
-        self.tc_listed = self.scenario(self.listed)
-        self.tc_station_check = self.scenario(self.station_check)
-        self.tc_giver = self.scenario(self.giver)
-        self.tc_twice = self.scenario(self.twice)
+        self.listed = self.scenario(self._listed)
+        self.station_check = self.scenario(self._station_check)
+        self.giver = self.scenario(self._giver)
+        self.twice = self.scenario(self._twice)
 
     def scenario(self, run):
         """Run one scenario on a fresh app database session."""
         self.bud.bud_start_app()
         return self.bud.bud_await(run(self.bud.bud_open_session(on_app=True)))
 
-    async def union(self, db):
+    async def _union(self, db):
         """A developer holding two groups, and two developers holding one each."""
         p = self.parameters
         stations = await shipped_group(db, p.GROUP_STATIONS)
@@ -160,7 +160,7 @@ class GroupOverlapTest(GroupOverlapBase):
         found["viewer base"] = access.app_scoped(access.base_role_permissions(UserRole.viewer))
         return found
 
-    async def admin(self, db, count):
+    async def _admin(self, db, count):
         """An administrator holding the given number of groups."""
         p = self.parameters
         admin = await add_user(
@@ -170,7 +170,7 @@ class GroupOverlapTest(GroupOverlapBase):
             await hold(db, admin, await shipped_group(db, name))
         return await memberships(db, admin), await access.effective_permissions(db, admin)
 
-    async def listed(self, db):
+    async def _listed(self, db):
         """The groups of three users, one of them holding none."""
         p = self.parameters
         owner = await add_user(db, "owner@example.com", UserRole.developer, p.GROUP_PASSWORD_HASH)
@@ -186,7 +186,7 @@ class GroupOverlapTest(GroupOverlapBase):
             for name, user in (("owner", owner), ("other", other), ("bystander", bystander))
         }
 
-    async def station_check(self, db):
+    async def _station_check(self, db):
         """Give the station group to a viewer and a developer who hold the same other groups."""
         p = self.parameters
         admin = User(email=p.GROUP_GIVER_EMAIL, full_name=p.GROUP_GIVER_NAME, role=UserRole.admin)
@@ -202,7 +202,7 @@ class GroupOverlapTest(GroupOverlapBase):
             "developer": await outcome(groups.check_giveable(db, admin, stations, developer)),
         }
 
-    async def giver(self, db):
+    async def _giver(self, db):
         """A developer giver whose access is spread over two groups."""
         p = self.parameters
         products = await custom_group(db, "Products crew", "products")
@@ -219,7 +219,7 @@ class GroupOverlapTest(GroupOverlapBase):
             "wider": await outcome(groups.check_giveable(db, giver, wider, recipient)),
         }
 
-    async def twice(self, db):
+    async def _twice(self, db):
         """Give the same group to the same viewer twice."""
         p = self.parameters
         admin = User(email=p.GROUP_GIVER_EMAIL, full_name=p.GROUP_GIVER_NAME, role=UserRole.admin)

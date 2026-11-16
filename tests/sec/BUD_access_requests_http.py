@@ -51,7 +51,7 @@ class AccessRequestsHttpTest(AccessRequestsHttpBase):
             access_requests, "send_access_request_email", lambda **mail: self.sent.append(mail)
         )
         self.mail.start()
-        self.tc_checks = {}
+        self.checks = {}
         self.daily()
         self.decision()
         self.anonymous()
@@ -166,7 +166,7 @@ class AccessRequestsHttpTest(AccessRequestsHttpBase):
         mine = self.mine(request, headers)
         boss_mail = [mail for mail in self.sent if mail.get("to_email") == p.ACCESS_BOSS] or [{}]
         events = self.bud.bud_find_in_app(AuditEvent, action=p.ACCESS_REQUESTED)
-        self.tc_checks["daily"] = {
+        self.checks["daily"] = {
             **self.signed_in(),
             "the first request is created": (first.status_code, p.STATUS_CREATED),
             "the first request is mailed": (body_of(first).get("mail_sent"), True),
@@ -215,7 +215,7 @@ class AccessRequestsHttpTest(AccessRequestsHttpBase):
         events = self.bud.bud_find_in_app(AuditEvent, action=p.ACCESS_REFUSED) or [
             AuditEvent(details={})
         ]
-        self.tc_checks["decision"] = {
+        self.checks["decision"] = {
             **self.signed_in(),
             "the list names the requester": (
                 [row.get("requester_email") for row in listed],
@@ -240,7 +240,7 @@ class AccessRequestsHttpTest(AccessRequestsHttpBase):
         p = self.parameters
         self.fresh()
         response = self.ask({"resource_type": p.ACCESS_TYPE, "resource_ref": "1"}, {})
-        self.tc_checks["anonymous"] = {
+        self.checks["anonymous"] = {
             "the request needs a signed-in person": (response.status_code, p.STATUS_UNAUTHORIZED)
         }
 
@@ -262,7 +262,7 @@ class AccessRequestsHttpTest(AccessRequestsHttpBase):
                 p.STATUS_UNPROCESSABLE,
             )
         checks["nobody is mailed"] = (list(self.sent), [])
-        self.tc_checks["types"] = checks
+        self.checks["types"] = checks
 
     def pictures(self):
         """Two requesters with pictures, as reviewers and requesters see them."""
@@ -325,7 +325,7 @@ class AccessRequestsHttpTest(AccessRequestsHttpBase):
                 != admin_picture,
                 True,
             )
-        self.tc_checks["pictures"] = {**self.signed_in(), **checks}
+        self.checks["pictures"] = {**self.signed_in(), **checks}
 
     def holder(self, name, role, group):
         """A request by a holder of Publish to Bloom."""
@@ -337,7 +337,7 @@ class AccessRequestsHttpTest(AccessRequestsHttpBase):
             self.give(holder.id, group or BASE_ROLE_GROUPS[role])
         headers = self.headers("holder@example.com")
         created = self.ask(self.request_for(self.stored_run()), headers)
-        self.tc_checks[name] = {
+        self.checks[name] = {
             **self.signed_in(),
             "the request is a conflict": (created.status_code, p.STATUS_CONFLICT),
             "the refusal says Publish to Bloom is held": (
@@ -362,7 +362,7 @@ class AccessRequestsHttpTest(AccessRequestsHttpBase):
         first = self.ask(request, headers)
         self.give(member.id, p.ACCESS_OPERATORS)
         again = self.ask(request, headers)
-        self.tc_checks["earlier pending"] = {
+        self.checks["earlier pending"] = {
             **self.signed_in(),
             "the first request is created": (first.status_code, p.STATUS_CREATED),
             "the request as a holder is a conflict": (again.status_code, p.STATUS_CONFLICT),
@@ -377,7 +377,7 @@ class AccessRequestsHttpTest(AccessRequestsHttpBase):
         self.give(manager.id, p.ACCESS_MANAGERS)
         created = self.ask(self.request_for(self.stored_run()), self.headers(p.ACCESS_MANAGER))
         recipients = [mail.get("to_email") for mail in self.sent]
-        self.tc_checks["own request"] = {
+        self.checks["own request"] = {
             **self.signed_in(),
             "the request is created": (created.status_code, p.STATUS_CREATED),
             "the administrator is mailed": (p.ACCESS_BOSS in recipients, True),
@@ -415,7 +415,7 @@ class AccessRequestsHttpTest(AccessRequestsHttpBase):
             )
             for row in (body_of(listed) if isinstance(body_of(listed), list) else [])
         }
-        self.tc_checks["earlier types"] = {
+        self.checks["earlier types"] = {
             **self.signed_in(),
             "the administrator lists requests": (listed.status_code, p.STATUS_OK),
             "each request is named": (

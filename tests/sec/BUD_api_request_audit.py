@@ -46,7 +46,7 @@ class ApiRequestAuditTest(ApiRequestAuditBase):
 
     def setUpClass(self):
         super().setUpClass()
-        self.tc_checks = {}
+        self.checks = {}
         for scenario in (
             self.web_user,
             self.cli_user,
@@ -146,7 +146,7 @@ class ApiRequestAuditTest(ApiRequestAuditBase):
         )
         count, event = self.event_of(response)
         details = event.details or {}
-        self.tc_checks["web user"] = {
+        self.checks["web user"] = {
             "the profile is read": (response.status_code, p.STATUS_OK),
             "one event is recorded": (count, 1),
             "the actor is a person": (event.actor_type, "user"),
@@ -180,7 +180,7 @@ class ApiRequestAuditTest(ApiRequestAuditBase):
         )
         response = self.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"})
         count, event = self.event_of(response)
-        self.tc_checks["cli user"] = {
+        self.checks["cli user"] = {
             "the profile is read": (response.status_code, p.STATUS_OK),
             "one event is recorded": (count, 1),
             "the actor is a person": (event.actor_type, "user"),
@@ -203,7 +203,7 @@ class ApiRequestAuditTest(ApiRequestAuditBase):
         beat_count, beat = self.event_of(heartbeat)
         run_count, run = self.event_of(created)
         beat_details, run_details = beat.details or {}, run.details or {}
-        self.tc_checks["station"] = {
+        self.checks["station"] = {
             "the heartbeat is answered": (heartbeat.status_code, p.STATUS_OK),
             "the run is created": (created.status_code, p.STATUS_CREATED),
             "one heartbeat event is recorded": (beat_count, 1),
@@ -231,7 +231,7 @@ class ApiRequestAuditTest(ApiRequestAuditBase):
         )
         count, event = self.event_of(response)
         details = event.details or {}
-        self.tc_checks["enrolment key"] = {
+        self.checks["enrolment key"] = {
             "the results are stored": (response.status_code, p.STATUS_CREATED),
             "one event is recorded": (count, 1),
             "the actor is a station": (event.actor_type, "runner"),
@@ -256,7 +256,7 @@ class ApiRequestAuditTest(ApiRequestAuditBase):
         _, creation = self.event_of(created)
         count, event = self.event_of(read)
         details = event.details or {}
-        self.tc_checks["created object"] = {
+        self.checks["created object"] = {
             "the product is created": (created.status_code, p.STATUS_CREATED),
             "the created product is named": (
                 (creation.details or {}).get("created_id"),
@@ -274,7 +274,7 @@ class ApiRequestAuditTest(ApiRequestAuditBase):
         p = self.parameters
         response = self.get("/api/health")
         count, event = self.event_of(response)
-        self.tc_checks["health"] = {
+        self.checks["health"] = {
             "the probe is answered": (response.status_code, p.STATUS_OK),
             "one event is recorded": (count, 1),
             "the actor is anonymous": (event.actor_type, "anonymous"),
@@ -288,7 +288,7 @@ class ApiRequestAuditTest(ApiRequestAuditBase):
             "/api/auth/me", headers={"Authorization": f"Bearer {p.AUDIT_HTTP_FORGED}"}
         )
         count, event = self.event_of(response)
-        self.tc_checks["forged token"] = {
+        self.checks["forged token"] = {
             "the token is refused": (response.status_code, p.STATUS_UNAUTHORIZED),
             "one event is recorded": (count, 1),
             "the request is denied": (event.outcome, "denied"),
@@ -303,7 +303,7 @@ class ApiRequestAuditTest(ApiRequestAuditBase):
         viewer = self.person("viewer@example.com")
         response = self.get("/api/audit", headers=self.headers("viewer@example.com"))
         count, event = self.event_of(response)
-        self.tc_checks["insufficient"] = {
+        self.checks["insufficient"] = {
             "the audit is refused": (response.status_code, p.STATUS_FORBIDDEN),
             "the refusal says why": (body_of(response).get("detail"), p.AUDIT_HTTP_INSUFFICIENT),
             "one event is recorded": (count, 1),
@@ -321,7 +321,7 @@ class ApiRequestAuditTest(ApiRequestAuditBase):
         self.bud.bud_add_to_app(stored)
         response = self.get("/api/auth/me", headers=headers)
         count, event = self.event_of(response)
-        self.tc_checks["deactivated person"] = {
+        self.checks["deactivated person"] = {
             "the profile is refused": (response.status_code, p.STATUS_FORBIDDEN),
             "the refusal says why": (body_of(response).get("detail"), p.AUDIT_HTTP_DEACTIVATED),
             "one event is recorded": (count, 1),
@@ -338,7 +338,7 @@ class ApiRequestAuditTest(ApiRequestAuditBase):
         station = self.bud.bud_add_to_app(station)
         response = self.get("/api/auth/me", headers={"Authorization": f"Bearer {station.token}"})
         count, event = self.event_of(response)
-        self.tc_checks["deactivated station"] = {
+        self.checks["deactivated station"] = {
             "the request is refused": (response.status_code, p.STATUS_FORBIDDEN),
             "the refusal says why": (body_of(response).get("detail"), p.AUDIT_HTTP_DEACTIVATED),
             "one event is recorded": (count, 1),
@@ -352,7 +352,7 @@ class ApiRequestAuditTest(ApiRequestAuditBase):
         p = self.parameters
         response = self.get(p.AUDIT_HTTP_NOT_FOUND)
         count, event = self.event_of(response)
-        self.tc_checks["anonymous not found"] = {
+        self.checks["anonymous not found"] = {
             "the path is not found": (response.status_code, p.STATUS_NOT_FOUND),
             "one event is recorded": (count, 1),
             "the request is denied": (event.outcome, "denied"),
@@ -371,7 +371,7 @@ class ApiRequestAuditTest(ApiRequestAuditBase):
         )
         _, user_event = self.event_of(by_user)
         _, station_event = self.event_of(by_station)
-        self.tc_checks["signed-in not found"] = {
+        self.checks["signed-in not found"] = {
             "the person's read is not found": (by_user.status_code, p.STATUS_NOT_FOUND),
             "the station's read is not found": (by_station.status_code, p.STATUS_NOT_FOUND),
             "the person's read is a failure": (
@@ -393,7 +393,7 @@ class ApiRequestAuditTest(ApiRequestAuditBase):
             headers={"X-API-Key": "budrnr_not-a-key-anyone-ever-issued"},
         )
         count, event = self.event_of(response)
-        self.tc_checks["wrong key"] = {
+        self.checks["wrong key"] = {
             "the key is refused": (response.status_code, p.STATUS_FORBIDDEN),
             "one event is recorded": (count, 1),
             "the request is denied": (event.outcome, "denied"),
@@ -407,7 +407,7 @@ class ApiRequestAuditTest(ApiRequestAuditBase):
         body = {"email": "nobody@example.com", "password": "wrong-password-1"}
         responses = [self.post(p.LOGIN_PATH, json=body) for _ in range(11)]
         count, event = self.event_of(responses[-1])
-        self.tc_checks["rate limited"] = {
+        self.checks["rate limited"] = {
             "the eleventh login is limited": (responses[-1].status_code, p.STATUS_TOO_MANY),
             "one event is recorded": (count, 1),
             "the request is denied": (event.outcome, "denied"),
@@ -423,7 +423,7 @@ class ApiRequestAuditTest(ApiRequestAuditBase):
         second = [self.get("/api/auth/me", headers=headers).status_code for _ in range(6)]
         flags = self.bud.bud_find_in_app(AuditEvent, action=p.AUDIT_HTTP_FLAG)
         event = flags[0] if flags else AuditEvent(details={})
-        self.tc_checks["flag"] = {
+        self.checks["flag"] = {
             "every refusal is a 401": (set(first + second), {p.STATUS_UNAUTHORIZED}),
             "nineteen refusals leave no flag": (len(before), 0),
             "twenty-five refusals leave one flag": (len(flags), 1),
@@ -447,7 +447,7 @@ class ApiRequestAuditTest(ApiRequestAuditBase):
                 )
             )
         response = self.get("/api/auth/me")
-        self.tc_checks["old refusals"] = {
+        self.checks["old refusals"] = {
             "the request is refused": (response.status_code, p.STATUS_UNAUTHORIZED),
             "old refusals leave no flag": (
                 len(self.bud.bud_find_in_app(AuditEvent, action=p.AUDIT_HTTP_FLAG)),
@@ -465,7 +465,7 @@ class ApiRequestAuditTest(ApiRequestAuditBase):
         stored = json.dumps(
             [[event.details, event.user_agent, event.target_id] for event in self.requests()]
         )
-        self.tc_checks["secrets"] = {
+        self.checks["secrets"] = {
             "the password is not stored": (p.AUDIT_HTTP_PASSWORD in stored, False),
             "the key is not stored": (key in stored, False),
             "the bearer token is not stored": (
@@ -488,7 +488,7 @@ class ApiRequestAuditTest(ApiRequestAuditBase):
             response = self.get("/api/health")
         records = self.bud.bud_stop_log_capture()
         text = "\n".join(logging.Formatter().format(record) for record in records)
-        self.tc_checks["failed write"] = {
+        self.checks["failed write"] = {
             "the probe is answered": (response.status_code, p.STATUS_OK),
             "the probe is healthy": (body_of(response).get("status"), "healthy"),
             "the lost event is logged": (p.AUDIT_HTTP_WRITE_FAILED in text, True),
@@ -508,7 +508,7 @@ class ApiRequestAuditTest(ApiRequestAuditBase):
         with TestClient(app) as client:
             response = client.get("/probe/7")
         count, event = self.event_of(response)
-        self.tc_checks["probe"] = {
+        self.checks["probe"] = {
             "the probe is answered": (response.status_code, self.parameters.STATUS_OK),
             "one event is recorded": (count, 1),
             "the actor is a person": (event.actor_type, "user"),
@@ -528,7 +528,7 @@ class ApiRequestAuditTest(ApiRequestAuditBase):
         by_status = audit(status=401, action="api.")
         by_actor = audit(actor_type="user", action="api.request")
         by_ip = audit(ip="203.0.113.9")
-        self.tc_checks["filters"] = {
+        self.checks["filters"] = {
             "the request filter finds the refusal": (
                 [(item.get("details") or {}).get("status") for item in by_request.get("items", [])],
                 [401],
@@ -549,7 +549,7 @@ class ApiRequestAuditTest(ApiRequestAuditBase):
     def created_id(self):
         body = json.dumps({"id": 12, "name": "x" * 2000}).encode()
         read = observability.created_id
-        self.tc_checks["created id"] = {
+        self.checks["created id"] = {
             "a gzip body names its id": (read(gzip.compress(body), "gzip"), 12),
             "a plain body names its id": (read(body, ""), 12),
             "a list names no id": (type_name(read(b"[1, 2]", "")), self.parameters.NONE_TYPE),
@@ -583,7 +583,7 @@ class ApiRequestAuditTest(ApiRequestAuditBase):
                 "Access-Control-Request-Headers": "Authorization",
             },
         )
-        self.tc_checks["preflight"] = {
+        self.checks["preflight"] = {
             "the preflight is answered": (response.status_code, p.STATUS_OK),
             "the origin is allowed": (response.headers.get("access-control-allow-origin"), origin),
             "no request id is sent": ("x-request-id" in response.headers, False),
@@ -605,7 +605,7 @@ class ApiRequestAuditTest(ApiRequestAuditBase):
         )
         count, event = self.event_of(response)
         details = event.details or {}
-        self.tc_checks["refused preflight"] = {
+        self.checks["refused preflight"] = {
             "the preflight is refused": (response.status_code, p.STATUS_FORBIDDEN),
             "no origin is allowed": ("access-control-allow-origin" in response.headers, False),
             "one event is recorded": (count, 1),
@@ -620,7 +620,7 @@ class ApiRequestAuditTest(ApiRequestAuditBase):
         p = self.parameters
         response = self.get("/api/auth/me", headers={"Origin": p.AUDIT_HTTP_FOREIGN_ORIGIN})
         count, event = self.event_of(response)
-        self.tc_checks["foreign origin"] = {
+        self.checks["foreign origin"] = {
             "the request is refused": (response.status_code, p.STATUS_UNAUTHORIZED),
             "no origin is allowed": ("access-control-allow-origin" in response.headers, False),
             "one event is recorded": (count, 1),
@@ -634,7 +634,7 @@ class ApiRequestAuditTest(ApiRequestAuditBase):
         response = self.get("/api/auth/me")
         count, event = self.event_of(response)
         route = (event.details or {}).get("route")
-        self.tc_checks["route template"] = {
+        self.checks["route template"] = {
             "the request is refused": (response.status_code, p.STATUS_UNAUTHORIZED),
             "one event is recorded": (count, 1),
             "the route is the full template": (route, "/api/auth/me"),
@@ -643,7 +643,7 @@ class ApiRequestAuditTest(ApiRequestAuditBase):
 
     def created_ids(self):
         read = observability.created_ids
-        self.tc_checks["created ids"] = {
+        self.checks["created ids"] = {
             "a results answer names its run": (
                 read(b'{"test_run_id": 5, "count": 1}', ""),
                 {"created_test_run_id": 5},
