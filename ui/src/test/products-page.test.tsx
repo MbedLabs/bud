@@ -115,17 +115,13 @@ describe('Products page', () => {
     expect(screen.queryByRole('button', { name: 'Edit Demo' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Archive Demo' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Delete Demo' })).toBeNull()
-    expect(screen.getByRole('button', { name: 'Copy the ID of Demo' })).toBeTruthy()
   })
 
-  it('copies the ID of a product', async () => {
-    const writeText = vi.fn().mockResolvedValue(undefined)
-    Object.assign(navigator, { clipboard: { writeText } })
+  it('shows the ID of a product as plain text without a copy button', async () => {
     renderPage()
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Copy the ID of Demo' }))
-
-    await waitFor(() => expect(writeText).toHaveBeenCalledWith('5'))
+    expect(await screen.findByText('5')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Copy the ID of Demo' })).toBeNull()
   })
 
   it('adds a product with its name and description', async () => {
