@@ -347,7 +347,7 @@ export default function UsersPage() {
   )
 }
 
-/** The products a user can access, by name only. */
+/** The products a user can access, each with the groups the user holds on it. */
 function UserAccessDetails({ userId }: Readonly<{ userId: number }>) {
   const summary = useQuery({
     queryKey: ['user-access-summary', userId],
@@ -368,14 +368,23 @@ function UserAccessDetails({ userId }: Readonly<{ userId: number }>) {
   }
   const { every_product: everyProduct, products } = summary.data
   return (
-    <p className="text-xs">
-      <span className="font-medium text-muted-foreground">Products: </span>
-      {everyProduct && <span className="text-foreground">Every product (Admin)</span>}
-      {!everyProduct && products.length === 0 && <span className="text-muted-foreground">No products</span>}
-      {!everyProduct && products.length > 0 && (
-        <span className="text-foreground">{products.map((product) => product.product_name).join(', ')}</span>
-      )}
-    </p>
+    <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-xs">
+      <dt className="font-medium text-muted-foreground">Products</dt>
+      <dd>
+        {everyProduct && <span className="text-foreground">Every product (Admin)</span>}
+        {!everyProduct && products.length === 0 && <span className="text-muted-foreground">No products</span>}
+        {!everyProduct && products.length > 0 && (
+          <ul className="space-y-0.5">
+            {products.map((product) => (
+              <li key={product.product_id} className="text-foreground">
+                <span className="font-medium">{product.product_name}</span>
+                <span className="text-muted-foreground">{': '}{product.groups.join(', ')}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </dd>
+    </dl>
   )
 }
 

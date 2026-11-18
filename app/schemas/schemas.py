@@ -60,10 +60,11 @@ class ProductMemberResponse(BaseModel):
 
 
 class UserProductAccess(BaseModel):
-    """A product a user can access."""
+    """A product a user can access and the groups the user holds on it."""
 
     product_id: int
     product_name: str
+    groups: List[str]
 
 
 class UserAccessSummary(BaseModel):

@@ -26,6 +26,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.database import Base
 
 ACCESS_GROUPS_ID = "access_groups.id"
+USERS_ID = "users.id"
 
 access_group_policies = Table(
     "access_group_policies",
@@ -37,7 +38,7 @@ access_group_policies = Table(
 user_application_policies = Table(
     "user_application_policies",
     Base.metadata,
-    Column("user_id", Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True),
+    Column("user_id", Integer, ForeignKey(USERS_ID, ondelete="CASCADE"), primary_key=True),
     Column("policy_id", Integer, ForeignKey("policies.id", ondelete="CASCADE"), primary_key=True),
 )
 
@@ -89,7 +90,7 @@ class AccessGroupMember(Base):
         ForeignKey(ACCESS_GROUPS_ID, ondelete="CASCADE"), primary_key=True
     )
     user_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True, index=True
+        ForeignKey(USERS_ID, ondelete="CASCADE"), primary_key=True, index=True
     )
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
@@ -111,7 +112,7 @@ class ProductAccess(Base):
         ForeignKey("products.id", ondelete="CASCADE"), index=True, nullable=False
     )
     user_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False
+        ForeignKey(USERS_ID, ondelete="CASCADE"), index=True, nullable=False
     )
     group_id: Mapped[int] = mapped_column(
         ForeignKey(ACCESS_GROUPS_ID, ondelete="CASCADE"), index=True, nullable=False

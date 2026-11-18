@@ -431,7 +431,7 @@ export const auditApi = {
 
 export interface UserAccessSummary {
   every_product: boolean
-  products: { product_id: number; product_name: string }[]
+  products: { product_id: number; product_name: string; groups: string[] }[]
 }
 
 export const usersApi = {

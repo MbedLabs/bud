@@ -18,7 +18,12 @@ from app.core.config import settings
 from app.core.security import get_password_hash
 from app.db.database import get_db
 from app.models import Product
-from app.models.access import Policy, ProductAccess, user_application_policies
+from app.models.access import (
+    AccessGroup,
+    Policy,
+    ProductAccess,
+    user_application_policies,
+)
 from app.models.user import User, UserRole
 from app.models.user_token import UserToken, UserTokenPurpose
 from app.schemas.auth import (
@@ -192,23 +197,25 @@ async def user_access_summary(
     _admin: User = Depends(require_admin),
     db: AsyncSession = Depends(get_db, scope="function"),
 ):
-    """List the products the user can access, by name."""
+    """List the products the user can access, each with the groups the user holds on it."""
     user = await db.get(User, user_id)
     if user is None:
         raise HTTPException(status_code=404, detail=USER_NOT_FOUND)
-    products = await db.execute(
-        select(Product.id, Product.name)
-        .where(
-            Product.id.in_(select(ProductAccess.product_id).where(ProductAccess.user_id == user_id))
-        )
-        .order_by(Product.name)
+    rows = await db.execute(
+        select(Product.id, Product.name, AccessGroup.name)
+        .join(ProductAccess, ProductAccess.product_id == Product.id)
+        .join(AccessGroup, AccessGroup.id == ProductAccess.group_id)
+        .where(ProductAccess.user_id == user_id)
+        .order_by(Product.name, AccessGroup.name)
     )
+    products: dict[int, UserProductAccess] = {}
+    for product_id, product_name, group_name in rows.all():
+        products.setdefault(
+            product_id,
+            UserProductAccess(product_id=product_id, product_name=product_name, groups=[]),
+        ).groups.append(group_name)
     return UserAccessSummary(
-        every_product=user.role == UserRole.admin,
-        products=[
-            UserProductAccess(product_id=product_id, product_name=name)
-            for product_id, name in products.all()
-        ],
+        every_product=user.role == UserRole.admin, products=list(products.values())
     )
 
 

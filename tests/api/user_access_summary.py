@@ -13,7 +13,7 @@ from tests.bud_test_base import BudAppTestCase
 
 class UserAccessSummaryBase(BudAppTestCase):
 
-    def bud_the_summary_lists_each_product_once_by_name(self):
+    def bud_the_summary_lists_each_product_once_with_its_groups(self):
         p = self.parameters
         answer = self.bud.bud_request(p.GET, p.UAS_PATH.format(self.member.id))
         self.print_variables({"status": answer.status_code, "summary": answer.json()})
@@ -24,8 +24,16 @@ class UserAccessSummaryBase(BudAppTestCase):
                 {
                     "every_product": False,
                     "products": [
-                        {"product_id": self.alpha.id, "product_name": p.UAS_ALPHA},
-                        {"product_id": self.beta.id, "product_name": p.UAS_BETA},
+                        {
+                            "product_id": self.alpha.id,
+                            "product_name": p.UAS_ALPHA,
+                            "groups": sorted([p.UAS_GROUP_A, p.UAS_GROUP_B]),
+                        },
+                        {
+                            "product_id": self.beta.id,
+                            "product_name": p.UAS_BETA,
+                            "groups": [p.UAS_GROUP_A],
+                        },
                     ],
                 },
             ),
@@ -34,7 +42,6 @@ class UserAccessSummaryBase(BudAppTestCase):
             method=p.GET,
             endpoint=p.UAS_PATH,
         )
-        self.assertNotIn(p.UAS_GROUP_A, answer.text, msg=p.MSG_UAS_NO_GROUPS, abort_on_fail=False)
 
     def bud_a_user_without_access_has_no_product(self):
         p = self.parameters

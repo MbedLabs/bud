@@ -168,9 +168,9 @@ describe('route smoke (Bud)', () => {
     expect(main).toHaveClass('min-h-0', 'overflow-auto')
     expect(sidebar).toHaveClass('overflow-x-hidden')
     const brand = within(sidebar as HTMLElement)
-    expect(brand.getByRole('heading', { name: 'Bud TMP' })).toBeInTheDocument()
-    expect(brand.getByText('by EmbedLabs')).toBeInTheDocument()
-    expect(brand.queryByRole('link', { name: 'by EmbedLabs' })).not.toBeInTheDocument()
+    expect(brand.getByRole('heading', { name: 'Bud' })).toBeInTheDocument()
+    expect(brand.getByText('Test Management Platform')).toBeInTheDocument()
+    expect(brand.queryByRole('link', { name: 'Test Management Platform' })).not.toBeInTheDocument()
     expect(brand.getByAltText('Bud TMP by EmbedLabs')).toBeInTheDocument()
     expect(
       screen.getByRole('link', { name: 'Powered by EmbedLabs' }).closest('aside'),
@@ -178,8 +178,8 @@ describe('route smoke (Bud)', () => {
     expect(screen.getByText(`v${packageJson.version}`)).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Collapse sidebar' }))
-    expect(brand.queryByRole('heading', { name: 'Bud TMP' })).not.toBeInTheDocument()
-    expect(brand.queryByText('by EmbedLabs')).not.toBeInTheDocument()
+    expect(brand.queryByRole('heading', { name: 'Bud' })).not.toBeInTheDocument()
+    expect(brand.queryByText('Test Management Platform')).not.toBeInTheDocument()
     expect(brand.getByAltText('Bud TMP by EmbedLabs')).toBeInTheDocument()
 
     const collapsedAttribution = screen.getByRole('link', {
