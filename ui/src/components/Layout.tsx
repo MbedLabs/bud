@@ -43,7 +43,7 @@ function roleBadgeClasses(role?: string): string {
 /** The header title of a page that is not in the sidebar navigation. */
 function otherPageTitle(pathname: string): string {
   if (pathname === '/settings') return 'Settings'
-  if (pathname === '/users') return 'Users'
+  if (pathname === '/users') return 'User Management'
   if (pathname === '/access') return 'Access'
   if (pathname === '/audit') return 'Audit log'
   return 'Dashboard'
@@ -265,7 +265,7 @@ export default function Layout() {
                 {location.pathname === '/custom-run' && 'Pick test cases and queue them on a station'}
                 {location.pathname === '/test-stations' && 'Monitor connected test stations'}
                 {location.pathname === '/settings' && 'Manage your preferences'}
-                {location.pathname === '/users' && 'Invite and manage members'}
+                {location.pathname === '/users' && 'Manage users and their roles'}
                 {location.pathname === '/access' && 'Groups, policies, assignments and access requests'}
                 {location.pathname === '/audit' && 'Every API request and every refused attempt is recorded'}
                 {location.pathname.startsWith('/runs/') && 'Test run details and results'}

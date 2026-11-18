@@ -76,8 +76,8 @@ describe('Access page', () => {
       'Requests',
     ])
     expect(screen.queryByRole('button', { name: 'Invite User' })).toBeNull()
-    expect(screen.queryByText('Groups per user control')).toBeNull()
     expect(screen.getByText('Groups control')).toBeTruthy()
+    expect(screen.getByText('Groups per user control')).toBeTruthy()
     fireEvent.click(screen.getByRole('tab', { name: 'Policies' }))
     expect(screen.getByText('Policies control editable')).toBeTruthy()
     fireEvent.click(screen.getByRole('tab', { name: /Requests/ }))
@@ -85,14 +85,14 @@ describe('Access page', () => {
     expect(await screen.findByText('1')).toBeTruthy()
   })
 
-  it('shows the application groups on Users and the groups on Access without mixing the views', async () => {
+  it('shows no groups on Users and the groups with their members on Access', async () => {
     renderPage(<App />, '/users')
     expect(await screen.findByRole('button', { name: 'Invite User' })).toBeTruthy()
-    expect(await screen.findByText('Groups per user control')).toBeTruthy()
+    expect(screen.queryByText('Groups per user control')).toBeNull()
     expect(screen.queryByRole('tab')).toBeNull()
     fireEvent.click(screen.getByRole('link', { name: 'Access' }))
     expect(await screen.findByText('Groups control')).toBeTruthy()
-    expect(screen.queryByText('Groups per user control')).toBeNull()
+    expect(screen.getByText('Groups per user control')).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Invite User' })).toBeNull()
     fireEvent.click(screen.getByRole('link', { name: 'Users' }))
     expect(await screen.findByRole('button', { name: 'Invite User' })).toBeTruthy()

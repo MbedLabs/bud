@@ -81,6 +81,7 @@ const CALLS: Array<[string, unknown[], string, string]> = [
   ['setupApi.createFirstAdmin', ['u@example.com', 'pw', 'Owner'], 'post', '/setup'],
 
   ['usersApi.list', [], 'get', '/users'],
+  ['usersApi.accessSummary', [3], 'get', '/users/3/access-summary'],
   ['accessRequestsApi.create', [{ resource_type: 'publish-to-bloom', resource_ref: '42' }], 'post', '/access-requests'],
   ['accessRequestsApi.mine', [{ resource_type: 'publish-to-bloom', resource_ref: '42' }], 'get', '/access-requests/mine'],
   ['accessRequestsApi.list', [], 'get', '/access-requests'],

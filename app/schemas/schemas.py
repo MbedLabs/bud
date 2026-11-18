@@ -59,6 +59,20 @@ class ProductMemberResponse(BaseModel):
     group_name: str
 
 
+class UserProductAccess(BaseModel):
+    """A product a user can access."""
+
+    product_id: int
+    product_name: str
+
+
+class UserAccessSummary(BaseModel):
+    """The products a user can access; an administrator has every product."""
+
+    every_product: bool
+    products: List[UserProductAccess]
+
+
 class ProductGroupMembers(BaseModel):
     """The users who are to hold a group on a product."""
 

@@ -53,6 +53,8 @@ from app.schemas.schemas import (
     TestRunStatus,
     TestRunUpdate,
     UnassignedTest,
+    UserAccessSummary,
+    UserProductAccess,
     VersionResponse,
 )
 
@@ -80,6 +82,8 @@ __all__ = [
     "TestRunCreate",
     "TestRunUpdate",
     "UnassignedTest",
+    "UserAccessSummary",
+    "UserProductAccess",
     "TestRunResponse",
     "TestRunEventResponse",
     "TestRunList",

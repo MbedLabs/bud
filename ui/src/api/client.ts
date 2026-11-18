@@ -443,11 +443,18 @@ export const auditApi = {
     (await api.get<AuditEventPage>('/audit', { params: filters })).data,
 }
 
+export interface UserAccessSummary {
+  every_product: boolean
+  products: { product_id: number; product_name: string }[]
+}
+
 export const usersApi = {
   list: async (): Promise<User[]> => {
     const response = await api.get<User[]>('/users')
     return response.data
   },
+  accessSummary: async (id: number): Promise<UserAccessSummary> =>
+    (await api.get<UserAccessSummary>(`/users/${id}/access-summary`)).data,
   create: async (data: { email: string; full_name: string; password: string; role?: UserRole }): Promise<User> => {
     const response = await api.post<User>('/users', data)
     return response.data
