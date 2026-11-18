@@ -84,18 +84,6 @@ class GroupUpdate(BaseModel):
     _trim_name = field_validator("name", mode="before")(_trim)
 
 
-class GroupMemberAdd(BaseModel):
-    user_id: int
-
-
-class GroupMemberResponse(BaseModel):
-    user_id: int
-    email: str
-    full_name: str
-    role: UserRole
-    profile_picture_url: Optional[str] = None
-
-
 class GroupPolicyRef(BaseModel):
     id: int
     name: str
@@ -109,22 +97,30 @@ class GroupResponse(_Timestamped):
     system_key: Optional[str] = None
     policies: list[GroupPolicyRef]
     permissions: list[str]
-    members: list[GroupMemberResponse]
-
-
-class AccessGroupRef(BaseModel):
-    id: int
-    name: str
 
 
 class AccessUserResponse(BaseModel):
-    """A user as access management sees them: base role, groups and effective access."""
+    """A user as access management sees them: base role and effective access."""
 
     id: int
     email: str
     full_name: str
     role: UserRole
     is_active: bool
-    groups: list[AccessGroupRef]
     permissions: list[str]
     profile_picture_url: Optional[str] = None
+
+
+class ApplicationPoliciesInput(BaseModel):
+    """The distinct application policies assigned to one account."""
+
+    model_config = ConfigDict(extra="forbid")
+    policy_ids: list[int] = Field(default_factory=list)
+
+    @field_validator("policy_ids")
+    @classmethod
+    def valid_ids(cls, ids):
+        """Require distinct positive policy identifiers."""
+        if any(value <= 0 for value in ids) or len(ids) != len(set(ids)):
+            raise ValueError("Choose distinct positive policy identifiers")
+        return sorted(ids)

@@ -1,7 +1,7 @@
 """
 * @file     ${tests/api/BUD_groups_api.py}
 * @copyright © EmbedLabs, Aachen ${2026} - all rights reserved
-* @brief    Access is a base role plus the policies of every group; defaults are read-only; givers hold what they give.
+* @brief    Access is a base role, the application policies and the groups held on products; defaults are read-only; givers hold what they give.
 * @author   Amine El Omari
 * @date     2026-11-12
 * @version  1.0.0
@@ -16,7 +16,12 @@ from sqlalchemy import func, select
 from app.api import access_requests
 from app.core import access
 from app.models import Artifact, Product, Runner, TestRun
-from app.models.access import AccessGroup, AccessGroupMember, Policy, ProductAccess
+from app.models.access import (
+    AccessGroup,
+    Policy,
+    ProductAccess,
+    user_application_policies,
+)
 from app.models.user import User, UserRole
 from tests.api.groups_api import GroupsApiBase
 
@@ -30,6 +35,7 @@ def body_of(response):
 
 
 BASE_ROLE_GROUPS = {"viewer": "Results Viewers", "developer": "Test Operators"}
+
 
 def person(email, name, role):
     """A person who is not stored yet."""
@@ -165,16 +171,49 @@ class GroupsApiTest(GroupsApiBase):
             0,
         )
 
-    def give(self, group, user):
-        """Give a group to a person, held app-wide and on the seeded products."""
-        answer = self.call(
-            self.parameters.POST,
-            f"{self.parameters.GROUPS_PATH}/{self.group_id(group)}/members",
-            {"user_id": user.id},
+    def app_policy_ids(self, group):
+        """The ids of the group's policies that hold an app-level permission."""
+        p = self.parameters
+        groups = self.get(p.GROUPS_PATH)
+        bundle = next(
+            (g for g in (groups if isinstance(groups, list) else []) if g.get("name") == group), {}
         )
-        if answer.status_code == self.parameters.STATUS_CREATED:
+        policies = self.get(p.POLICIES_PATH_ALL)
+        app_level = {
+            x.get("id")
+            for x in (policies if isinstance(policies, list) else [])
+            if set(x.get("permissions", {})) - set(p.GROUPS_PRODUCT_RESOURCES)
+        }
+        return sorted(x.get("id") for x in bundle.get("policies", []) if x.get("id") in app_level)
+
+    def give(self, group, user):
+        """Give a person a group as an administrator does: its app-level policies as the
+        person's application policies, and the group on each seeded product."""
+        p = self.parameters
+        path = p.GROUPS_APP_POLICIES_PATH.format(user.id)
+        held = self.get(path).get("policy_ids") or []
+        answer = self.call(
+            p.PUT, path, {"policy_ids": sorted(set(held) | set(self.app_policy_ids(group)))}
+        )
+        if answer.status_code == p.STATUS_OK:
             self.on_products(group, user)
         return answer
+
+    def give_on_product(self, group, user):
+        """Give a person a group on the first seeded product through its members."""
+        p = self.parameters
+        product, group_id = self.products[0], self.group_id(group)
+        members = self.get(p.GROUPS_PRODUCT_ALL_MEMBERS_PATH.format(product.id))
+        held = [
+            m.get("user_id")
+            for m in (members if isinstance(members, list) else [])
+            if m.get("group_id") == group_id
+        ]
+        return self.call(
+            p.PUT,
+            p.GROUPS_PRODUCT_MEMBERS_PATH.format(product.id, group_id),
+            {"user_ids": sorted(set(held) | {user.id})},
+        )
 
     def on_products(self, group, user):
         """Hold a group on each seeded product, as the migration gives existing users."""
@@ -248,9 +287,9 @@ class GroupsApiTest(GroupsApiBase):
         checks.update(
             {
                 "a default group is duplicated": (copy.status_code, p.STATUS_CREATED),
-                "the copy is a custom group without members": (
-                    (copied.get("name"), copied.get("is_default"), copied.get("members")),
-                    ("Test Operators (copy)", False, []),
+                "the copy is a custom group": (
+                    (copied.get("name"), copied.get("is_default")),
+                    ("Test Operators (copy)", False),
                 ),
                 "the copy is renamed": (renamed.get("name"), "Night shift"),
                 "a default policy is duplicated as a custom one": (
@@ -263,16 +302,11 @@ class GroupsApiTest(GroupsApiBase):
 
     def custom_groups(self):
         p = self.parameters
-        _, _, viewer, _, _, _ = self.seed()
         ids = [self.policy_id("Results"), self.policy_id("Custom runs")]
         created = self.call(p.POST, p.GROUPS_PATH, {"name": "Lab", "policy_ids": ids})
         group_id = body_of(created).get("id")
-        members = f"{p.GROUPS_PATH}/{group_id}/members"
         taken = self.status(p.POST, p.GROUPS_PATH, {"name": "Lab"})
         unknown_policy = self.status(p.POST, p.GROUPS_PATH, {"name": "Bad", "policy_ids": [999]})
-        member = self.call(p.POST, members, {"user_id": viewer.id})
-        twice = self.status(p.POST, members, {"user_id": viewer.id})
-        unknown_person = self.status(p.POST, members, {"user_id": 999})
         changed = body_of(
             self.call(
                 p.PATCH,
@@ -289,21 +323,6 @@ class GroupsApiTest(GroupsApiBase):
             ),
             "a taken name is refused": (taken, p.STATUS_CONFLICT),
             "an unknown policy is refused": (unknown_policy, p.STATUS_UNPROCESSABLE),
-            "a member is added": (member.status_code, p.STATUS_CREATED),
-            "the member is listed": (
-                body_of(member).get("members"),
-                [
-                    {
-                        "user_id": viewer.id,
-                        "email": "viewer@example.com",
-                        "full_name": "Val Viewer",
-                        "role": "viewer",
-                        "profile_picture_url": None,
-                    }
-                ],
-            ),
-            "a member is not added twice": (twice, p.STATUS_CONFLICT),
-            "an unknown person is not found": (unknown_person, p.STATUS_NOT_FOUND),
             "the group is renamed and described": (
                 (changed.get("name"), changed.get("description")),
                 ("Lab A", "Bench"),
@@ -316,12 +335,8 @@ class GroupsApiTest(GroupsApiBase):
                 self.status(p.PATCH, f"{p.GROUPS_PATH}/{group_id}", {"name": "Other"}),
                 p.STATUS_CONFLICT,
             ),
-            "a member is removed": (
-                body_of(self.call(p.DELETE, f"{members}/{viewer.id}")).get("members"),
-                [],
-            ),
-            "a removed member is not found": (
-                self.status(p.DELETE, f"{members}/{viewer.id}"),
+            "the group gives no app-wide membership": (
+                self.status(p.POST, f"{p.GROUPS_PATH}/{group_id}/members", {"user_id": 1}),
                 p.STATUS_NOT_FOUND,
             ),
             "the group is deleted": (
@@ -402,12 +417,11 @@ class GroupsApiTest(GroupsApiBase):
         p = self.parameters
         _, _, viewer, _, runs, _ = self.seed()
         custom = "/api/test-runs/custom"
-        self.give("Results Viewers", viewer)
         self.bud.bud_sign_in_as(viewer)
         me = body_of(self.call(p.GET, "/api/auth/me"))
         before = self.status(p.POST, custom, {"test_paths": ["a.B"]})
         self.bud.bud_sign_in_as(self.admin)
-        self.give("Test Operators", viewer)
+        self.on_products("Test Operators", viewer)
         operators = self.group_id("Test Operators")
         self.bud.bud_sign_in_as(viewer)
         held = self.permissions()
@@ -416,9 +430,10 @@ class GroupsApiTest(GroupsApiBase):
         deleted = self.status(p.DELETE, f"{p.TEST_RUNS_PATH}/{runs[1].id}")
         groups = self.status(p.GET, p.GROUPS_PATH)
         self.bud.bud_sign_in_as(self.admin)
-        self.call(p.DELETE, f"{p.GROUPS_PATH}/{operators}/members/{viewer.id}")
         for product in self.products:
-            self.call(p.PUT, f"/api/products/{product.id}/groups/{operators}/members", {"user_ids": []})
+            self.call(
+                p.PUT, f"/api/products/{product.id}/groups/{operators}/members", {"user_ids": []}
+            )
         self.bud.bud_sign_in_as(viewer)
         self.checks["base role"] = {
             "the viewer stays a viewer": (me.get("role"), "viewer"),
@@ -467,43 +482,28 @@ class GroupsApiTest(GroupsApiBase):
                     recipient.role,
                     recipient.is_active,
                 )
-                group_id = self.group_id(group)
-                response = self.call(
-                    p.POST, f"{p.GROUPS_PATH}/{group_id}/members", {"user_id": recipient.id}
-                )
-                key = f"{group} for a {role}"
-                held = lambda: len(
-                    self.bud.bud_find_in_app(
-                        AccessGroupMember, group_id=group_id, user_id=recipient.id
-                    )
-                )
+                policy_ids = self.app_policy_ids(group)
+                path = p.GROUPS_APP_POLICIES_PATH.format(recipient.id)
+                response = self.call(p.PUT, path, {"policy_ids": policy_ids})
+                key = f"{group} policies for a {role}"
                 if role == "viewer":
                     checks[f"{key}: the viewer is refused"] = (
                         response.status_code,
                         p.STATUS_UNPROCESSABLE,
                     )
-                    checks[f"{key}: no membership is stored"] = (held(), 0)
+                    checks[f"{key}: no policy is stored"] = (self.get(path).get("policy_ids"), [])
                 else:
-                    checks[f"{key}: the member is added"] = (response.status_code, p.STATUS_CREATED)
-                    checks[f"{key}: the member is listed"] = (
-                        body_of(response).get("members"),
-                        [
-                            {
-                                "user_id": recipient.id,
-                                "email": recipient.email,
-                                "full_name": recipient.full_name,
-                                "role": role,
-                                "profile_picture_url": None,
-                            }
-                        ],
+                    checks[f"{key}: the policies are given"] = (
+                        response.status_code,
+                        p.STATUS_OK,
                     )
-                    checks[f"{key}: the membership is stored"] = (held(), 1)
-                    removed = self.call(
-                        p.DELETE, f"{p.GROUPS_PATH}/{group_id}/members/{recipient.id}"
+                    checks[f"{key}: the policies are stored"] = (
+                        self.get(path).get("policy_ids"),
+                        policy_ids,
                     )
-                    checks[f"{key}: the member is removed"] = (removed.status_code, p.STATUS_OK)
-                    checks[f"{key}: no member is left"] = (body_of(removed).get("members"), [])
-                    checks[f"{key}: the membership is gone"] = (held(), 0)
+                    removed = self.call(p.PUT, path, {"policy_ids": []})
+                    checks[f"{key}: the policies are removed"] = (removed.status_code, p.STATUS_OK)
+                    checks[f"{key}: no policy is left"] = (self.get(path).get("policy_ids"), [])
                 stored = (self.bud.bud_find_in_app(User, id=recipient.id) or [User()])[0]
                 checks[f"{key}: the account is unchanged"] = (
                     (stored.id, stored.email, stored.full_name, stored.role, stored.is_active),
@@ -525,10 +525,9 @@ class GroupsApiTest(GroupsApiBase):
             ),
             "a developer becomes an access manager": (
                 self.give("Access Managers", developer).status_code,
-                p.STATUS_CREATED,
+                p.STATUS_OK,
             ),
         }
-        managers_id = self.group_id("Access Managers")
         self.bud.bud_sign_in_as(developer)
         rows = self.get("/api/access/users")
         users = {u.get("email"): u for u in (rows if isinstance(rows, list) else [])}
@@ -545,9 +544,9 @@ class GroupsApiTest(GroupsApiBase):
                     self.status(p.GET, p.POLICIES_PATH_ALL),
                     p.STATUS_OK,
                 ),
-                "the roster names the manager's group": (
-                    users.get("dev@example.com", {}).get("groups"),
-                    [{"id": managers_id, "name": "Access Managers"}],
+                "the roster names no app-wide group": (
+                    "groups" in users.get("dev@example.com", {}),
+                    False,
                 ),
                 "the roster names the manager's permission": (
                     "access.manage" in users.get("dev@example.com", {}).get("permissions", []),
@@ -557,16 +556,24 @@ class GroupsApiTest(GroupsApiBase):
                     users.get("viewer@example.com", {}).get("permissions"),
                     p.GROUPS_VIEWER_PERMISSIONS,
                 ),
-                "the manager gives what they hold": (
-                    self.give("Test Operators", viewer).status_code,
-                    p.STATUS_CREATED,
+                "the manager gives what they hold on a product": (
+                    self.give_on_product("Test Operators", viewer).status_code,
+                    p.STATUS_OK,
                 ),
                 "the manager cannot give administration to a viewer": (
-                    self.give("Application Administrators", viewer).status_code,
+                    self.give_on_product("Application Administrators", viewer).status_code,
                     p.STATUS_FORBIDDEN,
                 ),
                 "the manager cannot give administration to themself": (
-                    self.give("Application Administrators", developer).status_code,
+                    self.give_on_product("Application Administrators", developer).status_code,
+                    p.STATUS_FORBIDDEN,
+                ),
+                "the manager cannot set application policies": (
+                    self.status(
+                        p.PUT,
+                        p.GROUPS_APP_POLICIES_PATH.format(viewer.id),
+                        {"policy_ids": [stations]},
+                    ),
                     p.STATUS_FORBIDDEN,
                 ),
                 "the manager cannot bundle products": (
@@ -601,16 +608,20 @@ class GroupsApiTest(GroupsApiBase):
         self.bud.bud_sign_in_as(self.admin)
         checks["the administrator gives administration"] = (
             self.give("Application Administrators", developer).status_code,
-            p.STATUS_CREATED,
+            p.STATUS_OK,
         )
+        administration = self.app_policy_ids("Application Administrators")
         self.bud.bud_sign_in_as(developer)
-        administrators = self.group_id("Application Administrators")
         checks["administration cannot be given again by its holder"] = (
-            self.give("Application Administrators", developer).status_code,
+            self.status(
+                p.PUT,
+                p.GROUPS_APP_POLICIES_PATH.format(developer.id),
+                {"policy_ids": administration},
+            ),
             p.STATUS_FORBIDDEN,
         )
         checks["administration cannot be removed by its holder"] = (
-            self.status(p.DELETE, f"{p.GROUPS_PATH}/{administrators}/members/{developer.id}"),
+            self.status(p.PUT, p.GROUPS_APP_POLICIES_PATH.format(developer.id), {"policy_ids": []}),
             p.STATUS_FORBIDDEN,
         )
         self.checks["managers"] = checks
@@ -618,7 +629,6 @@ class GroupsApiTest(GroupsApiBase):
     def hide_nothing(self):
         p = self.parameters
         _, second, viewer, _, runs, artifact = self.seed()
-        self.give("Results Viewers", viewer)
         self.bud.bud_sign_in_as(viewer)
         listed = self.get(p.TEST_RUNS_PATH).get("runs", [])
         products = self.get("/api/products")
@@ -760,11 +770,6 @@ class GroupsApiTest(GroupsApiBase):
                 },
             )
         )
-        group = body_of(
-            self.call(
-                p.POST, p.GROUPS_PATH, {"name": "Back office", "policy_ids": [policy.get("id")]}
-            )
-        )
         self.bud.bud_sign_in_as(developer)
         before = (
             self.status(p.POST, "/api/products", {"name": "Probe"}),
@@ -772,23 +777,25 @@ class GroupsApiTest(GroupsApiBase):
         )
         self.bud.bud_sign_in_as(self.admin)
         given = self.status(
-            p.POST, f"{p.GROUPS_PATH}/{group.get('id')}/members", {"user_id": developer.id}
+            p.PUT,
+            p.GROUPS_APP_POLICIES_PATH.format(developer.id),
+            {"policy_ids": [policy.get("id")]},
         )
         self.bud.bud_sign_in_as(developer)
         self.checks["custom policy"] = {
-            "products stay closed before the group": (before[0], p.STATUS_FORBIDDEN),
-            "the audit stays closed before the group": (before[1], p.STATUS_FORBIDDEN),
-            "the group is given": (given, p.STATUS_CREATED),
-            "products open with the group": (
+            "products stay closed before the policy": (before[0], p.STATUS_FORBIDDEN),
+            "the audit stays closed before the policy": (before[1], p.STATUS_FORBIDDEN),
+            "the policy is given as an application policy": (given, p.STATUS_OK),
+            "products open with the policy": (
                 self.status(p.POST, "/api/products", {"name": "Probe"}),
                 p.STATUS_CREATED,
             ),
-            "settings open with the group": (self.status(p.GET, "/api/settings"), p.STATUS_OK),
-            "settings writes open with the group": (
+            "settings open with the policy": (self.status(p.GET, "/api/settings"), p.STATUS_OK),
+            "settings writes open with the policy": (
                 self.status(p.PUT, "/api/settings/x", {"value": "y"}) != p.STATUS_FORBIDDEN,
                 True,
             ),
-            "the audit opens with the group": (self.status(p.GET, "/api/audit"), p.STATUS_OK),
+            "the audit opens with the policy": (self.status(p.GET, "/api/audit"), p.STATUS_OK),
             "users stay closed": (self.status(p.GET, "/api/users"), p.STATUS_FORBIDDEN),
             "groups stay closed": (self.status(p.GET, p.GROUPS_PATH), p.STATUS_FORBIDDEN),
         }
@@ -797,10 +804,6 @@ class GroupsApiTest(GroupsApiBase):
         _, _, _, developer, _, _ = self.seed()
         developer.profile_picture = b"stored-profile-image"
         developer = self.bud.bud_add_to_app(developer)
-        group = body_of(self.give("Test Operators", developer))
-        member = next(
-            (item for item in group.get("members", []) if item.get("user_id") == developer.id), {}
-        )
         roster = self.get("/api/access/users")
         listed = next(
             (
@@ -811,10 +814,6 @@ class GroupsApiTest(GroupsApiBase):
             {},
         )
         self.checks["pictures"] = {
-            "the group roster shows the picture": (
-                member.get("profile_picture_url"),
-                developer.profile_picture_url,
-            ),
             "the access roster shows the picture": (
                 listed.get("profile_picture_url"),
                 developer.profile_picture_url,
@@ -851,20 +850,24 @@ class GroupsApiTest(GroupsApiBase):
         db.add(user)
         await db.flush()
         group_id, user_id = group.id, user.id
-        db.add(AccessGroupMember(group_id=group_id, user_id=user_id))
+        policy_id = await db.scalar(select(Policy.id).where(Policy.system_key == "audit"))
+        await db.execute(
+            user_application_policies.insert().values(user_id=user_id, policy_id=policy_id)
+        )
         await db.flush()
         await access.seed_default_access(db)
         await access.seed_default_access(db)
+        kept = await db.scalar(
+            select(func.count())
+            .select_from(user_application_policies)
+            .where(user_application_policies.c.user_id == user_id)
+        )
         self.checks["seed administration"] = {
             "the group keeps its id": (group.id, group_id),
             "the group gets its current name": (group.name, "Application Administrators"),
             "the group keeps its key": (group.system_key, "app_administration"),
-            "the member is kept": (
-                (await db.get(AccessGroupMember, {"group_id": group_id, "user_id": user_id}))
-                is not None,
-                True,
-            ),
-            "the member keeps their role": (user.role, UserRole.developer),
+            "the application policy is kept": (kept, 1),
+            "the user keeps their role": (user.role, UserRole.developer),
         }
 
     async def seed_publishing(self, db):

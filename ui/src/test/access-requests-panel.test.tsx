@@ -12,7 +12,6 @@ const group = (id: number, name: string, key: string | null, permissions: string
   system_key: key,
   policies: [],
   permissions,
-  members: [],
   created_at: '',
   updated_at: '',
 })

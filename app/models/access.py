@@ -1,8 +1,9 @@
 """Policies and access groups.
 
 A policy is a named, person-agnostic permission set over Bud's resources. An access group
-is a named bundle of policies given to users; a user can have several. Shipped defaults
-carry ``is_default`` and a ``system_key`` and are read-only.
+is a named bundle of policies given to users on a product; a user can have several. A user's
+application policies give app-level permissions. Shipped defaults carry ``is_default`` and a
+``system_key`` and are read-only.
 """
 
 from datetime import datetime
@@ -31,6 +32,13 @@ access_group_policies = Table(
     Base.metadata,
     Column("group_id", Integer, ForeignKey(ACCESS_GROUPS_ID, ondelete="CASCADE"), primary_key=True),
     Column("policy_id", Integer, ForeignKey("policies.id"), primary_key=True),
+)
+
+user_application_policies = Table(
+    "user_application_policies",
+    Base.metadata,
+    Column("user_id", Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True),
+    Column("policy_id", Integer, ForeignKey("policies.id", ondelete="CASCADE"), primary_key=True),
 )
 
 

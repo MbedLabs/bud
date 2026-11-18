@@ -20,7 +20,7 @@ from app.core import config
 from app.core.config import settings
 from app.core.security import create_access_token, decode_access_token, get_password_hash
 from app.models import AuditEvent, User, UserRole, UserToken, UserTokenPurpose
-from app.models.access import AccessGroup, AccessGroupMember, Policy
+from app.models.access import Policy
 from app.services import cli_auth, token_service
 from tests.api.cli_auth import CliAuthBase
 
@@ -131,13 +131,11 @@ class CliAuthTest(CliAuthBase):
             policy = self.bud.bud_add_to_app(
                 Policy(name="CLI settings view", permissions={"settings": ["view"]})
             )
-            group = self.bud.bud_add_to_app(AccessGroup(name="CLI permission test"))
             self.bud.bud_run_sql(
-                "INSERT INTO access_group_policies (group_id, policy_id) VALUES (:group_id, :policy_id)",
-                group_id=group.id,
+                "INSERT INTO user_application_policies (user_id, policy_id) VALUES (:user_id, :policy_id)",
+                user_id=self.user.id,
                 policy_id=policy.id,
             )
-            self.bud.bud_add_to_app(AccessGroupMember(group_id=group.id, user_id=self.user.id))
 
     def bearer(self, version=None):
         """The browser bearer header of the viewer."""
@@ -314,7 +312,7 @@ class CliAuthTest(CliAuthBase):
                 "the token is a bearer": (tokens.get("token_type"), "bearer"),
                 "the person is the approving viewer": (tokens.get("user"), original),
                 "the role is kept": (original.get("role"), "viewer"),
-                "the group permission is kept": (
+                "the application policy permission is kept": (
                     "settings.view" in (original.get("permissions") or []),
                     True,
                 ),

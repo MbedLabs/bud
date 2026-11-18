@@ -1,6 +1,12 @@
 """Models package initialization."""
 
-from app.models.access import AccessGroup, AccessGroupMember, Policy, ProductAccess
+from app.models.access import (
+    AccessGroup,
+    AccessGroupMember,
+    Policy,
+    ProductAccess,
+    user_application_policies,
+)
 from app.models.access_request import AccessRequest
 from app.models.audit import AuditEvent
 from app.models.cli_auth_session import CliAuthSession
@@ -32,6 +38,7 @@ __all__ = [
     "AccessGroup",
     "AccessGroupMember",
     "ProductAccess",
+    "user_application_policies",
     "AccessRequest",
     "Policy",
     "AuditEvent",

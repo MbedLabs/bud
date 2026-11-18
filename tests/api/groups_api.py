@@ -33,7 +33,7 @@ class GroupsApiBase(BudAppTestCase):
     def bud_the_base_role_plus_every_group_decides(self):
         self.check("base role")
 
-    def bud_station_groups_take_administrators_and_developers_only(self):
+    def bud_station_management_takes_administrators_and_developers_only(self):
         self.check("recipients")
 
     def bud_access_managers_give_only_what_they_hold(self):
@@ -57,7 +57,7 @@ class GroupsApiBase(BudAppTestCase):
     def bud_a_custom_policy_grants_what_only_administrators_held(self):
         self.check("custom policy")
 
-    def bud_seeding_renames_administration_and_keeps_its_members(self):
+    def bud_seeding_renames_administration_and_keeps_application_policies(self):
         self.check("seed administration")
 
     def bud_access_rosters_return_the_account_picture(self):

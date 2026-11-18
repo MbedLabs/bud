@@ -3,7 +3,8 @@ import SelectField from '../components/SelectField'
 import { Fragment, useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check, ChevronDown, ChevronRight, Code2, Copy, Edit2, Eye, Mail, Shield, Trash2, UserPlus, X } from 'lucide-react'
-import { extractApiErrorMessage, InviteUserResponse, User, UserRole, usersApi } from '../api/client'
+import { extractApiErrorMessage, InviteUserResponse, policiesApi, type Policy, User, UserRole, usersApi } from '../api/client'
+import { isApplicationPolicy } from '../lib/accessScope'
 import { useAuth } from '../contexts/AuthContext'
 import { useEscapeKey } from '../hooks/useEscapeKey'
 import { formatDateTime } from '../lib/dateTime'
@@ -18,6 +19,7 @@ export default function UsersPage() {
   const { user: currentUser } = useAuth()
   const queryClient = useQueryClient()
   const [showInviteModal, setShowInviteModal] = useState(false)
+  const [applicationUser, setApplicationUser] = useState<User | null>(null)
   const [emailChangeUser, setEmailChangeUser] = useState<User | null>(null)
   const [editingUser, setEditingUser] = useState<number | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
@@ -241,6 +243,11 @@ export default function UsersPage() {
                             <X className="h-3.5 w-3.5" />
                           </button>
                         )}
+                        {u.role !== 'admin' && (
+                          <button onClick={() => setApplicationUser(u)} title="Application policies" className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-accent">
+                            <Shield className="h-3.5 w-3.5" />
+                          </button>
+                        )}
                         <button
                           onClick={() => {
                             setEmailActionError(null)
@@ -306,6 +313,7 @@ export default function UsersPage() {
         </div>
       </div>
 
+      {applicationUser && <ApplicationPoliciesModal user={applicationUser} onClose={() => setApplicationUser(null)} />}
       {showInviteModal && (
         <InviteUserModal
           onClose={() => {
@@ -619,4 +627,48 @@ function InviteUserModal({
       </dialog>
     </div>
   )
+}
+
+/** The dialog that sets a user's application policies: the app-level access beside the base role. */
+function ApplicationPoliciesModal({ user, onClose }: Readonly<{ user: User; onClose: () => void }>) {
+  const { data: policies } = useQuery({ queryKey: ['policies'], queryFn: policiesApi.list })
+  const { data: assignment, isError } = useQuery({ queryKey: ['user-application-policies', user.id], queryFn: () => usersApi.applicationPolicies(user.id) })
+  useEscapeKey(onClose)
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <button type="button" aria-label="Close Application policies backdrop" tabIndex={-1} className="absolute inset-0 h-full w-full cursor-default" onClick={onClose} />
+      <dialog open aria-modal="true" aria-label="Application policies" className="relative m-0 text-foreground w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-xl border border-border bg-card p-6">
+        <div className="mb-4 flex items-center justify-between"><h2 className="text-lg font-semibold text-foreground">Application policies</h2><button title="Close" onClick={onClose}><X className="h-4 w-4" /></button></div>
+        <div className="mb-2"><UserIdentity user={user} /></div>
+        <p className="mb-4 text-sm text-muted-foreground">Assign app permissions such as Access management. The account base role stays the same. Product groups are assigned separately on each product.</p>
+        {isError && <p role="alert">Could not load application policies.</p>}
+        {!isError && policies && assignment && <ApplicationPolicyForm user={user} policies={policies.filter(isApplicationPolicy)} initial={assignment.policy_ids} onClose={onClose} />}
+        {!isError && !(policies && assignment) && <p>Loading policies...</p>}
+      </dialog>
+    </div>
+  )
+}
+
+/** The application policy checkboxes of one user and their save action. */
+function ApplicationPolicyForm({ user, policies, initial, onClose }: Readonly<{ user: User; policies: Policy[]; initial: number[]; onClose: () => void }>) {
+  const [selected, setSelected] = useState(initial)
+  const queryClient = useQueryClient()
+  const save = useMutation({
+    mutationFn: () => usersApi.setApplicationPolicies(user.id, selected),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['user-application-policies', user.id] })
+      onClose()
+    },
+  })
+  return <form onSubmit={(event) => { event.preventDefault(); save.mutate() }} className="space-y-4">
+    {save.isError && <p role="alert" className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">{extractApiErrorMessage(save.error, 'Could not save the application policies')}</p>}
+    <fieldset disabled={save.isPending} className="space-y-3">
+      <legend className="mb-2 text-sm font-medium text-foreground">App policy selection</legend>
+      {policies.map((policy) => <label key={policy.id} className="flex items-start gap-2 text-sm text-foreground">
+        <input type="checkbox" aria-label={`App policy ${policy.name}`} checked={selected.includes(policy.id)} onChange={() => setSelected((current) => current.includes(policy.id) ? current.filter((id) => id !== policy.id) : [...current, policy.id])} />
+        <span>{policy.name}{policy.description && <span className="block text-xs text-muted-foreground">{policy.description}</span>}</span>
+      </label>)}
+    </fieldset>
+    <button disabled={save.isPending} type="submit" className="rounded-lg bg-primary px-4 py-2 text-sm text-primary-foreground disabled:opacity-50">{save.isPending ? 'Saving...' : 'Save application policies'}</button>
+  </form>
 }

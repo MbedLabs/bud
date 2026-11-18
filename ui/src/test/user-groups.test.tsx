@@ -14,7 +14,6 @@ const defaultGroup = {
   system_key: 'test_operators',
   policies: [results, customRuns],
   permissions: ['custom_runs.create', 'evidence.view'],
-  members: [],
   created_at: '',
   updated_at: '',
 }
@@ -27,7 +26,6 @@ const customGroup = {
   system_key: null,
   policies: [results],
   permissions: ['evidence.view'],
-  members: [{ user_id: 7, email: 'val@example.com', full_name: 'Val Viewer', role: 'viewer' }],
   created_at: '',
   updated_at: '',
 }
@@ -40,8 +38,6 @@ vi.mock('../api/client', () => ({
     update: vi.fn().mockResolvedValue({}),
     duplicate: vi.fn().mockResolvedValue({}),
     remove: vi.fn().mockResolvedValue(undefined),
-    addMember: vi.fn().mockResolvedValue({}),
-    removeMember: vi.fn().mockResolvedValue({}),
   },
   policiesApi: {
     list: vi.fn().mockResolvedValue([
@@ -124,9 +120,6 @@ describe('Groups', () => {
         policy_ids: [1, 2],
       }),
     )
-
-    expect(api.groupsApi.addMember).not.toHaveBeenCalled()
-    expect(api.groupsApi.removeMember).not.toHaveBeenCalled()
   })
 
   it('deletes through the confirmation dialog and shows a failure', async () => {

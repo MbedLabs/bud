@@ -14,7 +14,6 @@ from app.api import access_requests
 from app.core.security import get_password_hash
 from app.models import (
     AccessGroup,
-    AccessGroupMember,
     AccessRequest,
     AuditEvent,
     Product,
@@ -40,6 +39,7 @@ def type_name(value):
 
 RUN_PRODUCT = "Demo runs"
 BASE_ROLE_GROUPS = {"viewer": "results_viewers", "developer": "test_operators"}
+
 
 class AccessRequestsHttpTest(AccessRequestsHttpBase):
 
@@ -100,10 +100,15 @@ class AccessRequestsHttpTest(AccessRequestsHttpBase):
         ).id
 
     def give(self, user_id, system_key):
-        """Give a person the shipped group with this system key app-wide and on the runs'
-        product."""
+        """Give a person the policies of the shipped group with this system key as application
+        policies, and the group on the runs' product."""
         group = self.bud.bud_find_in_app(AccessGroup, system_key=system_key)[0]
-        self.bud.bud_add_to_app(AccessGroupMember(group_id=group.id, user_id=user_id))
+        self.bud.bud_run_sql(
+            "INSERT INTO user_application_policies (user_id, policy_id) "
+            "SELECT :user_id, policy_id FROM access_group_policies WHERE group_id = :group_id",
+            user_id=user_id,
+            group_id=group.id,
+        )
         self.bud.bud_add_to_app(
             ProductAccess(product_id=self.run_product().id, user_id=user_id, group_id=group.id)
         )

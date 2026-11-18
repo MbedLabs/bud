@@ -13,7 +13,7 @@ SUITES = [
     "tests.pg.BUD_product_access_pg.ProductAccessPgTest",
     "tests.pg.BUD_product_notification_rules_pg.ProductNotificationRulesPgTest",
     "tests.pg.BUD_token_concurrency_pg.TokenConcurrencyPgTest",
-    "tests.pg.BUD_group_overlap_pg.GroupOverlapPgTest",
+    "tests.pg.BUD_application_policies_pg.ApplicationPoliciesPgTest",
     "tests.pg.BUD_email_change_pg.EmailChangePgTest",
     "tests.pg.BUD_cli_auth_migration_pg.CliAuthMigrationPgTest",
 ]

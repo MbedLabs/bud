@@ -261,14 +261,6 @@ export interface PolicyRef {
   name: string
 }
 
-export interface GroupMember {
-  user_id: number
-  email: string
-  full_name: string
-  role: UserRole
-  profile_picture_url?: string | null
-}
-
 export interface Group {
   id: number
   name: string
@@ -277,7 +269,6 @@ export interface Group {
   system_key: string | null
   policies: PolicyRef[]
   permissions: string[]
-  members: GroupMember[]
   created_at: string
   updated_at: string
 }
@@ -297,10 +288,6 @@ export const groupsApi = {
   remove: async (id: number) => {
     await api.delete(`/groups/${id}`)
   },
-  addMember: async (id: number, userId: number) =>
-    (await api.post<Group>(`/groups/${id}/members`, { user_id: userId })).data,
-  removeMember: async (id: number, userId: number) =>
-    (await api.delete<Group>(`/groups/${id}/members/${userId}`)).data,
 }
 
 export type PermissionMatrix = Record<string, string[]>
@@ -344,7 +331,6 @@ export interface AccessUser {
   full_name: string
   role: UserRole
   is_active: boolean
-  groups: PolicyRef[]
   permissions: string[]
   profile_picture_url?: string | null
 }
@@ -455,6 +441,10 @@ export const usersApi = {
   },
   accessSummary: async (id: number): Promise<UserAccessSummary> =>
     (await api.get<UserAccessSummary>(`/users/${id}/access-summary`)).data,
+  applicationPolicies: async (id: number): Promise<{ policy_ids: number[] }> =>
+    (await api.get<{ policy_ids: number[] }>(`/users/${id}/application-policies`)).data,
+  setApplicationPolicies: async (id: number, policyIds: number[]): Promise<{ policy_ids: number[] }> =>
+    (await api.put<{ policy_ids: number[] }>(`/users/${id}/application-policies`, { policy_ids: policyIds })).data,
   create: async (data: { email: string; full_name: string; password: string; role?: UserRole }): Promise<User> => {
     const response = await api.post<User>('/users', data)
     return response.data
