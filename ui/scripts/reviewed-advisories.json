@@ -1,9 +1,1 @@
-{
-  "picomatch": {
-    "https://github.com/advisories/GHSA-fc5q-39xc-vjpf": {
-      "reason": "picomatch reaches the UI only through build and test tooling (vite, vitest, typescript-eslint, tinyglobby), which match the repository's own glob patterns; the image ships only the built ui/dist, and no picomatch release fixes the advisory yet.",
-      "range": "<=4.0.7",
-      "review_by": "2026-12-18"
-    }
-  }
-}
+{}
