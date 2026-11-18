@@ -1,6 +1,7 @@
 import { useSearchParams } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
 import AccessPolicies from '../components/AccessPolicies'
+import AccessUsers from '../components/AccessUsers'
 import AccessRequestsPanel from '../components/AccessRequestsPanel'
 import UserGroups from '../components/UserGroups'
 import { accessRequestsApi } from '../api/client'
@@ -62,7 +63,7 @@ export default function AccessPage() {
         ))}
       </div>
 
-      {tab === 'groups' && <UserGroups />}
+      {tab === 'groups' && <><UserGroups /><AccessUsers /></>}
       {tab === 'policies' && <AccessPolicies canEdit={isAdmin} />}
       {tab === 'requests' && <AccessRequestsPanel />}
     </div>

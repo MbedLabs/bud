@@ -35,39 +35,39 @@ class ProductAccessApiTest(ProductAccessApiBase):
             ProductAccess(product_id=product_a.id, user_id=manager.id, group_id=manage_group.id)
         )
 
-        self.tc_admin_no_product_run = bud.bud_request(
+        self.admin_no_product_run = bud.bud_request(
             p.GET, p.PA_RUN_PATH.format(run_none.id)
         ).status_code
         path = p.PA_GROUP_MEMBERS_PATH.format(product_b.id, view_group.id)
         answer = bud.bud_request(p.PUT, path, json={"user_ids": [newcomer.id]})
-        self.tc_set_status = answer.status_code
-        self.tc_set_members = [member["email"] for member in answer.json()]
-        self.tc_added_events = len(bud.bud_find_in_app(AuditEvent, action=p.PA_ADDED_ACTION))
+        self.set_status = answer.status_code
+        self.set_members = [member["email"] for member in answer.json()]
+        self.added_events = len(bud.bud_find_in_app(AuditEvent, action=p.PA_ADDED_ACTION))
         bud.bud_request(p.PUT, path, json={"user_ids": []})
-        self.tc_cleared_members = bud.bud_request(
+        self.cleared_members = bud.bud_request(
             p.GET, p.PA_MEMBERS_PATH.format(product_b.id)
         ).json()
-        self.tc_removed_events = len(bud.bud_find_in_app(AuditEvent, action=p.PA_REMOVED_ACTION))
+        self.removed_events = len(bud.bud_find_in_app(AuditEvent, action=p.PA_REMOVED_ACTION))
 
         bud.bud_sign_in_as(viewer)
-        self.tc_listed = [run["name"] for run in bud.bud_request(p.GET, p.PA_RUNS_PATH).json()["runs"]]
-        self.tc_stats_runs = bud.bud_request(p.GET, p.PA_STATS_PATH).json().get("total_runs")
-        self.tc_own_run = bud.bud_request(p.GET, p.PA_RUN_PATH.format(run_a.id)).status_code
-        self.tc_other_run = bud.bud_request(p.GET, p.PA_RUN_PATH.format(run_b.id)).status_code
-        self.tc_no_product_run = bud.bud_request(
+        self.listed = [run["name"] for run in bud.bud_request(p.GET, p.PA_RUNS_PATH).json()["runs"]]
+        self.stats_runs = bud.bud_request(p.GET, p.PA_STATS_PATH).json().get("total_runs")
+        self.own_run = bud.bud_request(p.GET, p.PA_RUN_PATH.format(run_a.id)).status_code
+        self.other_run = bud.bud_request(p.GET, p.PA_RUN_PATH.format(run_b.id)).status_code
+        self.no_product_run = bud.bud_request(
             p.GET, p.PA_RUN_PATH.format(run_none.id)
         ).status_code
-        self.tc_me_permissions = bud.bud_request(p.GET, p.PA_ME_PATH).json().get("permissions", [])
-        self.tc_viewer_set = bud.bud_request(p.PUT, path, json={"user_ids": [viewer.id]}).status_code
+        self.me_permissions = bud.bud_request(p.GET, p.PA_ME_PATH).json().get("permissions", [])
+        self.viewer_set = bud.bud_request(p.PUT, path, json={"user_ids": [viewer.id]}).status_code
 
         bud.bud_sign_in_as(manager)
-        self.tc_manage_own = bud.bud_request(
+        self.manage_own = bud.bud_request(
             p.PATCH, p.PA_PRODUCT_PATH.format(product_a.id), json=p.PA_RENAME
         ).status_code
-        self.tc_manage_other = bud.bud_request(
+        self.manage_other = bud.bud_request(
             p.PATCH, p.PA_PRODUCT_PATH.format(product_b.id), json=p.PA_RENAME
         ).status_code
-        self.tc_manage_create = bud.bud_request(
+        self.manage_create = bud.bud_request(
             p.POST, p.PA_PRODUCTS_PATH, json={"name": p.PA_RUN_LIST}
         ).status_code
 

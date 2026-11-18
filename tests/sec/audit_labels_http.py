@@ -15,29 +15,29 @@ class AuditLabelsHttpBase(BudAppTestCase):
 
     def bud_administrator_reads_the_labelled_events(self):
         p = self.parameters
-        self.assertEqual(self.tc_logins, [p.STATUS_OK, p.STATUS_OK], msg=p.MSG_LABELS_SIGNED_IN)
-        self.assertEqual(self.tc_pages, [p.STATUS_OK, p.STATUS_OK], msg=p.MSG_LABELS_PAGE)
+        self.assertEqual(self.logins, [p.STATUS_OK, p.STATUS_OK], msg=p.MSG_LABELS_SIGNED_IN)
+        self.assertEqual(self.pages, [p.STATUS_OK, p.STATUS_OK], msg=p.MSG_LABELS_PAGE)
 
     def bud_events_name_their_targets_and_mark_deleted_ones(self):
-        for (action, field), (found, expected) in self.tc_named.items():
+        for (action, field), (found, expected) in self.named.items():
             self.print_variables({"event": action, "field": field})
             self.assertEqual(found, expected, msg=self.parameters.MSG_LABELS_NAMED)
 
     def bud_deleted_run_keeps_its_id(self):
         self.assertEqual(
-            self.tc_gone_id, self.tc_gone_expected, msg=self.parameters.MSG_LABELS_TARGET_ID
+            self.gone_id, self.gone_expected, msg=self.parameters.MSG_LABELS_TARGET_ID
         )
 
     def bud_stored_event_keeps_its_target(self):
         self.assertEqual(
-            self.tc_stored, self.tc_stored_expected, msg=self.parameters.MSG_LABELS_STORED
+            self.stored, self.stored_expected, msg=self.parameters.MSG_LABELS_STORED
         )
 
     def bud_other_objects_are_named_and_odd_ids_are_not(self):
-        self.print_variables({"labels": self.tc_odd})
-        self.assertEqual(self.tc_odd, self.tc_odd_expected, msg=self.parameters.MSG_LABELS_ODD)
+        self.print_variables({"labels": self.odd})
+        self.assertEqual(self.odd, self.odd_expected, msg=self.parameters.MSG_LABELS_ODD)
         self.assertEqual(
-            self.tc_channel_created,
+            self.channel_created,
             self.parameters.LABELS_CHANNEL["name"],
             msg=self.parameters.MSG_LABELS_CHANNEL_CREATED,
         )

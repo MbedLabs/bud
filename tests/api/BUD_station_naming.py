@@ -24,37 +24,37 @@ class StationNamingTest(StationNamingBase):
         p = self.parameters
         self.unlimited = mock.patch.object(limiter, "enabled", False)
         self.unlimited.start()
-        self.tc_minted = []
+        self.minted = []
         self.bud.bud_start_app()
-        self.tc_named = self.register(self.mint(p.STATION_KEY_LABEL, p.STATION_NAMED))
+        self.named = self.register(self.mint(p.STATION_KEY_LABEL, p.STATION_NAMED))
         self.bud.bud_start_app()
-        self.tc_unnamed = self.register(self.mint(p.STATION_UNNAMED_LABEL))
+        self.unnamed = self.register(self.mint(p.STATION_UNNAMED_LABEL))
         self.bud.bud_start_app()
         token = self.register(self.mint(p.STATION_KEY_LABEL, p.STATION_NAMED)).json().get("token")
         station = self.bud.bud_find_in_app(Runner, account=p.STATION_NAMED)
-        self.tc_station_id = station[0].id if station else None
-        self.tc_claims = decode_access_token(token) if token else None
+        self.station_id = station[0].id if station else None
+        self.claims = decode_access_token(token) if token else None
         self.bud.bud_start_app()
         self.register(self.mint(p.STATION_KEY_LABEL, p.STATION_NAMED))
-        self.tc_taken = self.mint_response(p.STATION_SECOND_LABEL, p.STATION_NAMED)
+        self.taken = self.mint_response(p.STATION_SECOND_LABEL, p.STATION_NAMED)
         self.bud.bud_start_app()
         self.mint(p.STATION_KEY_LABEL, p.STATION_NAMED)
-        self.tc_reserved = self.mint_response(p.STATION_SECOND_LABEL, p.STATION_NAMED)
+        self.reserved = self.mint_response(p.STATION_SECOND_LABEL, p.STATION_NAMED)
         self.bud.bud_start_app()
-        self.tc_bad_names = {
+        self.bad_names = {
             name: self.mint_response(p.STATION_SECOND_LABEL, name).status_code
             for name in p.STATION_BAD_NAMES
         }
         self.bud.bud_start_app()
         self.register(self.mint(p.STATION_KEY_LABEL, p.STATION_NAMED))
-        self.tc_renamed = self.rename(p.STATION_NAMED, p.STATION_RENAMED)
+        self.renamed = self.rename(p.STATION_NAMED, p.STATION_RENAMED)
         keys = self.bud.bud_find_in_app(RunnerApiKey)
-        self.tc_key_name = keys[0].station_name if keys else None
+        self.key_name = keys[0].station_name if keys else None
         self.bud.bud_start_app()
         token = self.register(self.mint(p.STATION_KEY_LABEL, p.STATION_NAMED)).json().get("token")
-        self.tc_moved = self.rename(p.STATION_NAMED, p.STATION_MOVED).status_code
+        self.moved = self.rename(p.STATION_NAMED, p.STATION_MOVED).status_code
         db = self.bud.bud_open_session(on_app=True)
-        self.tc_resolved = self.bud.bud_attempt(
+        self.resolved = self.bud.bud_attempt(
             lambda: self.bud.bud_await(runner_auth.authenticate_runner_token(token, db))
         )
         self.bud.bud_start_app()
@@ -63,9 +63,9 @@ class StationNamingTest(StationNamingBase):
             self.mint(p.STATION_SECOND_LABEL, p.STATION_OTHER),
             username=p.STATION_IGNORED_USERNAME,
         )
-        self.tc_rename_taken = self.rename(p.STATION_OTHER, p.STATION_NAMED).status_code
+        self.rename_taken = self.rename(p.STATION_OTHER, p.STATION_NAMED).status_code
         self.bud.bud_start_app()
-        self.tc_rename_unknown = self.rename(p.STATION_UNKNOWN, p.STATION_UNKNOWN_NEW).status_code
+        self.rename_unknown = self.rename(p.STATION_UNKNOWN, p.STATION_UNKNOWN_NEW).status_code
 
     def mint_response(self, label, station_name=None):
         """Ask for an enrolment key with a label and an optional station name."""
@@ -77,7 +77,7 @@ class StationNamingTest(StationNamingBase):
     def mint(self, label, station_name=None):
         """Mint an enrolment key and return it, recording the answer's status."""
         response = self.mint_response(label, station_name)
-        self.tc_minted.append(response.status_code)
+        self.minted.append(response.status_code)
         return response.json().get("api_key")
 
     def register(self, key, **changes):

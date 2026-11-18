@@ -16,8 +16,8 @@ class HealthTest(HealthBase):
     def setUpClass(self):
         super().setUpClass()
         self.bud.bud_start_app()
-        self.tc_health = self.bud.bud_request(self.parameters.GET, self.parameters.HEALTH_PATH)
-        self.tc_ready = self.bud.bud_request(self.parameters.GET, self.parameters.READY_PATH)
+        self.health = self.bud.bud_request(self.parameters.GET, self.parameters.HEALTH_PATH)
+        self.ready = self.bud.bud_request(self.parameters.GET, self.parameters.READY_PATH)
 
     def tearDownClass(self):
         super().tearDownClass()

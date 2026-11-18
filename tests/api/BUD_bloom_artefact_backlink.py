@@ -39,7 +39,7 @@ class BloomArtefactBacklinkTest(BloomArtefactBacklinkBase):
         super().setUpClass()
         p = self.parameters
         cases = {**p.BLOOM_REFERENCE_CASES, **p.BLOOM_NO_REFERENCE_CASES}
-        self.tc_references = {
+        self.references = {
             case: bloom_sync._suite_reference(body, synced)
             for case, (body, synced) in cases.items()
         }
@@ -47,8 +47,8 @@ class BloomArtefactBacklinkTest(BloomArtefactBacklinkBase):
             settings, "INTEGRATION_ENCRYPTION_KEY", Fernet.generate_key().decode()
         )
         self.key.start()
-        self.tc_named_run = self.sync(p.BLOOM_NAMED_REPLY, p.BLOOM_NAMED_RUN)
-        self.tc_unnamed_run = self.sync(p.BLOOM_UNNAMED_REPLY, p.BLOOM_UNNAMED_RUN)
+        self.named_run = self.sync(p.BLOOM_NAMED_REPLY, p.BLOOM_NAMED_RUN)
+        self.unnamed_run = self.sync(p.BLOOM_UNNAMED_REPLY, p.BLOOM_UNNAMED_RUN)
         self.bud.bud_start_app()
         run = self.bud.bud_add_to_app(
             TestRun(
@@ -58,7 +58,7 @@ class BloomArtefactBacklinkTest(BloomArtefactBacklinkBase):
                 **p.BLOOM_BACKLINK,
             )
         )
-        self.tc_exposed = self.bud.bud_request(p.GET, p.TEST_RUN_PATH.format(run.id))
+        self.exposed = self.bud.bud_request(p.GET, p.TEST_RUN_PATH.format(run.id))
 
     def sync(self, reply, run_name):
         """Sync one run's result to a stood-in Bloom that answers with reply; return the run."""

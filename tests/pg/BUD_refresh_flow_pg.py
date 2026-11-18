@@ -21,7 +21,7 @@ class RefreshFlowPgTest(RefreshFlowPgBase):
         cookie = p.PG_REFRESH_COOKIE
         login = self.log_in()
         set_cookie = login.headers.get("set-cookie", "")
-        self.tc_checks = {
+        self.checks = {
             "cookie": {
                 "the login succeeds": (login.status_code, p.STATUS_OK),
                 "the cookie is named": (cookie in set_cookie, True),
@@ -34,21 +34,21 @@ class RefreshFlowPgTest(RefreshFlowPgBase):
         refreshed = self.client.post(p.PG_REFRESH_PATH)
         access = refreshed.json().get("access_token") if refreshed.status_code == 200 else ""
         me = self.client.get("/api/auth/me", headers={"Authorization": f"Bearer {access}"})
-        self.tc_checks["refresh"] = {
+        self.checks["refresh"] = {
             "the login succeeds": (login.status_code, p.STATUS_OK),
             "the refresh succeeds": (refreshed.status_code, p.STATUS_OK),
             "the new token signs in": (me.status_code, p.STATUS_OK),
             "the new token names the administrator": (me.json().get("email") if me.status_code == 200 else None, settings.ADMIN_EMAIL),
         }
         self.client.cookies.clear()
-        self.tc_checks["no cookie"] = {"a refresh without a cookie is refused": (self.client.post(p.PG_REFRESH_PATH).status_code, p.STATUS_UNAUTHORIZED)}
+        self.checks["no cookie"] = {"a refresh without a cookie is refused": (self.client.post(p.PG_REFRESH_PATH).status_code, p.STATUS_UNAUTHORIZED)}
         login = self.log_in()
         old = self.client.cookies.get(cookie)
         first = self.client.post(p.PG_REFRESH_PATH)
         new = self.client.cookies.get(cookie)
         self.client.cookies.clear()
         replay = self.client.post(p.PG_REFRESH_PATH, cookies={cookie: old})
-        self.tc_checks["rotation"] = {
+        self.checks["rotation"] = {
             "the login succeeds": (login.status_code, p.STATUS_OK),
             "the refresh succeeds": (first.status_code, p.STATUS_OK),
             "a new cookie is set": (bool(new), True),
@@ -57,7 +57,7 @@ class RefreshFlowPgTest(RefreshFlowPgBase):
         }
         login = self.log_in()
         logout = self.client.post("/api/auth/logout")
-        self.tc_checks["logout"] = {
+        self.checks["logout"] = {
             "the login succeeds": (login.status_code, p.STATUS_OK),
             "the logout succeeds": (logout.status_code, p.STATUS_OK),
             "the revoked cookie is refused": (self.client.post(p.PG_REFRESH_PATH).status_code, p.STATUS_UNAUTHORIZED),

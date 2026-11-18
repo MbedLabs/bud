@@ -18,13 +18,13 @@ class GroupOverlapSecBase(BudAppTestCase):
 
     def bud_everyone_signs_in(self):
         self.assertEqual(
-            self.tc_logins,
-            [self.parameters.STATUS_OK] * len(self.tc_logins),
+            self.logins,
+            [self.parameters.STATUS_OK] * len(self.logins),
             msg=self.parameters.MSG_SEC_SIGNED_IN,
         )
 
     def bud_groups_without_access_management_open_nothing(self):
-        p, found = self.parameters, self.tc_closed
+        p, found = self.parameters, self.closed
         self.print_variables(found)
         self.assertEqual(found["groups"], p.STATUS_FORBIDDEN, msg=p.MSG_SEC_GROUPS_CLOSED)
         self.assertEqual(found["users"], p.STATUS_FORBIDDEN, msg=p.MSG_SEC_USERS_CLOSED)
@@ -32,7 +32,7 @@ class GroupOverlapSecBase(BudAppTestCase):
         self.assertEqual(found["rows"], 0, msg=p.MSG_SEC_NO_ROW)
 
     def bud_every_policy_still_cannot_give_administrators(self):
-        p, found = self.parameters, self.tc_admin_group
+        p, found = self.parameters, self.admin_group
         self.print_variables(found)
         self.assertEqual(
             found["given"], (p.STATUS_FORBIDDEN, p.SEC_ADMIN_ONLY), msg=p.MSG_SEC_ADMIN_GIVE
@@ -46,18 +46,18 @@ class GroupOverlapSecBase(BudAppTestCase):
     @parameterized(params.SEC_STATION_GROUPS)
     def bud_viewer_is_refused_management(self, name):
         self.assertEqual(
-            self.tc_viewer[name],
+            self.viewer[name],
             self.parameters.STATUS_UNPROCESSABLE,
             msg=self.parameters.MSG_SEC_VIEWER_REFUSED,
         )
 
     def bud_refused_viewer_keeps_its_memberships(self):
         self.assertEqual(
-            self.tc_viewer["rows"], self.tc_viewer["held"], msg=self.parameters.MSG_SEC_VIEWER_ROWS
+            self.viewer["rows"], self.viewer["held"], msg=self.parameters.MSG_SEC_VIEWER_ROWS
         )
 
     def bud_spread_access_does_not_cover_a_third_policy(self):
-        p, found = self.parameters, self.tc_spread
+        p, found = self.parameters, self.spread
         self.print_variables(found)
         self.assertEqual(found["wider"], p.STATUS_FORBIDDEN, msg=p.MSG_SEC_WIDER_REFUSED)
         self.assertEqual(found["covered"], p.STATUS_CREATED, msg=p.MSG_SEC_COVERED_GIVEN)

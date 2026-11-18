@@ -23,7 +23,7 @@ class RunProducerHttpBase(BudAppTestCase):
 
     @parameterized(HUMAN_WRITES)
     def bud_person_cannot_write_a_run_record(self, case):
-        found = self.tc_human[case]
+        found = self.human[case]
         self.print_variables({"case": case, **found})
         self.assertEqual(
             found["status code"],
@@ -63,28 +63,28 @@ class RunProducerHttpBase(BudAppTestCase):
         )
 
     def bud_station_creates_its_run(self):
-        self.print_variables({"status": self.tc_created.status_code, "body": self.tc_created.text})
+        self.print_variables({"status": self.created.status_code, "body": self.created.text})
         self.assertEqual(
-            self.tc_created.status_code,
+            self.created.status_code,
             self.parameters.STATUS_CREATED,
             msg=self.parameters.MSG_PRODUCER_STATION_CREATES,
             abort_on_fail=True,
         )
 
     def bud_station_updates_its_run(self):
-        self.print_variables({"status": self.tc_updated.status_code, "body": self.tc_updated.text})
+        self.print_variables({"status": self.updated.status_code, "body": self.updated.text})
         self.assertEqual(
-            self.tc_updated.status_code,
+            self.updated.status_code,
             self.parameters.STATUS_OK,
             msg=self.parameters.MSG_PRODUCER_STATION_UPDATES,
             abort_on_fail=False,
         )
 
     def bud_run_keeps_what_the_station_reported(self):
-        run = self.tc_station_run
+        run = self.station_run
         self.assertEqual(
             run.runner_id,
-            self.tc_station_id,
+            self.station_id,
             msg=self.parameters.MSG_PRODUCER_RUN_OWNER,
             abort_on_fail=False,
         )

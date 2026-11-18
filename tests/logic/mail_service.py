@@ -18,7 +18,7 @@ class MailServiceBase(BudAppTestCase):
 
     def check(self, scenario):
         """Assert every named check of one scenario: its found value against its expected one."""
-        for name, (found, expected) in self.tc_checks[scenario].items():
+        for name, (found, expected) in self.checks[scenario].items():
             self.assertEqual(found, expected, msg=f"{name}: {self.parameters.MSG_MAIL_CHECK}")
 
     def bud_sender_name_is_the_product_identity(self):

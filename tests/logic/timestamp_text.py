@@ -14,27 +14,27 @@ from tests.bud_test_base import BudAppTestCase
 class TimestampTextBase(BudAppTestCase):
 
     def bud_time_stops_at_seconds(self):
-        self.print_variables({"time": self.parameters.TIMESTAMP_NAIVE, "text": self.tc_naive})
+        self.print_variables({"time": self.parameters.TIMESTAMP_NAIVE, "text": self.naive})
         self.assertEqual(
-            self.tc_naive,
+            self.naive,
             self.parameters.TIMESTAMP_TEXT,
             msg=self.parameters.MSG_TIMESTAMP_SECONDS,
             abort_on_fail=False,
         )
 
     def bud_no_time_is_empty(self):
-        self.print_variables({"text": self.tc_none})
+        self.print_variables({"text": self.none})
         self.assertEqual(
-            self.tc_none,
+            self.none,
             self.parameters.TIMESTAMP_NONE_TEXT,
             msg=self.parameters.MSG_TIMESTAMP_NONE,
             abort_on_fail=False,
         )
 
     def bud_aware_time_is_converted_to_utc(self):
-        self.print_variables({"time": self.parameters.TIMESTAMP_AWARE, "text": self.tc_aware})
+        self.print_variables({"time": self.parameters.TIMESTAMP_AWARE, "text": self.aware})
         self.assertEqual(
-            self.tc_aware,
+            self.aware,
             self.parameters.TIMESTAMP_TEXT,
             msg=self.parameters.MSG_TIMESTAMP_AWARE,
             abort_on_fail=False,

@@ -24,7 +24,7 @@ class ConfigSettingsTest(ConfigSettingsBase):
 
     def setUpClass(self):
         super().setUpClass()
-        self.tc_checks = {case: self.checks(case) for case in self.parameters.CONFIG_CASES}
+        self.checks = {case: self._checks(case) for case in self.parameters.CONFIG_CASES}
 
     def build(self, environment):
         """The settings built from an environment holding only the given setting variables, or the
@@ -38,7 +38,7 @@ class ConfigSettingsTest(ConfigSettingsBase):
             except ValueError as error:
                 return error
 
-    def checks(self, case):
+    def _checks(self, case):
         """The named checks of one environment."""
         p = self.parameters
         environment, values, error = p.CONFIG_CASES[case]

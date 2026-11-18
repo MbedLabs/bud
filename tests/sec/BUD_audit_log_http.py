@@ -36,7 +36,7 @@ class AuditLogHttpTest(AuditLogHttpBase):
     def setUpClass(self):
         super().setUpClass()
         p = self.parameters
-        self.tc_logins = []
+        self.logins = []
         self.fresh()
         user = self.user("someone@example.com")
         response = self.bud.bud_request(
@@ -46,7 +46,7 @@ class AuditLogHttpTest(AuditLogHttpBase):
             headers={"user-agent": p.AUDIT_USER_AGENT},
         )
         events = self.events(p.AUDIT_LOGIN_ACTION)
-        self.tc_failed = {
+        self.failed = {
             "status": response.status_code,
             "events": events,
             "user id": str(user.id),
@@ -61,7 +61,7 @@ class AuditLogHttpTest(AuditLogHttpBase):
         response = self.bud.bud_request(
             p.PATCH, p.USER_PATH.format(member.id), json={"is_active": False}, headers=headers
         )
-        self.tc_deactivated = {
+        self.deactivated = {
             "status": response.status_code,
             "events": self.events(p.AUDIT_DEACTIVATED_ACTION),
             "admin id": admin.id,
@@ -75,7 +75,7 @@ class AuditLogHttpTest(AuditLogHttpBase):
         key_id = minted.json().get("id")
         revoked = self.bud.bud_request(p.DELETE, p.API_KEY_PATH.format(key_id), headers=headers)
         minted_events = self.events(p.AUDIT_MINTED_ACTION)
-        self.tc_key = {
+        self.key = {
             "statuses": (minted.status_code, revoked.status_code),
             "minted": minted_events,
             "revoked": self.events(p.AUDIT_REVOKED_ACTION),
@@ -93,22 +93,22 @@ class AuditLogHttpTest(AuditLogHttpBase):
             p.GET, p.AUDIT_PATH, params={"action": p.AUDIT_AUTH_PREFIX}, headers=admin_headers
         )
         items = page.json().get("items", []) if page.status_code == 200 else []
-        self.tc_readers = {
+        self.readers = {
             "refused": refused.status_code,
             "page": page.status_code,
             "total": page.json().get("total"),
             "actions": {item["action"] for item in items},
             "first actor": items[0].get("actor_name") if items else None,
         }
-        self.tc_audit_methods = {
+        self.audit_methods = {
             method
             for route in api_routes(main.app.routes)
             if route.endpoint.__module__ == p.AUDIT_MODULE
             for method in route.methods
         }
-        self.tc_pictures = self.pictures()
+        self.pictures = self._pictures()
 
-    def pictures(self):
+    def _pictures(self):
         """Three accounts' picture links on the audit page and the user list as one changes."""
         p = self.fresh()
         admin = self.user("picture-admin@example.com", UserRole.admin)
@@ -188,7 +188,7 @@ class AuditLogHttpTest(AuditLogHttpBase):
             self.parameters.LOGIN_PATH,
             json={"email": email, "password": self.parameters.SEC_PASSWORD},
         )
-        self.tc_logins.append(response.status_code)
+        self.logins.append(response.status_code)
         return {"Authorization": f"Bearer {response.json().get('access_token')}"}
 
     def upload(self, headers, color):

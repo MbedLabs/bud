@@ -28,7 +28,7 @@ class ExecutionRequestClaimsPgTest(ExecutionRequestClaimsPgBase):
     def setUpClass(self):
         super().setUpClass()
         self.client = self.bud.bud_start_live_app()
-        self.tc_checks = {
+        self.checks = {
             "claims same key": self.claims(True),
             "claims two keys": self.claims(False),
             "completions same answer": self.completions(True),

@@ -63,7 +63,7 @@ class ReportsPdfTest(ReportsPdfBase):
 
     def setUpClass(self):
         super().setUpClass()
-        self.tc_checks = {}
+        self.checks = {}
         for scenario in (
             self.outcome,
             self.links,
@@ -80,7 +80,7 @@ class ReportsPdfTest(ReportsPdfBase):
             scenario()
 
     def outcome(self):
-        self.tc_checks["outcome"] = {
+        self.checks["outcome"] = {
             "the total sums the counts": (Outcome(passed=7, failed=2, skipped=1).total, 10),
             "the rate is the passed share": (
                 Outcome(passed=7, failed=2, skipped=1).pass_rate,
@@ -92,7 +92,7 @@ class ReportsPdfTest(ReportsPdfBase):
         }
 
     def links(self):
-        self.tc_checks["links"] = {
+        self.checks["links"] = {
             "the link targets its address": (
                 'href="https://x.test"' in report_pdf.link("https://x.test"),
                 True,
@@ -157,7 +157,7 @@ class ReportsPdfTest(ReportsPdfBase):
                 ],
             )
         )
-        self.tc_checks["renderer"] = {
+        self.checks["renderer"] = {
             "a summary starts as a PDF": (summary.startswith(p.PDF_START), True),
             "a summary ends as a PDF": (summary.rstrip().endswith(p.PDF_END), True),
             "an empty selection renders": (empty.startswith(p.PDF_START), True),
@@ -176,7 +176,7 @@ class ReportsPdfTest(ReportsPdfBase):
             )
         )
         summary_pages = document(report_pdf.render_report(request()))
-        self.tc_checks["footer"] = {
+        self.checks["footer"] = {
             "a run report has a results page": (len(run_pages) >= 2, True),
             "every page links to EmbedLabs": (
                 bool(run_pages) and all(p.PDF_EMBEDLABS in page["uris"] for page in run_pages),
@@ -212,7 +212,7 @@ class ReportsPdfTest(ReportsPdfBase):
                 )
             )
         )
-        self.tc_checks["run content"] = {
+        self.checks["run content"] = {
             "the run id is shown": ("BUD-RUN-42" in page["text"], True),
             "the station is shown": ("station-01" in page["text"], True),
             "the run page is linked": (p.PDF_RUN_URL in page["uris"], True),
@@ -229,7 +229,7 @@ class ReportsPdfTest(ReportsPdfBase):
         }
         checks.update({f"the chart names {label}": (label in text, True) for label in p.PDF_CHART})
         checks["an empty selection says so"] = (p.PDF_EMPTY in empty, True)
-        self.tc_checks["summary content"] = checks
+        self.checks["summary content"] = checks
 
     def assertions(self):
         p = self.parameters
@@ -271,7 +271,7 @@ class ReportsPdfTest(ReportsPdfBase):
             f"the report shows {text}": (text in flat, True) for text in p.PDF_ASSERTION_TEXTS
         }
         checks["the report does not count methods"] = ("2 tests" in flat, False)
-        self.tc_checks["assertions"] = checks
+        self.checks["assertions"] = checks
 
     def file_name(self):
         p = self.parameters
@@ -292,7 +292,7 @@ class ReportsPdfTest(ReportsPdfBase):
             reports._safe_filename("///"),
             "bud-report.pdf",
         )
-        self.tc_checks["file name"] = checks
+        self.checks["file name"] = checks
 
     def seed(self):
         """A fresh app with a report run and an older run of another suite at one station."""
@@ -390,7 +390,7 @@ class ReportsPdfTest(ReportsPdfBase):
             unknown.content.startswith(p.PDF_START),
             True,
         )
-        self.tc_checks["summary endpoint"] = checks
+        self.checks["summary endpoint"] = checks
 
     def run_endpoint(self):
         p = self.parameters
@@ -398,7 +398,7 @@ class ReportsPdfTest(ReportsPdfBase):
         response = self.bud.bud_request(p.GET, p.PDF_RUN_PATH.format(run_id))
         page = first(document(response.content))
         missing = self.bud.bud_request(p.GET, p.PDF_RUN_PATH.format(p.PDF_MISSING_RUN))
-        self.tc_checks["run endpoint"] = {
+        self.checks["run endpoint"] = {
             "the run report is served": (response.status_code, p.STATUS_OK),
             "the file is named after the run": (
                 f"bud-run-{run_id}" in response.headers.get("content-disposition", ""),
@@ -413,7 +413,7 @@ class ReportsPdfTest(ReportsPdfBase):
     def signed_out(self):
         p = self.parameters
         self.bud.bud_start_app(signed_in=False)
-        self.tc_checks["signed out"] = {
+        self.checks["signed out"] = {
             "the summary needs a signed-in entity": (
                 self.bud.bud_request(p.GET, p.PDF_SUMMARY_PATH).status_code,
                 p.STATUS_UNAUTHORIZED,

@@ -23,8 +23,8 @@ class RunReportAssertionsTest(RunReportAssertionsBase):
             passed=True,
             assertions=self.parameters.REPORT_RESULT_ENTRIES,
         )
-        self.tc_details = run_reports._assertion_details([result])
-        self.tc_outcome = run_reports._outcome_for_assertions(self.tc_details)
+        self.details = run_reports._assertion_details([result])
+        self.outcome = run_reports._outcome_for_assertions(self.details)
 
     def tearDownClass(self):
         super().tearDownClass()

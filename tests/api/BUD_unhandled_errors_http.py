@@ -74,39 +74,39 @@ class UnhandledErrorsHttpTest(UnhandledErrorsHttpBase):
         super().setUpClass()
         p = self.parameters
         self.bud.bud_start_app(signed_in=False)
-        self.bud.bud_add_route(p.ERROR_BOOM_PATH, self.boom)
-        self.bud.bud_add_route(p.ERROR_CONFLICT_PATH, self.conflict)
-        self.bud.bud_add_route(p.ERROR_FK_PATH, self.missing_reference)
-        self.bud.bud_add_route(p.ERROR_LATE_PATH, self.late)
-        self.tc_boom = self.answer(self.bud.bud_request(p.GET, p.ERROR_BOOM_PATH))
-        self.tc_supplied = self.answer(
+        self.bud.bud_add_route(p.ERROR_BOOM_PATH, self._boom)
+        self.bud.bud_add_route(p.ERROR_CONFLICT_PATH, self._conflict)
+        self.bud.bud_add_route(p.ERROR_FK_PATH, self._missing_reference)
+        self.bud.bud_add_route(p.ERROR_LATE_PATH, self._late)
+        self.boom = self.answer(self.bud.bud_request(p.GET, p.ERROR_BOOM_PATH))
+        self.supplied = self.answer(
             self.bud.bud_request(
                 p.GET, p.ERROR_BOOM_PATH, headers={p.REQUEST_ID_HEADER: p.ERROR_SUPPLIED_ID}
             )
         )
-        self.tc_supplied["events"] = [
+        self.supplied["events"] = [
             (event.request_id, (event.details or {}).get("status"))
             for event in self.bud.bud_find_in_app(
                 AuditEvent, action=p.API_REQUEST_ACTION, request_id=p.ERROR_SUPPLIED_ID
             )
         ]
-        self.tc_generated = self.answer(self.bud.bud_request(p.GET, p.ERROR_BOOM_PATH))
-        self.tc_conflict = self.answer(self.bud.bud_request(p.GET, p.ERROR_CONFLICT_PATH))
-        self.tc_missing_reference = self.answer(self.bud.bud_request(p.GET, p.ERROR_FK_PATH))
+        self.generated = self.answer(self.bud.bud_request(p.GET, p.ERROR_BOOM_PATH))
+        self.conflict = self.answer(self.bud.bud_request(p.GET, p.ERROR_CONFLICT_PATH))
+        self.missing_reference = self.answer(self.bud.bud_request(p.GET, p.ERROR_FK_PATH))
         with mock.patch.object(
             database,
             "async_session_maker",
             functools.partial(FailingCommitSession, p.ERROR_INSERT, p.ERROR_DUPLICATE),
         ):
-            self.tc_late = self.answer(
+            self.late = self.answer(
                 self.bud.bud_request_without_overrides(p.GET, p.ERROR_LATE_PATH)
             )
         self.bud.bud_remove_routes()
         routes = list(api_routes(main.app.routes))
-        self.tc_session_routes = sum(
+        self.session_routes = sum(
             1 for route in routes for _ in session_dependencies(route.dependant)
         )
-        self.tc_late_routes = sorted(
+        self.late_routes = sorted(
             {
                 f"{sorted(route.methods)} {route.path}"
                 for route in routes
@@ -131,18 +131,18 @@ class UnhandledErrorsHttpTest(UnhandledErrorsHttpBase):
             "text": response.text,
         }
 
-    async def boom(self):
+    async def _boom(self):
         """Fail with an unhandled error."""
         raise RuntimeError(self.parameters.ERROR_BOOM_TEXT)
 
-    async def conflict(self):
+    async def _conflict(self):
         """Lose the race between checking for a row and writing it."""
         p = self.parameters
         raise IntegrityError(
             p.ERROR_INSERT, {}, asyncpg.exceptions.UniqueViolationError(p.ERROR_DUPLICATE)
         )
 
-    async def missing_reference(self):
+    async def _missing_reference(self):
         """Delete a row another still references."""
         p = self.parameters
         raise IntegrityError(
@@ -151,7 +151,7 @@ class UnhandledErrorsHttpTest(UnhandledErrorsHttpBase):
             asyncpg.exceptions.ForeignKeyViolationError(p.ERROR_STILL_REFERENCED),
         )
 
-    async def late(self, db=Depends(get_db, scope="function")):
+    async def _late(self, db=Depends(get_db, scope="function")):
         """Answer, leaving the session's commit to fail."""
         return {"ok": True}
 

@@ -27,15 +27,15 @@ class RunReportsStoredTest(RunReportsStoredBase):
         db, finished = self.fresh()
         run(run_reports.store_run_reports(db, finished.id))
         run(db.commit())
-        self.tc_names = self.names(finished.id)
-        self.tc_expected_names = self.expected(finished.id, p.STORED_SUITE)
+        self.names = self._names(finished.id)
+        self.expected_names = self.expected(finished.id, p.STORED_SUITE)
         db, finished = self.fresh()
         stored = run(run_reports.store_run_reports(db, finished.id))
         run(db.commit())
-        self.tc_pdfs = []
+        self.pdfs = []
         for artifact in stored:
             payload = (uploads.get_upload_root() / artifact.storage_path).read_bytes()
-            self.tc_pdfs.append(
+            self.pdfs.append(
                 (
                     payload[: len(p.PDF_MAGIC)],
                     artifact.size_bytes,
@@ -47,16 +47,16 @@ class RunReportsStoredTest(RunReportsStoredBase):
         for _ in range(2):
             run(run_reports.store_run_reports(db, finished.id))
             run(db.commit())
-        self.tc_twice = self.names(finished.id)
+        self.twice = self._names(finished.id)
         self.suite_scope()
         db, finished = self.fresh()
         with mock.patch.object(run_reports, "render_report", side_effect=RuntimeError("no fonts")):
             stored = run(run_reports.store_run_reports(db, finished.id))
         run(db.commit())
-        self.tc_broken = (stored, self.names(finished.id))
+        self.broken = (stored, self._names(finished.id))
         db, _ = self.fresh()
-        self.tc_missing = run(run_reports.store_run_reports(db, p.STORED_MISSING_RUN))
-        self.tc_api = self.through_the_api()
+        self.missing = run(run_reports.store_run_reports(db, p.STORED_MISSING_RUN))
+        self.api = self.through_the_api()
 
     def fresh(self, name=None):
         """A fresh app database with one finished run; its session and the run."""
@@ -82,7 +82,7 @@ class RunReportsStoredTest(RunReportsStoredBase):
         self.bud.bud_add_to_app(TestResult(test_run_id=run.id, **p.STORED_RESULT))
         return run
 
-    def names(self, run_id):
+    def _names(self, run_id):
         """The sorted names of a run's artifacts."""
         return sorted(
             artifact.original_filename
@@ -119,7 +119,7 @@ class RunReportsStoredTest(RunReportsStoredBase):
             )
             text = "\n".join(page.get_text() for page in document)
             document.close()
-        self.tc_suite_text, self.tc_current_id = text, current.id
+        self.suite_text, self.current_id = text, current.id
 
     def through_the_api(self):
         """Finish runs through the station's PATCH and a claim's acknowledgement."""
@@ -182,7 +182,7 @@ class RunReportsStoredTest(RunReportsStoredBase):
             "expected": self.expected(completed.id, p.STORED_API_COMPLETED),
             "running": self.bud.bud_request(p.GET, p.RUN_ARTIFACTS_PATH.format(running.id)).json(),
             "acknowledged": acknowledged.status_code,
-            "claimed names": self.names(claimed.id),
+            "claimed names": self._names(claimed.id),
             "claimed expected": self.expected(claimed.id, p.STORED_CLAIMED),
         }
 

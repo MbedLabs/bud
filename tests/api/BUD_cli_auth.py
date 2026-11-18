@@ -70,7 +70,7 @@ class CliAuthTest(CliAuthBase):
         self.request_code = code_for(self.challenge)
         patch = code_mode(True)
         patch.start()
-        self.tc_checks = {}
+        self.checks = {}
         scenarios = [
             ("link", self.link),
             ("issue callback", lambda: self.issue("callback")),
@@ -108,9 +108,9 @@ class CliAuthTest(CliAuthBase):
                     set(self.helper_statuses),
                     {p.STATUS_OK},
                 )
-            self.tc_checks[name] = checks
-        self.tc_checks["setting"] = self.setting()
-        self.tc_checks["rfc vector"] = self.rfc_vector()
+            self.checks[name] = checks
+        self.checks["setting"] = self.setting()
+        self.checks["rfc vector"] = self.rfc_vector()
         patch.stop()
 
     def fresh(self, with_user=True):

@@ -15,13 +15,13 @@ class AuditLogHttpBase(BudAppTestCase):
 
     def bud_everyone_signs_in(self):
         self.assertEqual(
-            self.tc_logins,
-            [self.parameters.STATUS_OK] * len(self.tc_logins),
+            self.logins,
+            [self.parameters.STATUS_OK] * len(self.logins),
             msg=self.parameters.MSG_AUDIT_SIGNED_IN,
         )
 
     def bud_failed_login_is_recorded(self):
-        p, found = self.parameters, self.tc_failed
+        p, found = self.parameters, self.failed
         self.print_variables(found)
         self.assertEqual(found["status"], p.STATUS_UNAUTHORIZED, msg=p.MSG_AUDIT_LOGIN_REFUSED)
         self.assertEqual(len(found["events"]), 1, msg=p.MSG_AUDIT_ONE_EVENT, abort_on_fail=True)
@@ -34,7 +34,7 @@ class AuditLogHttpBase(BudAppTestCase):
         self.assertNotIn(p.AUDIT_WRONG_PASSWORD, found["details"], msg=p.MSG_AUDIT_NO_PASSWORD)
 
     def bud_deactivation_records_the_admin(self):
-        p, found = self.parameters, self.tc_deactivated
+        p, found = self.parameters, self.deactivated
         self.print_variables({key: value for key, value in found.items() if key != "events"})
         self.assertEqual(found["status"], p.STATUS_OK, msg=p.MSG_AUDIT_DEACTIVATED)
         self.assertEqual(len(found["events"]), 1, msg=p.MSG_AUDIT_ONE_EVENT, abort_on_fail=True)
@@ -44,7 +44,7 @@ class AuditLogHttpBase(BudAppTestCase):
         self.assertEqual(event.target_id, found["member id"], msg=p.MSG_AUDIT_TARGET)
 
     def bud_enrolment_key_is_recorded_without_the_key(self):
-        p, found = self.parameters, self.tc_key
+        p, found = self.parameters, self.key
         self.print_variables({"statuses": found["statuses"], "minted details": found["details"]})
         self.assertEqual(
             found["statuses"], (p.STATUS_CREATED, p.STATUS_NO_CONTENT), msg=p.MSG_AUDIT_KEY_STATUSES
@@ -58,7 +58,7 @@ class AuditLogHttpBase(BudAppTestCase):
         self.assertEqual(found["revoked"][0].target_id, found["key id"], msg=p.MSG_AUDIT_TARGET)
 
     def bud_only_administrators_read_the_audit_log(self):
-        p, found = self.parameters, self.tc_readers
+        p, found = self.parameters, self.readers
         self.print_variables(found)
         self.assertEqual(found["refused"], p.STATUS_FORBIDDEN, msg=p.MSG_AUDIT_MEMBER_REFUSED)
         self.assertEqual(found["page"], p.STATUS_OK, msg=p.MSG_AUDIT_ADMIN_READS)
@@ -68,13 +68,13 @@ class AuditLogHttpBase(BudAppTestCase):
 
     def bud_no_endpoint_changes_an_audit_event(self):
         self.assertEqual(
-            self.tc_audit_methods,
+            self.audit_methods,
             self.parameters.AUDIT_READ_METHODS,
             msg=self.parameters.MSG_AUDIT_READ_ONLY,
         )
 
     def bud_pictures_follow_their_accounts(self):
-        p, found = self.parameters, self.tc_pictures
+        p, found = self.parameters, self.pictures
         self.print_variables({key: value for key, value in found.items() if key != "rounds"})
         self.assertEqual(found["saved"], [p.STATUS_OK, p.STATUS_OK], msg=p.MSG_AUDIT_PICTURE_SAVED)
         self.assertNotEqual(

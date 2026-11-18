@@ -15,7 +15,7 @@ class GroupsApiBase(BudAppTestCase):
 
     def check(self, scenario):
         """Assert every named check of one scenario: its found value against its expected one."""
-        for name, (found, expected) in self.tc_checks[scenario].items():
+        for name, (found, expected) in self.checks[scenario].items():
             self.assertEqual(found, expected, msg=f"{name}: {self.parameters.MSG_GROUPS_CHECK}")
 
     def bud_default_groups_and_policies_ship_read_only(self):

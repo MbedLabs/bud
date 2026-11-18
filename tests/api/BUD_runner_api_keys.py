@@ -22,7 +22,7 @@ class RunnerApiKeysTest(RunnerApiKeysBase):
         mine, theirs = self.signed_out_with_stations()
         key = self.pin(mine)
         response = self.upload(key, runner_account=theirs.account)
-        self.tc_impersonation = {
+        self.impersonation = {
             "status": response.status_code,
             "owners": [run.runner_id for run in self.bud.bud_find_in_app(TestRun)],
             "mine": mine.id,
@@ -33,23 +33,23 @@ class RunnerApiKeysTest(RunnerApiKeysBase):
         refused["unknown results"] = len(self.bud.bud_find_in_app(TestResult))
         mine, _ = self.signed_out_with_stations(mine_active=False)
         refused["inactive"] = self.upload(self.pin(mine)).status_code
-        self.tc_refused = refused
+        self.refused = refused
         mine, _ = self.signed_out_with_stations()
         response = self.upload(self.pin(mine))
         runs = self.bud.bud_find_in_app(TestRun)
-        self.tc_own = {
+        self.own = {
             "status": response.status_code,
             "owner": runs[0].runner_id if runs else None,
             "mine": mine.id,
         }
-        self.tc_removed = self.removed()
-        self.tc_minted = self.minted()
+        self.removed = self._removed()
+        self.minted = self._minted()
         mine, _ = self.signed_out_with_stations()
         key = self.pin(mine)
         accepted = self.upload(key).status_code
         self.bud.bud_delete_in_app(RunnerApiKey, runner_id=mine.id)
-        self.tc_revoked = {"accepted": accepted, "refused": self.upload(key).status_code}
-        self.tc_admin_revoke = self.admin_revoke()
+        self.revoked = {"accepted": accepted, "refused": self.upload(key).status_code}
+        self.admin_revoke = self._admin_revoke()
 
     def station(self, account, active=True):
         """Store a station with the given account."""
@@ -87,7 +87,7 @@ class RunnerApiKeysTest(RunnerApiKeysBase):
             p.POST, p.RESULTS_PATH, json={**p.KEYS_UPLOAD, **extra}, headers={p.API_KEY_HEADER: key}
         )
 
-    def removed(self):
+    def _removed(self):
         """An administrator removes a station with a key and a run."""
         p = self.parameters
         self.bud.bud_start_app()
@@ -107,7 +107,7 @@ class RunnerApiKeysTest(RunnerApiKeysBase):
             "run": (bool(surviving), type(surviving[0].runner_id).__name__ if surviving else None),
         }
 
-    def minted(self):
+    def _minted(self):
         """An administrator mints a key and lists the keys."""
         p = self.parameters
         self.bud.bud_start_app()
@@ -123,7 +123,7 @@ class RunnerApiKeysTest(RunnerApiKeysBase):
             "hashes": [record.key_hash for record in self.bud.bud_find_in_app(RunnerApiKey)],
         }
 
-    def admin_revoke(self):
+    def _admin_revoke(self):
         """An administrator mints a key and revokes it twice."""
         p = self.parameters
         self.bud.bud_start_app()

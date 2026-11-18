@@ -14,7 +14,7 @@ from tests.bud_test_base import BudAppTestCase
 class ObjectStorageBase(BudAppTestCase):
 
     def bud_upload_and_download_go_through_the_bucket(self):
-        p, found = self.parameters, self.tc_round_trip
+        p, found = self.parameters, self.round_trip
         self.print_variables(found)
         self.assertEqual(found["uploaded"], p.STATUS_CREATED, msg=p.MSG_S3_UPLOADED)
         self.assertEqual(found["keys"], found["expected keys"], msg=p.MSG_S3_KEYS)
@@ -28,7 +28,7 @@ class ObjectStorageBase(BudAppTestCase):
         self.assertEqual(found["deleted"], p.STATUS_NO_CONTENT, msg=p.MSG_S3_DELETED)
 
     def bud_without_the_mirror_only_the_bucket_holds_it(self):
-        p, found = self.parameters, self.tc_unmirrored
+        p, found = self.parameters, self.unmirrored
         self.print_variables(found)
         self.assertEqual(found["uploaded"], p.STATUS_CREATED, msg=p.MSG_S3_UPLOADED)
         self.assertEqual(found["mirrored"], False, msg=p.MSG_S3_NOT_MIRRORED)
@@ -37,7 +37,7 @@ class ObjectStorageBase(BudAppTestCase):
         self.assertEqual(found["keys"], [], msg=p.MSG_S3_KEYS)
 
     def bud_refused_upload_leaves_nothing(self):
-        p, found = self.parameters, self.tc_refused
+        p, found = self.parameters, self.refused
         self.print_variables(found)
         self.assertEqual(found["status"], p.STATUS_UNAVAILABLE, msg=p.MSG_S3_REFUSED)
         self.assertEqual(found["files"], [], msg=p.MSG_S3_NOTHING_LEFT)
@@ -45,13 +45,13 @@ class ObjectStorageBase(BudAppTestCase):
     def bud_stored_file_is_read_from_the_bucket_then_the_mirror(self):
         p = self.parameters
         self.assertEqual(
-            self.tc_read_stored,
+            self.read_stored,
             [p.S3_LOCAL_BYTES, p.S3_BUCKET_BYTES, p.NONE_TYPE, p.NONE_TYPE],
             msg=p.MSG_S3_READ_STORED,
         )
 
     def bud_cleanup_reconciles_the_bucket(self):
-        p, found = self.parameters, self.tc_cleanup
+        p, found = self.parameters, self.cleanup
         self.print_variables(found)
         self.assertEqual(found["expired"], 1, msg=p.MSG_S3_EXPIRED)
         self.assertEqual(found["keys"], [p.S3_KEY.format(p.S3_KEPT)], msg=p.MSG_S3_KEYS)
@@ -60,24 +60,24 @@ class ObjectStorageBase(BudAppTestCase):
 
     def bud_migration_copies_once_and_checks_sizes(self):
         self.assertEqual(
-            self.tc_migrations, self.parameters.S3_MIGRATIONS, msg=self.parameters.MSG_S3_MIGRATIONS
+            self.migrations, self.parameters.S3_MIGRATIONS, msg=self.parameters.MSG_S3_MIGRATIONS
         )
 
     def bud_migrate_command_exits_by_outcome(self):
         p = self.parameters
-        self.assertEqual(self.tc_command_codes, p.S3_COMMAND_CODES, msg=p.MSG_S3_COMMAND_CODES)
-        self.assertIn(p.S3_COMMAND_OUTPUT, self.tc_command_output, msg=p.MSG_S3_COMMAND_OUTPUT)
+        self.assertEqual(self.command_codes, p.S3_COMMAND_CODES, msg=p.MSG_S3_COMMAND_CODES)
+        self.assertIn(p.S3_COMMAND_OUTPUT, self.command_output, msg=p.MSG_S3_COMMAND_OUTPUT)
 
     def bud_readiness_names_the_storage(self):
         self.assertEqual(
-            self.tc_readiness, self.parameters.S3_READINESS, msg=self.parameters.MSG_S3_READINESS
+            self.readiness, self.parameters.S3_READINESS, msg=self.parameters.MSG_S3_READINESS
         )
 
     def bud_s3_needs_a_bucket(self):
         p = self.parameters
-        self.print_variables({"refusal": self.tc_no_bucket})
+        self.print_variables({"refusal": self.no_bucket})
         self.assertEqual(
-            isinstance(self.tc_no_bucket, ValueError), True, msg=p.MSG_S3_BUCKET_REQUIRED
+            isinstance(self.no_bucket, ValueError), True, msg=p.MSG_S3_BUCKET_REQUIRED
         )
-        self.assertIn(p.S3_NEEDS_BUCKET, str(self.tc_no_bucket), msg=p.MSG_S3_BUCKET_TEXT)
-        self.assertEqual(self.tc_prefix, p.S3_DEFAULT_PREFIX, msg=p.MSG_S3_PREFIX)
+        self.assertIn(p.S3_NEEDS_BUCKET, str(self.no_bucket), msg=p.MSG_S3_BUCKET_TEXT)
+        self.assertEqual(self.prefix, p.S3_DEFAULT_PREFIX, msg=p.MSG_S3_PREFIX)

@@ -43,7 +43,7 @@ class AuthApiTest(AuthApiBase):
         ]
         for patch in patches:
             patch.start()
-        self.tc_checks = {}
+        self.checks = {}
         for scenario in (
             self.login,
             self.login_refusals,
@@ -114,7 +114,7 @@ class AuthApiTest(AuthApiBase):
         response = self.log_in()
         body = body_of(response)
         cookies = response.headers.get("set-cookie", "")
-        self.tc_checks["login"] = {
+        self.checks["login"] = {
             "the login succeeds": (response.status_code, p.STATUS_OK),
             "an access token is returned": (bool(body.get("access_token")), True),
             "the person is returned": ((body.get("user") or {}).get("email"), p.AUTH_PERSON),
@@ -133,7 +133,7 @@ class AuthApiTest(AuthApiBase):
         wrong_short = self.log_in(password="nope")
         ghost = self.log_in("ghost@example.com", "nope")
         off = self.log_in("off@example.com")
-        self.tc_checks["login refusals"] = {
+        self.checks["login refusals"] = {
             "a wrong password is refused": (wrong.status_code, p.STATUS_UNAUTHORIZED),
             "an unknown address is refused": (unknown.status_code, p.STATUS_UNAUTHORIZED),
             "both refusals share their status": (wrong_short.status_code, ghost.status_code),
@@ -162,7 +162,7 @@ class AuthApiTest(AuthApiBase):
         self.fresh()
         missing = self.post(p.AUTH_REFRESH_PATH)
         forged = self.post(p.AUTH_REFRESH_PATH, cookies={p.AUTH_REFRESH_NAME: "not-a-real-token"})
-        self.tc_checks["refresh"] = {
+        self.checks["refresh"] = {
             "the login succeeds": (login.status_code, p.STATUS_OK),
             "the cookie is exchanged": (exchanged.status_code, p.STATUS_OK),
             "a new access token is returned": (bool(body_of(exchanged).get("access_token")), True),
@@ -184,7 +184,7 @@ class AuthApiTest(AuthApiBase):
         reused = self.post(p.AUTH_REFRESH_PATH, cookies={p.AUTH_REFRESH_NAME: token})
         self.fresh()
         anonymous = self.post(p.AUTH_LOGOUT_PATH)
-        self.tc_checks["logout"] = {
+        self.checks["logout"] = {
             "the login sets a refresh token": (bool(token), True),
             "the logout succeeds": (logout.status_code, p.STATUS_OK),
             "the revoked token is refused": (reused.status_code, p.STATUS_UNAUTHORIZED),
@@ -201,7 +201,7 @@ class AuthApiTest(AuthApiBase):
         renamed = self.bud.bud_request(
             p.PUT, p.AUTH_ME_PATH, json={"full_name": "Renamed"}, headers=headers
         )
-        self.tc_checks["profile"] = {
+        self.checks["profile"] = {
             "the profile needs a token": (anonymous.status_code, p.STATUS_UNAUTHORIZED),
             "the profile is read": (me.status_code, p.STATUS_OK),
             "the profile is the signed-in person": (body_of(me).get("email"), p.AUTH_PERSON),
@@ -237,7 +237,7 @@ class AuthApiTest(AuthApiBase):
         second_mail = self.sent[1] if len(self.sent) > 1 else {}
         new = self.post(p.AUTH_CONFIRM_PATH, json={"token": self.mailed_token(1)})
         moved = self.stored(admin)
-        self.tc_checks["admin email change"] = {
+        self.checks["admin email change"] = {
             "the change is requested": (response.status_code, p.STATUS_OK),
             "the answer points at the current mailbox": (
                 "current email" in str(body_of(response).get("message")).lower(),
@@ -296,7 +296,7 @@ class AuthApiTest(AuthApiBase):
             json={"current_password": p.AUTH_PASSWORD, "new_email": "viewer-after@example.com"},
             headers=headers,
         )
-        self.tc_checks["email change request"] = {
+        self.checks["email change request"] = {
             "the change is requested": (response.status_code, p.STATUS_OK),
             "the change waits for approval": (self.stored(viewer).email_change_status, "requested"),
             "no mail is sent": (list(self.sent), []),
@@ -326,7 +326,7 @@ class AuthApiTest(AuthApiBase):
             headers=headers,
         )
         stale = self.bud.bud_request(p.GET, p.AUTH_ME_PATH, headers=headers)
-        self.tc_checks["password change"] = {
+        self.checks["password change"] = {
             "a wrong current password is refused": self.refused(wrong, p.AUTH_WRONG_PASSWORD),
             "a short new password is refused": (short.status_code, p.STATUS_UNPROCESSABLE),
             "the password is changed": (changed.status_code, p.STATUS_OK),
@@ -344,7 +344,7 @@ class AuthApiTest(AuthApiBase):
         bogus = self.post(
             p.AUTH_RESET_PATH, json={"token": "nonsense", "new_password": "a-long-enough-password"}
         )
-        self.tc_checks["password reset"] = {
+        self.checks["password reset"] = {
             "both answers share their status": (known.status_code, unknown.status_code),
             "both answers share their body": (body_of(known), body_of(unknown)),
             "one reset token is issued for the real account": (len(tokens), 1),
@@ -370,7 +370,7 @@ class AuthApiTest(AuthApiBase):
                 "a bogus email confirmation is refused": self.refused(confirm),
             }
         )
-        self.tc_checks["bogus tokens"] = checks
+        self.checks["bogus tokens"] = checks
 
     def tearDownClass(self):
         super().tearDownClass()

@@ -18,27 +18,27 @@ class PasswordPolicyTest(PasswordPolicyBase):
     def setUpClass(self):
         super().setUpClass()
         attempt, validate = self.bud.bud_attempt, validate_password_strength
-        minimum, self.tc_max_bytes = PASSWORD_MIN_LENGTH, PASSWORD_MAX_BYTES
+        minimum, self.max_bytes = PASSWORD_MIN_LENGTH, PASSWORD_MAX_BYTES
         character = self.parameters.PASSWORD_CHARACTER
-        self.tc_minimum_password = character * minimum
-        self.tc_minimum = attempt(lambda: validate(self.tc_minimum_password))
+        self.minimum_password = character * minimum
+        self.minimum = attempt(lambda: validate(self.minimum_password))
         lengths = dict(zip(self.parameters.PASSWORD_SHORT_CASES, (0, 1, minimum - 1)))
-        self.tc_short = {
+        self.short = {
             case: attempt(lambda length=length: validate(character * length))
             for case, length in lengths.items()
         }
-        self.tc_overlong = attempt(lambda: validate(character * (self.tc_max_bytes + 1)))
-        self.tc_multibyte = attempt(lambda: validate(self.parameters.PASSWORD_MULTIBYTE))
-        self.tc_schema_short = {}
-        self.tc_schema_valid = {}
+        self.overlong = attempt(lambda: validate(character * (self.max_bytes + 1)))
+        self.multibyte = attempt(lambda: validate(self.parameters.PASSWORD_MULTIBYTE))
+        self.schema_short = {}
+        self.schema_valid = {}
         for schema, (field, values) in self.parameters.PASSWORD_SCHEMAS.items():
             model = getattr(auth, schema)
-            self.tc_schema_short[schema] = attempt(
+            self.schema_short[schema] = attempt(
                 lambda model=model, field=field, values=values: model(
                     **values, **{field: self.parameters.PASSWORD_SHORT}
                 )
             )
-            self.tc_schema_valid[schema] = attempt(
+            self.schema_valid[schema] = attempt(
                 lambda model=model, field=field, values=values: model(
                     **values, **{field: self.parameters.PASSWORD_VALID}
                 )

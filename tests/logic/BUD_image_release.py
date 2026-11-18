@@ -22,12 +22,12 @@ class ImageReleaseTest(ImageReleaseBase):
         p, attempt = self.parameters, self.bud.bud_attempt
         release = self.bud.bud_load_repository_module(p.RELEASE_MODULE, p.RELEASE_SCRIPT)
         eligible = release.eligible_aliases
-        self.tc_older = eligible(p.RELEASE_OLDER_ALIASES, p.RELEASE_OLDER_REF, p.RELEASE_LATEST_TAG)
-        self.tc_current = eligible(p.RELEASE_STABLE, p.RELEASE_CURRENT_REF, p.RELEASE_LATEST_TAG)
-        self.tc_stale = eligible(
+        self.older = eligible(p.RELEASE_OLDER_ALIASES, p.RELEASE_OLDER_REF, p.RELEASE_LATEST_TAG)
+        self.current = eligible(p.RELEASE_STABLE, p.RELEASE_CURRENT_REF, p.RELEASE_LATEST_TAG)
+        self.stale = eligible(
             p.RELEASE_LATEST, p.RELEASE_BRANCH_REF, p.RELEASE_LATEST_TAG, False
         )
-        self.tc_prerelease = eligible(
+        self.prerelease = eligible(
             p.RELEASE_STABLE, p.RELEASE_PRERELEASE_REF, p.RELEASE_LATEST_TAG
         )
         execute = mock.Mock()
@@ -39,15 +39,15 @@ class ImageReleaseTest(ImageReleaseBase):
                 execute,
             )
         )
-        self.tc_conflict = (error, execute.called)
+        self.conflict = (error, execute.called)
         execute = mock.Mock()
         attempt(
             lambda: release.promote(
                 p.RELEASE_IMAGE, p.RELEASE_REPEATED_ALIASES, lambda _: p.RELEASE_DIGEST, execute
             )
         )
-        self.tc_repeated = [call.args for call in execute.call_args_list]
-        self.tc_mismatch = attempt(
+        self.repeated = [call.args for call in execute.call_args_list]
+        self.mismatch = attempt(
             lambda: release.promote(
                 p.RELEASE_IMAGE,
                 p.RELEASE_STABLE_ALIASES,
@@ -55,25 +55,25 @@ class ImageReleaseTest(ImageReleaseBase):
                 mock.Mock(),
             )
         )
-        self.tc_malformed_digest = {}
+        self.malformed_digest = {}
         for reference in p.RELEASE_MALFORMED:
             docker = mock.Mock()
             with mock.patch.object(release.subprocess, "run", docker):
                 outcome = attempt(lambda reference=reference: release.digest(reference))
-            self.tc_malformed_digest[reference] = (outcome, docker.called)
-        self.tc_well_formed_digest = {}
+            self.malformed_digest[reference] = (outcome, docker.called)
+        self.well_formed_digest = {}
         for reference in p.RELEASE_WELL_FORMED:
             answer = subprocess.CompletedProcess([], 0, stdout=p.RELEASE_DIGEST + "\n", stderr="")
             docker = mock.Mock(return_value=answer)
             with mock.patch.object(release.subprocess, "run", docker):
                 value = attempt(lambda reference=reference: release.digest(reference))
             command = docker.call_args.args[0] if docker.call_args else []
-            self.tc_well_formed_digest[reference] = (value, command)
-        self.tc_reference_checks = {
+            self.well_formed_digest[reference] = (value, command)
+        self.reference_checks = {
             reference: release.is_image_reference(reference)
             for reference in p.RELEASE_MALFORMED + p.RELEASE_WELL_FORMED
         }
-        self.tc_malformed_promotions = {}
+        self.malformed_promotions = {}
         for case, (image, aliases) in p.RELEASE_MALFORMED_PROMOTIONS.items():
             inspect, execute = mock.Mock(), mock.Mock()
             outcome = attempt(
@@ -81,7 +81,7 @@ class ImageReleaseTest(ImageReleaseBase):
                     image, aliases, inspect, execute
                 )
             )
-            self.tc_malformed_promotions[case] = (outcome, inspect.called, execute.called)
+            self.malformed_promotions[case] = (outcome, inspect.called, execute.called)
 
     def tearDownClass(self):
         super().tearDownClass()

@@ -48,7 +48,7 @@ class GroupsApiTest(GroupsApiBase):
     def setUpClass(self):
         super().setUpClass()
         p = self.parameters
-        self.tc_checks = {}
+        self.checks = {}
         self.sent = []
         patch = mock.patch.object(
             access_requests, "send_access_request_email", lambda **mail: self.sent.append(mail)
@@ -259,7 +259,7 @@ class GroupsApiTest(GroupsApiBase):
                 ),
             }
         )
-        self.tc_checks["defaults"] = checks
+        self.checks["defaults"] = checks
 
     def custom_groups(self):
         p = self.parameters
@@ -281,7 +281,7 @@ class GroupsApiTest(GroupsApiBase):
             )
         )
         self.call(p.POST, p.GROUPS_PATH, {"name": "Other"})
-        self.tc_checks["custom groups"] = {
+        self.checks["custom groups"] = {
             "a group is created": (created.status_code, p.STATUS_CREATED),
             "the group holds its policies' permissions": (
                 body_of(created).get("permissions"),
@@ -336,7 +336,7 @@ class GroupsApiTest(GroupsApiBase):
 
     def contract(self):
         p = self.parameters
-        self.tc_checks["contract"] = {
+        self.checks["contract"] = {
             f"{payload} is refused": (
                 self.status(p.POST, p.GROUPS_PATH, {"name": "Invalid", **payload}),
                 p.STATUS_UNPROCESSABLE,
@@ -362,7 +362,7 @@ class GroupsApiTest(GroupsApiBase):
         )
         in_use = self.status(p.DELETE, f"{p.POLICIES_PATH_ALL}/{policy_id}")
         self.call(p.DELETE, f"{p.GROUPS_PATH}/{group.get('id')}")
-        self.tc_checks["policies"] = {
+        self.checks["policies"] = {
             "the catalogue lists the station actions": (
                 catalogue.get("stations"),
                 ["view", "manage"],
@@ -420,7 +420,7 @@ class GroupsApiTest(GroupsApiBase):
         for product in self.products:
             self.call(p.PUT, f"/api/products/{product.id}/groups/{operators}/members", {"user_ids": []})
         self.bud.bud_sign_in_as(viewer)
-        self.tc_checks["base role"] = {
+        self.checks["base role"] = {
             "the viewer stays a viewer": (me.get("role"), "viewer"),
             "results viewers cannot queue runs": (
                 "custom_runs.create" in (me.get("permissions") or []),
@@ -509,7 +509,7 @@ class GroupsApiTest(GroupsApiBase):
                     (stored.id, stored.email, stored.full_name, stored.role, stored.is_active),
                     account,
                 )
-        self.tc_checks["recipients"] = checks
+        self.checks["recipients"] = checks
 
     def managers(self):
         p = self.parameters
@@ -613,7 +613,7 @@ class GroupsApiTest(GroupsApiBase):
             self.status(p.DELETE, f"{p.GROUPS_PATH}/{administrators}/members/{developer.id}"),
             p.STATUS_FORBIDDEN,
         )
-        self.tc_checks["managers"] = checks
+        self.checks["managers"] = checks
 
     def hide_nothing(self):
         p = self.parameters
@@ -652,7 +652,7 @@ class GroupsApiTest(GroupsApiBase):
                 self.status(p.GET, f"{p.TEST_RUNS_PATH}/{run.id}"),
                 p.STATUS_OK if run.product_id else p.STATUS_NOT_FOUND,
             )
-        self.tc_checks["hide nothing"] = checks
+        self.checks["hide nothing"] = checks
 
     def route_map(self):
         p = self.parameters
@@ -677,7 +677,7 @@ class GroupsApiTest(GroupsApiBase):
                 checks[
                     f"{who}: {method} {path} is {'refused' if permission not in allowed else 'allowed'}"
                 ] = (refused, permission not in allowed)
-        self.tc_checks["route map"] = checks
+        self.checks["route map"] = checks
 
     def grant(self):
         p = self.parameters
@@ -704,7 +704,7 @@ class GroupsApiTest(GroupsApiBase):
         )
         again = self.status(p.POST, decision, {"decision": "refused"})
         self.bud.bud_sign_in_as(viewer)
-        self.tc_checks["grant"] = {
+        self.checks["grant"] = {
             "the request is created": (request.status_code, p.STATUS_CREATED),
             "the administrators and managers are mailed": (
                 mailed,
@@ -736,7 +736,7 @@ class GroupsApiTest(GroupsApiBase):
             p.ACCESS_REQUESTS_PATH,
             {"resource_type": "publish-to-bloom", "resource_ref": str(runs[0].id)},
         )
-        self.tc_checks["admins told"] = {
+        self.checks["admins told"] = {
             "every administrator is mailed": (
                 sorted(mail.get("to_email") for mail in self.sent),
                 ["admin@example.com", "boss@example.com"],
@@ -775,7 +775,7 @@ class GroupsApiTest(GroupsApiBase):
             p.POST, f"{p.GROUPS_PATH}/{group.get('id')}/members", {"user_id": developer.id}
         )
         self.bud.bud_sign_in_as(developer)
-        self.tc_checks["custom policy"] = {
+        self.checks["custom policy"] = {
             "products stay closed before the group": (before[0], p.STATUS_FORBIDDEN),
             "the audit stays closed before the group": (before[1], p.STATUS_FORBIDDEN),
             "the group is given": (given, p.STATUS_CREATED),
@@ -810,7 +810,7 @@ class GroupsApiTest(GroupsApiBase):
             ),
             {},
         )
-        self.tc_checks["pictures"] = {
+        self.checks["pictures"] = {
             "the group roster shows the picture": (
                 member.get("profile_picture_url"),
                 developer.profile_picture_url,
@@ -824,7 +824,7 @@ class GroupsApiTest(GroupsApiBase):
     async def seed_rows(self, db):
         await access.seed_default_access(db)
         await access.seed_default_access(db)
-        self.tc_checks["seed rows"] = {
+        self.checks["seed rows"] = {
             "five groups are kept": (
                 await db.scalar(select(func.count()).select_from(AccessGroup)),
                 5,
@@ -855,7 +855,7 @@ class GroupsApiTest(GroupsApiBase):
         await db.flush()
         await access.seed_default_access(db)
         await access.seed_default_access(db)
-        self.tc_checks["seed administration"] = {
+        self.checks["seed administration"] = {
             "the group keeps its id": (group.id, group_id),
             "the group gets its current name": (group.name, "Application Administrators"),
             "the group keeps its key": (group.system_key, "app_administration"),
@@ -880,7 +880,7 @@ class GroupsApiTest(GroupsApiBase):
         await access.seed_default_access(db)
         await access.seed_default_access(db)
         await db.refresh(group, attribute_names=["policies"])
-        self.tc_checks["seed publishing"] = {
+        self.checks["seed publishing"] = {
             "the policy keeps its id": (policy.id, policy_id),
             "the policy gets its current name": (policy.name, "Reports publishing"),
             "the policy keeps its permissions": (policy.permissions, permissions),

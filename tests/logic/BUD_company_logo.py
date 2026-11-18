@@ -23,21 +23,21 @@ class CompanyLogoTest(CompanyLogoBase):
         super().setUpClass()
         db = self.bud.bud_open_session()
         run, attempt = self.bud.bud_await, self.bud.bud_attempt
-        self.tc_stored = run(
+        self.stored = run(
             company_logo.set_company_logo(
                 file=self.upload(self.parameters.LOGO_PNG, self.parameters.LOGO_TYPE),
                 db=db,
                 _admin=None,
             )
         )
-        self.tc_served = attempt(lambda: run(company_logo.get_company_logo(db=db, _entity=None)))
-        self.tc_report_logo = run(company_logo.load_report_logo(db))
+        self.served = attempt(lambda: run(company_logo.get_company_logo(db=db, _entity=None)))
+        self.report_logo = run(company_logo.load_report_logo(db))
         run(company_logo.delete_company_logo(db=db, _admin=None))
-        self.tc_served_after_delete = attempt(
+        self.served_after_delete = attempt(
             lambda: run(company_logo.get_company_logo(db=db, _entity=None))
         )
-        self.tc_report_logo_after_delete = run(company_logo.load_report_logo(db))
-        self.tc_text_logo = attempt(
+        self.report_logo_after_delete = run(company_logo.load_report_logo(db))
+        self.text_logo = attempt(
             lambda: run(
                 company_logo.set_company_logo(
                     file=self.upload(
@@ -48,8 +48,8 @@ class CompanyLogoTest(CompanyLogoBase):
                 )
             )
         )
-        self.tc_report = report_pdf.render_report(self.report_request())
-        self.tc_branded_report = report_pdf.render_report(
+        self.report = report_pdf.render_report(self.report_request())
+        self.branded_report = report_pdf.render_report(
             self.report_request(), self.parameters.LOGO_PNG
         )
 

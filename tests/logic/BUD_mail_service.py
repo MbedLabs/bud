@@ -109,24 +109,24 @@ class MailServiceTest(MailServiceBase):
     def setUpClass(self):
         super().setUpClass()
         p = self.parameters
-        self.tc_checks = {}
+        self.checks = {}
         self.sender()
-        self.tc_checks["starttls"] = self.failed_delivery(
+        self.checks["starttls"] = self.failed_delivery(
             WithoutStartTls, {"SMTP_STARTTLS": True}, p.MAIL_STARTTLS_TEXTS
         )
-        self.tc_checks["handlers"] = {
+        self.checks["handlers"] = {
             "MailDeliveryError is a MailConfigurationError": (
                 issubclass(mail_service.MailDeliveryError, mail_service.MailConfigurationError),
                 True,
             )
         }
-        self.tc_checks["unreachable"] = self.failed_delivery(
+        self.checks["unreachable"] = self.failed_delivery(
             refuse(OSError("Connection refused")), {}, (p.MAIL_RELAY,)
         )
         self.logs()
         emails = {name: self.email(name) for name in p.MAIL_SENDERS}
         for name, message in emails.items():
-            self.tc_checks[name] = self.structure(message)
+            self.checks[name] = self.structure(message)
         self.requests(emails["access_request"], emails["report_request"])
 
     def deliver(self, relay, settings=None, **message):
@@ -156,7 +156,7 @@ class MailServiceTest(MailServiceBase):
             text_body="plain text",
         )
         messages = [message for relay in Relay.opened for message in relay.messages]
-        self.tc_checks["sender"] = {
+        self.checks["sender"] = {
             "one message is handed over": (len(messages), 1),
             "the sender is the product identity": (
                 (messages or [{}])[0].get("From"),
@@ -193,9 +193,9 @@ class MailServiceTest(MailServiceBase):
         """A delivered and a refused email with private values."""
         p = self.parameters
         text, _ = self.logged(Relay, logging.INFO, **p.MAIL_PRIVATE)
-        self.tc_checks["sent log"] = {"the delivery is logged": (p.MAIL_SENT in text, True)}
+        self.checks["sent log"] = {"the delivery is logged": (p.MAIL_SENT in text, True)}
         for private in p.MAIL_PRIVATE_TEXTS:
-            self.tc_checks["sent log"][f"the log leaves out {private}"] = (private in text, False)
+            self.checks["sent log"][f"the log leaves out {private}"] = (private in text, False)
         text, error = self.logged(
             refuse(smtplib.SMTPException(p.MAIL_SERVER_RESPONSE)),
             logging.ERROR,
@@ -203,16 +203,16 @@ class MailServiceTest(MailServiceBase):
             subject="private",
             text_body="body",
         )
-        self.tc_checks["error log"] = {
+        self.checks["error log"] = {
             "the delivery raises MailDeliveryError": (type(error).__name__, p.MAIL_DELIVERY_ERROR),
             "the log names the exception type": ("SMTPException" in text, True),
         }
         for server_text in p.MAIL_SERVER_TEXTS:
-            self.tc_checks["error log"][f"the log leaves out {server_text}"] = (
+            self.checks["error log"][f"the log leaves out {server_text}"] = (
                 server_text in text,
                 False,
             )
-        self.tc_checks["error log"]["the error keeps the server response"] = (
+        self.checks["error log"]["the error keeps the server response"] = (
             p.MAIL_SERVER_TEXTS[0] in str(error),
             True,
         )
@@ -260,17 +260,17 @@ class MailServiceTest(MailServiceBase):
         """The escaping, subjects and next steps of the access and report request emails."""
         p = self.parameters
         bodies = {"access": access, "report": report}
-        self.tc_checks["escaped"] = {
+        self.checks["escaped"] = {
             name: (value in (bodies[email].get(part) or ""), True)
             for name, (email, part, value) in p.MAIL_ESCAPED.items()
         }
-        self.tc_checks["requests"] = {
+        self.checks["requests"] = {
             "the access request subject": (access.get("subject"), p.MAIL_ACCESS_SUBJECT),
             "the report request subject": (report.get("subject"), p.MAIL_REPORT_SUBJECT),
         }
         for email, step in (("access", p.MAIL_GRANT), ("report", p.MAIL_PUBLISH)):
             for part in ("html_body", "text_body"):
-                self.tc_checks["requests"][f"the {email} {part} names the next step"] = (
+                self.checks["requests"][f"the {email} {part} names the next step"] = (
                     step in (bodies[email].get(part) or ""),
                     True,
                 )

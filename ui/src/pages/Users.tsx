@@ -1,10 +1,9 @@
-import AccessUsers from '../components/AccessUsers'
 import ProfilePicture from '../components/ProfilePicture'
 import SelectField from '../components/SelectField'
-import { Fragment, useState } from 'react'
-import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query'
-import { Check, ChevronDown, ChevronRight, Code2, Copy, Eye, Mail, Shield, Trash2, UserPlus, X } from 'lucide-react'
-import { accessApi, AccessUser, extractApiErrorMessage, InviteUserResponse, User, UserRole, usersApi } from '../api/client'
+import { Fragment, useEffect, useRef, useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Check, ChevronDown, ChevronRight, Code2, Copy, Edit2, Eye, Mail, Shield, Trash2, UserPlus, X } from 'lucide-react'
+import { extractApiErrorMessage, InviteUserResponse, User, UserRole, usersApi } from '../api/client'
 import { useAuth } from '../contexts/AuthContext'
 import { useEscapeKey } from '../hooks/useEscapeKey'
 import { formatDateTime } from '../lib/dateTime'
@@ -20,6 +19,7 @@ export default function UsersPage() {
   const queryClient = useQueryClient()
   const [showInviteModal, setShowInviteModal] = useState(false)
   const [emailChangeUser, setEmailChangeUser] = useState<User | null>(null)
+  const [editingUser, setEditingUser] = useState<number | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [emailActionError, setEmailActionError] = useState<string | null>(null)
   const [pendingDeleteUserId, setPendingDeleteUserId] = useState<number | null>(null)
@@ -28,12 +28,6 @@ export default function UsersPage() {
   const { data: users, isLoading } = useQuery({
     queryKey: ['users'],
     queryFn: usersApi.list,
-  })
-
-  const access = useQuery({
-    queryKey: ['access-users'],
-    queryFn: accessApi.users,
-    enabled: openUserIds.length > 0,
   })
 
   const toggleUser = (id: number) =>
@@ -49,7 +43,10 @@ export default function UsersPage() {
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: number; data: Parameters<typeof usersApi.update>[1] }) =>
       usersApi.update(id, data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['users'] })
+      setEditingUser(null)
+    },
   })
 
   const deleteMutation = useMutation({
@@ -112,10 +109,7 @@ export default function UsersPage() {
 
   return (
     <div className="animate-fade-in">
-      <div className="flex items-center justify-between mb-6">
-        <p className="text-sm text-muted-foreground">
-          {users?.length ?? 0} {users?.length === 1 ? 'user' : 'users'}
-        </p>
+      <div className="flex items-center justify-end mb-6">
         <button
           onClick={() => setShowInviteModal(true)}
           className="flex items-center gap-2 px-4 py-2 bg-gradient-button text-white text-sm font-medium rounded-lg hover:opacity-90 transition-opacity"
@@ -152,6 +146,7 @@ export default function UsersPage() {
             {users?.map((u) => {
               const roleConf = ROLE_CONFIG[u.role as keyof typeof ROLE_CONFIG] || ROLE_CONFIG.viewer
               const isSelf = u.id === currentUser?.id
+              const canEditRole = !isSelf && u.role !== 'admin'
               const isOpen = openUserIds.includes(u.id)
               return (
                 <Fragment key={u.id}>
@@ -162,8 +157,8 @@ export default function UsersPage() {
                         type="button"
                         onClick={() => toggleUser(u.id)}
                         aria-expanded={isOpen}
-                        aria-label={`${isOpen ? 'Hide' : 'Show'} groups of ${u.full_name}`}
-                        title={isOpen ? 'Hide groups' : 'Show groups'}
+                        aria-label={`${isOpen ? 'Hide' : 'Show'} access of ${u.full_name}`}
+                        title={isOpen ? 'Hide access' : 'Show access'}
                         className="p-1 -ml-1 rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
                       >
                         {isOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
@@ -191,10 +186,23 @@ export default function UsersPage() {
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold ${roleConf.color}`}>
-                      <roleConf.icon className="h-3 w-3" />
-                      {roleConf.label}
-                    </span>
+                    {editingUser === u.id ? (
+                      <SelectField
+                        defaultValue={u.role}
+                        onChange={(e) => updateMutation.mutate({ id: u.id, data: { role: e.target.value as UserRole } })}
+                        className="px-2 py-1 text-xs border border-input rounded bg-background text-foreground"
+                        title="Select role"
+                        autoFocus
+                      >
+                        <option value="developer">Developer</option>
+                        <option value="viewer">Viewer</option>
+                      </SelectField>
+                    ) : (
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold ${roleConf.color}`}>
+                        <roleConf.icon className="h-3 w-3" />
+                        {roleConf.label}
+                      </span>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     <span
@@ -243,6 +251,15 @@ export default function UsersPage() {
                         >
                           <Mail className="h-3.5 w-3.5" />
                         </button>
+                        {canEditRole && (
+                          <button
+                            onClick={() => setEditingUser(editingUser === u.id ? null : u.id)}
+                            className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                            title="Edit role"
+                          >
+                            <Edit2 className="h-3.5 w-3.5" />
+                          </button>
+                        )}
                         {!isSelf && (
                           <>
                             <button
@@ -277,7 +294,7 @@ export default function UsersPage() {
                 {isOpen && (
                   <tr className="border-b border-border last:border-0 bg-muted/10">
                     <td colSpan={5} className="px-4 py-2">
-                      <UserGroupList userId={u.id} access={access} />
+                      <UserAccessDetails userId={u.id} />
                     </td>
                   </tr>
                 )}
@@ -318,41 +335,51 @@ export default function UsersPage() {
           }
         />
       )}
-      <div className="mt-8">
-        <AccessUsers />
-      </div>
     </div>
   )
 }
 
-/** The names of the groups a user holds, shown under their row. */
-function UserGroupList({ userId, access }: Readonly<{ userId: number; access: UseQueryResult<AccessUser[]> }>) {
-  if (access.isPending) {
-    return <p className="text-xs text-muted-foreground">Loading groups...</p>
+/** The products a user can access, by name only. */
+function UserAccessDetails({ userId }: Readonly<{ userId: number }>) {
+  const summary = useQuery({
+    queryKey: ['user-access-summary', userId],
+    queryFn: () => usersApi.accessSummary(userId),
+  })
+  if (summary.isPending) {
+    return <p className="text-xs text-muted-foreground">Loading access...</p>
   }
-  if (access.isError) {
+  if (summary.isError) {
     return (
       <p role="alert" className="text-xs text-destructive">
-        Could not load groups.{' '}
-        <button type="button" onClick={() => { void access.refetch() }} className="underline">
+        Could not load access.{' '}
+        <button type="button" onClick={() => { void summary.refetch() }} className="underline">
           Retry
         </button>
       </p>
     )
   }
-  const groups = access.data.find((person) => person.id === userId)?.groups ?? []
+  const { every_product: everyProduct, products } = summary.data
   return (
-    <div className="flex flex-wrap items-center gap-1.5 text-xs">
-      <span className="font-medium text-muted-foreground">Groups</span>
-      {groups.length === 0 ? (
-        <span className="text-muted-foreground">No groups</span>
-      ) : (
-        groups.map((group) => (
-          <span key={group.id} className="rounded-full border border-border px-2 py-0.5 text-foreground">
-            {group.name}
-          </span>
-        ))
+    <p className="text-xs">
+      <span className="font-medium text-muted-foreground">Products: </span>
+      {everyProduct && <span className="text-foreground">Every product (Admin)</span>}
+      {!everyProduct && products.length === 0 && <span className="text-muted-foreground">No products</span>}
+      {!everyProduct && products.length > 0 && (
+        <span className="text-foreground">{products.map((product) => product.product_name).join(', ')}</span>
       )}
+    </p>
+  )
+}
+
+/** A user's picture, name and email, as the email change dialog names the account. */
+function UserIdentity({ user }: Readonly<{ user: User }>) {
+  return (
+    <div className="flex items-center gap-3">
+      <ProfilePicture user={user} />
+      <div className="min-w-0">
+        <p className="text-sm font-medium text-foreground truncate">{user.full_name}</p>
+        <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+      </div>
     </div>
   )
 }
@@ -371,7 +398,12 @@ function EmailChangeModal({
   error: string | null
 }>) {
   const [newEmail, setNewEmail] = useState(user.pending_email ?? '')
+  const emailInput = useRef<HTMLInputElement>(null)
   useEscapeKey(onClose)
+
+  useEffect(() => {
+    emailInput.current?.focus()
+  }, [])
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
@@ -397,6 +429,7 @@ function EmailChangeModal({
         <p className="text-sm text-muted-foreground mb-4">
           Bud will send a confirmation link to the new address. The login email remains {user.email} until the recipient confirms it.
         </p>
+        <div className="mb-4"><UserIdentity user={user} /></div>
         {error && (
           <div className="mb-4 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
             {error}
@@ -414,6 +447,7 @@ function EmailChangeModal({
               New email
             </label>
             <input
+              ref={emailInput}
               id="admin-new-email"
               type="email"
               value={newEmail}
@@ -453,7 +487,12 @@ function InviteUserModal({
   const [inviteLink, setInviteLink] = useState<string | null>(null)
   const [invitedEmail, setInvitedEmail] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
+  const fullNameInput = useRef<HTMLInputElement>(null)
   useEscapeKey(onClose)
+
+  useEffect(() => {
+    fullNameInput.current?.focus()
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -533,6 +572,7 @@ function InviteUserModal({
             <label htmlFor="invite-full-name" className="block text-sm font-medium text-foreground mb-1">Full Name</label>
             <input
               id="invite-full-name"
+              ref={fullNameInput}
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               required

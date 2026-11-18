@@ -36,7 +36,7 @@ class ResultsApiTest(ResultsApiBase):
             if timeline.status_code == 200 and timeline.json()
             else None
         )
-        self.tc_voltage = {
+        self.voltage = {
             "status": response.status_code,
             "count": response.json().get("count"),
             "rows": len(rows),
@@ -53,10 +53,10 @@ class ResultsApiTest(ResultsApiBase):
             "timeline": (timeline.status_code, first_title),
         }
         run_id, response = self.upload_to_run(p.RESULTS_MIXED_RUN, p.RESULTS_MIXED)
-        self.tc_mixed = {"status": response.status_code, "counts": self.counts(run_id)}
+        self.mixed = {"status": response.status_code, "counts": self.counts(run_id)}
         response = self.upload({"results": p.RESULTS_DETACHED})
         run = self.stored_run(response.json().get("test_run_id"))
-        self.tc_detached = {
+        self.detached = {
             "status": response.status_code,
             "count": response.json().get("count"),
             "times in order": bool(
@@ -65,7 +65,7 @@ class ResultsApiTest(ResultsApiBase):
         }
         response = self.upload({**p.RESULTS_SOFTWARE, "results": p.RESULTS_SOFTWARE_RESULT})
         run = self.stored_run(response.json().get("test_run_id"))
-        self.tc_software = {
+        self.software = {
             "status": response.status_code,
             "software": {field: getattr(run, field, None) for field in SOFTWARE_FIELDS},
         }

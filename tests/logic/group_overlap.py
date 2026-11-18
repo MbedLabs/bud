@@ -17,7 +17,7 @@ from tests.bud_test_base import BudAppTestCase
 class GroupOverlapBase(BudAppTestCase):
 
     def bud_two_groups_give_their_union(self):
-        p, found = self.parameters, self.tc_union
+        p, found = self.parameters, self.union
         self.print_variables({"both": sorted(found["both"])})
         self.assertEqual(found["both"], found["base and groups"], msg=p.MSG_GROUP_UNION)
         self.assertEqual(found["both"], found["each holder"], msg=p.MSG_GROUP_UNION_OF_EACH)
@@ -25,7 +25,7 @@ class GroupOverlapBase(BudAppTestCase):
         self.assertEqual(found["managed in base"], set(), msg=p.MSG_GROUP_NOT_BASE)
 
     def bud_a_shared_permission_stays_until_both_groups_go(self):
-        p, found = self.parameters, self.tc_release
+        p, found = self.parameters, self.release
         self.print_variables(
             {
                 key: sorted(value) if isinstance(value, frozenset) else value
@@ -41,19 +41,19 @@ class GroupOverlapBase(BudAppTestCase):
     @parameterized(params.GROUP_ADMIN_MEMBERSHIPS)
     def bud_admin_holds_every_permission(self, memberships):
         p = self.parameters
-        count, permissions = self.tc_admin[memberships]
+        count, permissions = self.admin[memberships]
         self.assertEqual(count, memberships, msg=p.MSG_GROUP_ADMIN_COUNT)
-        self.assertEqual(permissions, self.tc_all_permissions, msg=p.MSG_GROUP_ADMIN_ALL)
+        self.assertEqual(permissions, self.all_permissions, msg=p.MSG_GROUP_ADMIN_ALL)
 
     def bud_user_groups_lists_one_users_groups_by_name(self):
-        p, found = self.parameters, self.tc_listed
+        p, found = self.parameters, self.listed
         self.print_variables(found)
         self.assertEqual(found["owner"], sorted(p.GROUP_OWNER_GROUPS), msg=p.MSG_GROUP_LISTED)
         self.assertEqual(found["other"], [p.GROUP_STATIONS], msg=p.MSG_GROUP_LISTED)
         self.assertEqual(found["bystander"], [], msg=p.MSG_GROUP_LISTED)
 
     def bud_station_management_is_checked_per_given_group(self):
-        p, found = self.parameters, self.tc_station_check
+        p, found = self.parameters, self.station_check
         self.print_variables(found)
         self.assertEqual(
             type(found["viewer"]).__name__, p.HTTP_EXCEPTION, msg=p.MSG_GROUP_VIEWER_REFUSED
@@ -68,7 +68,7 @@ class GroupOverlapBase(BudAppTestCase):
         )
 
     def bud_giver_is_judged_on_all_their_groups(self):
-        p, found = self.parameters, self.tc_giver
+        p, found = self.parameters, self.giver
         self.print_variables(found)
         self.assertEqual(
             type(found["covered"]).__name__, p.NONE_TYPE, msg=p.MSG_GROUP_GIVER_COVERED
@@ -83,7 +83,7 @@ class GroupOverlapBase(BudAppTestCase):
         )
 
     def bud_giving_a_group_twice_leaves_one_membership(self):
-        p, found = self.parameters, self.tc_twice
+        p, found = self.parameters, self.twice
         self.print_variables(found)
         self.assertEqual(found["first"], True, msg=p.MSG_GROUP_FIRST_GIVE)
         self.assertEqual(found["second"], False, msg=p.MSG_GROUP_SECOND_GIVE)

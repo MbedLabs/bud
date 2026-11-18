@@ -136,8 +136,8 @@
                 "dockerImage": "ghcr.io/mbedlabs/bud:v1.3.0"
             },
             "creationDate": "Sun, 15 Nov 2026 02:08:52 GMT",
-            "ts": "Sun, 15 Nov 2026 02:08:52 GMT",
-            "publishState": "testing"
+            "ts": "Sun, 15 Nov 2026 13:21:19 GMT",
+            "publishState": "published"
         }
     }
 }

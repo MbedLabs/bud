@@ -36,7 +36,7 @@ class GroupOverlapPgTest(GroupOverlapPgBase):
     def setUpClass(self):
         super().setUpClass()
         self.client = self.bud.bud_start_live_app()
-        self.tc_checks = {"schema": self.schema(), "duplicates": self.duplicates(), "race": self.race(), "cascades": self.cascades()}
+        self.checks = {"schema": self.schema(), "duplicates": self.duplicates(), "race": self.race(), "cascades": self.cascades()}
 
     def count(self, sql, *args):
         """Run one counting query on the test database."""

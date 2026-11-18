@@ -26,7 +26,7 @@ class E2eImageSmokeScriptTest(E2eImageSmokeScriptBase):
             p.SMOKE_SCRIPT, [p.SMOKE_IMAGE], folder, {p.SMOKE_ARGV_SETTING: str(log)}
         )
         calls = [json.loads(line) for line in log.read_text().splitlines()] if log.exists() else []
-        self.tc_app_run = next(
+        self.app_run = next(
             (
                 call
                 for call in calls
@@ -41,7 +41,7 @@ class E2eImageSmokeScriptTest(E2eImageSmokeScriptBase):
             "version"
         ]
         (folder / p.SMOKE_VERSION_FILE).write_text(version)
-        self.tc_smoke = self.bud.bud_run_repository_script(p.SMOKE_SCRIPT, [p.SMOKE_IMAGE], folder)
+        self.smoke = self.bud.bud_run_repository_script(p.SMOKE_SCRIPT, [p.SMOKE_IMAGE], folder)
 
     @staticmethod
     def executable(path, text):

@@ -18,15 +18,15 @@ class PasswordPolicyBase(BudAppTestCase):
 
     def bud_minimum_length_is_accepted(self):
         self.assertEqual(
-            self.tc_minimum,
-            self.tc_minimum_password,
+            self.minimum,
+            self.minimum_password,
             msg=self.parameters.MSG_PASSWORD_MINIMUM,
             abort_on_fail=False,
         )
 
     @parameterized(params.PASSWORD_SHORT_CASES)
     def bud_short_password_is_refused(self, case):
-        refusal = self.tc_short[case]
+        refusal = self.short[case]
         self.print_variables({"case": case, "refusal": refusal})
         self.assertEqual(
             type(refusal).__name__,
@@ -42,16 +42,16 @@ class PasswordPolicyBase(BudAppTestCase):
         )
 
     def bud_overlong_password_is_refused(self):
-        self.print_variables({"refusal": self.tc_overlong})
+        self.print_variables({"refusal": self.overlong})
         self.assertEqual(
-            type(self.tc_overlong).__name__,
+            type(self.overlong).__name__,
             self.parameters.VALUE_ERROR,
             msg=self.parameters.MSG_PASSWORD_LONG_REFUSED,
             abort_on_fail=True,
         )
         self.assertIn(
             self.parameters.PASSWORD_TOO_LONG_TEXT,
-            str(self.tc_overlong),
+            str(self.overlong),
             msg=self.parameters.MSG_PASSWORD_LONG_TEXT,
             abort_on_fail=False,
         )
@@ -59,29 +59,29 @@ class PasswordPolicyBase(BudAppTestCase):
     def bud_multibyte_password_is_counted_in_bytes(self):
         self.assertLess(
             len(self.parameters.PASSWORD_MULTIBYTE),
-            self.tc_max_bytes,
+            self.max_bytes,
             msg=self.parameters.MSG_PASSWORD_MULTIBYTE_CHARACTERS,
             abort_on_fail=True,
         )
-        self.print_variables({"refusal": self.tc_multibyte})
+        self.print_variables({"refusal": self.multibyte})
         self.assertEqual(
-            type(self.tc_multibyte).__name__,
+            type(self.multibyte).__name__,
             self.parameters.VALUE_ERROR,
             msg=self.parameters.MSG_PASSWORD_MULTIBYTE_REFUSED,
             abort_on_fail=True,
         )
         self.assertIn(
             self.parameters.PASSWORD_TOO_LONG_TEXT,
-            str(self.tc_multibyte),
+            str(self.multibyte),
             msg=self.parameters.MSG_PASSWORD_LONG_TEXT,
             abort_on_fail=False,
         )
 
     @parameterized(params.PASSWORD_SCHEMAS)
     def bud_schema_refuses_a_short_password(self, schema):
-        self.print_variables({"schema": schema, "result": self.tc_schema_short[schema]})
+        self.print_variables({"schema": schema, "result": self.schema_short[schema]})
         self.assertEqual(
-            type(self.tc_schema_short[schema]).__name__,
+            type(self.schema_short[schema]).__name__,
             self.parameters.VALIDATION_ERROR,
             msg=self.parameters.MSG_PASSWORD_SCHEMA_SHORT,
             abort_on_fail=False,
@@ -91,7 +91,7 @@ class PasswordPolicyBase(BudAppTestCase):
     def bud_schema_accepts_a_valid_password(self, schema):
         field = self.parameters.PASSWORD_SCHEMAS[schema][0]
         self.assertEqual(
-            getattr(self.tc_schema_valid[schema], field, self.tc_schema_valid[schema]),
+            getattr(self.schema_valid[schema], field, self.schema_valid[schema]),
             self.parameters.PASSWORD_VALID,
             msg=self.parameters.MSG_PASSWORD_SCHEMA_VALID,
             abort_on_fail=False,

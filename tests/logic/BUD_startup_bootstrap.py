@@ -20,7 +20,7 @@ class StartupBootstrapTest(StartupBootstrapBase):
     def setUpClass(self):
         super().setUpClass()
         self.bud.bud_start_app()
-        self.tc_steps = {
+        self.steps = {
             case: self.start(repair, seed)
             for case, (repair, seed, _) in self.parameters.STARTUP_CASES.items()
         }

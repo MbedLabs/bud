@@ -14,7 +14,7 @@ from tests.bud_test_base import BudAppTestCase
 class RunReportAssertionsBase(BudAppTestCase):
 
     def bud_rows_leave_out_skipped_and_information_entries(self):
-        rows = [(detail.assertion_type, detail.passed) for detail in self.tc_details]
+        rows = [(detail.assertion_type, detail.passed) for detail in self.details]
         self.print_variables({"entries": self.parameters.REPORT_RESULT_ENTRIES, "rows": rows})
         self.assertEqual(
             rows,
@@ -24,7 +24,7 @@ class RunReportAssertionsBase(BudAppTestCase):
         )
 
     def bud_outcome_counts_the_rows(self):
-        found = (self.tc_outcome.passed, self.tc_outcome.failed, self.tc_outcome.skipped)
+        found = (self.outcome.passed, self.outcome.failed, self.outcome.skipped)
         self.print_variables({"passed, failed, skipped": found})
         self.assertEqual(
             found,

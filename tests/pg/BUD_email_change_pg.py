@@ -42,7 +42,7 @@ class EmailChangePgTest(EmailChangePgBase):
     def setUpClass(self):
         super().setUpClass()
         self.client = self.bud.bud_start_live_app()
-        self.tc_checks = {
+        self.checks = {
             "flow": self.flow(),
             "race": self.race(),
             "wrong password": self.wrong_password(),

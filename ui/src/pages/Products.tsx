@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link } from 'react-router'
-import { Archive, ArchiveRestore, Check, Copy, Package, Pencil, Plus, Trash2 } from 'lucide-react'
+import { Archive, ArchiveRestore, Package, Pencil, Plus, Trash2 } from 'lucide-react'
 import { extractApiErrorMessage, productsApi } from '../api/client'
 import type { Product, ProductStatus } from '../api/client'
 import { useAuth } from '../contexts/AuthContext'
@@ -61,7 +61,6 @@ export default function Products() {
   const [deleting, setDeleting] = useState<Product | null>(null)
   const [deleteText, setDeleteText] = useState('')
   const [actionError, setActionError] = useState('')
-  const [copiedId, setCopiedId] = useState<number | null>(null)
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['products'],
@@ -129,16 +128,6 @@ export default function Products() {
   const deleteMatches = productDeleteConfirmationMatches(deleteText, deletePhrase)
   const formNameValid = form !== null && form.name.trim().length > 0
 
-  const copyId = async (id: number) => {
-    try {
-      await navigator.clipboard.writeText(String(id))
-      setCopiedId(id)
-      window.setTimeout(() => setCopiedId(null), 2000)
-    } catch {
-      setCopiedId(null)
-    }
-  }
-
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-wrap justify-between items-center gap-3">
@@ -195,18 +184,7 @@ export default function Products() {
                   <td className="px-4 py-2">
                     <StatusBadge status={product.status} />
                   </td>
-                  <td className="px-4 py-2 whitespace-nowrap">
-                    <span className="font-mono text-foreground">{product.id}</span>
-                    <button
-                      type="button"
-                      onClick={() => void copyId(product.id)}
-                      aria-label={`Copy the ID of ${product.name}`}
-                      title="Copy ID"
-                      className={`ml-1 align-middle ${ICON_BUTTON}`}
-                    >
-                      {copiedId === product.id ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                    </button>
-                  </td>
+                  <td className="px-4 py-2 font-mono text-foreground">{product.id}</td>
                   {canManage && (
                     <td className="px-4 py-2 text-right whitespace-nowrap">
                       <button

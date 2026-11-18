@@ -60,10 +60,10 @@ class ResponseTimestampsTest(ResponseTimestampsBase):
 
     def setUpClass(self):
         super().setUpClass()
-        self.tc_models = response_models(
+        self.models = response_models(
             self.parameters.RESPONSE_MODEL_PACKAGES, self.parameters.RESPONSE_MODEL_SUFFIXES
         )
-        self.tc_unmarked = unmarked_timestamps(self.tc_models)
+        self.unmarked = unmarked_timestamps(self.models)
 
     def tearDownClass(self):
         super().tearDownClass()

@@ -33,19 +33,19 @@ class RunsApiTest(RunsApiBase):
         created = self.bud.bud_station_request(p.POST, p.TEST_RUNS_PATH, json=p.RUNS_CREATED)
         stored = self.bud.bud_find_in_app(TestRun, id=created.json().get("id"))
         expected = {**p.RUNS_CREATED, "name": p.RUNS_CREATED["test_suite_name"]}
-        self.tc_created = {
+        self.created = {
             "status": created.status_code,
             "stored": {
                 field: getattr(stored[0], field, None) if stored else None for field in SOFTWARE
             },
             "expected": {field: expected[field] for field in SOFTWARE},
         }
-        self.tc_latest = self.latest()
-        self.tc_sorted = {field: self.sorted_by(field) for field in p.RUNS_SORT_FIELDS}
-        self.tc_pages = self.pages()
-        self.tc_display = self.display()
+        self.latest = self._latest()
+        self.sorted = {field: self.sorted_by(field) for field in p.RUNS_SORT_FIELDS}
+        self.pages = self._pages()
+        self.display = self._display()
         self.bud.bud_start_app()
-        self.tc_invalid = [
+        self.invalid = [
             self.bud.bud_request(p.GET, p.TEST_RUNS_PATH, params=query).status_code
             for query in p.RUNS_INVALID_SORTS
         ]
@@ -68,7 +68,7 @@ class RunsApiTest(RunsApiBase):
             [run["name"] for run in runs],
         )
 
-    def latest(self):
+    def _latest(self):
         """An older and a newer run of one suite and a run of another."""
         p = self.parameters
         self.bud.bud_start_app()
@@ -131,7 +131,7 @@ class RunsApiTest(RunsApiBase):
                 found["filters"].append((status, total, ids, [low.id]))
         return found
 
-    def pages(self):
+    def _pages(self):
         """Thirty matching runs stored in reverse name order and one excluded run, in pages of five."""
         p = self.parameters
         self.bud.bud_start_app()
@@ -151,7 +151,7 @@ class RunsApiTest(RunsApiBase):
             found[offset] = (status, total, names)
         return found
 
-    def display(self):
+    def _display(self):
         """Two runs of one suite and one of another, sorted by duration and by name."""
         p = self.parameters
         self.bud.bud_start_app()

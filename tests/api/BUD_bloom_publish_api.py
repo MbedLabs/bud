@@ -47,7 +47,7 @@ class BloomPublishApiTest(BloomPublishApiBase):
     def setUpClass(self):
         super().setUpClass()
         p = self.parameters
-        self.tc_checks = {}
+        self.checks = {}
         for scenario in (
             self.chosen,
             self.sent,
@@ -88,7 +88,7 @@ class BloomPublishApiTest(BloomPublishApiBase):
         chosen = self.bud.bud_await(
             publishable_artifacts(self.bud.bud_open_session(on_app=True), run.id)
         )
-        self.tc_checks["chosen"] = {
+        self.checks["chosen"] = {
             "the PDF and JUnit reports are chosen": (
                 sorted(artifact.original_filename for artifact in chosen),
                 [name.format(run.id) for name in p.BLOOM_PUBLISHED],
@@ -107,7 +107,7 @@ class BloomPublishApiTest(BloomPublishApiBase):
 
         response = self.publish(run.id, post)
         payload = sent.get("payload", {})
-        self.tc_checks["sent"] = {
+        self.checks["sent"] = {
             "the publication succeeds": (response.status_code, p.STATUS_OK),
             "the answer names Bloom's document": (
                 body_of(response).get("doc_id"),
@@ -143,7 +143,7 @@ class BloomPublishApiTest(BloomPublishApiBase):
             ),
             {"content_base64": ""},
         )
-        self.tc_checks["bytes"] = {
+        self.checks["bytes"] = {
             "the JUnit report travels as its bytes": (
                 base64.b64decode(junit["content_base64"]),
                 b"<testsuites/>",
@@ -153,7 +153,7 @@ class BloomPublishApiTest(BloomPublishApiBase):
     def not_configured(self):
         p = self.parameters
         run = self.bud.bud_add_run_with_reports()
-        self.tc_checks["not configured"] = self.refusal(
+        self.checks["not configured"] = self.refusal(
             self.publish(run.id), p.STATUS_CONFLICT, p.BLOOM_PUBLISH_NOT_CONFIGURED
         )
 
@@ -170,7 +170,7 @@ class BloomPublishApiTest(BloomPublishApiBase):
         )
         self.bud.bud_add_to_app(result(run.id, p.BLOOM_REPORT_TC_ID))
         response = self.publish(run.id)
-        self.tc_checks["unfinished"] = {
+        self.checks["unfinished"] = {
             "the publication is refused": (response.status_code, p.STATUS_CONFLICT),
             "the refusal asks for a completed run": (
                 p.BLOOM_PUBLISH_COMPLETED in str(body_of(response).get("detail")).lower(),
@@ -197,7 +197,7 @@ class BloomPublishApiTest(BloomPublishApiBase):
         )
         response = self.publish(run.id, post)
         payload = post.await_args.args[2] if post.await_args else {}
-        self.tc_checks["legacy"] = {
+        self.checks["legacy"] = {
             "the publication succeeds": (response.status_code, p.STATUS_OK),
             "the reports are made and published": (
                 sorted(body_of(response).get("published_files") or []),
@@ -222,7 +222,7 @@ class BloomPublishApiTest(BloomPublishApiBase):
         self.bud.bud_await(remove_results())
         for index, tc_id in enumerate(tc_ids):
             self.bud.bud_add_to_app(result(run.id, tc_id, test_class=f"Case{index}"))
-        self.tc_checks[case] = self.refusal(self.publish(run.id), p.STATUS_CONFLICT, message)
+        self.checks[case] = self.refusal(self.publish(run.id), p.STATUS_CONFLICT, message)
 
     def bloom_refusal(self):
         p = self.parameters
@@ -234,7 +234,7 @@ class BloomPublishApiTest(BloomPublishApiBase):
             response=httpx.Response(404, text=p.BLOOM_PUBLISH_REFUSAL),
         )
         response = self.publish(run.id, mock.AsyncMock(side_effect=failure))
-        self.tc_checks["bloom refusal"] = self.refusal(
+        self.checks["bloom refusal"] = self.refusal(
             response, p.STATUS_BAD_GATEWAY, p.BLOOM_PUBLISH_REFUSAL
         )
 
@@ -243,13 +243,13 @@ class BloomPublishApiTest(BloomPublishApiBase):
         run = self.bud.bud_add_run_with_reports()
         self.bud.bud_configure_bloom()
         response = self.publish(run.id, mock.AsyncMock(side_effect=httpx.ConnectError("refused")))
-        self.tc_checks["unreachable"] = self.refusal(
+        self.checks["unreachable"] = self.refusal(
             response, p.STATUS_BAD_GATEWAY, p.BLOOM_PUBLISH_UNREACHABLE
         )
 
     def missing_run(self):
         p = self.parameters
-        self.tc_checks["missing run"] = {
+        self.checks["missing run"] = {
             "a missing run is not found": (
                 self.publish(p.BLOOM_PUBLISH_MISSING_RUN).status_code,
                 p.STATUS_NOT_FOUND,
@@ -274,7 +274,7 @@ class BloomPublishApiTest(BloomPublishApiBase):
             completed = self.bud.bud_station_request(
                 p.PATCH, p.TEST_RUNS_PATH + f"/{run.id}", json={"status": "Completed"}
             )
-        self.tc_checks["finished"] = {
+        self.checks["finished"] = {
             "the station completes the run": (completed.status_code, p.STATUS_OK),
             "nothing is posted to Bloom": (post.call_count, 0),
         }

@@ -21,13 +21,13 @@ class ContainerStartTest(ContainerStartBase):
     def setUpClass(self):
         super().setUpClass()
         read = self.bud.bud_read_repository_file
-        self.tc_start = read(self.parameters.START_SCRIPT)
-        self.tc_start_lines = stripped_lines(self.tc_start)
-        block_start = self.tc_start.index(self.parameters.START_CLOUDRON_BLOCK)
-        block_end = self.tc_start.index(self.parameters.START_CLOUDRON_ELSE)
-        self.tc_cloudron_block = self.tc_start[block_start:block_end]
-        self.tc_supervisord_lines = stripped_lines(read(self.parameters.SUPERVISORD_CONF))
-        self.tc_dockerfile = read(self.parameters.DOCKERFILE)
+        self.start = read(self.parameters.START_SCRIPT)
+        self.start_lines = stripped_lines(self.start)
+        block_start = self.start.index(self.parameters.START_CLOUDRON_BLOCK)
+        block_end = self.start.index(self.parameters.START_CLOUDRON_ELSE)
+        self.cloudron_block = self.start[block_start:block_end]
+        self.supervisord_lines = stripped_lines(read(self.parameters.SUPERVISORD_CONF))
+        self.dockerfile = read(self.parameters.DOCKERFILE)
 
     def tearDownClass(self):
         super().tearDownClass()

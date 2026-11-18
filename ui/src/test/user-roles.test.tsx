@@ -1,8 +1,9 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import UsersPage from '../pages/Users'
+import { usersApi } from '../api/client'
 
 const getAuthUser = vi.hoisted(() => vi.fn())
 
@@ -26,8 +27,8 @@ vi.mock('../api/client', async (importOriginal) => {
     usersApi: {
       ...actual.usersApi,
       list: vi.fn().mockResolvedValue([person(1, 'Ada', 'admin'), person(2, 'Val', 'viewer'), person(3, 'Dev', 'developer')]),
+      update: vi.fn().mockResolvedValue({}),
     },
-    groupsApi: { ...actual.groupsApi, list: vi.fn().mockResolvedValue([]) },
   }
 })
 
@@ -50,7 +51,7 @@ afterEach(() => {
 })
 
 describe('user roles', () => {
-  it('shows each role without a picker', async () => {
+  it('shows each role without a picker until Edit role is chosen', async () => {
     renderIt()
     await screen.findByText('Val')
     for (const [name, label] of [['Ada', 'Admin'], ['Val', 'Viewer'], ['Dev', 'Developer']]) {
@@ -58,8 +59,26 @@ describe('user roles', () => {
       expect(within(row).getByText(label)).toBeTruthy()
       expect(within(row).queryByRole('combobox')).toBeNull()
     }
-    expect(screen.queryByLabelText('Role of Val')).toBeNull()
-    expect(screen.queryByLabelText('Role of Dev')).toBeNull()
+  })
+
+  it('offers Edit role on every user but the signed-in Admin', async () => {
+    renderIt()
+    await screen.findByText('Val')
+    const editable = (name: string) => within(screen.getByText(name).closest('tr') as HTMLElement).queryByTitle('Edit role')
+    expect(editable('Ada')).toBeNull()
+    expect(editable('Val')).toBeTruthy()
+    expect(editable('Dev')).toBeTruthy()
+  })
+
+  it('changes a Viewer to Developer from the role picker', async () => {
+    renderIt()
+    await screen.findByText('Val')
+    const row = screen.getByText('Val').closest('tr') as HTMLElement
+    fireEvent.click(within(row).getByTitle('Edit role'))
+    fireEvent.click(within(row).getByRole('combobox'))
+    expect(screen.getAllByRole('option').map((option) => option.getAttribute('data-value'))).toEqual(['developer', 'viewer'])
+    fireEvent.click(screen.getByRole('option', { name: 'Developer' }))
+    await waitFor(() => expect(usersApi.update).toHaveBeenCalledWith(2, { role: 'developer' }))
   })
 
   it('offers Viewer, Developer and Admin when inviting', async () => {

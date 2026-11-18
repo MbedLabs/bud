@@ -47,36 +47,36 @@ class ProfilePictureHttpTest(ProfilePictureHttpBase):
                 "replaced": self.read(first).content != stored.content,
             }
         )
-        self.tc_round_trip = found
+        self.round_trip = found
         first, _ = self.accounts()
         before = self.me(first)
         updated = self.bud.bud_request(
             p.PUT, p.ME_PATH, headers=first, json={"full_name": p.PICTURE_RENAMED}
         )
-        self.tc_profile = {
+        self.profile = {
             "saved": updated.status_code,
             "name": updated.json().get("full_name"),
             "before": before.get("permissions"),
             "after": updated.json().get("permissions"),
         }
-        self.tc_rejected = {}
+        self.rejected = {}
         for case, (data, mime, _) in p.PICTURE_REJECTED.items():
             first, _ = self.accounts()
             saved = self.upload(first, self.picture(purple)).status_code
             kept = self.read(first).content
             status = self.upload(first, data, mime).status_code
-            self.tc_rejected[case] = (saved, status, self.read(first).content == kept)
+            self.rejected[case] = (saved, status, self.read(first).content == kept)
         self.accounts()
-        self.tc_signed_out = [
+        self.signed_out = [
             self.bud.bud_request(p.GET, p.PICTURE_PATH).status_code,
             self.upload({}, self.picture(purple)).status_code,
             self.bud.bud_request(p.DELETE, p.PICTURE_PATH).status_code,
         ]
-        self.tc_removal = self.removal()
+        self.removal = self._removal()
         first, _ = self.accounts()
         huge = io.BytesIO()
         Image.new("1", p.PICTURE_HUGE_SIZE).save(huge, format="PNG")
-        self.tc_bounds = {
+        self.bounds = {
             "mismatch": self.upload(first, self.picture(purple), p.PICTURE_JPEG).status_code,
             "huge": self.upload(first, huge.getvalue()).status_code,
             "none saved": self.read(first).status_code,
@@ -88,7 +88,7 @@ class ProfilePictureHttpTest(ProfilePictureHttpBase):
         Image.new("RGB", p.PICTURE_SIZE, orange).save(original, format="JPEG", exif=exif)
         saved = self.upload(first, original.getvalue(), p.PICTURE_JPEG)
         size, exif, _ = self.picture_facts(self.read(first).content)
-        self.tc_jpeg = {"saved": saved.status_code, "size": size, "exif": exif}
+        self.jpeg = {"saved": saved.status_code, "size": size, "exif": exif}
 
     def picture_facts(self, content):
         """The size of a stored picture, whether it keeps EXIF data and whether it keeps the
@@ -103,7 +103,7 @@ class ProfilePictureHttpTest(ProfilePictureHttpBase):
         except OSError as error:
             return str(error), str(error), str(error)
 
-    def removal(self):
+    def _removal(self):
         """Remove one account's picture while the other keeps its own."""
         p = self.parameters
         purple, green, blue, _ = p.PICTURE_COLORS

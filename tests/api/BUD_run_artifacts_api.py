@@ -54,12 +54,12 @@ class RunArtifactsApiTest(RunArtifactsApiBase):
                     created_at=now - timedelta(minutes=minutes),
                 )
             )
-        self.tc_run_id = runs["run"].id
-        self.tc_listing = request(p.GET, p.RUN_ARTIFACTS_PATH.format(self.tc_run_id))
-        self.tc_items = self.tc_listing.json() if self.tc_listing.status_code == 200 else []
-        self.tc_names = [item.get("original_filename") for item in self.tc_items]
-        self.tc_first = self.tc_items[0] if self.tc_items else {}
-        self.tc_other_status = request(
+        self.run_id = runs["run"].id
+        self.listing = request(p.GET, p.RUN_ARTIFACTS_PATH.format(self.run_id))
+        self.items = self.listing.json() if self.listing.status_code == 200 else []
+        self.names = [item.get("original_filename") for item in self.items]
+        self.first = self.items[0] if self.items else {}
+        self.other_status = request(
             p.GET, p.RUN_ARTIFACTS_PATH.format(runs["other"].id)
         ).status_code
         empty = (
@@ -68,37 +68,37 @@ class RunArtifactsApiTest(RunArtifactsApiBase):
             .get("id")
         )
         empty_listing = request(p.GET, p.RUN_ARTIFACTS_PATH.format(empty))
-        self.tc_empty = (empty_listing.status_code, empty_listing.json())
-        self.tc_missing = request(
+        self.empty = (empty_listing.status_code, empty_listing.json())
+        self.missing = request(
             p.GET, p.RUN_ARTIFACTS_PATH.format(p.ARTIFACT_MISSING_RUN)
         ).status_code
-        self.tc_allowed = list(settings.ALLOWED_UPLOAD_MIME_TYPES)
-        self.tc_download_policy = uploads.ARTIFACT_DOWNLOAD_HEADERS.get("Content-Security-Policy")
+        self.allowed = list(settings.ALLOWED_UPLOAD_MIME_TYPES)
+        self.download_policy = uploads.ARTIFACT_DOWNLOAD_HEADERS.get("Content-Security-Policy")
         capture_run = (
             self.bud.bud_station_request(p.POST, p.TEST_RUNS_PATH, json=p.ARTIFACT_CAPTURE_RUN)
             .json()
             .get("id")
         )
         name, data, content_type = p.ARTIFACT_CAPTURE
-        self.tc_capture = self.bud.bud_station_request(
+        self.capture = self.bud.bud_station_request(
             p.POST,
             p.UPLOADS_POST_PATH,
             files={"file": (name, io.BytesIO(data), content_type)},
             data={"run_id": str(capture_run)},
         )
         listed = request(p.GET, p.RUN_ARTIFACTS_PATH.format(capture_run)).json()
-        self.tc_capture_listed = (
+        self.capture_listed = (
             listed[0].get("original_filename") if isinstance(listed, list) and listed else None
         )
         name, data, content_type = p.ARTIFACT_REFUSED
-        self.tc_refused = self.bud.bud_station_request(
+        self.refused = self.bud.bud_station_request(
             p.POST,
             p.UPLOADS_POST_PATH,
             files={"file": (name, io.BytesIO(data), content_type)},
             data={"run_id": str(capture_run)},
         )
         self.bud.bud_start_app(signed_in=False)
-        self.tc_signed_out = request(p.GET, p.RUN_ARTIFACTS_PATH.format(1)).status_code
+        self.signed_out = request(p.GET, p.RUN_ARTIFACTS_PATH.format(1)).status_code
 
     def tearDownClass(self):
         super().tearDownClass()

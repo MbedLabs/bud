@@ -23,7 +23,7 @@ class GroupOverlapApiTest(GroupOverlapApiBase):
 
     def setUpClass(self):
         super().setUpClass()
-        self.tc_checks = {
+        self.checks = {
             "union": self.union(),
             "removal": self.removal(),
             "duplicate": self.duplicate(),

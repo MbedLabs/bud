@@ -40,8 +40,8 @@ class RunStatsDistinctTest(RunStatsDistinctBase):
             [self.parameters.PASSED] * len(self.parameters.OTHER_SUITE_CLASSES),
         )
         self.bud.bud_start_api()
-        self.tc_suite_stats = self.bud.bud_get_stats(suite=self.parameters.SUITE)
-        self.tc_all_stats = self.bud.bud_get_stats()
+        self.suite_stats = self.bud.bud_get_stats(suite=self.parameters.SUITE)
+        self.all_stats = self.bud.bud_get_stats()
 
     def tearDownClass(self):
         super().tearDownClass()

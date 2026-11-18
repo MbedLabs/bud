@@ -44,14 +44,14 @@ class AccessTokenFormatTest(AccessTokenFormatBase):
     def setUpClass(self):
         super().setUpClass()
         hashes = self.parameters.TOKEN_HASHES
-        self.tc_standard = security.decode_access_token(
+        self.standard = security.decode_access_token(
             signed_token(
                 self.parameters.TOKEN_HS256,
                 self.claims(self.parameters.TOKEN_VALID_MINUTES),
                 hashes,
             )
         )
-        self.tc_issued = security.decode_access_token(
+        self.issued = security.decode_access_token(
             security.create_access_token(
                 {
                     "sub": self.parameters.TOKEN_USER_ID,
@@ -60,7 +60,7 @@ class AccessTokenFormatTest(AccessTokenFormatBase):
                 }
             )
         )
-        self.tc_refused = {
+        self.refused = {
             case: security.decode_access_token(signed_token(header, self.claims(minutes), hashes))
             for case, (header, minutes) in self.parameters.TOKEN_REFUSED_CASES.items()
         }
@@ -73,8 +73,8 @@ class AccessTokenFormatTest(AccessTokenFormatBase):
             },
             hashes,
         )
-        self.tc_station_checked = security.decode_access_token(station)
-        self.tc_station_unchecked = security.decode_access_token(station, verify_exp=False)
+        self.station_checked = security.decode_access_token(station)
+        self.station_unchecked = security.decode_access_token(station, verify_exp=False)
 
     def claims(self, minutes):
         """User claims expiring the given number of minutes from now."""

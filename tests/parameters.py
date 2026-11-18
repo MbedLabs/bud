@@ -3250,6 +3250,22 @@ MSG_PA_MANAGE_OWN = "products manage on a product lets him edit that product"
 MSG_PA_MANAGE_OTHER = "products manage on one product does not let him edit another"
 MSG_PA_CREATE = "products manage on one product does not let him create products"
 
+UAS_PATH = "/api/users/{}/access-summary"
+UAS_ALPHA = "Alpha Board"
+UAS_BETA = "Beta Board"
+UAS_GAMMA = "Gamma Board"
+UAS_GROUP_A = "Summary readers"
+UAS_GROUP_B = "Summary keepers"
+UAS_MEMBER = {"email": "summarised@example.com", "full_name": "Sam Summary", "hashed_password": "unused"}
+UAS_NEWCOMER = {"email": "no-access@example.com", "full_name": "Nils None", "hashed_password": "unused"}
+UAS_UNKNOWN_ID = 999999
+MSG_UAS_SUMMARY = "the summary lists each product the user can access once, by name"
+MSG_UAS_NO_GROUPS = "the summary names no group"
+MSG_UAS_EMPTY = "a user without product access has no product"
+MSG_UAS_ADMIN = "an administrator has every product"
+MSG_UAS_UNKNOWN = "an unknown user is not found"
+MSG_UAS_ADMIN_ONLY = "only an administrator reads the summary"
+
 PNR_RULES_PATH = "/api/products/{}/notification-rules"
 PNR_RULE_PATH = "/api/products/{}/notification-rules/{}"
 PNR_CHANNELS_PATH = "/api/products/{}/notification-channels"

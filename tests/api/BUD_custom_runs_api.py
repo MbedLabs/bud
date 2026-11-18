@@ -47,7 +47,7 @@ class CustomRunsApiTest(CustomRunsApiBase):
 
     def setUpClass(self):
         super().setUpClass()
-        self.tc_checks = {}
+        self.checks = {}
         for name, scenario in (
             ("catalogue", self.catalogue),
             ("catalogue signed out", self.catalogue_signed_out),
@@ -76,7 +76,7 @@ class CustomRunsApiTest(CustomRunsApiBase):
             ("foreign request", self.foreign_request),
             ("placeholder", self.placeholder),
         ):
-            self.tc_checks[name] = scenario()
+            self.checks[name] = scenario()
 
     def lab(self, signed_in=True):
         """A fresh app with two benches: a run of VoltageTest and BootTest on station-01 two hours

@@ -29,7 +29,7 @@ class AuditLabelsHttpTest(AuditLabelsHttpBase):
 
     def setUpClass(self):
         super().setUpClass()
-        self.tc_logins, self.tc_pages = [], []
+        self.logins, self.pages = [], []
         self.targets()
         self.odd_ids()
 
@@ -87,12 +87,12 @@ class AuditLabelsHttpTest(AuditLabelsHttpBase):
             ("label.upload", "station"): (None, True),
             ("label.run", "station"): (None, False),
         }
-        self.tc_named = {key: (self.named(items, *key), value) for key, value in expected.items()}
-        self.tc_gone_id = items.get("label.gone", {}).get("target_id")
-        self.tc_gone_expected = str(gone)
+        self.named = {key: (self.named(items, *key), value) for key, value in expected.items()}
+        self.gone_id = items.get("label.gone", {}).get("target_id")
+        self.gone_expected = str(gone)
         stored = self.bud.bud_find_in_app(AuditEvent, action="label.run")
-        self.tc_stored = [(event.target_type, event.target_id) for event in stored]
-        self.tc_stored_expected = [("test_run", str(run.id))]
+        self.stored = [(event.target_type, event.target_id) for event in stored]
+        self.stored_expected = [("test_run", str(run.id))]
 
     def odd_ids(self):
         """Events about a policy, a key, an artifact, a result, a channel and odd run ids."""
@@ -121,11 +121,11 @@ class AuditLabelsHttpTest(AuditLabelsHttpBase):
             },
         }
         items = self.store_and_read(events, p.LABELS_ODD_PREFIX, headers)
-        self.tc_odd = {
+        self.odd = {
             action: (item.get("target_label"), item.get("target_deleted"))
             for action, item in items.items()
         }
-        self.tc_odd_expected = {
+        self.odd_expected = {
             "odd.policy": (policy.name, False),
             "odd.key": (p.LABELS_KEY["label"], False),
             "odd.artifact": (p.LABELS_ARTIFACT["original_filename"], False),
@@ -136,7 +136,7 @@ class AuditLabelsHttpTest(AuditLabelsHttpBase):
             "odd.channel": (p.LABELS_CHANNEL["name"], False),
             **{action: (None, False) for action in p.LABELS_ODD_IDS},
         }
-        self.tc_channel_created = items.get("odd.channel", {}).get("created_label")
+        self.channel_created = items.get("odd.channel", {}).get("created_label")
 
     def admin(self):
         """Start a fresh app, store an administrator, sign in and return the header."""
@@ -155,7 +155,7 @@ class AuditLabelsHttpTest(AuditLabelsHttpBase):
             p.LOGIN_PATH,
             json={"email": p.LABELS_AUDITOR["email"], "password": p.SEC_PASSWORD},
         )
-        self.tc_logins.append(response.status_code)
+        self.logins.append(response.status_code)
         return {"Authorization": f"Bearer {response.json().get('access_token')}"}
 
     def store_and_read(self, events, prefix, headers):
@@ -170,7 +170,7 @@ class AuditLabelsHttpTest(AuditLabelsHttpBase):
             params={"action": prefix, "limit": self.parameters.LABELS_LIMIT},
             headers=headers,
         )
-        self.tc_pages.append(response.status_code)
+        self.pages.append(response.status_code)
         return {item["action"]: item for item in response.json().get("items", [])}
 
     @staticmethod

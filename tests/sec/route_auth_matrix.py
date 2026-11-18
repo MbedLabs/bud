@@ -14,16 +14,16 @@ from tests.bud_test_base import BudAppTestCase
 class RouteAuthMatrixBase(BudAppTestCase):
 
     def bud_every_private_route_has_an_authentication_boundary(self):
-        self.print_variables({"routes checked": self.tc_route_count})
+        self.print_variables({"routes checked": self.route_count})
         self.assertEqual(
-            self.tc_unprotected, [], msg=self.parameters.MSG_ROUTES_GUARDED, abort_on_fail=False
+            self.unprotected, [], msg=self.parameters.MSG_ROUTES_GUARDED, abort_on_fail=False
         )
 
     def bud_guard_finds_no_authentication_in_an_empty_tree(self):
-        self.print_variables({"dependencies of an empty tree": self.tc_empty_tree})
+        self.print_variables({"dependencies of an empty tree": self.empty_tree})
         self.assertTrue(
-            self.tc_empty_tree.isdisjoint(self.parameters.AUTH_DEPENDENCIES),
+            self.empty_tree.isdisjoint(self.parameters.AUTH_DEPENDENCIES),
             msg=self.parameters.MSG_GUARD_EMPTY_TREE,
-            actual=self.tc_empty_tree,
+            actual=self.empty_tree,
             abort_on_fail=False,
         )

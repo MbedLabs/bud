@@ -36,14 +36,14 @@ class NginxSecurityHeadersTest(NginxSecurityHeadersBase):
         super().setUpClass()
         read = self.bud.bud_read_repository_file
         nginx = read(self.parameters.NGINX_CONF)
-        self.tc_headers = read(self.parameters.SECURITY_HEADERS_CONF)
-        self.tc_dockerfile = read(self.parameters.DOCKERFILE)
-        self.tc_locations = location_blocks(nginx, self.parameters.NGINX_LOCATION)
+        self.headers = read(self.parameters.SECURITY_HEADERS_CONF)
+        self.dockerfile = read(self.parameters.DOCKERFILE)
+        self.locations = location_blocks(nginx, self.parameters.NGINX_LOCATION)
         first = re.search(self.parameters.NGINX_LOCATION, nginx, re.MULTILINE)
-        self.tc_server_head = nginx[: first.start()] if first else nginx
-        self.tc_csp = next(
+        self.server_head = nginx[: first.start()] if first else nginx
+        self.csp = next(
             line
-            for line in self.tc_headers.splitlines()
+            for line in self.headers.splitlines()
             if self.parameters.CSP_HEADER in line and self.parameters.NGINX_ADD_HEADER in line
         )
 

@@ -71,7 +71,7 @@ class NotifyTest(NotifyBase):
         ]
         for patch in patches:
             patch.start()
-        self.tc_checks = {}
+        self.checks = {}
         for scenario in (
             self.outcome,
             self.failed_line,
@@ -155,7 +155,7 @@ class NotifyTest(NotifyBase):
         return run
 
     def outcome(self):
-        self.tc_checks["outcome"] = {
+        self.checks["outcome"] = {
             "failures make a failed outcome": (self.summary().outcome, "failed"),
             "passes only make a passed outcome": (
                 self.summary(failed=0, failed_tests=[]).outcome,
@@ -168,7 +168,7 @@ class NotifyTest(NotifyBase):
         }
 
     def failed_line(self):
-        self.tc_checks["failed line"] = {
+        self.checks["failed line"] = {
             "the failed list names two and counts the rest": (
                 self.summary(failed_tests=["a", "b"], more_failed=4).failed_line,
                 self.parameters.NOTIFY_FAILED_LINE,
@@ -188,12 +188,12 @@ class NotifyTest(NotifyBase):
                 ("a failed test", "test_a"),
             ):
                 checks[f"{fmt} carries {label}"] = (value in text, True)
-        self.tc_checks["formats"] = checks
+        self.checks["formats"] = checks
 
     def shapes(self):
         p = self.parameters
         summary = self.summary()
-        self.tc_checks["shapes"] = {
+        self.checks["shapes"] = {
             "Teams sends an adaptive card": (
                 notify.render_teams(summary)["attachments"][0]["content"]["type"],
                 "AdaptiveCard",
@@ -212,7 +212,7 @@ class NotifyTest(NotifyBase):
     def signature(self):
         p = self.parameters
         signature = notify.sign(p.NOTIFY_SECRET, b"{}")
-        self.tc_checks["signature"] = {
+        self.checks["signature"] = {
             "the signature names its algorithm": (
                 signature.startswith(p.NOTIFY_SIGNATURE_PREFIX),
                 True,
@@ -228,7 +228,7 @@ class NotifyTest(NotifyBase):
         bare = notify.render_teams_connector(
             self.summary(failed_tests=[], run_url=None, bloom_url=None)
         )
-        self.tc_checks["connector"] = {
+        self.checks["connector"] = {
             "the card is a message card": (card.get("@type"), "MessageCard"),
             "the card colours a failure red": (card.get("themeColor"), p.NOTIFY_TEAMS_RED),
             "the card sums up the run": (card.get("summary"), summary.headline),
@@ -270,11 +270,11 @@ class NotifyTest(NotifyBase):
             ),
             True,
         )
-        self.tc_checks["workflow"] = checks
+        self.checks["workflow"] = checks
 
     def discord(self):
         embed = notify.render_discord(self.summary())["embeds"][0]
-        self.tc_checks["discord"] = {
+        self.checks["discord"] = {
             "the embed time is in UTC": (str(embed.get("timestamp")).endswith("+00:00"), True)
         }
 
@@ -297,7 +297,7 @@ class NotifyTest(NotifyBase):
                 or render == notify.render_json,
                 True,
             )
-        self.tc_checks["station failure"] = checks
+        self.checks["station failure"] = checks
 
     async def claim(self, db):
         await self.channel(db, "json", run_filter="all", name="all")
@@ -312,7 +312,7 @@ class NotifyTest(NotifyBase):
         await db.commit()
         answered = await notify.notify_run_finished(run.id, wait=wait_none())
         again = await notify.notify_run_finished(run.id, wait=wait_none())
-        self.tc_checks["claim"] = {
+        self.checks["claim"] = {
             "nothing is sent before the station answers": (waiting, 0),
             "nothing is posted before the station answers": (posts_while_waiting, []),
             "both channels are notified after the answer": (answered, 2),
@@ -354,7 +354,7 @@ class NotifyTest(NotifyBase):
         ).scalar_one()
         await db.refresh(run, ["product", "runner"])
         summary = await notify.build_summary(db, run)
-        self.tc_checks["summary"] = {
+        self.checks["summary"] = {
             "the summary names the product": (summary.product, "Gateway"),
             "the summary names the station": (summary.station, "station-01"),
             "the station started the run": (summary.started_by, "station-01"),
@@ -372,7 +372,7 @@ class NotifyTest(NotifyBase):
         run = await self.stored_run(db)
         await db.refresh(run, ["product", "runner"])
         summary = await notify.build_summary(db, run)
-        self.tc_checks["ci"] = {
+        self.checks["ci"] = {
             "CI started the run": (summary.started_by, "CI"),
             "no station is named": (type_name(summary.station), p.NONE_TYPE),
         }
@@ -385,7 +385,7 @@ class NotifyTest(NotifyBase):
         await db.commit()
         rows = (await db.execute(select(NotificationDelivery))).scalars().all()
         headers = (Recorder.posts or [{"headers": {}}])[-1]["headers"] or {}
-        self.tc_checks["retries"] = {
+        self.checks["retries"] = {
             "the third attempt delivers": (delivery.delivered, True),
             "three attempts are made": (delivery.attempt, 3),
             "each attempt is recorded": (
@@ -403,7 +403,7 @@ class NotifyTest(NotifyBase):
         channel = await self.channel(db)
         Recorder.statuses = [500, 500, 500]
         delivery = await notify.deliver(db, channel, self.summary(), wait=wait_none())
-        self.tc_checks["gives up"] = {
+        self.checks["gives up"] = {
             "nothing is delivered": (delivery.delivered, False),
             "three attempts are made": (delivery.attempt, 3),
         }
@@ -425,7 +425,7 @@ class NotifyTest(NotifyBase):
             .scalars()
             .all()
         )
-        self.tc_checks["once"] = {
+        self.checks["once"] = {
             "both channels are notified": (first, 2),
             "nothing is sent twice": (second, 0),
             "two posts are made": (len(Recorder.posts), 2),
@@ -438,7 +438,7 @@ class NotifyTest(NotifyBase):
     async def no_channel(self, db):
         run = await self.stored_run(db)
         sent = await notify.notify_run_finished(run.id, wait=wait_none())
-        self.tc_checks["no channel"] = {
+        self.checks["no channel"] = {
             "nothing is sent": (sent, 0),
             "nothing is posted": (list(Recorder.posts), []),
         }
@@ -453,7 +453,7 @@ class NotifyTest(NotifyBase):
         green = await self.stored_run(db, passed=3, product=product, name="green")
         red1 = await self.stored_run(db, passed=1, failed=2, product=product, name="red1")
         red2 = await self.stored_run(db, passed=1, failed=2, product=product, name="red2")
-        self.tc_checks["filters"] = {
+        self.checks["filters"] = {
             "every run reaches an all-runs channel": (
                 await notify.channel_wants_run(db, all_runs, green),
                 True,
@@ -512,7 +512,7 @@ class NotifyTest(NotifyBase):
             run = await self.stored_run(db, passed=1, failed=failed, product=product, name=label)
             await notify.notify_run_finished(run.id, wait=wait_none())
             reached[label] = sorted(names[post["url"]] for post in Recorder.posts)
-        self.tc_checks["product rules"] = {
+        self.checks["product rules"] = {
             f"{label} reaches {expected}": (reached[label], expected)
             for label, expected in (
                 ("a green Demo run", ["demo-all", "every"]),
@@ -531,7 +531,7 @@ class NotifyTest(NotifyBase):
         to_connector = await notify.deliver(db, connector, self.summary(), wait=wait_none())
         to_workflow = await notify.deliver(db, workflow, self.summary(), wait=wait_none())
         bodies = [post["body"] for post in Recorder.posts] + [{}, {}]
-        self.tc_checks["teams delivery"] = {
+        self.checks["teams delivery"] = {
             "the connector delivery succeeds": (to_connector.delivered, True),
             "the workflow delivery succeeds": (to_workflow.delivered, True),
             "the connector gets a message card": (bodies[0].get("@type"), "MessageCard"),
@@ -542,7 +542,7 @@ class NotifyTest(NotifyBase):
         channel = await self.channel(db)
         Recorder.statuses = [302, 302, 302]
         delivery = await notify.deliver(db, channel, self.summary(), wait=wait_none())
-        self.tc_checks["redirect"] = {
+        self.checks["redirect"] = {
             "a redirect is not delivered": (delivery.delivered, False),
             "the redirect status is recorded": (delivery.status_code, 302),
         }

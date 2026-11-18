@@ -36,7 +36,7 @@ class RunnersAndUploadsApiTest(RunnersAndUploadsApiBase):
 
     def setUpClass(self):
         super().setUpClass()
-        self.tc_checks = {}
+        self.checks = {}
         for scenario in (
             self.heartbeat,
             self.unowned,
@@ -124,7 +124,7 @@ class RunnersAndUploadsApiTest(RunnersAndUploadsApiBase):
             p.POST, "/api/runners/heartbeat", json={"runner_account": "runner-b", "location": "lab"}
         )
         theirs_now = self.bud.bud_find_in_app(Runner, id=theirs.id)[0]
-        self.tc_checks["heartbeat"] = {
+        self.checks["heartbeat"] = {
             "the heartbeat is answered": (response.status_code, p.STATUS_OK),
             "the answer names the signed-in station": (
                 body_of(response).get("account"),
@@ -141,7 +141,7 @@ class RunnersAndUploadsApiTest(RunnersAndUploadsApiBase):
         artifact = self.artifact(self.stored_run(owner, "Completed").id)
         self.bud.bud_sign_in_as(other, as_person=False, as_uploader=True)
         response = self.bud.bud_request(p.GET, p.UPLOAD_INFO_PATH.format(artifact.id))
-        self.tc_checks["unowned"] = {
+        self.checks["unowned"] = {
             "another station's artifact is refused": (response.status_code, p.STATUS_FORBIDDEN)
         }
 
@@ -151,7 +151,7 @@ class RunnersAndUploadsApiTest(RunnersAndUploadsApiBase):
         artifact = self.artifact(self.stored_run(owner, "Completed").id)
         self.bud.bud_sign_in_as(owner, as_person=False, as_uploader=True)
         response = self.bud.bud_request(p.GET, p.UPLOAD_INFO_PATH.format(artifact.id))
-        self.tc_checks["owned"] = {
+        self.checks["owned"] = {
             "its own artifact is read": (response.status_code, p.STATUS_OK),
             "the artifact read is the one stored": (body_of(response).get("id"), artifact.id),
         }
@@ -171,14 +171,14 @@ class RunnersAndUploadsApiTest(RunnersAndUploadsApiBase):
         artifact = self.artifact()
         self.bud.bud_sign_in_as(user)
         response = self.bud.bud_request(p.DELETE, f"{p.UPLOAD_API_PATH}/{artifact.id}")
-        self.tc_checks["delete"] = self.refusal(response, p.STATUS_FORBIDDEN, p.UPLOAD_ONLY_ADMINS)
+        self.checks["delete"] = self.refusal(response, p.STATUS_FORBIDDEN, p.UPLOAD_ONLY_ADMINS)
 
     def foreign_upload(self):
         p = self.parameters
         owner, other = self.runner("owner-upload-runner"), self.runner("other-upload-runner", 53036)
         run = self.stored_run(owner)
         self.bud.bud_sign_in_as(other, as_person=False)
-        self.tc_checks["foreign upload"] = self.refusal(
+        self.checks["foreign upload"] = self.refusal(
             self.upload(run.id), p.STATUS_FORBIDDEN, p.UPLOAD_NOT_AUTHORIZED
         )
 
@@ -188,7 +188,7 @@ class RunnersAndUploadsApiTest(RunnersAndUploadsApiBase):
         run = self.stored_run(station)
         self.bud.bud_sign_in_as(station, as_person=False)
         response = self.upload(run.id)
-        self.tc_checks["own upload"] = {
+        self.checks["own upload"] = {
             "the upload is stored": (response.status_code, p.STATUS_CREATED),
             "the upload belongs to the run": (body_of(response).get("test_run_id"), run.id),
         }
@@ -196,7 +196,7 @@ class RunnersAndUploadsApiTest(RunnersAndUploadsApiBase):
     def unknown_run(self):
         p = self.parameters
         self.bud.bud_sign_in_as(self.runner("missing-run-upload-runner"), as_person=False)
-        self.tc_checks["unknown run"] = self.refusal(
+        self.checks["unknown run"] = self.refusal(
             self.upload(999999), p.STATUS_NOT_FOUND, p.UPLOAD_RUN_NOT_FOUND
         )
 
@@ -210,7 +210,7 @@ class RunnersAndUploadsApiTest(RunnersAndUploadsApiBase):
         before = self.files()
         with mock.patch.object(settings, "MAX_UPLOAD_SIZE", 10):
             response = self.station_upload("too-big.txt", b"x" * 64)
-        self.tc_checks["oversized"] = {
+        self.checks["oversized"] = {
             **self.refusal(response, p.STATUS_TOO_LARGE, p.UPLOAD_TOO_LARGE),
             "no partial file is left": (self.files(), before),
         }
@@ -222,7 +222,7 @@ class RunnersAndUploadsApiTest(RunnersAndUploadsApiBase):
             mock.patch.object(settings, "MIN_UPLOAD_FREE_BYTES", 0),
         ):
             response = self.station_upload("at-limit.txt", b"x" * 10)
-        self.tc_checks["at limit"] = {
+        self.checks["at limit"] = {
             "the upload is stored": (response.status_code, p.STATUS_CREATED),
             "the whole file is stored": (body_of(response).get("size_bytes"), 10),
         }
@@ -230,7 +230,7 @@ class RunnersAndUploadsApiTest(RunnersAndUploadsApiBase):
     def long_name(self):
         p = self.parameters
         response = self.station_upload(("x" * 256) + ".txt", b"safe")
-        self.tc_checks["long name"] = {
+        self.checks["long name"] = {
             "a name too long is refused": (response.status_code, p.STATUS_UNPROCESSABLE)
         }
 
@@ -242,7 +242,7 @@ class RunnersAndUploadsApiTest(RunnersAndUploadsApiBase):
             mock.patch.object(artifact_storage.shutil, "disk_usage", return_value=usage),
         ):
             response = self.station_upload("trace.txt", b"data")
-        self.tc_checks["free space"] = self.refusal(
+        self.checks["free space"] = self.refusal(
             response, p.STATUS_INSUFFICIENT_STORAGE, p.UPLOAD_FREE_SPACE
         )
 
@@ -265,7 +265,7 @@ class RunnersAndUploadsApiTest(RunnersAndUploadsApiBase):
     def remaining(self):
         p = self.parameters
         response = self.capacity(b"x", "quota-run")
-        self.tc_checks["remaining"] = {
+        self.checks["remaining"] = {
             "the last byte is stored": (response.status_code, p.STATUS_CREATED),
             "one byte is stored": (body_of(response).get("size_bytes"), 1),
         }
@@ -273,7 +273,7 @@ class RunnersAndUploadsApiTest(RunnersAndUploadsApiBase):
     def beyond(self):
         p = self.parameters
         response = self.capacity(b"xx", "quota-overflow")
-        self.tc_checks["beyond"] = {
+        self.checks["beyond"] = {
             "two bytes are refused": (response.status_code, p.STATUS_TOO_LARGE),
             "no file is written": (self.files(), []),
         }
@@ -291,7 +291,7 @@ class RunnersAndUploadsApiTest(RunnersAndUploadsApiBase):
             ),
             as_person=False,
         )
-        self.tc_checks["viewer"] = {
+        self.checks["viewer"] = {
             "a viewer's upload is refused": (
                 self.upload(file=("trace.txt", b"x", "text/plain")).status_code,
                 p.STATUS_FORBIDDEN,
@@ -301,14 +301,14 @@ class RunnersAndUploadsApiTest(RunnersAndUploadsApiBase):
     def no_run(self):
         p = self.parameters
         self.bud.bud_sign_in_as(self.runner("no-run-id-runner", 53040), as_person=False)
-        self.tc_checks["no run"] = self.refusal(
+        self.checks["no run"] = self.refusal(
             self.upload(), p.STATUS_BAD_REQUEST, p.UPLOAD_RUN_ID_REQUIRED
         )
 
     def admin(self):
         p = self.parameters
         response = self.upload()
-        self.tc_checks["admin"] = {
+        self.checks["admin"] = {
             "an administrator's upload is refused": (response.status_code, p.STATUS_FORBIDDEN),
             "the refusal says stations upload": (
                 body_of(response).get("detail"),
@@ -324,7 +324,7 @@ class RunnersAndUploadsApiTest(RunnersAndUploadsApiBase):
         self.bud.bud_sign_in_as(station, as_person=False)
         with mock.patch.object(settings, "MAX_RUN_UPLOAD_BYTES", 1000):
             response = self.upload(run.id)
-        self.tc_checks["quota"] = self.refusal(response, p.STATUS_TOO_LARGE, p.UPLOAD_QUOTA)
+        self.checks["quota"] = self.refusal(response, p.STATUS_TOO_LARGE, p.UPLOAD_QUOTA)
 
     def tearDownClass(self):
         super().tearDownClass()

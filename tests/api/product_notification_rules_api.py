@@ -15,7 +15,7 @@ class ProductNotificationRulesApiBase(BudAppTestCase):
 
     def check(self, scenario):
         """Assert every named check of one scenario: its found value against its expected one."""
-        for name, (found, expected) in self.tc_checks[scenario].items():
+        for name, (found, expected) in self.checks[scenario].items():
             self.assertEqual(found, expected, msg=name)
 
     def bud_a_channel_takes_every_product_unless_switched_off(self):

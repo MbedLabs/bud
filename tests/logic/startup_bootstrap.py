@@ -19,5 +19,5 @@ class StartupBootstrapBase(BudAppTestCase):
     @parameterized(params.STARTUP_CASES)
     def bud_start_runs_what_the_settings_ask_for(self, case):
         expected = self.parameters.STARTUP_CASES[case][2]
-        self.print_variables({"case": case, "steps run": self.tc_steps[case]})
-        self.assertEqual(self.tc_steps[case], expected, msg=self.parameters.MSG_STARTUP_STEPS)
+        self.print_variables({"case": case, "steps run": self.steps[case]})
+        self.assertEqual(self.steps[case], expected, msg=self.parameters.MSG_STARTUP_STEPS)

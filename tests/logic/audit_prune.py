@@ -14,18 +14,18 @@ from tests.bud_test_base import BudAppTestCase
 class AuditPruneBase(BudAppTestCase):
 
     def bud_old_event_is_removed(self):
-        self.print_variables({"removed": self.tc_removed})
+        self.print_variables({"removed": self.removed})
         self.assertEqual(
-            self.tc_removed,
+            self.removed,
             self.parameters.AUDIT_PRUNED,
             msg=self.parameters.MSG_AUDIT_PRUNED,
             abort_on_fail=False,
         )
 
     def bud_event_inside_the_retention_is_kept(self):
-        self.print_variables({"left": self.tc_left})
+        self.print_variables({"left": self.left})
         self.assertEqual(
-            self.tc_left,
+            self.left,
             self.parameters.AUDIT_LEFT,
             msg=self.parameters.MSG_AUDIT_LEFT,
             abort_on_fail=False,

@@ -29,7 +29,7 @@ class IntegrationRealAuthPgTest(IntegrationRealAuthPgBase):
         ready = client.get("/api/ready")
         wrong = client.post(p.LOGIN_PATH, json={"email": settings.ADMIN_EMAIL, "password": "definitely-the-wrong-password"})
         client.cookies.clear()
-        self.tc_checks = {
+        self.checks = {
             "ready": {
                 "the probe answers": (ready.status_code, p.STATUS_OK),
                 "the database is connected": (body_of(ready).get("database"), "connected"),
@@ -51,7 +51,7 @@ class IntegrationRealAuthPgTest(IntegrationRealAuthPgBase):
         )
         listed = self.client.get("/api/products", headers=admin)
         rows = body_of(listed) if isinstance(body_of(listed), list) else []
-        self.tc_checks["write"] = {
+        self.checks["write"] = {
             "the administrator signs in": (login, p.STATUS_OK),
             "the product is created": (created.status_code, p.STATUS_CREATED),
             "the products are listed": (listed.status_code, p.STATUS_OK),
@@ -69,7 +69,7 @@ class IntegrationRealAuthPgTest(IntegrationRealAuthPgBase):
         ]
         uploaded = self.client.post("/api/results", json={"test_suite_name": self.bud.bud_unique("Robot"), "results": results}, headers=station)
         run = body_of(self.client.get(f"{p.TEST_RUNS_PATH}/{body_of(uploaded).get('test_run_id')}", headers=admin))
-        self.tc_checks["skipped"] = {
+        self.checks["skipped"] = {
             "the administrator signs in": (login, p.STATUS_OK),
             "the station is enrolled": (steps, p.PG_ENROLMENT),
             "the results are stored": (uploaded.status_code in (200, 201), True),
@@ -104,7 +104,7 @@ class IntegrationRealAuthPgTest(IntegrationRealAuthPgBase):
         checks["the run counts nothing"] = (run.get("total_tests"), 0)
         checks["the run is still running"] = (run.get("status"), "Running")
         checks["the station uploads its results"] = (self.client.post("/api/results", json=results, headers=station).status_code, p.STATUS_CREATED)
-        self.tc_checks["producer"] = checks
+        self.checks["producer"] = checks
 
     def tearDownClass(self):
         super().tearDownClass()

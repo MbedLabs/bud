@@ -21,14 +21,14 @@ class ResultsUploadApiTest(ResultsUploadApiBase):
         self.bud.bud_add_test_station(with_run=False)
         run_id = self.open_run(p.UPLOAD_NIGHTLY)
         response = self.upload({"test_run_id": run_id, "results": [p.UPLOAD_RESULT]})
-        self.tc_existing = {
+        self.existing = {
             "status": response.status_code,
             "answer": (response.json().get("test_run_id"), response.json().get("count")),
             "run id": run_id,
         }
         response = self.upload({"test_suite_name": p.UPLOAD_ADHOC, "results": [p.UPLOAD_RESULT]})
         run = self.read_run(response.json().get("test_run_id"))
-        self.tc_adhoc = ((response.status_code, run[0]), run[1].get("name", ""))
+        self.adhoc = ((response.status_code, run[0]), run[1].get("name", ""))
         product = self.bud.bud_add_to_app(Product(name=p.UPLOAD_PRODUCT))
         response = self.upload(
             {
@@ -37,11 +37,11 @@ class ResultsUploadApiTest(ResultsUploadApiBase):
                 "results": [p.UPLOAD_RESULT],
             }
         )
-        self.tc_product = (
+        self.product = (
             response.status_code,
             self.read_run(response.json().get("test_run_id"))[1].get("name", ""),
         )
-        self.tc_accepts = {
+        self.accepts = {
             "missing run": self.upload(
                 {"test_run_id": p.UPLOAD_MISSING, "results": [p.UPLOAD_RESULT]}
             ).status_code,
@@ -57,20 +57,20 @@ class ResultsUploadApiTest(ResultsUploadApiBase):
             "no results": self.upload({"test_suite_name": "x"}).status_code,
         }
         mixed = self.read_run(self.upload_rows("Mixed", p.UPLOAD_MIXED))[1]
-        self.tc_mixed = (
+        self.mixed = (
             mixed.get("total_tests"),
             mixed.get("passed_tests"),
             mixed.get("failed_tests"),
         )
         robot = self.read_run(self.upload_rows("Robot", p.UPLOAD_ROBOT))[1]
-        self.tc_robot = tuple(
+        self.robot = tuple(
             robot.get(key)
             for key in ("total_tests", "passed_tests", "failed_tests", "skipped_tests")
         )
-        self.tc_duration = self.read_run(self.upload_rows("Timed", p.UPLOAD_TIMED))[1].get(
+        self.duration = self.read_run(self.upload_rows("Timed", p.UPLOAD_TIMED))[1].get(
             "duration_seconds"
         )
-        self.tc_completion = self.completion()
+        self.completion = self._completion()
         listed_run = self.upload_rows("Listed", [("C", "a", True, {}), ("C", "b", True, {})])
         listed = self.bud.bud_request(p.GET, p.RESULTS_RUN_PATH.format(listed_run))
         single_run = (
@@ -82,7 +82,7 @@ class ResultsUploadApiTest(ResultsUploadApiBase):
         detail = self.bud.bud_request(
             p.GET, p.RESULT_DETAIL_PATH.format(stored[0].id if stored else 0)
         )
-        self.tc_reading = {
+        self.reading = {
             "listed": (
                 listed.status_code,
                 len(listed.json()) if listed.status_code == 200 else None,
@@ -96,7 +96,7 @@ class ResultsUploadApiTest(ResultsUploadApiBase):
             ).status_code,
         }
         self.bud.bud_start_app(signed_in=False)
-        self.tc_signed_out = {
+        self.signed_out = {
             (method, path): self.bud.bud_request(method, path, json={"results": []}).status_code
             for method, path in p.UPLOAD_SIGNED_OUT_CALLS
         }
@@ -138,7 +138,7 @@ class ResultsUploadApiTest(ResultsUploadApiBase):
         )
         return response.status_code, response.json() if response.status_code == 200 else {}
 
-    def completion(self):
+    def _completion(self):
         """A run before and after its upload, with its timeline."""
         p = self.parameters
         run_id = self.open_run({"test_suite_name": "ToComplete", "test_case_list": "C"})

@@ -50,12 +50,12 @@ class BloomSyncTest(BloomSyncBase):
 
     def setUpClass(self):
         super().setUpClass()
-        self.tc_checks = {}
-        self.tc_checks["coalesce"] = self.bud.bud_await(self.coalesce())
-        self.tc_checks["tally"] = self.bud.bud_await(self.tally())
-        self.tc_checks["missing settings"] = self.scenario(self.missing_settings)
-        self.tc_checks["refused"] = self.scenario(self.refused)
-        self.tc_checks["left out"] = self.scenario(self.left_out)
+        self.checks = {}
+        self.checks["coalesce"] = self.bud.bud_await(self.coalesce())
+        self.checks["tally"] = self.bud.bud_await(self.tally())
+        self.checks["missing settings"] = self.scenario(self.missing_settings)
+        self.checks["refused"] = self.scenario(self.refused)
+        self.checks["left out"] = self.scenario(self.left_out)
 
     def scenario(self, steps):
         """Run one scenario on a fresh app database with a fresh encryption key."""

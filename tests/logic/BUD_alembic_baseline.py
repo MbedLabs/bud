@@ -38,18 +38,18 @@ class AlembicBaselineTest(AlembicBaselineBase):
             if name != self.parameters.ALEMBIC_PACKAGE_FILE
         ]
         sources = {name: self.bud.bud_read_repository_file(f"{folder}/{name}") for name in names}
-        self.tc_roots = [
+        self.roots = [
             name
             for name, source in sources.items()
             if any(marker in source for marker in self.parameters.ALEMBIC_ROOT_MARKERS)
         ]
-        self.tc_baseline = sources.get(self.parameters.ALEMBIC_BASELINE, "")
-        self.tc_later = {
+        self.baseline = sources.get(self.parameters.ALEMBIC_BASELINE, "")
+        self.later = {
             name: source
             for name, source in sources.items()
             if name != self.parameters.ALEMBIC_BASELINE
         }
-        self.tc_create_all_calls = create_all_calls(self.tc_baseline)
+        self.create_all_calls = create_all_calls(self.baseline)
 
     def tearDownClass(self):
         super().tearDownClass()

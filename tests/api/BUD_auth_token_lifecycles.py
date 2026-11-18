@@ -43,7 +43,7 @@ class AuthTokenLifecyclesTest(AuthTokenLifecyclesBase):
         ]
         for patch in patches:
             patch.start()
-        self.tc_checks = {}
+        self.checks = {}
         for scenario in (
             self.invite_link,
             self.invite_info,
@@ -154,7 +154,7 @@ class AuthTokenLifecyclesTest(AuthTokenLifecyclesBase):
         p = self.parameters
         response = self.invite("new@example.com", "New")
         link = str(body_of(response).get("invite_link"))
-        self.tc_checks["invite link"] = {
+        self.checks["invite link"] = {
             "the invitation is created": (response.status_code, p.STATUS_CREATED),
             "the link carries the token in its fragment": ("#token=" in link, True),
             "the link carries no token in its query": ("?token=" in link, False),
@@ -165,7 +165,7 @@ class AuthTokenLifecyclesTest(AuthTokenLifecyclesBase):
         token = self.token(body_of(self.invite("info@example.com", "Info")).get("invite_link"))
         info = self.signed_out(p.LIFECYCLE_INVITE_INFO_PATH, {"token": token})
         body = body_of(info)
-        self.tc_checks["invite info"] = {
+        self.checks["invite info"] = {
             "the link carries a token": (type_name(token), p.LIFECYCLE_STRING),
             "the invitation is described": (info.status_code, p.STATUS_OK),
             "the invitation is valid": (body.get("valid"), True),
@@ -177,7 +177,7 @@ class AuthTokenLifecyclesTest(AuthTokenLifecyclesBase):
         p = self.parameters
         token = self.token(body_of(self.invite("accept@example.com", "Accept")).get("invite_link"))
         accepted = self.accept_invite(token)
-        self.tc_checks["accept"] = {
+        self.checks["accept"] = {
             "the link carries a token": (type_name(token), p.LIFECYCLE_STRING),
             "the invitation is accepted": (accepted.status_code, p.STATUS_OK),
             "the chosen password is stored": (
@@ -191,7 +191,7 @@ class AuthTokenLifecyclesTest(AuthTokenLifecyclesBase):
         token = self.token(body_of(self.invite("once@example.com", "Once")).get("invite_link"))
         first = self.accept_invite(token)
         second = self.accept_invite(token, "yet-another-password")
-        self.tc_checks["accept twice"] = {
+        self.checks["accept twice"] = {
             "the link carries a token": (type_name(token), p.LIFECYCLE_STRING),
             "the first acceptance succeeds": (first.status_code, p.STATUS_OK),
             "the second acceptance is refused": self.refused(second),
@@ -206,7 +206,7 @@ class AuthTokenLifecyclesTest(AuthTokenLifecyclesBase):
             p.POST, p.LIFECYCLE_USER_PATH.format(user_id) + "/revoke-invite"
         )
         accepted = self.accept_invite(token)
-        self.tc_checks["revoke"] = {
+        self.checks["revoke"] = {
             "the link carries a token": (type_name(token), p.LIFECYCLE_STRING),
             "the invitation is revoked": (revoked.status_code, p.STATUS_OK),
             "the revoked token is refused": self.refused(accepted),
@@ -227,7 +227,7 @@ class AuthTokenLifecyclesTest(AuthTokenLifecyclesBase):
             p.LOGIN_PATH,
             json={"email": "victim@example.com", "password": "attacker-chosen-password"},
         )
-        self.tc_checks["revoked password"] = {
+        self.checks["revoked password"] = {
             "the link carries a token": (type_name(token), p.LIFECYCLE_STRING),
             "the administrator activates the person": (activated.status_code, p.STATUS_OK),
             "the password sent with the revoked token signs nobody in": (
@@ -245,7 +245,7 @@ class AuthTokenLifecyclesTest(AuthTokenLifecyclesBase):
             p.LIFECYCLE_USER_PATH.format(created.get("user", {}).get("id")) + "/resend-invite",
         )
         second = self.token(body_of(resent).get("invite_link"))
-        self.tc_checks["resend"] = {
+        self.checks["resend"] = {
             "the link carries a token": (type_name(first), p.LIFECYCLE_STRING),
             "the invitation is resent": (resent.status_code, p.STATUS_OK),
             "the new link carries a token": (type_name(second), p.LIFECYCLE_STRING),
@@ -258,7 +258,7 @@ class AuthTokenLifecyclesTest(AuthTokenLifecyclesBase):
         self.forgot("reset@example.com")
         token = self.mailed_token()
         response = self.reset_password(token, p.LIFECYCLE_NEW_PASSWORD)
-        self.tc_checks["reset"] = {
+        self.checks["reset"] = {
             "a token is mailed": (type_name(token), p.LIFECYCLE_STRING),
             "the password is reset": (response.status_code, p.STATUS_OK),
             "the new password is stored": (
@@ -274,7 +274,7 @@ class AuthTokenLifecyclesTest(AuthTokenLifecyclesBase):
         token = self.mailed_token()
         self.reset_password(token, p.LIFECYCLE_NEW_PASSWORD)
         after = self.stored(email="signout@example.com").session_version or 0
-        self.tc_checks["sign out"] = {
+        self.checks["sign out"] = {
             "a token is mailed": (type_name(token), p.LIFECYCLE_STRING),
             "the session version moves on": (after > before, True),
         }
@@ -286,7 +286,7 @@ class AuthTokenLifecyclesTest(AuthTokenLifecyclesBase):
         token = self.mailed_token()
         first = self.reset_password(token, p.LIFECYCLE_NEW_PASSWORD)
         second = self.reset_password(token, "a-third-long-password")
-        self.tc_checks["reset twice"] = {
+        self.checks["reset twice"] = {
             "a token is mailed": (type_name(token), p.LIFECYCLE_STRING),
             "the first reset succeeds": (first.status_code, p.STATUS_OK),
             "the second reset is refused": self.refused(second),
@@ -298,7 +298,7 @@ class AuthTokenLifecyclesTest(AuthTokenLifecyclesBase):
         self.forgot("weak@example.com")
         token = self.mailed_token()
         response = self.reset_password(token, "short")
-        self.tc_checks["weak password"] = {
+        self.checks["weak password"] = {
             "a token is mailed": (type_name(token), p.LIFECYCLE_STRING),
             "a short password is refused": (response.status_code, p.STATUS_UNPROCESSABLE),
         }
@@ -306,7 +306,7 @@ class AuthTokenLifecyclesTest(AuthTokenLifecyclesBase):
     def unknown_address(self):
         self.forgot("ghost@example.com")
         tokens = self.bud.bud_find_in_app(UserToken, purpose=UserTokenPurpose.password_reset)
-        self.tc_checks["unknown address"] = {
+        self.checks["unknown address"] = {
             "no reset token is stored": (len(tokens), 0),
             "no mail is sent": (list(self.mailbox), []),
         }
@@ -319,7 +319,7 @@ class AuthTokenLifecyclesTest(AuthTokenLifecyclesBase):
         token = self.mailed_token()
         confirmed = self.confirm(token)
         moved = self.stored(id=user.id)
-        self.tc_checks["email change"] = {
+        self.checks["email change"] = {
             "the change is started": (started.status_code, p.STATUS_OK),
             "the login keeps the old address": (pending.email, "old@example.com"),
             "the new address waits": (pending.pending_email, "new@example.com"),
@@ -332,7 +332,7 @@ class AuthTokenLifecyclesTest(AuthTokenLifecyclesBase):
     def confirmation_address(self):
         user = self.account("from@example.com")
         self.change_email(user, "to@example.com")
-        self.tc_checks["confirmation address"] = {
+        self.checks["confirmation address"] = {
             "the confirmation goes to the new address": (
                 (self.mailbox or [{}])[-1].get("to"),
                 "to@example.com",
@@ -346,7 +346,7 @@ class AuthTokenLifecyclesTest(AuthTokenLifecyclesBase):
         token = self.mailed_token()
         cancelled = self.bud.bud_request(p.DELETE, p.LIFECYCLE_USER_PATH.format(user.id) + "/email")
         confirmed = self.confirm(token)
-        self.tc_checks["cancelled change"] = {
+        self.checks["cancelled change"] = {
             "a token is mailed": (type_name(token), p.LIFECYCLE_STRING),
             "the change is cancelled": (cancelled.status_code, p.STATUS_OK),
             "the cancelled token is refused": self.refused(confirmed),
@@ -360,7 +360,7 @@ class AuthTokenLifecyclesTest(AuthTokenLifecyclesBase):
         token = self.mailed_token()
         first = self.confirm(token)
         replay = self.confirm(token)
-        self.tc_checks["confirm twice"] = {
+        self.checks["confirm twice"] = {
             "a token is mailed": (type_name(token), p.LIFECYCLE_STRING),
             "the first confirmation succeeds": (first.status_code, p.STATUS_OK),
             "the replay is refused": self.refused(replay),

@@ -20,20 +20,20 @@ class IsolationTest(IsolationBase):
     def setUpClass(self):
         super().setUpClass()
         p = self.parameters
-        self.tc_credentials = self.parsed(self.bootstrap(p.ISOLATION_CREDENTIALS_PROBE).stdout, {})
-        self.tc_probes = {}
+        self.credentials = self.parsed(self.bootstrap(p.ISOLATION_CREDENTIALS_PROBE).stdout, {})
+        self.probes = {}
         for case, (code, extra, expected) in p.ISOLATION_PROBES.items():
             done = self.bootstrap(code, extra)
             found = done.stdout.strip()
             if isinstance(expected, dict):
                 found = self.parsed(found, found)
-            self.tc_probes[case] = (found, done.stderr)
-        self.tc_refusals = {}
+            self.probes[case] = (found, done.stderr)
+        self.refusals = {}
         for case, (extra, _, _) in p.ISOLATION_REFUSALS.items():
             done = self.bootstrap("", extra)
-            self.tc_refusals[case] = (done.returncode, done.stderr)
+            self.refusals[case] = (done.returncode, done.stderr)
         done = self.bootstrap("", p.ISOLATION_OTHER_POSTGRES)
-        self.tc_other_postgres = (done.returncode, done.stderr)
+        self.other_postgres = (done.returncode, done.stderr)
 
     @staticmethod
     def parsed(text, otherwise):

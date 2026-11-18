@@ -30,14 +30,14 @@ class UsersApiTest(UsersApiBase):
         ]
         for patch in self.mail:
             patch.start()
-        self.tc_checks = {
+        self.checks = {
             "list and create": self.list_and_create(),
             "invitations": self.invitations(),
             "email change": self.email_change(),
             "update and delete": self.update_and_delete(),
         }
         self.bud.bud_start_app(signed_in=False)
-        self.tc_signed_out = {
+        self.signed_out = {
             (method, path): self.bud.bud_request(method, path, json={}).status_code
             for method, path in p.USERS_SIGNED_OUT_CALLS
         }
