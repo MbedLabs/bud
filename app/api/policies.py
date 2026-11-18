@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.auth import require_permission, require_role
 from app.core.access import PERMISSION_CATALOGUE
 from app.db.database import get_db
-from app.models.access import Policy, access_group_policies
+from app.models.access import Policy, access_group_policies, user_application_policies
 from app.models.user import User, UserRole
 from app.schemas.groups import (
     CatalogueResource,
@@ -231,7 +231,7 @@ async def delete_policy(
     db: AsyncSession = Depends(get_db, scope="function"),
     _admin: User = Depends(require_admin),
 ):
-    """Delete a custom policy that no group uses."""
+    """Delete a custom policy that no group uses and no user holds as an application policy."""
     policy = await _load(db, policy_id)
     _refuse_default(policy)
     in_use = await db.scalar(
@@ -241,6 +241,15 @@ async def delete_policy(
     )
     if in_use is not None:
         raise HTTPException(status_code=409, detail="A group uses this policy")
+    held = await db.scalar(
+        select(user_application_policies.c.user_id)
+        .where(user_application_policies.c.policy_id == policy_id)
+        .limit(1)
+    )
+    if held is not None:
+        raise HTTPException(
+            status_code=409, detail="A user holds this policy as an application policy"
+        )
     await record_audit_event(
         db,
         "policy.deleted",

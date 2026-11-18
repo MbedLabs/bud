@@ -19,7 +19,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.auth import get_current_user, require_permission
-from app.api.groups import check_giveable, give_group, load_group
+from app.api.groups import check_giveable, load_group
 from app.core.access import effective_permissions, group_permissions, holds_on_product
 from app.core.config import settings
 from app.core.observability import request_id_var
@@ -173,18 +173,13 @@ async def give_product_group(
 
 
 async def _grant(db: AsyncSession, admin: User, row: AccessRequest, group_id: int) -> int:
-    """Give the requester the chosen group: on the run's product for Publish to Bloom, else
-    app-wide; return the group's id."""
+    """Give the requester the chosen group on the run's product; return the group's id."""
     group = await load_group(db, group_id)
-    publish = row.resource_type == PUBLISH_TO_BLOOM
-    if publish and "bloom_publish.execute" not in group_permissions(group):
+    if "bloom_publish.execute" not in group_permissions(group):
         raise HTTPException(status_code=422, detail="This group does not give Publish to Bloom")
     requester = await db.get(User, row.user_id)
     if requester is None:
         raise HTTPException(status_code=404, detail="User not found")
-    if not publish:
-        await give_group(db, admin, group, requester)
-        return group.id
     product_id = await _run_product(db, row.resource_ref)
     if product_id is None:
         raise HTTPException(status_code=422, detail="This run belongs to no product")

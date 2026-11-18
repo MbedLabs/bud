@@ -82,6 +82,8 @@ const CALLS: Array<[string, unknown[], string, string]> = [
 
   ['usersApi.list', [], 'get', '/users'],
   ['usersApi.accessSummary', [3], 'get', '/users/3/access-summary'],
+  ['usersApi.applicationPolicies', [3], 'get', '/users/3/application-policies'],
+  ['usersApi.setApplicationPolicies', [3, [4]], 'put', '/users/3/application-policies'],
   ['accessRequestsApi.create', [{ resource_type: 'publish-to-bloom', resource_ref: '42' }], 'post', '/access-requests'],
   ['accessRequestsApi.mine', [{ resource_type: 'publish-to-bloom', resource_ref: '42' }], 'get', '/access-requests/mine'],
   ['accessRequestsApi.list', [], 'get', '/access-requests'],
@@ -149,8 +151,6 @@ const CALLS: Array<[string, unknown[], string, string]> = [
   ['policiesApi.remove', [4], 'delete', '/policies/4'],
   ['accessApi.users', [], 'get', '/access/users'],
   ['groupsApi.remove', [3], 'delete', '/groups/3'],
-  ['groupsApi.addMember', [3, 7], 'post', '/groups/3/members'],
-  ['groupsApi.removeMember', [3, 7], 'delete', '/groups/3/members/7'],
   ['notificationsApi.createChannel', [{ name: 'qa', format: 'slack', url: 'https://h' }], 'post', '/settings/notifications/channels'],
   ['notificationsApi.updateChannel', [4, { enabled: false }], 'patch', '/settings/notifications/channels/4'],
   ['notificationsApi.deleteChannel', [4], 'delete', '/settings/notifications/channels/4'],

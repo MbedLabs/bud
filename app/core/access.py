@@ -4,7 +4,7 @@ The base role (Admin, Developer, Viewer) is the user's own and set at invitation
 holds every permission on every product. Groups are bundles of policies. Product-scoped
 permissions (runs, results and artifacts, reports, custom runs, publishing to Bloom and
 managing a product) count only on the products where the user holds the group; app-wide
-permissions come from the base role and the groups the user holds app-wide. Products.manage
+permissions come from the base role and the user's application policies. Products.manage
 held app-wide covers every product.
 """
 
@@ -15,7 +15,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models.access import AccessGroup, AccessGroupMember, Policy, ProductAccess
+from app.models.access import (
+    AccessGroup,
+    Policy,
+    ProductAccess,
+    user_application_policies,
+)
 from app.models.user import User, UserRole
 
 PERMISSION_CATALOGUE: dict[str, tuple[str, ...]] = {
@@ -181,16 +186,20 @@ def group_permissions(group: AccessGroup) -> frozenset[str]:
     return frozenset(names)
 
 
-async def user_groups(db: AsyncSession, user_id: int) -> list[AccessGroup]:
-    """The access groups the user has, with their policies loaded."""
+def is_application_policy(policy: Policy) -> bool:
+    """Whether the policy holds any app-level permission."""
+    return bool(app_scoped(permission_set(policy.permissions)))
+
+
+async def application_policies(db: AsyncSession, user_id: int) -> list[Policy]:
+    """The application policies of the user, by name."""
     return list(
         (
             await db.execute(
-                select(AccessGroup)
-                .join(AccessGroupMember, AccessGroupMember.group_id == AccessGroup.id)
-                .where(AccessGroupMember.user_id == user_id)
-                .options(selectinload(AccessGroup.policies))
-                .order_by(AccessGroup.name)
+                select(Policy)
+                .join(user_application_policies, user_application_policies.c.policy_id == Policy.id)
+                .where(user_application_policies.c.user_id == user_id)
+                .order_by(Policy.name)
             )
         )
         .scalars()
@@ -209,12 +218,12 @@ def product_scoped(names: frozenset[str]) -> frozenset[str]:
 
 
 async def app_permissions(db: AsyncSession, user: User) -> frozenset[str]:
-    """The app-wide permissions of the base role and of the groups the user holds app-wide."""
+    """The app-wide permissions of the base role and of the user's application policies."""
     if user.role == UserRole.admin:
         return ALL_PERMISSIONS
     allowed = set(app_scoped(base_role_permissions(user.role)))
-    for group in await user_groups(db, user.id):
-        allowed |= app_scoped(group_permissions(group))
+    for policy in await application_policies(db, user.id):
+        allowed |= app_scoped(permission_set(policy.permissions))
     return frozenset(allowed)
 
 

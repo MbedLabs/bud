@@ -13,11 +13,17 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.auth import require_role
+from app.core.access import application_policies, is_application_policy
 from app.core.config import settings
 from app.core.security import get_password_hash
 from app.db.database import get_db
 from app.models import Product
-from app.models.access import ProductAccess
+from app.models.access import (
+    AccessGroup,
+    Policy,
+    ProductAccess,
+    user_application_policies,
+)
 from app.models.user import User, UserRole
 from app.models.user_token import UserToken, UserTokenPurpose
 from app.schemas.auth import (
@@ -28,6 +34,7 @@ from app.schemas.auth import (
     UserResponse,
     UserUpdate,
 )
+from app.schemas.groups import ApplicationPoliciesInput
 from app.schemas.schemas import UserAccessSummary, UserProductAccess
 from app.services.audit import record_audit_event
 from app.services.mail_service import (
@@ -122,6 +129,64 @@ async def list_users(
     return [UserResponse.model_validate(u) for u in result.scalars().all()]
 
 
+@router.get("/{user_id}/application-policies", responses={404: {"description": "Not Found"}})
+async def application_policy_ids(
+    user_id: int,
+    _admin: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db, scope="function"),
+):
+    """List the account's application policies."""
+    if await db.get(User, user_id) is None:
+        raise HTTPException(status_code=404, detail=USER_NOT_FOUND)
+    return {"policy_ids": sorted(policy.id for policy in await application_policies(db, user_id))}
+
+
+@router.put(
+    "/{user_id}/application-policies",
+    responses={
+        400: {"description": "Bad Request"},
+        404: {"description": "Not Found"},
+        422: {"description": "Unprocessable Content"},
+    },
+)
+async def set_application_policies(
+    user_id: int,
+    data: ApplicationPoliciesInput,
+    _admin: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db, scope="function"),
+):
+    """Set the account's application policies without changing its base role; the account row is
+    locked so simultaneous changes of one account apply one after the other."""
+    user = await _get_user_or_404(db, user_id)
+    policies = list(
+        (await db.execute(select(Policy).where(Policy.id.in_(data.policy_ids)))).scalars()
+    )
+    if len(policies) != len(data.policy_ids) or not all(map(is_application_policy, policies)):
+        raise HTTPException(status_code=400, detail="Choose application policies only")
+    stations = any("manage" in policy.permissions.get("stations", []) for policy in policies)
+    if stations and user.role not in (UserRole.admin, UserRole.developer):
+        raise HTTPException(
+            status_code=422,
+            detail="Station management requires an Admin or Developer base role",
+        )
+    await db.execute(
+        delete(user_application_policies).where(user_application_policies.c.user_id == user_id)
+    )
+    if data.policy_ids:
+        await db.execute(
+            user_application_policies.insert(),
+            [{"user_id": user_id, "policy_id": policy_id} for policy_id in data.policy_ids],
+        )
+    await record_audit_event(
+        db,
+        "user.application_policies_updated",
+        target_type="user",
+        target_id=user_id,
+        details={"policy_ids": data.policy_ids},
+    )
+    return {"policy_ids": data.policy_ids}
+
+
 @router.get(
     "/{user_id}/access-summary",
     response_model=UserAccessSummary,
@@ -132,23 +197,25 @@ async def user_access_summary(
     _admin: User = Depends(require_admin),
     db: AsyncSession = Depends(get_db, scope="function"),
 ):
-    """List the products the user can access, by name."""
+    """List the products the user can access, each with the groups the user holds on it."""
     user = await db.get(User, user_id)
     if user is None:
         raise HTTPException(status_code=404, detail=USER_NOT_FOUND)
-    products = await db.execute(
-        select(Product.id, Product.name)
-        .where(
-            Product.id.in_(select(ProductAccess.product_id).where(ProductAccess.user_id == user_id))
-        )
-        .order_by(Product.name)
+    rows = await db.execute(
+        select(Product.id, Product.name, AccessGroup.name)
+        .join(ProductAccess, ProductAccess.product_id == Product.id)
+        .join(AccessGroup, AccessGroup.id == ProductAccess.group_id)
+        .where(ProductAccess.user_id == user_id)
+        .order_by(Product.name, AccessGroup.name)
     )
+    products: dict[int, UserProductAccess] = {}
+    for product_id, product_name, group_name in rows.all():
+        products.setdefault(
+            product_id,
+            UserProductAccess(product_id=product_id, product_name=product_name, groups=[]),
+        ).groups.append(group_name)
     return UserAccessSummary(
-        every_product=user.role == UserRole.admin,
-        products=[
-            UserProductAccess(product_id=product_id, product_name=name)
-            for product_id, name in products.all()
-        ],
+        every_product=user.role == UserRole.admin, products=list(products.values())
     )
 
 

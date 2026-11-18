@@ -32,9 +32,9 @@ vi.mock('../api/client', async (importOriginal) => {
   }
 })
 
-const summaries: Record<number, { every_product: boolean; products: { product_id: number; product_name: string }[] }> = {
+const summaries: Record<number, { every_product: boolean; products: { product_id: number; product_name: string; groups: string[] }[] }> = {
   1: { every_product: true, products: [] },
-  2: { every_product: false, products: [{ product_id: 4, product_name: 'Fleet Monitor' }, { product_id: 5, product_name: 'Gateway' }] },
+  2: { every_product: false, products: [{ product_id: 4, product_name: 'Fleet Monitor', groups: ['Results Viewers', 'Test Operators'] }, { product_id: 5, product_name: 'Gateway', groups: ['Results Viewers'] }] },
   3: { every_product: false, products: [] },
 }
 
@@ -67,15 +67,18 @@ describe('products under each user', () => {
     expect(usersApi.accessSummary).not.toHaveBeenCalled()
   })
 
-  it('lists the products of an opened user by name only and hides them again', async () => {
+  it('lists each product of an opened user with its groups, without a Groups line, and hides them again', async () => {
     renderIt()
     await screen.findByText('Dev')
     fireEvent.click(screen.getByRole('button', { name: 'Show access of Dev' }))
-    expect(await screen.findByText('Fleet Monitor, Gateway')).toBeTruthy()
-    expect(screen.getByText('Products:')).toBeTruthy()
-    expect(screen.queryByText(/Groups/)).toBeNull()
+    expect(await screen.findByText('Fleet Monitor')).toBeTruthy()
+    expect(screen.getByText(': Results Viewers, Test Operators')).toBeTruthy()
+    expect(screen.getByText('Gateway')).toBeTruthy()
+    expect(screen.getByText(': Results Viewers')).toBeTruthy()
+    expect(screen.getByText('Products')).toBeTruthy()
+    expect(screen.queryByText('Groups')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Hide access of Dev' }))
-    expect(screen.queryByText('Fleet Monitor, Gateway')).toBeNull()
+    expect(screen.queryByText('Fleet Monitor')).toBeNull()
   })
 
   it('says No products for a user without products and Every product for an Admin', async () => {
@@ -94,7 +97,7 @@ describe('products under each user', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Show access of Dev' }))
     expect((await screen.findByRole('alert')).textContent).toContain('Could not load access.')
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
-    expect(await screen.findByText('Fleet Monitor, Gateway')).toBeTruthy()
+    expect(await screen.findByText('Fleet Monitor')).toBeTruthy()
   })
 })
 

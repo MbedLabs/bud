@@ -15,7 +15,6 @@ vi.mock('../components/AccessRequestsPanel', () => ({ default: () => <h2>Access 
 vi.mock('../components/AccessPolicies', () => ({
   default: ({ canEdit }: { canEdit: boolean }) => <h2>Policies control {canEdit ? 'editable' : 'read-only'}</h2>,
 }))
-vi.mock('../components/AccessUsers', () => ({ default: () => <h2>Groups per user control</h2> }))
 vi.mock('../api/client', () => ({
   APP_VERSION: 'test',
   usersApi: { list: vi.fn().mockResolvedValue([]) },
@@ -77,7 +76,7 @@ describe('Access page', () => {
     ])
     expect(screen.queryByRole('button', { name: 'Invite User' })).toBeNull()
     expect(screen.getByText('Groups control')).toBeTruthy()
-    expect(screen.getByText('Groups per user control')).toBeTruthy()
+    expect(screen.queryByText('Application groups')).toBeNull()
     fireEvent.click(screen.getByRole('tab', { name: 'Policies' }))
     expect(screen.getByText('Policies control editable')).toBeTruthy()
     fireEvent.click(screen.getByRole('tab', { name: /Requests/ }))
@@ -85,14 +84,14 @@ describe('Access page', () => {
     expect(await screen.findByText('1')).toBeTruthy()
   })
 
-  it('shows no groups on Users and the groups with their members on Access', async () => {
+  it('shows no group members on Users or on Access', async () => {
     renderPage(<App />, '/users')
     expect(await screen.findByRole('button', { name: 'Invite User' })).toBeTruthy()
-    expect(screen.queryByText('Groups per user control')).toBeNull()
+    expect(screen.queryByText('Application groups')).toBeNull()
     expect(screen.queryByRole('tab')).toBeNull()
     fireEvent.click(screen.getByRole('link', { name: 'Access' }))
     expect(await screen.findByText('Groups control')).toBeTruthy()
-    expect(screen.getByText('Groups per user control')).toBeTruthy()
+    expect(screen.queryByText('Application groups')).toBeNull()
     expect(screen.queryByRole('button', { name: 'Invite User' })).toBeNull()
     fireEvent.click(screen.getByRole('link', { name: 'Users' }))
     expect(await screen.findByRole('button', { name: 'Invite User' })).toBeTruthy()

@@ -15,7 +15,7 @@ export function givesProductAccess(group: { permissions: string[] }): boolean {
   return group.permissions.some(isProductScoped)
 }
 
-/** Whether a group gives anything app-wide. */
-export function givesAppAccess(group: { permissions: string[] }): boolean {
-  return group.permissions.some(isAppScoped)
+/** Whether a policy gives anything app-wide. */
+export function isApplicationPolicy(policy: { permissions: Record<string, string[]> }): boolean {
+  return Object.entries(policy.permissions).some(([resource, actions]) => actions.some((action) => isAppScoped(`${resource}.${action}`)))
 }

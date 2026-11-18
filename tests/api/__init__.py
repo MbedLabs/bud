@@ -31,7 +31,7 @@ SUITES = [
     "tests.api.BUD_results_upload_api.ResultsUploadApiTest",
     "tests.api.BUD_run_reports_stored.RunReportsStoredTest",
     "tests.api.BUD_users_api.UsersApiTest",
-    "tests.api.BUD_group_overlap_api.GroupOverlapApiTest",
+    "tests.api.BUD_application_policies_api.ApplicationPoliciesApiTest",
     "tests.api.BUD_bloom_sync.BloomSyncTest",
     "tests.api.BUD_runs_list_filters_api.RunsListFiltersApiTest",
     "tests.api.BUD_auth_token_lifecycles.AuthTokenLifecyclesTest",

@@ -108,8 +108,8 @@ export default function Layout() {
             </div>
             {!sidebarCollapsed && (
               <div className="min-w-0">
-                <h1 className="text-base font-bold text-lime-50 tracking-tight">Bud TMP</h1>
-                <p className="text-[10px] text-lime-200/60 font-medium uppercase tracking-wider leading-snug">by EmbedLabs</p>
+                <h1 className="text-base font-bold text-lime-50 tracking-tight">Bud</h1>
+                <p className="text-[10px] text-lime-200/60 font-medium uppercase tracking-wider leading-snug">Test Management Platform</p>
               </div>
             )}
           </div>
