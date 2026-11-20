@@ -135,8 +135,8 @@
                 "packageUrl": "https://github.com/MbedLabs/bud",
                 "dockerImage": "ghcr.io/mbedlabs/bud:v1.3.0"
             },
-            "creationDate": "Wed, 18 Nov 2026 13:25:01 GMT",
-            "ts": "Wed, 18 Nov 2026 13:25:01 GMT",
+            "creationDate": "Fri, 20 Nov 2026 15:22:55 GMT",
+            "ts": "Fri, 20 Nov 2026 15:22:55 GMT",
             "publishState": "published"
         }
     }
